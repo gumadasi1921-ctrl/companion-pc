@@ -25,9 +25,25 @@ button[disabled]{opacity:.4}
 .fx{-webkit-flex:none;flex:none}
 #banner{background:#3A2A00;color:#FF9F0A;text-align:center;padding:8px 12px;font-weight:600;-webkit-flex:none;flex:none}
 #main{-webkit-flex:1;flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px}
-#tabs{-webkit-flex:none;flex:none;display:-webkit-flex;display:flex;background:#121214;border-top:1px solid #38383A;height:56px}
-#tabs button{-webkit-flex:1;flex:1;border-radius:0;background:transparent;color:#A1A1A6;font-size:17px;font-weight:600;height:56px}
+#wrap{-webkit-flex:1;flex:1;min-height:0;display:-webkit-flex;display:flex;-webkit-flex-direction:row;flex-direction:row}
+#tabs{-webkit-flex:none;flex:none;width:200px;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;background:#121214;border-right:1px solid #38383A;padding:8px;overflow-y:auto}
+#tabs button{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;width:100%;height:52px;margin-bottom:4px;padding:0 12px;text-align:left;background:transparent;color:#A1A1A6;font-size:17px;font-weight:600}
 #tabs button.on{color:#4C9AFF;background:#1C2B45}
+#tabs svg{width:24px;height:24px;fill:currentColor;margin-right:12px;-webkit-flex:none;flex:none}
+#tabs span{white-space:nowrap}
+.wk7{display:-webkit-flex;display:flex;-webkit-align-items:flex-end;align-items:flex-end;height:104px;margin-top:6px}
+.wkc{-webkit-flex:1;flex:1;min-width:0;margin:0 3px;text-align:center;font-size:13px;color:#A1A1A6;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-justify-content:flex-end;justify-content:flex-end}
+.wkc small{font-size:11px;height:14px}
+.wkc i{display:block;background:#4C9AFF;border-radius:4px 4px 0 0;margin-bottom:4px}
+.wkc.today i{background:#FF9F0A}
+.lg{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:space-between;justify-content:space-between;min-height:48px;padding:0 12px;margin-bottom:4px;background:#2C2C2E;border-radius:12px;cursor:pointer}
+.lg:active{background:#3A3A3C}
+.lgn{-webkit-flex:1;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lgs{color:#98989D;font-size:14px;margin-left:10px;-webkit-flex:none;flex:none}
+.lg.run .lgn{color:#30D158}
+.jb{margin-left:16px;font-size:14px}
+.bar.jb{height:6px}
+.wsub{margin:0 0 6px}
 .page{display:none}
 .page.on{display:block}
 .cols{display:-webkit-flex;display:flex;-webkit-flex-direction:row;flex-direction:row;-webkit-align-items:flex-start;align-items:flex-start}
@@ -105,6 +121,14 @@ select{font:inherit;height:44px;border-radius:10px;border:0;background:#2C2C2E;c
 .dlg button+button{margin-left:10px}
 .dlg .go{background:#1F6FEB;color:#fff}
 @media (orientation:portrait){
+ #wrap{-webkit-flex-direction:column;flex-direction:column}
+ #tabs{-webkit-order:2;order:2;width:auto;-webkit-flex-direction:row;flex-direction:row;border-right:0;border-top:1px solid #38383A;height:64px;padding:4px;overflow:hidden}
+ #tabs button{-webkit-flex:1;flex:1;width:auto;min-width:0;height:56px;margin:0 2px;padding:0;-webkit-justify-content:center;justify-content:center}
+ #tabs button.on{-webkit-flex:3.2;flex:3.2}
+ #tabs svg{margin-right:0}
+ #tabs button.on svg{margin-right:8px}
+ #tabs span{display:none}
+ #tabs button.on span{display:inline;font-size:16px}
  .cols,.rcols{-webkit-flex-direction:column;flex-direction:column;display:block}
  .colx+.colx{margin-left:0}
  .rcols>.colx:first-child{width:auto;max-width:420px;margin:0 auto}
@@ -115,6 +139,16 @@ select{font:inherit;height:44px;border-radius:10px;border:0;background:#2C2C2E;c
 </head>
 <body>
 <div id="banner">Conectando…</div>
+<div id="wrap">
+<div id="tabs">
+<button data-pg="inicio" class="on"><svg viewBox="0 0 24 24"><path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3z"/></svg><span>Início</span></button>
+<button data-pg="radio"><svg viewBox="0 0 24 24"><path d="M9 3v10.5A3.5 3.5 0 1 0 11 17V7h6V3z"/></svg><span>Rádio</span></button>
+<button data-pg="botoes"><svg viewBox="0 0 24 24"><path d="M3 3h8v8H3zm10 0h8v8h-8zM3 13h8v8H3zm10 0h8v8h-8z"/></svg><span>Botões</span></button>
+<button data-pg="jogos"><svg viewBox="0 0 24 24"><path d="M7 8h10a5 5 0 0 1 5 5v2a3 3 0 0 1-5.4 1.8L15 15H9l-1.6 1.8A3 3 0 0 1 2 15v-2a5 5 0 0 1 5-5z"/></svg><span>Jogos</span></button>
+<button data-pg="trabalho"><svg viewBox="0 0 24 24"><path d="M3 7h18v13H3zM9 3h6v4H9z"/></svg><span>Trabalho</span></button>
+<button data-pg="sistema"><svg viewBox="0 0 24 24"><path d="M4 13h4v7H4zm6-9h4v16h-4zm6 5h4v11h-4z"/></svg><span>Sistema</span></button>
+<button data-pg="pc"><svg viewBox="0 0 24 24"><path d="M3 4h18v12H3zm5 14h8v2H8z"/></svg><span>PC</span></button>
+</div>
 <div id="main">
 
 <section class="page on" id="p-inicio">
@@ -186,6 +220,54 @@ select{font:inherit;height:44px;border-radius:10px;border:0;background:#2C2C2E;c
  <div class="dpad" id="d-btns"><div class="empty" style="padding:10px 5px">Indisponível</div></div>
 </section>
 
+<section class="page" id="p-jogos">
+ <div class="cols">
+  <div class="colx">
+   <div class="card"><h3>Jogo aberto</h3><div class="ttl" id="g-name">Indisponível</div><div class="sub" id="g-sub"></div></div>
+   <div class="card"><div class="rowb"><h3 style="margin:0">Horas por dia</h3><span class="sub" id="gh-total"></span></div><div class="wk7" id="gh-days"></div></div>
+   <div class="card"><h3>Mais jogados (7 dias)</h3><div id="gh-top"><div class="empty">Indisponível neste PC</div></div></div>
+  </div>
+  <div class="colx">
+   <div class="card"><h3>Biblioteca</h3><div class="pills" id="gl-pills"></div><div id="gl-list"></div><button id="gl-more" class="hidden" style="width:100%;margin-top:6px"></button></div>
+  </div>
+ </div>
+</section>
+
+<section class="page" id="p-trabalho">
+ <div class="cols">
+  <div class="colx">
+   <div class="card"><h3>Agora</h3><div class="sub" id="w-now">Indisponível</div></div>
+   <div class="card"><div class="rowb"><h3 style="margin:0">Hoje</h3><b id="w-today"></b></div><div id="w-tl"></div></div>
+  </div>
+  <div class="colx">
+   <div class="card"><div class="rowb"><h3 style="margin:0">Esta semana</h3><b id="w-total"></b></div><div class="wk7" id="w-days"></div></div>
+   <div class="card"><h3>Por cliente e job</h3><div id="w-wl"></div></div>
+  </div>
+ </div>
+</section>
+
+<section class="page" id="p-sistema">
+ <div class="cols">
+  <div class="colx">
+   <div class="card">
+    <h3>Uso</h3>
+    <div class="rowb lbl" style="margin-top:0"><span>CPU</span><b id="y-cpu">–</b></div><div class="bar"><i id="yb-cpu" style="background:#4C9AFF"></i></div>
+    <div class="rowb lbl"><span>GPU</span><b id="y-gpu">Indisponível neste PC</b></div><div class="bar"><i id="yb-gpu" style="background:#BF5AF2"></i></div>
+    <div class="rowb lbl"><span>Memória</span><b id="y-ram">–</b></div><div class="bar"><i id="yb-ram" style="background:#FF9F0A"></i></div>
+    <div id="y-sens"></div>
+    <div class="lbl">CPU no último minuto</div>
+    <div class="chart"><svg viewBox="0 0 300 90" preserveAspectRatio="none"><line x1="0" y1="45" x2="300" y2="45" stroke="#2C2C2E" stroke-width="1"/><polygon id="y-fill" points="" fill="#4C9AFF" fill-opacity=".18"/><polyline id="y-line" points="" fill="none" stroke="#4C9AFF" stroke-width="2" stroke-linejoin="round"/></svg></div>
+   </div>
+   <div class="card hidden" id="y-gpuc"><h3>GPU</h3><div id="y-gpul"></div></div>
+  </div>
+  <div class="colx">
+   <div class="card"><h3>Discos</h3><div id="y-disks"><div class="empty">Indisponível neste PC</div></div></div>
+   <div class="card"><h3>Rede</h3><div id="y-net"></div></div>
+   <div class="card"><h3>Mais pesados</h3><div id="y-procs"><div class="empty">Indisponível neste PC</div></div></div>
+  </div>
+ </div>
+</section>
+
 <section class="page" id="p-pc">
  <div class="cols">
   <div class="colx">
@@ -212,7 +294,7 @@ select{font:inherit;height:44px;border-radius:10px;border:0;background:#2C2C2E;c
 </section>
 
 </div>
-<div id="tabs"><button data-pg="inicio" class="on">Início</button><button data-pg="radio">Rádio</button><button data-pg="botoes">Botões</button><button data-pg="pc">PC</button></div>
+</div>
 <div id="toast" class="hidden"></div>
 <div class="ov hidden" id="cf"><div class="dlg"><p id="cf-q"></p><div class="row"><button id="cf-n">Não</button><button class="go" id="cf-y">Sim</button></div></div></div>
 <div class="ov hidden" id="login"><form class="dlg" id="lg-f"><p id="lg-p">Digite o código de 6 dígitos que aparece no painel do PC.</p><input id="lg-c" type="tel" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" placeholder="Código do painel do PC" autocomplete="one-time-code" autocapitalize="off" autocorrect="off" spellcheck="false"><input id="lg-t" class="hidden" type="text" placeholder="token" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false"><div class="row"><button type="button" id="lg-alt">Usar token</button><button class="go" type="submit">Entrar</button></div></form></div>
@@ -253,7 +335,7 @@ function setText(el, t) { t = String(t); if (el._t !== t) { el._t = t; el.textCo
 
 // ---------------------------------------------------------------- estado e conexão
 var ws = null, welcome = {}, nextId = 1, retry = 0, retryT = null, pending = {}, pageBuild = 0, online = false;
-var S = { stats: null, now: null, games: null, art: {}, nowT: 0, tasks: null, mix: null, work: null, deck: null, gamesT: 0 };
+var S = { stats: null, now: null, games: null, art: {}, nowT: 0, tasks: null, mix: null, work: null, week: null, deck: null, gamesT: 0 };
 var page = "inicio";
 function wsUrl() { return (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws"; }
 function banner(on, txt) { var b = $("banner"); b.className = on ? "" : "hidden"; if (txt) b.textContent = txt; }
@@ -312,7 +394,7 @@ function scheduleRetry() {
   retry = Math.min(retry + 1, 6);
   retryT = setTimeout(connect, [500, 1000, 2000, 3000, 5000, 5000, 8000][retry]);
 }
-function send(a, p, reply) {
+function send(a, p, reply, tmo) {
   if (reply === undefined) reply = true;
   if (!ws || ws.readyState !== 1) { if (reply) toast("Sem conexão com o PC", true); return Promise.reject(new Error("offline")); }
   var msg = { t: "req", a: a, p: p || {} };
@@ -321,7 +403,7 @@ function send(a, p, reply) {
   ws.send(JSON.stringify(msg));
   return new Promise(function (resolve, reject) {
     pending[msg.id] = { resolve: resolve, reject: reject };
-    setTimeout(function () { if (pending[msg.id]) { delete pending[msg.id]; reject(new Error("sem resposta")); } }, 8000);
+    setTimeout(function () { if (pending[msg.id]) { delete pending[msg.id]; reject(new Error("sem resposta")); } }, tmo || 8000);
   });
 }
 function quiet() {}
@@ -371,7 +453,10 @@ function showPage(n) {
   $("main").scrollTop = 0;
   if (n === "radio") pollMixer();
   if (n === "botoes") renderDeck();
-  render();
+  if (n === "inicio") { loadTasks(); loadWork(); }
+  if (n === "jogos") loadGames();
+  if (n === "trabalho") loadWork();
+  render(); chartDraw();
 }
 $("tabs").onclick = function (e) { var b = e.target; while (b && b !== this && !b.getAttribute("data-pg")) b = b.parentNode; if (b && b.getAttribute) { var g = b.getAttribute("data-pg"); if (g) showPage(g); } };
 
@@ -385,6 +470,25 @@ function loadTasks() { if (!ws || ws.readyState !== 1) return; send("tasks.get",
 function loadWork() {
   if (!ws || ws.readyState !== 1 || !(welcome.features && welcome.features.work)) return;
   send("work.get", {}).then(function (d) { S.work = d; dirty = true; }, quiet);
+  if (page === "trabalho") send("work.week", { offset: 0 }).then(function (d) { S.week = d; dirty = true; }, quiet);
+}
+// Jogos: histórico a cada 30 s; a biblioteca (pesada, vem com capas que são descartadas) a cada 2 min
+var GX = { lib: null, hist: null, libT: 0, histT: 0, filter: "", shown: 60, dirty: true, run: "" };
+function loadGames() {
+  if (!online || !(welcome.features && welcome.features.library)) return;
+  var n = Date.now();
+  if (n - GX.histT >= 25000) {
+    GX.histT = n;
+    send("games.history", {}).then(function (d) { GX.hist = d; dirty = true; }, function () { GX.histT = 0; });
+  }
+  if (n - GX.libT >= 110000) {
+    GX.libT = n;
+    send("games.library", {}, true, 30000).then(function (d) {
+      var o = [], i;
+      for (i = 0; i < (d || []).length; i++) o.push({ id: d[i].id, name: d[i].name, store: d[i].store });
+      GX.lib = o; GX.dirty = true; dirty = true;
+    }, function () { GX.libT = 0; });
+  }
 }
 var mixBusy = false;
 function pollMixer() {
@@ -472,12 +576,18 @@ function renderClock() {
 var cpuHist = [];
 function chartTick() {
   if (S.stats && online) { cpuHist.push(+S.stats.cpu || 0); if (cpuHist.length > 30) cpuHist.shift(); }
-  if (page !== "inicio" || document.hidden) return;
+  chartDraw();
+}
+function chartDraw() {
+  if (document.hidden) return;
+  if (page === "inicio") drawChart("c-line", "c-fill"); else if (page === "sistema") drawChart("y-line", "y-fill");
+}
+function drawChart(l, f) {
   var n = cpuHist.length, step = 300 / 29, x0 = 300 - (n - 1) * step, pts = [], i, x, y;
   if (n < 2) return;
   for (i = 0; i < n; i++) { x = x0 + i * step; y = 88 - Math.min(100, cpuHist[i]) / 100 * 84; pts.push(x.toFixed(1) + "," + y.toFixed(1)); }
-  $("c-line").setAttribute("points", pts.join(" "));
-  $("c-fill").setAttribute("points", pts.join(" ") + " 300,90 " + x0.toFixed(1) + ",90");
+  $(l).setAttribute("points", pts.join(" "));
+  $(f).setAttribute("points", pts.join(" ") + " 300,90 " + x0.toFixed(1) + ",90");
 }
 function renderMixer() {
   var d = S.mix, list = $("mx-list"), i, a, h, sig = "";
@@ -502,8 +612,142 @@ function renderMixer() {
     rows[i].querySelector(".mxm").textContent = a.muted ? "MUDO" : "SOM";
   }
 }
+// ---------------------------------------------------------------- Jogos, Trabalho e Sistema
+var NA = "Indisponível neste PC";
+function fmtNum(n, d) { return (+n).toFixed(d).replace(".", ","); }
+function fmtGB(b) { return fmtNum(b / 1073741824, 1); }
+function fmtRate(b) { b = +b || 0; return b >= 1048576 ? fmtNum(b / 1048576, 1) + " MB/s" : Math.round(b / 1024) + " KB/s"; }
+function fmtMem(b) { return b >= 1073741824 ? fmtNum(b / 1073741824, 1) + " GB" : Math.round(b / 1048576) + " MB"; }
+function kvRow(l, v) { return '<div class="rowb kv"><span>' + esc(l) + "</span><b>" + esc(v) + "</b></div>"; }
+function barRow(l, v, pct, base, cls) {
+  pct = Math.max(0, Math.min(100, +pct || 0));
+  return '<div class="rowb lbl ' + (cls || "") + '"><span>' + esc(l) + "</span><b>" + esc(v) + '</b></div><div class="bar ' + (cls || "") + '"><i style="width:' + pct.toFixed(1) + "%;background:" + base + '"></i></div>';
+}
+function weekBars(days) {
+  var max = 3600, i, h = "", d, lb;
+  for (i = 0; i < days.length; i++) if (days[i].s > max) max = days[i].s;
+  for (i = 0; i < days.length; i++) {
+    d = days[i]; lb = d.s >= 3600 ? fmtNum(d.s / 3600, 1) + "h" : d.s >= 60 ? Math.round(d.s / 60) + "m" : "";
+    h += '<div class="wkc' + (d.today ? " today" : "") + '"><small>' + lb + '</small><i style="height:' + Math.max(2, Math.round(d.s / max * 62)) + 'px"></i>' + esc(d.d) + "</div>";
+  }
+  return h;
+}
+function hasF(k) { return !!(welcome.features && welcome.features[k]); }
+function renderJogos() {
+  var d = S.games, g = d && d.game, since = (Date.now() - S.gamesT) / 1000, h = GX.hist, i, t, top, run = g ? g.name : "";
+  if (!d) { setText($("g-name"), "Indisponível"); setText($("g-sub"), ""); }
+  else if (g) {
+    setText($("g-name"), g.name + (g.store ? " · " + g.store : ""));
+    setText($("g-sub"), "Sessão: " + humanDur(g.elapsed + since) + " · Hoje: " + humanDur(g.today_s + since) + (g.total_h ? " · Total: " + Math.round(g.total_h) + " h" : ""));
+  } else {
+    setText($("g-name"), "Nenhum jogo aberto");
+    setText($("g-sub"), d.today_s ? "Hoje: " + humanDur(d.today_s) + " jogando" : "");
+  }
+  if (!hasF("library")) { setText($("gh-total"), ""); setHtml($("gh-days"), '<div class="empty">' + NA + "</div>"); setHtml($("gh-top"), '<div class="empty">' + NA + "</div>"); }
+  else if (h) {
+    if (h.days.length) h.days[h.days.length - 1].today = true;
+    setText($("gh-total"), h.week_s ? humanDur(h.week_s) : "");
+    setHtml($("gh-days"), weekBars(h.days));
+    top = h.top && h.top.length ? h.top[0].s || 1 : 1; t = "";
+    for (i = 0; i < h.top.length && i < 5; i++) t += barRow(h.top[i].name, humanDur(h.top[i].s), h.top[i].s / top * 100, "#4C9AFF");
+    setHtml($("gh-top"), t || '<div class="empty">Nenhum jogo nos últimos 7 dias</div>');
+  }
+  if (run !== GX.run) { GX.run = run; GX.dirty = true; }
+  if (GX.dirty) renderLib();
+}
+function renderLib() {
+  GX.dirty = false;
+  var L = GX.lib, i, h = "", st = {}, sts = [], idx = [], cap, more = $("gl-more");
+  more.className = "hidden";
+  if (!hasF("library")) { setHtml($("gl-pills"), ""); setHtml($("gl-list"), '<div class="empty">' + NA + "</div>"); return; }
+  if (!L) { setHtml($("gl-pills"), ""); setHtml($("gl-list"), '<div class="empty">Carregando…</div>'); return; }
+  for (i = 0; i < L.length; i++) {
+    if (!st[L[i].store]) { st[L[i].store] = 1; sts.push(L[i].store); }
+    if (!GX.filter || L[i].store === GX.filter) idx.push(i);
+  }
+  h = '<button class="pill' + (GX.filter ? "" : " on") + '" data-st="">Todas</button>';
+  for (i = 0; i < sts.length; i++) h += '<button class="pill' + (GX.filter === sts[i] ? " on" : "") + '" data-st="' + esc(sts[i]) + '">' + esc(sts[i]) + "</button>";
+  setHtml($("gl-pills"), h);
+  cap = Math.min(GX.shown, 300); h = "";
+  for (i = 0; i < idx.length && i < cap; i++) {
+    h += '<div class="lg' + (L[idx[i]].name === GX.run ? " run" : "") + '" data-g="' + idx[i] + '"><span class="lgn">' + esc(L[idx[i]].name) + '</span><span class="lgs">' + esc(L[idx[i]].store) + "</span></div>";
+  }
+  if (!idx.length) h = '<div class="empty">Nenhum jogo da Steam, Epic ou GOG encontrado no PC</div>';
+  setHtml($("gl-list"), h);
+  if (idx.length > cap) {
+    if (cap < 300) { more.className = ""; more.textContent = "Mostrar mais (" + (idx.length - cap) + ")"; }
+    else { setHtml($("gl-list"), h + '<div class="sub" style="padding:8px 0">Mostrando 300 de ' + idx.length + ". Use o filtro de loja.</div>"); }
+  }
+}
+$("gl-pills").onclick = function (e) {
+  var b = findAttr(e.target, "data-st", this); if (!b) return;
+  GX.filter = b.getAttribute("data-st"); GX.shown = 60; renderLib();
+};
+$("gl-more").onclick = function () { GX.shown += 60; renderLib(); };
+$("gl-list").onclick = function (e) {
+  var b = findAttr(e.target, "data-g", this), g; if (!b || !GX.lib) return;
+  g = GX.lib[+b.getAttribute("data-g")]; if (!g) return;
+  if (g.name === GX.run) { toast(g.name + " já está aberto"); return; }
+  confirmAsk("Abrir " + g.name + " no PC?", function () {
+    act("games.launch", { id: g.id }, "Abrindo " + g.name).then(function () { GX.libT = 0; }, quiet);
+  });
+};
+function renderTrab() {
+  var d = S.work, w = S.week, n, i, j, c, h, top, e;
+  if (!hasF("work")) { setText($("w-now"), NA); setText($("w-today"), ""); setHtml($("w-tl"), ""); setText($("w-total"), ""); setHtml($("w-days"), ""); setHtml($("w-wl"), ""); return; }
+  if (d) {
+    n = d.now;
+    setText($("w-now"), !n || !n.app ? "Nenhum programa da Adobe em foco no PC" : (n.counting ? "Contando: " : "Parado (ninguém mexendo no PC): ") + n.app + " · " + (n.identified ? n.client + " › " + n.job : n.client) + (n.file ? " · " + n.file : ""));
+    setText($("w-today"), humanDur(d.today_s));
+    top = d.today.length ? d.today[0].s || 1 : 1; h = "";
+    for (i = 0; i < d.today.length && i < 30; i++) h += barRow(d.today[i].client, humanDur(d.today[i].s), d.today[i].s / top * 100, d.today[i].unidentified ? "#FF9F0A" : "#4C9AFF");
+    setHtml($("w-tl"), h || '<div class="empty">' + (d.roots && d.roots.length ? "Nada contado hoje" : "Nenhuma pasta de clientes: escolha no painel do PC (aba Trabalho)") + "</div>");
+  }
+  if (w) {
+    setText($("w-total"), w.total_s ? humanDur(w.total_s) : "");
+    setHtml($("w-days"), weekBars(w.days));
+    top = w.clients.length ? w.clients[0].s || 1 : 1; h = "";
+    for (i = 0; i < w.clients.length && i < 30; i++) {
+      c = w.clients[i];
+      h += barRow(c.client, humanDur(c.s), c.s / top * 100, c.unidentified ? "#FF9F0A" : "#4C9AFF");
+      if (!c.unidentified) for (j = 0; j < c.jobs.length && j < 12; j++) h += barRow(c.jobs[j].job, humanDur(c.jobs[j].s), c.s ? c.jobs[j].s / c.s * 100 : 0, "#5E5CE6", "jb");
+    }
+    setHtml($("w-wl"), h || '<div class="empty">Nenhum tempo nesta semana</div>');
+  }
+}
+function renderSis() {
+  var s = S.stats, h, i, a, g;
+  if (!s) return;
+  setText($("y-cpu"), Math.round(s.cpu) + "%"); setBar("yb-cpu", s.cpu, "#4C9AFF");
+  setText($("y-ram"), fmtGB(s.ram_used) + " de " + fmtGB(s.ram_total) + " GB · " + Math.round(s.ram_pct) + "%"); setBar("yb-ram", s.ram_pct, "#FF9F0A");
+  g = s.gpu;
+  if (g) {
+    setText($("y-gpu"), Math.round(g.util) + "%"); setBar("yb-gpu", g.util, "#BF5AF2");
+    h = kvRow("Modelo", g.name) + kvRow("Temperatura", Math.round(g.temp) + " °C");
+    if (g.fan !== null && g.fan !== undefined) h += kvRow("Ventoinha", Math.round(g.fan) + "%");
+    if (g.power !== null && g.power !== undefined) h += kvRow("Consumo", Math.round(g.power) + " W");
+    if (g.mem_total) h += kvRow("Memória de vídeo", fmtMem(g.mem_used) + " de " + fmtMem(g.mem_total));
+    setHtml($("y-gpul"), h); $("y-gpuc").className = "card";
+  } else { setText($("y-gpu"), NA); setBar("yb-gpu", 0, "#BF5AF2"); $("y-gpuc").className = "card hidden"; }
+  h = ""; a = s.sensors;
+  if (a && a.cpu_temp !== null && a.cpu_temp !== undefined) h += kvRow("Temperatura da CPU", Math.round(a.cpu_temp) + " °C");
+  if (a && a.fans) for (i = 0; i < a.fans.length; i++) h += kvRow(a.fans[i].name, a.fans[i].rpm + " RPM");
+  setHtml($("y-sens"), h);
+  h = "";
+  for (i = 0; i < (s.disks || []).length; i++) h += barRow(s.disks[i].name, fmtGB(s.disks[i].used) + " de " + fmtGB(s.disks[i].total) + " GB", s.disks[i].pct, "#30D158");
+  setHtml($("y-disks"), h || '<div class="empty">' + NA + "</div>");
+  h = kvRow("Download ↓", fmtRate(s.net_down)) + kvRow("Upload ↑", fmtRate(s.net_up));
+  if (s.ping) h += kvRow("Ping", s.ping.ok ? s.ping.ms + " ms" : "sem internet");
+  setHtml($("y-net"), h);
+  h = "";
+  for (i = 0; i < (s.procs || []).length && i < 5; i++) h += kvRow(s.procs[i].name, Math.round(s.procs[i].cpu) + "% · " + fmtMem(s.procs[i].mem));
+  setHtml($("y-procs"), h || '<div class="empty">' + NA + "</div>");
+}
 function render() {
   dirty = false;
+  if (page === "jogos") { renderJogos(); return; }
+  if (page === "trabalho") { renderTrab(); return; }
+  if (page === "sistema") { renderSis(); return; }
   if (page === "inicio") { renderClock(); renderNow(); renderMic(); renderTasks(); renderStats(); renderGameWork(); }
   else if (page === "radio") { renderNow(); renderMixer(); }
   else if (page === "pc") { renderMic(); renderTimer(); }
@@ -700,8 +944,9 @@ function renderTimer() {
 // ---------------------------------------------------------------- ciclos (tela no máximo 1×/s)
 setInterval(function () { if (!document.hidden) render(); }, 1000);
 setInterval(chartTick, 2000);
-setInterval(loadTasks, 10000);
-setInterval(loadWork, 30000);
+setInterval(function () { if (page === "inicio") loadTasks(); }, 10000);
+setInterval(function () { if (page === "inicio" || page === "trabalho") loadWork(); }, 30000);
+setInterval(function () { if (page === "jogos") loadGames(); }, 30000);
 setInterval(function () { if (page === "radio") pollMixer(); }, 1000);
 connect();
 })();
