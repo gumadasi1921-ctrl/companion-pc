@@ -8,14 +8,14 @@ Mockups aprovados: canvas "Companion PC — visual moderno". Prioridade: celular
 
 ## 2. Tokens — Moderno escuro
 --bg #000000 | --surface #1C1C1E | --surface-2 #2C2C2E | --surface-3 #3A3A3C | --nav-bg #121214 | --separator #38383A
---text #F2F2F7 | --text-2 #A1A1A6 | --text-3 #8E8E93
+--text #F2F2F7 | --text-2 #A1A1A6 | --text-3 #98989D
 --accent-fill #1F6FEB (texto branco) | --accent-text #4C9AFF | --accent-soft #1C2B45
 --success #30D158 | --warning #FF9F0A | --danger-text #FF6961 | --danger-fill #D70015 | --danger-soft #3A1214
 Gráficos: cpu #4C9AFF, gpu #BF5AF2, memória #FF9F0A, download #64D2FF, upload #FF9F0A; clientes em sequência #4C9AFF, #BF5AF2, #FF9F0A, #64D2FF, #30D158.
 ## 3. Tokens — Moderno claro
 --bg #F2F2F7 | --surface #FFFFFF | --surface-2 #E5E5EA | --surface-3 #D1D1D6 | --nav-bg #F9F9FB | --separator #C6C6C8
---text #000000 | --text-2 #3C3C43 | --text-3 #6E6E73 | --accent-text #0066CC | --accent-soft #E1ECFB | --success #248A3D | --danger-text #D70015
-Destaques (fill, texto branco): blue #1F6FEB, purple #8E44EC, green #1E9E4A, orange #D9650B, pink #D6336C.
+--text #000000 | --text-2 #3C3C43 | --text-3 #636366 | --accent-text #0066CC | --accent-soft #E1ECFB | --success #1B7431 | --warning #9A4600 | --danger-text #D70015
+Destaques (fill, texto branco): blue #1F6FEB, purple #8E44EC, green #187F3B, orange #B4530A, pink #D6336C.
 Todo texto ≥ 4,5:1 de contraste nos dois modos.
 
 ## 4. Forma e tipo

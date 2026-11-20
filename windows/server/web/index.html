@@ -71,7 +71,7 @@ window.pccTheme = (() => {
   --display: var(--font); --mono: var(--font);
   --r-card: 22px; --r-list: 16px; --r-btn: 18px; --r-pill: 999px; --r-sm: 10px;
   --bg: #000000; --surface: #1C1C1E; --surface-2: #2C2C2E; --surface-3: #3A3A3C; --nav-bg: #121214; --separator: #38383A;
-  --text: #F2F2F7; --text-2: #A1A1A6; --text-3: #8E8E93;
+  --text: #F2F2F7; --text-2: #A1A1A6; --text-3: #98989D;
   --success: #30D158; --warning: #FF9F0A; --danger-text: #FF6961; --danger-fill: #D70015; --danger-soft: #3A1214;
   --on-accent: #FFFFFF;
   --chart-cpu: #4C9AFF; --chart-gpu: #BF5AF2; --chart-mem: #FF9F0A; --chart-down: #64D2FF; --chart-up: #FF9F0A;
@@ -86,19 +86,19 @@ window.pccTheme = (() => {
 :root[data-theme="modern"][data-scheme="light"] {
   color-scheme: light;
   --bg: #F2F2F7; --surface: #FFFFFF; --surface-2: #E5E5EA; --surface-3: #D1D1D6; --nav-bg: #F9F9FB; --separator: #C6C6C8;
-  --text: #000000; --text-2: #3C3C43; --text-3: #6E6E73;
-  --success: #248A3D; --warning: #D9650B; --danger-text: #D70015; --danger-soft: var(--surface);
+  --text: #000000; --text-2: #3C3C43; --text-3: #636366;
+  --success: #1B7431; --warning: #9A4600; --danger-text: #D70015; --danger-soft: var(--surface);
 }
 /* destaque: preenchimento igual nos dois modos; texto e fundo suave por modo (só o azul vem do DESIGN; os outros são derivados, ver relatório) */
 :root[data-theme="modern"][data-accent="blue"]   { --accent-fill: #1F6FEB; --accent-text: #4C9AFF; --accent-soft: #1C2B45; }
 :root[data-theme="modern"][data-accent="purple"] { --accent-fill: #8E44EC; --accent-text: #AB75F1; --accent-soft: #312344; }
-:root[data-theme="modern"][data-accent="green"]  { --accent-fill: #1E9E4A; --accent-text: #4BB16E; --accent-soft: #1C3426; }
-:root[data-theme="modern"][data-accent="orange"] { --accent-fill: #D9650B; --accent-text: #E1843C; --accent-soft: #3F2A1A; }
+:root[data-theme="modern"][data-accent="green"]  { --accent-fill: #187F3B; --accent-text: #54A06E; --accent-soft: #1B2E23; }
+:root[data-theme="modern"][data-accent="orange"] { --accent-fill: #B4530A; --accent-text: #C8804A; --accent-soft: #38261A; }
 :root[data-theme="modern"][data-accent="pink"]   { --accent-fill: #D6336C; --accent-text: #E16892; --accent-soft: #3E202C; }
 :root[data-theme="modern"][data-scheme="light"][data-accent="blue"]   { --accent-text: #0066CC; --accent-soft: #E1ECFB; }
 :root[data-theme="modern"][data-scheme="light"][data-accent="purple"] { --accent-text: #8540DE; --accent-soft: #F0E6FC; }
-:root[data-theme="modern"][data-scheme="light"][data-accent="green"]  { --accent-text: #177B3A; --accent-soft: #E1F2E7; }
-:root[data-theme="modern"][data-scheme="light"][data-accent="orange"] { --accent-text: #AE5109; --accent-soft: #FAEBDF; }
+:root[data-theme="modern"][data-scheme="light"][data-accent="green"]  { --accent-text: #177A39; --accent-soft: #E0EEE5; }
+:root[data-theme="modern"][data-scheme="light"][data-accent="orange"] { --accent-text: #A94E09; --accent-soft: #F5E8DE; }
 :root[data-theme="modern"][data-scheme="light"][data-accent="pink"]   { --accent-text: #C12E61; --accent-soft: #FAE4EB; }
 /* o efeito de tubo é do Fallout */
 :root[data-theme="modern"] body.crt { text-shadow: none; }
@@ -689,8 +689,8 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .accents button { width: 44px; height: 44px; position: relative; border-radius: 50%; }
 .accents button::before { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--c); }
 .accents button.on { outline: 2px solid var(--p); outline-offset: -2px; }
-.accents [data-accent="blue"] { --c: #1F6FEB; } .accents [data-accent="purple"] { --c: #8E44EC; } .accents [data-accent="green"] { --c: #1E9E4A; }
-.accents [data-accent="orange"] { --c: #D9650B; } .accents [data-accent="pink"] { --c: #D6336C; }
+.accents [data-accent="blue"] { --c: #1F6FEB; } .accents [data-accent="purple"] { --c: #8E44EC; } .accents [data-accent="green"] { --c: #187F3B; }
+.accents [data-accent="orange"] { --c: #B4530A; } .accents [data-accent="pink"] { --c: #D6336C; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
