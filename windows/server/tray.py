@@ -355,6 +355,7 @@ class Panel:
         if self.app.ops:
             self._style_widgets(style)
             self._build_work()
+            self._build_tasks()
             self._build_config()
         button("Abrir pasta", self.app.open_folder)
         button("Ver log completo", self.app.open_log)
@@ -640,6 +641,114 @@ class Panel:
         self._btn(bf, "Cancelar", win.destroy).pack(side="right")
         self._btn(bf, "Aplicar", apply).pack(side="right", padx=(0, 8))
         win.grab_set()
+
+    # ------------------------------------------------------------------ aba Tarefas
+    # Controle completo aqui; o celular só vê e marca/desmarca (tasks.py). Tudo por id.
+    def _build_tasks(self):
+        tk = tk_mod()
+        tab = self.tasks_tab = tk.Frame(self.nb, bg=self.BG)
+        self.nb.add(tab, text="Tarefas")
+        self.t_items = []
+        pad = {"padx": 16}
+        top = tk.Frame(tab, bg=self.BG)
+        top.pack(fill="x", pady=(12, 6), **pad)
+        self.t_entry = tk.Entry(top, font=self.f, bg=self.CARD, fg=self.TEXT, insertbackground=self.TEXT,
+                                relief="flat", highlightthickness=0)
+        self.t_entry.pack(side="left", fill="x", expand=True, ipady=4)
+        self.t_entry.bind("<Return>", lambda _e: self._t_add())
+        self._btn(top, "Adicionar", self._t_add).pack(side="left", padx=(8, 0))
+        self.t_count = self._label(tab, dim=True)
+        self.t_count.pack(fill="x", **pad)
+        body = tk.Frame(tab, bg=self.BG)
+        body.pack(fill="both", expand=True, pady=(6, 12), **pad)
+        self.t_list = self._listbox(body, 12)
+        self.t_list.pack(side="left", fill="both", expand=True)
+        self.t_list.bind("<Double-Button-1>", lambda _e: self._t_toggle())
+        bb = tk.Frame(body, bg=self.BG)
+        bb.pack(side="left", padx=(10, 0), anchor="n")
+        for t, c in (("Marcar/desmarcar", self._t_toggle), ("Editar…", self._t_edit), ("Remover", self._t_remove),
+                     ("Subir", lambda: self._t_move(-1)), ("Descer", lambda: self._t_move(1)),
+                     ("Limpar feitas", self._t_clear)):
+            self._btn(bb, t, c).pack(fill="x", pady=(0, 4))
+        self.nb.bind("<<NotebookTabChanged>>", lambda _e: self._t_load() if self._tab_is(self.tasks_tab) else None, add="+")
+        self._t_poll()
+
+    def _t_poll(self):
+        # reflete o que foi marcado no celular enquanto a aba está à vista
+        try:
+            if self._tab_is(self.tasks_tab) and self.root.focus_get() is not self.t_entry:
+                self._t_load()
+        except Exception:  # noqa: BLE001 - janela fechando
+            return
+        self.root.after(5000, self._t_poll)
+
+    def _t_sel_id(self):
+        sel = self.t_list.curselection()
+        return self.t_items[sel[0]]["id"] if sel and sel[0] < len(self.t_items) else None
+
+    def _t_show(self, d, keep=None):
+        """Mostra a lista e mantém selecionado o item `keep` (id); sem `keep`, mantém o que estava."""
+        if d is None:
+            return
+        keep = keep or self._t_sel_id()
+        top = self.t_list.yview()[0]
+        self.t_items = d["items"]
+        self.t_list.delete(0, "end")
+        for it in self.t_items:
+            self.t_list.insert("end", ("☑ " if it["done"] else "☐ ") + it["text"])
+        for i, it in enumerate(self.t_items):
+            if it["done"]:
+                self.t_list.itemconfig(i, fg=self.DIM)
+            if it["id"] == keep:
+                self.t_list.selection_set(i)
+                self.t_list.see(i)
+        self.t_list.yview_moveto(top)
+        self.t_count.configure(text=f"{d['done']} de {d['total']} feitas")
+
+    def _t_load(self):
+        self._t_show(self._call("tasks_get"))
+
+    def _t_add(self):
+        text = self.t_entry.get()
+        d = self._call("tasks_add", text)
+        if d is not None:
+            self.t_entry.delete(0, "end")
+            self._t_show(d)
+
+    def _t_toggle(self):
+        tid = self._t_sel_id()
+        if tid:
+            self._t_show(self._call("tasks_toggle", tid), tid)
+
+    def _t_edit(self):
+        from tkinter import simpledialog
+        tid = self._t_sel_id()
+        cur = next((i["text"] for i in self.t_items if i["id"] == tid), None)
+        if cur is None:
+            return
+        new = simpledialog.askstring("Editar tarefa", "Texto da tarefa:", initialvalue=cur, parent=self.root)
+        if new is not None:
+            self._t_show(self._call("tasks_edit", tid, new), tid)
+
+    def _t_remove(self):
+        from tkinter import messagebox
+        tid = self._t_sel_id()
+        cur = next((i["text"] for i in self.t_items if i["id"] == tid), None)
+        if cur is not None and messagebox.askyesno("Remover tarefa", f"Remover esta tarefa?\n\n{cur}", parent=self.root):
+            self._t_show(self._call("tasks_remove", tid), "")
+
+    def _t_move(self, delta):
+        tid = self._t_sel_id()
+        if tid:
+            self._t_show(self._call("tasks_move", tid, delta), tid)
+
+    def _t_clear(self):
+        from tkinter import messagebox
+        n = sum(1 for i in self.t_items if i["done"])
+        if not n:
+            messagebox.showinfo("Limpar feitas", "Não há tarefas feitas.", parent=self.root)
+        elif messagebox.askyesno("Limpar feitas", f"Remover {n} tarefa(s) feita(s)?", parent=self.root):
+            self._t_show(self._call("tasks_clear_done"), "")
 
     # ------------------------------------------------------------------ aba Configurações
     CFG_KEYS = ("upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "notif_ignore", "shortcuts")
