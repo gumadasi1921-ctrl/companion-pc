@@ -522,6 +522,14 @@ select.sel { flex: none; padding: 6px 8px; border: 1px solid var(--p3); backgrou
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+/* tarefas */
+.trow { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 6px 0; cursor: pointer; font-size: 15px; border-top: 1px solid var(--p4); }
+.trow:first-child { border-top: 0; }
+.trow .tbox { flex: none; width: 22px; height: 22px; border: 2px solid var(--p2); border-radius: 3px; display: grid; place-items: center; font-size: 16px; line-height: 1; color: var(--bg); }
+.trow.done .tbox { background: var(--p2); }
+.trow.done .ttx { text-decoration: line-through; opacity: .5; }
+.ttx { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 400px) and (orientation: portrait) { nav button { font-size: 16px; letter-spacing: 0; } }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -630,6 +638,12 @@ select.sel { flex: none; padding: 6px 8px; border: 1px solid var(--p3); backgrou
         <div id="w-week-jobs" style="margin-top:10px"></div>
         <div class="brow"><button class="btn sm" id="w-csv">Exportar CSV</button><span id="w-csv-link"></span></div></div>
     </div>
+  </section>
+
+  <!-- TAREFAS: só ver e marcar (o resto é no painel do PC) -->
+  <section class="tab" id="t-tasks">
+    <div class="card"><h3><span>Tarefas</span><span id="tk-count"></span></h3>
+      <div id="tk-list"><div class="empty">Carregando…</div></div></div>
   </section>
 
   <!-- RÁDIO > Tocando -->
@@ -819,6 +833,7 @@ select.sel { flex: none; padding: 6px 8px; border: 1px solid var(--p3); backgrou
   <button data-sec="radio">Rádio</button>
   <button data-sec="ctrl">Controle</button>
   <button data-sec="deck">Botões</button>
+  <button data-sec="tasks">Tarefas</button>
   <button data-sec="pc">PC</button>
 </nav>
 
@@ -1044,6 +1059,7 @@ const SECTIONS = {
   radio: [["media", "Tocando"], ["mix", "Mixer"]],
   ctrl: [["mouse", "Mouse e teclado"], ["screen", "Tela do PC"]],
   deck: [["deck", "Botões"]],
+  tasks: [["tasks", "Tarefas"]],
   pc: [["send", "Arquivos"], ["power", "Energia"], ["sys", "Ajustes"]],
 };
 const SPLIT = { status: "minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr)", radio: "minmax(0,1fr) minmax(0,1.1fr)",
@@ -1074,6 +1090,7 @@ function showView(name, temp) {
   if (vis("media") || vis("mix")) { mixT = 0; renderMixer(); pollMixer(); }
   if (vis("games")) loadGamesExtra();
   if (vis("work")) loadWork(true);
+  if (vis("tasks")) loadTasks();
 }
 $("subtabs").onclick = (e) => { const b = e.target.closest("[data-view]"); if (b) { buzz(8); showView(b.dataset.view); } };
 document.querySelectorAll("nav button").forEach((b) => (b.onclick = () => { buzz(8); showView(lastView[b.dataset.sec] || SECTIONS[b.dataset.sec][0][0]); }));
@@ -1334,6 +1351,24 @@ $("w-csv").onclick = async () => {
   } catch (er) { toast(er.message, "bad"); }
 };
 setInterval(() => { if (vis("work")) loadWork(); }, 5000);
+
+// ---------------------------------------------------------------- Tarefas (só ver e marcar; o resto é no painel do PC)
+async function loadTasks() {
+  if (!ws || ws.readyState !== 1) return;
+  try { renderTasks(await send("tasks.get")); } catch {}
+}
+function renderTasks(d) {
+  $("tk-count").textContent = d.total ? `${d.done} de ${d.total} feitas` : "";
+  $("tk-list").innerHTML = d.items.length
+    ? d.items.map((t) => `<div class="trow${t.done ? " done" : ""}" data-id="${t.id}"><span class="tbox">${t.done ? "✓" : ""}</span><span class="ttx">${esc(t.text)}</span></div>`).join("")
+    : '<div class="empty">Nenhuma tarefa. Adicione pelo painel do PC (aba Tarefas).</div>';
+}
+$("tk-list").onclick = async (e) => {
+  const r = e.target.closest(".trow"); if (!r) return;
+  buzz();
+  try { renderTasks(await send("tasks.toggle", { id: r.dataset.id })); } catch { loadTasks(); }
+};
+setInterval(() => { if (vis("tasks")) loadTasks(); }, 10000);
 
 // ---------------------------------------------------------------- Atalhos / Sistema
 function renderPower() {
