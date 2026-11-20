@@ -1,0 +1,14 @@
+﻿windows/server/web/
+extras/
+*.md
+*.txt
+*.ps1
+*.png
+*.svg
+*.woff2
+*.mp4
+*.webm
+*.json
+*.html
+*.js
+*.webmanifest
