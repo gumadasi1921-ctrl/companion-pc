@@ -59,6 +59,7 @@ from websockets.exceptions import ConnectionClosed
 
 import extras
 import games
+import pair
 import pc_info
 import watchers
 import tasks
@@ -612,7 +613,10 @@ def io_call(fn, *args, timeout=15):
     return IO_POOL.submit(fn, *args).result(timeout=timeout)
 
 
+PAIR = pair.Pairing()
+
 PANEL_OPS = {
+    "pair_new": PAIR.new, "pair_state": PAIR.state, "pair_close": PAIR.close,   # só memória: sem fila de disco
     "work_get": lambda: io_call(WORK.get),
     "work_week": lambda offset: io_call(WORK.week, offset),
     "work_csv": lambda offset: io_call(WORK.csv, offset),
@@ -933,7 +937,17 @@ async def session(ws, peer, kind):
     except Exception:
         await ws.close(4001, "hello")
         return
-    if hello.get("t") != "hello" or not secrets.compare_digest(str(hello.get("token", "")), CFG["token"]):
+    if isinstance(hello, dict) and hello.get("t") == "pair":
+        # pareamento: o código certo entrega o token e a conexão segue como um hello normal
+        res = PAIR.check(peer, hello.get("code"))
+        if res != "ok":
+            log.warning("pareamento recusado de %s", peer)
+            await ws.send(json.dumps({"t": "pair_err", "e": "muitas tentativas" if res == "blocked" else "código inválido"}))
+            await ws.close(4003 if res == "blocked" else 4002, "pair")
+            return
+        log.info("pareamento ok de %s", peer)
+        await ws.send(json.dumps({"t": "paired", "token": CFG["token"]}))
+    elif not isinstance(hello, dict) or hello.get("t") != "hello" or not secrets.compare_digest(str(hello.get("token", "")), CFG["token"]):
         log.warning("recusado: token inválido de %s", peer)
         await ws.close(4001, "token")
         return
