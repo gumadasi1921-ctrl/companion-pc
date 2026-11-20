@@ -605,6 +605,61 @@ select.sel { flex: none; padding: 6px 8px; border: 1px solid var(--p3); backgrou
 .trow.done .ttx { text-decoration: line-through; opacity: .5; }
 .ttx { min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 400px) and (orientation: portrait) { nav button { font-size: 16px; letter-spacing: 0; } }
+
+/* ------------------------------------------------------------------ nova navegação (docs/DESIGN.md §5)
+   Em pé: barra de abas embaixo. Deitado: trilho à esquerda. Tela larga (>=1000x600): barra lateral com o grupo "Mais" direto. */
+nav button { position: relative; min-height: 44px; }
+nav .ni { display: none; }                                   /* ícones: só no Moderno */
+nav .nm, nav .nav-label { display: none !important; }        /* só na barra lateral */
+.badge { position: absolute; top: 4px; left: calc(50% + 8px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  font: 700 11px/18px var(--mono); text-align: center; background: var(--alert); color: var(--bg); text-shadow: none; letter-spacing: 0; }
+.subtabs button.back { color: var(--p2); }
+/* lista do "Mais" */
+.mlist { display: grid; max-width: 560px; margin: 4px auto 0; border: 1px solid var(--p4); background: var(--panel); }
+.mrow { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 52px; padding: 0 14px; text-align: left; font-size: 16px; border-top: 1px solid var(--p4); }
+.mrow:first-child { border-top: 0; }
+.mrow .mi { display: none; width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.mrow::after { content: ">"; margin-left: auto; color: var(--p3); }
+.mrow:active { background: var(--p); color: var(--bg); text-shadow: none; }
+/* barra lateral (tela larga), nos dois temas */
+@media (min-width: 1000px) and (min-height: 600px) and (orientation: landscape) {
+  :root[data-theme] { --rail: calc(220px + env(safe-area-inset-left, 0px)); }
+  nav { overflow-y: auto; padding-right: 8px; }
+  nav button { display: flex; align-items: center; flex: none; max-height: none; min-height: 44px; flex-direction: row; justify-content: flex-start; gap: 12px; padding: 0 12px; text-align: left; }
+  nav button[data-sec="mais"] { display: none !important; }
+  nav .nm { display: flex !important; }
+  nav .nav-label { display: block !important; padding: 14px 12px 4px; font: 18px/1 var(--display); color: var(--p3); text-transform: uppercase; }
+  .badge { position: static; margin-left: auto; }
+}
+/* Moderno: ícone + rótulo, item ativo em --accent-soft */
+:root[data-theme="modern"] nav { background: var(--nav-bg); border-color: var(--separator); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
+:root[data-theme="modern"] nav button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 52px;
+  padding: 6px 2px; border-radius: 14px; font: 600 11px/1.1 var(--font); letter-spacing: 0; text-transform: none; color: var(--text-3); }
+:root[data-theme="modern"] nav button.on { background: var(--accent-soft); color: var(--accent-text); }
+:root[data-theme="modern"] nav .ni { display: block; width: 26px; height: 26px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+:root[data-theme="modern"] .badge { background: var(--danger-fill); color: var(--on-accent); }
+:root[data-theme="modern"] nav { gap: 4px; padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px)); min-height: 84px; }
+:root[data-theme="modern"] .rail-top { color: var(--text-2); border-color: var(--separator); }
+:root[data-theme="modern"] .subtabs button { font: 600 15px/1 var(--font); min-height: 44px; color: var(--text-3); }
+:root[data-theme="modern"] .subtabs button.on { color: var(--text); border-bottom-color: var(--accent-text); }
+:root[data-theme="modern"] .subtabs button.back { color: var(--accent-text); }
+:root[data-theme="modern"] .mlist { border: 0; border-radius: var(--r-list); overflow: hidden; }
+:root[data-theme="modern"] .mrow { font-size: 17px; border-color: var(--separator); }
+:root[data-theme="modern"] .mrow .mi { display: block; color: var(--accent-text); }
+:root[data-theme="modern"] .mrow::after { content: "›"; font-size: 22px; }
+:root[data-theme="modern"] .mrow:active { background: var(--surface-2); color: var(--text); }
+@media (orientation: landscape) and (min-width: 640px) {
+  :root[data-theme="modern"] { --rail: calc(92px + env(safe-area-inset-left, 0px)); }
+  :root[data-theme="modern"] nav { padding: 8px 8px 8px calc(8px + env(safe-area-inset-left, 0px)); min-height: 0; }
+  :root[data-theme="modern"] nav button { flex: 1; max-height: 76px; }
+  :root[data-theme="modern"] .rail-top { padding: 4px 0 6px; font: 600 15px/1 var(--font); }
+}
+@media (min-width: 1000px) and (min-height: 600px) and (orientation: landscape) {
+  :root[data-theme="modern"] nav button { flex-direction: row; justify-content: flex-start; gap: 12px; padding: 0 12px; font-size: 15px; flex: none; max-height: none; min-height: 44px; }
+  :root[data-theme="modern"] { --rail: calc(220px + env(safe-area-inset-left, 0px)); }
+  :root[data-theme="modern"] nav .nav-label { font: 600 12px/1 var(--font); letter-spacing: .04em; }
+  :root[data-theme="modern"] nav { padding: 8px 8px 8px calc(8px + env(safe-area-inset-left, 0px)); }
+}
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -666,7 +721,25 @@ select.sel { flex: none; padding: 6px 8px; border: 1px solid var(--p3); backgrou
 <div class="subtabs" id="subtabs" role="tablist"></div>
 
 <main id="main">
-  <!-- STATUS > Sistema -->
+  <!-- INÍCIO (provisório até a etapa 3) -->
+  <section class="tab" id="t-inicio">
+    <h2>Início</h2>
+    <div class="card"><div class="empty">Em construção</div></div>
+  </section>
+  <!-- MAIS: lista que leva às outras vistas -->
+  <section class="tab" id="t-more">
+    <h2>Mais</h2>
+    <div class="mlist" id="more-list">
+      <button class="mrow" data-view="dash"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-activity"/></svg><span>Sistema</span></button>
+      <button class="mrow" data-view="media"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-headphones"/></svg><span>Rádio e mixer</span></button>
+      <button class="mrow" data-view="games"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-gamepad-2"/></svg><span>Jogos</span></button>
+      <button class="mrow" data-view="work"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-briefcase"/></svg><span>Trabalho</span></button>
+      <button class="mrow" data-view="send"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-folder-open"/></svg><span>Arquivos</span></button>
+      <button class="mrow" data-view="power"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-log-out"/></svg><span>Energia</span></button>
+      <button class="mrow" data-view="sys"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-sliders-horizontal"/></svg><span>Ajustes</span></button>
+    </div>
+  </section>
+  <!-- Sistema (vira o Início na etapa 3) -->
   <section class="tab" id="t-dash">
     <div class="grid dash">
       <div class="card c-cpu"><h3><span>CPU</span><span id="cpu-mhz"></span></h3><div class="big" id="cpu">–</div><div class="bar" id="cpu-bar"><i></i></div><canvas class="spark" id="sp-cpu"></canvas></div>
@@ -904,12 +977,20 @@ select.sel { flex: none; padding: 6px 8px; border: 1px solid var(--p3); backgrou
 
 <nav id="nav">
   <div class="rail-top"><span id="dot2" class="dot"></span><span id="clock2"></span><button class="hchip hidden" id="mic-chip2" aria-label="Microfone do PC">MIC</button></div>
-  <button data-sec="status">Status</button>
-  <button data-sec="radio">Rádio</button>
-  <button data-sec="ctrl">Controle</button>
-  <button data-sec="deck">Botões</button>
-  <button data-sec="tasks">Tarefas</button>
-  <button data-sec="pc">PC</button>
+  <button data-sec="inicio"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-gauge"/></svg><span>Início</span></button>
+  <button data-sec="ctrl"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-mouse-pointer-2"/></svg><span>Controle</span></button>
+  <button data-sec="deck"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-layout-grid"/></svg><span>Botões</span></button>
+  <button data-sec="tasks"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-check-check"/></svg><span>Tarefas</span><b class="badge hidden" id="tk-badge"></b></button>
+  <button data-sec="mais"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-layers"/></svg><span>Mais</span></button>
+  <!-- só na barra lateral (tela larga): o "Mais" aparece direto, sem a tela de lista -->
+  <div class="nav-label nm-label">Mais</div>
+  <button class="nm" data-view="dash"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-activity"/></svg><span>Sistema</span></button>
+  <button class="nm" data-view="media"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-headphones"/></svg><span>Rádio e mixer</span></button>
+  <button class="nm" data-view="games"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-gamepad-2"/></svg><span>Jogos</span></button>
+  <button class="nm" data-view="work"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-briefcase"/></svg><span>Trabalho</span></button>
+  <button class="nm" data-view="send"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-folder-open"/></svg><span>Arquivos</span></button>
+  <button class="nm" data-view="power"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-log-out"/></svg><span>Energia</span></button>
+  <button class="nm" data-view="sys"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-sliders-horizontal"/></svg><span>Ajustes</span></button>
 </nav>
 
 <div class="overlay hidden" id="login">
@@ -981,7 +1062,7 @@ const store = {
   if (tab) store.set("tab", tab[1]);
   if (m || tab) history.replaceState(null, "", location.pathname);
 })();
-const prefs = { snd: store.get("snd", true), wake: store.get("wake", true), vib: store.get("vib", true), sens: store.get("sens", 1.8), tab: store.get("tab", "dash") };
+const prefs = { snd: store.get("snd", true), wake: store.get("wake", true), vib: store.get("vib", true), sens: store.get("sens", 1.8), tab: store.get("tab", "inicio") };
 
 // ---------------------------------------------------------------- formatação
 const fmtBytes = (n, rate) => {
@@ -1080,7 +1161,7 @@ function onMsg(m) {
       welcome = m; retry = 0;
       $("host").textContent = m.host; $("os").textContent = m.os;
       setDot("ok", "");
-      renderPower(); loadDeck(); pollMixer();
+      renderPower(); loadDeck(); pollMixer(); loadTasks();
       if (vis("screen")) screenLoop();
       bootLine(`${m.host} conectado.`); bootDone();
       snd("on"); wasOnline = true;
@@ -1127,35 +1208,46 @@ $("login-form").onsubmit = (e) => {
 $("b-logout").onclick = () => { store.set("token", ""); if (ws) { const s = ws; ws = null; s.close(); } showLogin(); };
 
 // ---------------------------------------------------------------- seções e vistas
-// 5 seções na barra; cada uma tem vistas (sub-abas). Em tablet deitado as vistas
-// da seção aparecem lado a lado.
+// 5 seções na barra (Início, Controle, Botões, Tarefas, Mais). "mais" é uma lista que leva às demais vistas;
+// em tela larga (barra lateral) elas aparecem direto. Vistas de um GROUP ficam lado a lado em tela larga
+// e viram sub-abas nas outras.
 const SECTIONS = {
-  status: [["dash", "Sistema"], ["games", "Jogos"], ["work", "Trabalho"]],
-  radio: [["media", "Tocando"], ["mix", "Mixer"]],
+  inicio: [["inicio", "Início"]],
   ctrl: [["mouse", "Mouse e teclado"], ["screen", "Tela do PC"]],
   deck: [["deck", "Botões"]],
   tasks: [["tasks", "Tarefas"]],
-  pc: [["send", "Arquivos"], ["power", "Energia"], ["sys", "Ajustes"]],
+  mais: [["more", "Mais"], ["dash", "Sistema"], ["media", "Tocando"], ["mix", "Mixer"], ["games", "Jogos"], ["work", "Trabalho"],
+    ["send", "Arquivos"], ["power", "Energia"], ["sys", "Ajustes"]],
 };
-const SPLIT = { status: "minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr)", radio: "minmax(0,1fr) minmax(0,1.1fr)",
-  ctrl: "minmax(0,1fr) minmax(0,1.7fr)", pc: "minmax(0,1.25fr) minmax(0,.75fr) minmax(0,1.2fr)" };
+const GROUPS = { ctrl: ["mouse", "screen"], radio: ["media", "mix"] };
+const SPLIT = { ctrl: "minmax(0,1fr) minmax(0,1.7fr)", radio: "minmax(0,1fr) minmax(0,1.1fr)" };
 const VIEWS = Object.values(SECTIONS).flat().map(([n]) => n);
-const secOf = (v) => Object.keys(SECTIONS).find((s) => SECTIONS[s].some(([n]) => n === v)) || "status";
+const LABEL = Object.fromEntries(Object.values(SECTIONS).flat());
+const secOf = (v) => Object.keys(SECTIONS).find((s) => SECTIONS[s].some(([n]) => n === v)) || "inicio";
+const groupOf = (v) => Object.keys(GROUPS).find((g) => GROUPS[g].includes(v));
 const wideMQ = matchMedia("(min-width: 1000px) and (min-height: 600px) and (orientation: landscape)");
 const MAIN = $("main"), lastView = store.get("views", {});
 let shown = new Set();
 const vis = (v) => shown.has(v);
 function showView(name, temp) {
-  if (!VIEWS.includes(name)) name = "dash";
-  const sec = secOf(name), views = SECTIONS[sec], multi = wideMQ.matches && views.length > 1;
-  shown = new Set(multi ? views.map(([n]) => n) : [name]);
+  if (!VIEWS.includes(name)) name = "inicio";          // vista lembrada que não existe mais
+  const wide = wideMQ.matches;
+  if (name === "more" && wide) name = "dash";           // na barra lateral não há tela de lista
+  const sec = secOf(name), grp = groupOf(name), multi = wide && !!grp;
+  shown = new Set(multi ? GROUPS[grp] : [name]);
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", shown.has(t.id.slice(2))));
-  document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("on", b.dataset.sec === sec));
+  document.querySelectorAll("nav button[data-sec]").forEach((b) => b.classList.toggle("on", b.dataset.sec === sec));
+  document.querySelectorAll("nav button[data-view]").forEach((b) => b.classList.toggle("on", shown.has(b.dataset.view)));
   MAIN.classList.toggle("multi", multi);
-  MAIN.style.gridTemplateColumns = multi ? SPLIT[sec] : "";
-  const sub = $("subtabs"), showSub = !multi && views.length > 1;
-  sub.classList.toggle("hidden", !showSub);
-  sub.innerHTML = showSub ? views.map(([n, l]) => `<button role="tab" data-view="${n}" aria-selected="${n === name}"${n === name ? ' class="on"' : ""}>${l}</button>`).join("") : "";
+  MAIN.style.gridTemplateColumns = multi ? SPLIT[grp] : "";
+  const items = [];
+  if (!multi) {
+    if (sec === "mais" && name !== "more" && !wide) items.push(["more", "‹ Mais", true]);
+    if (grp) GROUPS[grp].forEach((v) => items.push([v, LABEL[v]]));
+  }
+  const sub = $("subtabs");
+  sub.classList.toggle("hidden", !items.length);
+  sub.innerHTML = items.map(([n, l, back]) => `<button role="tab" data-view="${n}"${back ? ' class="back"' : ` aria-selected="${n === name}"${n === name ? ' class="on"' : ""}`}>${l}</button>`).join("");
   document.querySelectorAll(".tab.on").forEach((t) => (t.scrollTop = 0));
   prefs.tab = name;
   if (!temp) { store.set("tab", name); lastView[sec] = name; store.set("views", lastView); }
@@ -1168,7 +1260,12 @@ function showView(name, temp) {
   if (vis("tasks")) loadTasks();
 }
 $("subtabs").onclick = (e) => { const b = e.target.closest("[data-view]"); if (b) { buzz(8); showView(b.dataset.view); } };
-document.querySelectorAll("nav button").forEach((b) => (b.onclick = () => { buzz(8); showView(lastView[b.dataset.sec] || SECTIONS[b.dataset.sec][0][0]); }));
+$("more-list").onclick = (e) => { const b = e.target.closest("[data-view]"); if (b) { buzz(8); showView(b.dataset.view); } };
+document.querySelectorAll("nav button[data-view]").forEach((b) => (b.onclick = () => { buzz(8); showView(b.dataset.view); }));
+document.querySelectorAll("nav button[data-sec]").forEach((b) => (b.onclick = () => {
+  buzz(8); const sec = b.dataset.sec, last = lastView[sec];
+  showView(sec === "mais" ? "more" : VIEWS.includes(last) && secOf(last) === sec ? last : SECTIONS[sec][0][0]);
+}));
 wideMQ.addEventListener("change", () => showView(prefs.tab));
 
 // ---------------------------------------------------------------- abertura (uma vez por carregamento)
@@ -1443,7 +1540,7 @@ $("tk-list").onclick = async (e) => {
   buzz();
   try { renderTasks(await send("tasks.toggle", { id: r.dataset.id })); } catch { loadTasks(); }
 };
-setInterval(() => { if (vis("tasks")) loadTasks(); }, 10000);
+setInterval(loadTasks, 10000);   // também alimenta o selo da navegação
 
 // ---------------------------------------------------------------- Atalhos / Sistema
 function renderPower() {
