@@ -61,6 +61,7 @@ import extras
 import games
 import pc_info
 import watchers
+import tasks
 import work
 
 VERSION = "1.6"
@@ -492,6 +493,9 @@ ACTIONS = {
     "work.get": lambda p: WORK.get(),
     "work.week": lambda p: WORK.week(p.get("offset", 0)),
     "work.csv": lambda p: work_csv(p.get("offset", 0)),
+    # tarefas (tasks.py): o celular só vê e marca/desmarca
+    "tasks.get": lambda p: TASKS.get(),
+    "tasks.toggle": lambda p: TASKS.toggle(p["id"]),
 }
 
 
@@ -616,6 +620,13 @@ PANEL_OPS = {
     "work_remove_root": lambda folder: io_call(WORK.remove_root, folder),
     "work_reclass_preview": lambda: io_call(WORK.reclass_preview, timeout=60),  # reindexa as raízes
     "work_reclass_apply": lambda: io_call(WORK.reclass_apply),
+    "tasks_get": lambda: io_call(TASKS.get),
+    "tasks_add": lambda text: io_call(TASKS.add, text),
+    "tasks_edit": lambda tid, text: io_call(TASKS.edit, tid, text),
+    "tasks_remove": lambda tid: io_call(TASKS.remove, tid),
+    "tasks_move": lambda tid, delta: io_call(TASKS.move, tid, delta),
+    "tasks_toggle": lambda tid: io_call(TASKS.toggle, tid),
+    "tasks_clear_done": lambda: io_call(TASKS.clear_done),
     "config_save": lambda changes: io_call(config_save, changes),
     "config_get": lambda: io_call(config_get),
 }
@@ -981,7 +992,8 @@ sent_art: dict = {}
 # não vão para o log: repetitivas ou com conteúdo pessoal (texto digitado/copiado)
 QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "mouse.scroll", "key.text", "clip.set", "clip.get", "file.chunk",
                  "screen.shot", "mixer.get", "deck.get", "deck.save",  # deck.save: textos/macros dos botões
-                 "work.get", "work.week", "work.csv"}  # nomes de cliente/job/arquivo
+                 "work.get", "work.week", "work.csv",  # nomes de cliente/job/arquivo
+                 "tasks.get", "tasks.toggle"}  # texto das tarefas
 
 
 async def now_payload():
@@ -1034,6 +1046,7 @@ async def stats_loop(stats: Stats):
 
 MON = games.GameMonitor(CFG, BASE)
 WORK = work.WorkTracker(BASE, CFG.get("idle_min", 5))
+TASKS = tasks.TaskList(BASE)
 
 
 async def work_loop():
