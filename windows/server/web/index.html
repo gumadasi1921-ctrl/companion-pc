@@ -1,0 +1,2176 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="green">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#040d07">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Companion PC</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="preload" href="fonts/vt323.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/share-tech-mono.woff2" as="font" type="font/woff2" crossorigin>
+<script>try { document.documentElement.dataset.theme = JSON.parse(localStorage.getItem("pcc.theme")) || "green"; } catch {}</script>
+<style>
+@font-face { font-family: "VT323"; src: url(fonts/vt323.woff2) format("woff2"); font-display: swap; }
+@font-face { font-family: "Share Tech Mono"; src: url(fonts/share-tech-mono.woff2) format("woff2"); font-display: swap; }
+
+/* ------------------------------------------------------------------ tema
+   Terminal de fósforo: uma cor só em 4 intensidades. Estado ativo = vídeo
+   inverso (fundo aceso, texto escuro). Vermelho só para ações perigosas. */
+:root, :root[data-theme="green"] {
+  --p: #5cff8a; --p2: #33cf68; --p3: #1c7a3d; --p4: #0e3a1f;
+  --bg: #040d07; --panel: #071a0e; --glow: #5cff8a55;
+}
+:root[data-theme="amber"] {
+  --p: #ffbf47; --p2: #e0962a; --p3: #8a5a17; --p4: #3d2a0c;
+  --bg: #0c0703; --panel: #181006; --glow: #ffbf4750;
+}
+:root[data-theme="cyan"] {
+  --p: #7cf4ff; --p2: #3cc4d6; --p3: #1b6f7a; --p4: #0c3036;
+  --bg: #030b0d; --panel: #061619; --glow: #7cf4ff50;
+}
+:root {
+  --alert: #ff5a4f;
+  /* nomes usados pelo JS (gráficos) */
+  --accent: var(--p); --ok: var(--p2); --warn: var(--p);
+  --text: var(--p); --dim: var(--p2); --faint: var(--p3); --line: var(--p3);
+  --display: "VT323", ui-monospace, monospace;
+  --mono: "Share Tech Mono", ui-monospace, "Cascadia Mono", monospace;
+  --rail: 0px;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--p); overscroll-behavior: none; }
+body {
+  font: 15px/1.4 var(--mono); height: 100vh; height: 100dvh; overflow: hidden;
+  display: grid; grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  grid-template-areas: "banner" "header" "subtabs" "main" "nav";
+  user-select: none; -webkit-user-select: none;
+}
+body.crt { text-shadow: 0 0 5px var(--glow); }
+/* linhas de varredura + vinheta, por cima de tudo, sem pegar toque */
+body.crt::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 50;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 2px, #0000002e 2px 3px),
+    radial-gradient(ellipse at center, transparent 60%, #00000080 100%);
+}
+button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; text-shadow: inherit; padding: 0; }
+input, textarea, select { user-select: text; -webkit-user-select: text; }
+:focus-visible { outline: 2px dashed var(--p); outline-offset: 2px; }
+.hidden { display: none !important; }
+a { color: var(--p); }
+
+/* ------------------------------------------------------------------ moldura */
+.banner { grid-area: banner; background: var(--p); color: var(--bg); text-shadow: none; padding: 6px 14px; font-size: 14px; text-align: center; }
+header {
+  grid-area: header; display: flex; align-items: baseline; gap: 10px;
+  padding: calc(8px + env(safe-area-inset-top, 0px)) 16px 6px; border-bottom: 1px solid var(--p4);
+}
+.dot { width: 10px; height: 14px; background: var(--p3); flex: none; align-self: center; }
+.dot.ok { background: var(--p); box-shadow: 0 0 8px var(--glow); }
+.dot.wait { background: var(--p); animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+header .host { font: 24px/1 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: .5px; }
+header .via { color: var(--p3); font-size: 13px; white-space: nowrap; }
+header .clock { font: 24px/1 var(--display); color: var(--p2); }
+
+nav {
+  grid-area: nav; display: flex; border-top: 1px solid var(--p3);
+  padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--bg);
+}
+nav button {
+  flex: 1; min-width: 0; padding: 12px 2px 10px; font: 19px/1 var(--display); letter-spacing: .5px;
+  color: var(--p3); text-transform: uppercase; white-space: nowrap;
+}
+nav button.on { background: var(--p); color: var(--bg); text-shadow: none; }
+.rail-top { display: none; }
+
+.subtabs { grid-area: subtabs; display: flex; gap: 2px; padding: 8px 12px 0; overflow-x: auto; scrollbar-width: none; }
+.subtabs::-webkit-scrollbar { display: none; }
+.subtabs button { flex: none; padding: 5px 14px 4px; font: 21px/1 var(--display); color: var(--p3); border-bottom: 2px solid transparent; }
+.subtabs button.on { color: var(--p); border-bottom-color: var(--p); }
+
+main { grid-area: main; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
+.tab { display: none; min-height: 0; min-width: 0; overflow-y: auto; padding: 10px 12px 16px; container-type: size; }
+.tab.on { display: block; }
+main.multi { grid-auto-flow: column; }
+main.multi .tab.on ~ .tab.on { border-left: 1px solid var(--p3); }
+#t-mouse.on, #t-screen.on { display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+
+/* ------------------------------------------------------------------ peças */
+.card { border: 1px solid var(--p4); background: var(--panel); padding: 10px 12px; min-width: 0; border-radius: 2px; }
+.card h3 { margin: 0 0 6px; font-weight: 400; font-size: 13px; color: var(--p2); display: flex; justify-content: space-between; gap: 8px; }
+.card h3 > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.card h3 > span:first-child { flex: none; }
+h2 { font: 22px/1 var(--display); color: var(--p2); margin: 18px 0 8px; font-weight: 400; }
+h2::before { content: "> "; color: var(--p3); }
+.tab > h2:first-child, .tab > div > h2:first-child { margin-top: 4px; }
+.big { font: 46px/0.95 var(--display); }
+.sub { color: var(--p2); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; font-size: 14px; }
+.row span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 3ch; }
+.row span:last-child { color: var(--p2); white-space: nowrap; }
+.empty { color: var(--p3); font-size: 14px; padding: 6px 0; }
+.empty.full { grid-column: 1 / -1; }
+/* barras em blocos, como um medidor de terminal */
+.bar { height: 10px; margin-top: 8px; background: repeating-linear-gradient(90deg, var(--p4) 0 6px, transparent 6px 8px); }
+.bar > i { display: block; height: 100%; width: 0; transition: width .4s steps(8);
+  background: repeating-linear-gradient(90deg, var(--p) 0 6px, transparent 6px 8px); }
+.bar.warn > i { animation: blink 1.2s steps(1) infinite; }
+.bar.bad > i { background: repeating-linear-gradient(90deg, var(--alert) 0 6px, transparent 6px 8px); }
+.spark { display: block; width: 100%; height: 48px; margin-top: 8px; }
+
+.btn { border: 1px solid var(--p2); padding: 9px 16px; font-size: 15px; text-align: center; border-radius: 2px; }
+.btn.primary { background: var(--p); color: var(--bg); border-color: var(--p); text-shadow: none; }
+.btn.sm { padding: 6px 12px; font-size: 14px; flex: none; }
+.btn.danger { color: var(--alert); border-color: var(--alert); }
+.btn:active, .tile:active, .key:active, .mbtn:active, .cbtn:active, .vol button:active, .mxmute:active, .outrow:active, .dbtn:active, .dbtn.hit {
+  background: var(--p); color: var(--bg); text-shadow: none; }
+.brow { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.brow .btn { flex: 1; text-decoration: none; }
+label.btn { cursor: pointer; }
+
+.tiles { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.tile { border: 1px solid var(--p3); padding: 12px 10px; min-height: 58px; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 6px; text-align: center; font-size: 14px; border-radius: 2px; }
+.tile svg { width: 24px; height: 24px; }
+.tile.warn { border-color: var(--alert); color: var(--alert); }
+
+/* liga/desliga em texto */
+.switch { flex: none; min-width: 66px; padding: 6px 0; border: 1px solid var(--p3); color: var(--p3); font: 19px/1 var(--display); border-radius: 2px; }
+.switch::after { content: "NÃO"; }
+.switch.on { background: var(--p); border-color: var(--p); color: var(--bg); text-shadow: none; }
+.switch.on::after { content: "SIM"; }
+.set { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px dashed var(--p4); }
+.set:last-child { border: 0; }
+.set label { flex: 1; min-width: 0; } .set small { display: block; color: var(--p3); font-size: 12.5px; margin-top: 2px; }
+input.num { width: 56px; padding: 2px 6px; border: 1px solid var(--p3); background: var(--bg); color: var(--p); font: inherit; border-radius: 2px; }
+.themes { display: flex; gap: 6px; }
+.themes button { width: 34px; height: 30px; border: 1px solid var(--p3); border-radius: 2px; }
+.themes button.on { outline: 2px solid var(--p); outline-offset: 2px; }
+
+input[type=range] { -webkit-appearance: none; appearance: none; background: transparent; height: 32px; flex: 1; min-width: 0; margin: 0; }
+input[type=range]::-webkit-slider-runnable-track { height: 6px; background: repeating-linear-gradient(90deg, var(--p3) 0 5px, transparent 5px 7px); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 26px; margin-top: -10px; background: var(--p); border-radius: 1px; box-shadow: 0 0 8px var(--glow); }
+input[type=range]::-moz-range-track { height: 6px; background: var(--p3); }
+input[type=range]::-moz-range-thumb { width: 14px; height: 26px; background: var(--p); border: 0; border-radius: 1px; }
+input[type=range]:disabled { opacity: .35; }
+
+
+/* ------------------------------------------------------------------ Status */
+.grid.dash { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid.dash > .card { display: flex; flex-direction: column; }
+.c-win, .c-procs, .c-disks, .c-sys { grid-column: 1 / -1; }
+.c-win .sub { color: var(--p); }
+@container (min-width: 640px) {
+  .grid.dash { grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-areas: "cpu ram gpu net" "procs procs disks win" "procs procs disks sys"; }
+  .c-cpu { grid-area: cpu; } .c-ram { grid-area: ram; } .c-gpu { grid-area: gpu; } .c-net { grid-area: net; }
+  .c-procs { grid-area: procs; } .c-disks { grid-area: disks; } .c-win { grid-area: win; } .c-sys { grid-area: sys; }
+  .spark { height: 64px; }
+}
+/* tela alta (tablet): o painel ocupa a altura toda e os gráficos crescem */
+@container (min-width: 640px) and (min-height: 520px) {
+  .grid.dash { height: 100%; grid-template-rows: minmax(0, 1.4fr) auto minmax(0, 1fr); }
+  .grid.dash .spark { flex: 1 1 0; height: 0; min-height: 40px; }
+  .big { font-size: 60px; }
+}
+
+.game { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); }
+@container (min-width: 600px) { .game { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); } }
+/* capas tingidas na cor do tema */
+.gart, .art { background: var(--p4) center/cover; background-blend-mode: luminosity; border: 1px solid var(--p3); }
+.gart[style*="url("], .art[style*="url("] { background-color: var(--p); }
+.gart { aspect-ratio: 460/215; }
+.chip { display: inline-block; padding: 1px 8px; background: var(--p); color: var(--bg); text-shadow: none; font-size: 13px; }
+.playing { color: var(--p); font-size: 13px; margin-left: 8px; }
+.playing::before { content: "▮ "; animation: blink 1s steps(1) infinite; }
+#g-head { margin-top: 10px; }
+.gtime { font: 52px/1 var(--display); margin: 4px 0; }
+.gname { font: 28px/1.05 var(--display); margin-top: 8px; }
+.dcbtns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
+
+/* ------------------------------------------------------------------ Áudio */
+.media { display: grid; gap: 14px; max-width: 520px; margin: 0 auto; }
+.art { width: min(62%, 210px); aspect-ratio: 1; margin: 0 auto; display: grid; place-items: center; color: var(--p3); }
+.art svg { width: 30%; height: 30%; }
+.mtitle { font: 34px/1 var(--display); text-align: center; overflow-wrap: anywhere; }
+.martist { text-align: center; color: var(--p2); margin-top: 4px; }
+.mapp { text-align: center; color: var(--p3); font-size: 13px; margin-top: 2px; }
+.prog { height: 28px; display: flex; align-items: center; touch-action: none; }
+.prog .bar { flex: 1; margin: 0; }
+.times { display: flex; justify-content: space-between; color: var(--p3); font: 20px/1 var(--display); }
+.ctrls { display: flex; justify-content: center; align-items: center; gap: 14px; }
+.cbtn { width: 60px; height: 52px; display: grid; place-items: center; border: 1px solid var(--p3); border-radius: 2px; }
+.cbtn.main { width: 84px; height: 60px; border-color: var(--p); }
+.cbtn svg { width: 26px; height: 26px; } .cbtn.main svg { width: 32px; height: 32px; }
+.cbtn:disabled { opacity: .3; }
+.vol { display: flex; align-items: center; gap: 10px; }
+.vol button { width: 44px; height: 36px; display: grid; place-items: center; border: 1px solid var(--p3); border-radius: 2px; }
+.vol button svg { width: 20px; height: 20px; }
+.vol .val { width: 48px; text-align: right; font: 22px/1 var(--display); }
+.outchip { justify-self: center; display: flex; gap: 8px; align-items: center; border: 1px dashed var(--p3); padding: 7px 12px; font-size: 13px; max-width: 100%; border-radius: 2px; }
+.outchip span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.outchip::before { content: "Saída:"; color: var(--p3); }
+@container (min-width: 560px) {
+  .media { max-width: none; height: 100%; grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: 1fr repeat(5, auto) 1fr; column-gap: 24px; row-gap: 12px; align-items: center; }
+  .media .art { grid-row: 1 / -1; width: min(30cqw, calc(100cqh - 30px), 240px); }
+  .media > :nth-child(2) { grid-row: 2; } .media > :nth-child(3) { grid-row: 3; } .media > .ctrls { grid-row: 4; }
+  .media > .vol { grid-row: 5; } .media > .outchip { grid-row: 6; justify-self: start; }
+  .mtitle, .martist, .mapp { text-align: left; }
+  .ctrls { justify-content: flex-start; }
+}
+.mixer { display: grid; gap: 10px; }
+@container (min-width: 620px) { .mixer { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); align-items: start; } }
+.outrow { display: flex; gap: 10px; align-items: center; width: 100%; padding: 9px 6px; text-align: left; font-size: 14px; border-radius: 2px; }
+.outrow span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.outrow i { flex: none; font-style: normal; white-space: nowrap; }
+.outrow i::before { content: "( )"; font-style: normal; color: var(--p3); }
+.outrow.on i::before { content: "(•)"; color: var(--p); }
+.outrow.on { border: 1px solid var(--p3); }
+.mxrow { display: grid; grid-template-columns: 30px minmax(0, 1fr) 44px 42px; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px dashed var(--p4); }
+.mxrow:last-child { border: 0; }
+.mxic { width: 30px; height: 30px; display: grid; place-items: center; font: 24px/1 var(--display); border: 1px solid var(--p3); }
+.mxname { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mxmid input { width: 100%; height: 26px; display: block; }
+.peak { height: 4px; background: var(--p4); }
+.peak i { display: block; height: 100%; width: var(--pk, 0); background: var(--p2); transition: width .2s, height .2s; }
+.mxmute { width: 42px; height: 36px; border: 1px solid var(--p3); font-size: 13px; border-radius: 2px; }
+.mxval { font: 20px/1 var(--display); text-align: right; }
+.mxrow.muted .mxmute { background: var(--p); color: var(--bg); text-shadow: none; }
+.mxrow.muted .mxname, .mxrow.muted .mxic, .mxrow.muted input, .mxrow.muted .mxval { opacity: .4; }
+
+/* ------------------------------------------------------------------ Controle */
+.mwrap { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.mcol { display: contents; }
+.pad { flex: 1; min-height: 140px; border: 1px solid var(--p3); position: relative; touch-action: none; display: grid; place-items: center;
+  color: var(--p3); font-size: 13px; text-align: center; overflow: hidden; border-radius: 2px;
+  background: linear-gradient(var(--p4) 1px, transparent 1px) 0 0/28px 28px, linear-gradient(90deg, var(--p4) 1px, transparent 1px) 0 0/28px 28px; }
+.pad.drag { border-color: var(--p); box-shadow: inset 0 0 0 1px var(--p); }
+.pad .hint { pointer-events: none; padding: 20px; line-height: 1.7; background: var(--bg); }
+.pad .scrollbar { position: absolute; right: 0; top: 0; bottom: 0; width: 44px; border-left: 1px dashed var(--p3); display: grid; place-items: center; touch-action: none; background: var(--bg); }
+.pad .scrollbar svg { width: 18px; height: 18px; }
+.mbtns { display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 6px; height: 52px; flex: none; }
+.mbtn { border: 1px solid var(--p3); font-size: 14px; border-radius: 2px; }
+.mbtn.held { background: var(--p); color: var(--bg); text-shadow: none; }
+.keys { display: flex; gap: 5px; overflow-x: auto; flex: none; scrollbar-width: none; }
+.keys::-webkit-scrollbar { display: none; }
+.key { flex: none; min-width: 46px; height: 42px; padding: 0 10px; border: 1px solid var(--p3); font-size: 14px; border-radius: 2px; }
+.key.mod.on, .key.kb.on { background: var(--p); color: var(--bg); text-shadow: none; }
+.key.kb { border-color: var(--p); }
+#kbd { position: fixed; left: -1000px; bottom: 0; width: 10px; height: 10px; opacity: 0; font-size: 16px; }
+@container (min-width: 600px) {
+  .mwrap { flex-direction: row; }
+  .mcol { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+  .mleft { flex: 1; min-width: 0; }
+  .mright { width: min(320px, 40%); overflow-y: auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; align-content: start; }
+  .mright .keys { display: contents; }
+  .mright .key { min-width: 0; padding: 0 4px; font-size: 13px; }
+  .mright .key.kb { grid-column: 1 / -1; }
+}
+
+.scr { position: relative; flex: 1; min-height: 200px; background: #000; overflow: hidden; touch-action: none; border: 1px solid var(--p3); }
+.scr img { position: absolute; transform-origin: center; pointer-events: none; -webkit-user-drag: none; }
+.scr-msg { position: absolute; inset: 0; display: grid; place-items: center; color: var(--p3); padding: 20px; text-align: center; }
+.scr-tools { position: absolute; top: 8px; right: 52px; display: flex; gap: 4px; }
+.scr-tools button { background: var(--bg); border: 1px solid var(--p3); padding: 6px 10px; font-size: 13px; border-radius: 2px; }
+.scr-scroll { position: absolute; right: 0; top: 0; bottom: 0; width: 44px; background: #0008; border-left: 1px dashed var(--p3); touch-action: none; display: grid; place-items: center; color: var(--p3); }
+.ripple { position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border: 2px solid var(--p); pointer-events: none; animation: rip .4s ease-out forwards; }
+.ripple.r { border-style: dashed; }
+@keyframes rip { from { transform: scale(.4); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+
+.deckbar { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.chips { display: flex; gap: 4px; overflow-x: auto; flex: 1; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip2 { flex: none; padding: 6px 12px; border: 1px solid var(--p4); font-size: 14px; color: var(--p2); border-radius: 2px; }
+.chip2.on { border-color: var(--p); color: var(--p); }
+.chip2.add { border-style: dashed; border-color: var(--p3); }
+.deckgrid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+.dbtn { --c: transparent; position: relative; min-height: 88px; padding: 10px 6px; border: 1px solid var(--p3); border-radius: 2px;
+  box-shadow: inset 4px 0 0 var(--c); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+.dbtn .di { font: 32px/1 var(--display); }
+/* ícone desenhado (Lucide): traço na cor do terminal, do tamanho da sigla de texto */
+.isvg { width: .9em; height: .9em; display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+body.crt .isvg { filter: drop-shadow(0 0 3px var(--glow)); }
+.dbtn .dl { font-size: 12.5px; text-align: center; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dbtn.warn::after { content: "!"; position: absolute; top: 4px; right: 8px; color: var(--alert); font: 20px/1 var(--display); }
+.deckgrid.editing .dbtn { border-style: dashed; }
+.deckgrid.editing .dbtn:not(.add)::before { content: "editar"; position: absolute; top: 4px; left: 8px; font-size: 11px; color: var(--p3); }
+.dbtn.add { color: var(--p3); }
+@container (min-width: 820px) {
+  .deckgrid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+  .dbtn { min-height: 140px; } .dbtn .di { font-size: 48px; } .dbtn .dl { font-size: 15px; }
+}
+.deck-editbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 12px; color: var(--p3); font-size: 13px; }
+
+/* ------------------------------------------------------------------ Arquivos / Sistema */
+.cols { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
+@container (min-width: 620px) { .cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.ta { display: block; width: 100%; min-height: 96px; resize: vertical; padding: 10px; border: 1px solid var(--p3); background: var(--bg); color: var(--p); font: 15px var(--mono); border-radius: 2px; }
+.uprow { margin-top: 10px; } .uprow.done .st { color: var(--p); } .uprow.fail .st { color: var(--alert); }
+.cliptext { white-space: pre-wrap; word-break: break-word; max-height: 40cqh; overflow: auto; border: 1px dashed var(--p3); padding: 10px; font-size: 13px; user-select: text; -webkit-user-select: text; margin: 10px 0 0; }
+.clipimg { width: 100%; margin-top: 10px; display: block; border: 1px solid var(--p3); }
+.lnk { color: var(--p); }
+
+/* ------------------------------------------------------------------ diálogos, boot, toast */
+.overlay { position: fixed; inset: 0; background: #000c; display: grid; place-items: center; z-index: 40; padding: 16px; }
+.dialog { background: var(--bg); border: 1px solid var(--p); padding: 18px; width: min(440px, 100%); max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); overflow-y: auto; border-radius: 2px; box-shadow: 0 0 0 4px var(--bg), 0 0 0 5px var(--p3); }
+.dialog.wide { width: min(540px, 100%); }
+.dialog h1 { font: 30px/1 var(--display); margin: 0 0 12px; font-weight: 400; }
+.dialog p { color: var(--p2); margin: 0 0 14px; font-size: 14px; }
+.dialog label { display: block; font-size: 13px; color: var(--p2); margin-bottom: 10px; }
+.dialog .fi, .dialog select { display: block; width: 100%; margin-top: 4px; padding: 9px 10px; border: 1px solid var(--p3); background: var(--bg); color: var(--p); font: 15px var(--mono); border-radius: 2px; }
+.dialog small { display: block; color: var(--p3); margin-top: 4px; font-size: 12px; }
+.dialog .acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
+.frow { display: grid; grid-template-columns: 1fr 96px; gap: 10px; }
+.colors { display: flex; gap: 8px; margin: 2px 0 12px; flex-wrap: wrap; }
+.sw { width: 30px; height: 30px; border: 1px solid var(--p3); border-radius: 2px; }
+.sw.on { outline: 2px solid var(--p); outline-offset: 2px; }
+.svgpick { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 6px; margin: 2px 0 12px; max-height: 132px; overflow-y: auto; }
+.svgpick button { height: 38px; border: 1px solid var(--p4); border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.svgpick button.txt { font: 15px/1 var(--mono); }
+.svgpick button.on { border-color: var(--p); outline: 2px solid var(--p); outline-offset: 1px; }
+.chk { display: flex !important; align-items: center; gap: 8px; color: var(--p) !important; }
+.chk input { width: 20px; height: 20px; accent-color: var(--p); margin: 0; }
+
+#boot { position: fixed; inset: 0; z-index: 45; background: var(--bg); padding: calc(24px + env(safe-area-inset-top, 0px)) 22px; font: 22px/1.25 var(--display); transition: opacity .35s; }
+#boot.done { opacity: 0; pointer-events: none; }
+#boot .l { white-space: pre-wrap; }
+#boot .l.dim { color: var(--p3); }
+#boot .cur::after { content: "▮"; animation: blink 1s steps(1) infinite; }
+
+.toast { position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 46; max-width: 90vw; padding: 9px 14px; font-size: 14px;
+  background: var(--bg); border: 1px solid var(--p); box-shadow: 0 0 0 3px var(--bg); border-radius: 2px; }
+.toast.ok::before { content: "OK  "; } .toast.bad { border-color: var(--alert); color: var(--alert); } .toast.bad::before { content: "ERRO  "; }
+.toast.warn { background: var(--p); color: var(--bg); text-shadow: none; }
+
+/* ------------------------------------------------------------------ deitado / tablet: barra lateral */
+@media (orientation: landscape) and (min-width: 640px) {
+  header .clock { display: none; }
+  :root { --rail: calc(84px + env(safe-area-inset-left, 0px)); }
+  body { grid-template-columns: var(--rail) minmax(0, 1fr); grid-template-rows: auto auto auto minmax(0, 1fr);
+    grid-template-areas: "nav banner" "nav header" "nav subtabs" "nav main"; }
+  nav { flex-direction: column; border-top: 0; border-right: 1px solid var(--p3); padding: 0 0 0 env(safe-area-inset-left, 0px); }
+  nav button { flex: 1; max-height: 76px; font-size: 18px; padding: 0 4px; }
+  .rail-top { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0 8px; font: 22px/1 var(--display); color: var(--p2); border-bottom: 1px solid var(--p4); }
+  main { padding-right: env(safe-area-inset-right, 0px); }
+  .toast { bottom: 16px; left: calc(50% + var(--rail) / 2); }
+}
+/* celular deitado: pouca altura, sem cabeçalho */
+@media (orientation: landscape) and (max-height: 560px) {
+  header { display: none; }
+  .subtabs { padding-top: 4px; }
+  .subtabs button { font-size: 19px; padding: 4px 12px 3px; }
+  .tab { padding: 6px 10px 10px; }
+  .grid.dash { height: 100%; grid-template-rows: minmax(0, 1.2fr) auto minmax(0, 1fr); }
+  .grid.dash .spark { flex: 1 1 0; height: 0; min-height: 26px; }
+  .c-procs, .c-disks { overflow: hidden; }
+  .big { font-size: 40px; }
+  .row { padding: 2px 0; font-size: 13px; }
+  #g-head { margin-top: 10px; }
+.gtime { font-size: 44px; }
+  .dcbtns .tile { min-height: 50px; padding: 6px; }
+}
+/* celular deitado: telas largas e baixas usam mais colunas (tablet não entra aqui: altura > 560) */
+@media (orientation: landscape) and (max-height: 560px) {
+  :root { --rail: calc(66px + env(safe-area-inset-left, 0px)); }
+  nav button { font-size: 15px; letter-spacing: 0; }
+  .rail-top { font-size: 18px; padding: 6px 0; gap: 4px; }
+  .rail-top .hchip { font-size: 15px; padding: 2px 5px 1px; }
+  @container (min-width: 600px) {
+    /* Jogos: capa menor e três colunas (jogo | recentes | semana) */
+    .game { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+    .game > div:last-child { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+    .game .gart { height: 15cqh; width: auto; max-width: 100%; margin: 0 auto; }
+    #g-head { margin-top: 6px; }
+    #t-games > h2 { margin: 10px 0 6px; }
+    #t-games .lib { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+    .lib::-webkit-scrollbar { display: none; }
+    #t-games .lib { scroll-snap-type: x mandatory; }
+    .lib > .lgame { flex: 0 0 86%; min-width: 0; scroll-snap-align: start; }
+    .lib > .lgame .gart { width: 100%; height: auto; max-height: var(--libh, 190px); aspect-ratio: 460 / 215; font-size: 22px; }
+    .lgame .ln { padding: 5px 8px 6px; font-size: 13px; }
+    .gtime { font-size: 32px; } .gname { font-size: 22px; }
+    #g-fps { margin-top: 2px; } #g-fps b { font-size: 30px; }
+    .game .card { padding: 8px 10px; }
+    .week { height: 72px; }
+    /* Mixer: aplicativos em duas colunas */
+    /* Tocando: capa | informações, controles, volume e saída */
+    .media { grid-template-columns: auto minmax(0, 1fr); column-gap: 22px; }
+    .media .art { width: min(42cqw, calc(100cqh - 8px)); }
+    /* Mixer: apps em duas colunas, lado a lado */
+    .mixer { grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr); }
+    #mx-list { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 18px; }
+    #mx-list .mxrow:nth-last-child(2):nth-child(odd) { border-bottom: 0; }
+    /* Arquivos: três colunas estreitas, botões empilhados */
+    #t-send .cols { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+    #t-send .cols > div:first-child { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-content: start; }
+    #t-send .cols > div:first-child > h2 { grid-column: 1 / -1; margin-bottom: -2px; }
+    #t-send .cols > div:first-child > .card { margin-top: 0 !important; }
+    #t-send .brow { flex-direction: column; }
+    /* Ajustes: três colunas (Alertas | Visual | Este aparelho) */
+    #t-sys .cols { display: block; columns: 2; column-gap: 14px; }
+    #t-sys .cols .card { break-inside: avoid; }
+    #t-sys .cols h2 { break-after: avoid; }
+    #t-sys .cols > div > h2:first-child { margin-top: 4px; }
+    /* Arquivos */
+    .cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    /* Botões: mais colunas e botões baixos (a regra de tablet deixava gigantes) */
+    .deckgrid { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+    .dbtn { min-height: 80px; padding: 8px 6px; } .dbtn .di { font-size: 30px; } .dbtn .dl { font-size: 12.5px; }
+  }
+  @container (min-width: 720px) {
+    /* Status: 4 + 4 cards do mesmo tamanho */
+    .grid.dash { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: minmax(0, 1.2fr) minmax(0, 1fr);
+      grid-template-areas: "cpu ram gpu net" "procs disks win sys"; }
+    .c-sys, .c-win { overflow: hidden; }
+  }
+  @container (min-width: 760px) {
+    #t-sys .cols { columns: 3; }
+  }
+}
+/* celular deitado e baixo (Chrome com barra de endereço, ~340px): Tocando, teclas e Arquivos compactos */
+@media (orientation: landscape) and (max-height: 560px) {
+  .media { row-gap: 8px; }
+  .mtitle { font-size: 28px; }
+  .prog { height: 22px; }
+  .times { font-size: 17px; }
+  .cbtn { width: 54px; height: 44px; } .cbtn.main { width: 74px; height: 48px; }
+  .vol button { height: 32px; }
+  .outchip { padding: 5px 10px; }
+  .mright { grid-template-columns: repeat(5, 1fr); gap: 4px; }
+  .mright .key { height: 36px; }
+  .mbtns { height: 46px; }
+  .ta { min-height: 60px; }
+  #t-send h2 { margin: 6px 0 6px; }
+}
+/* Energia: botões à esquerda, timer à direita (a aba é o próprio container, então vai por media query) */
+@media (orientation: landscape) and (max-height: 560px) and (min-width: 700px) {
+  #t-power.on { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr; column-gap: 14px; align-content: start; }
+  #t-power > h2:first-child { grid-column: 1; grid-row: 1; }
+  #t-power > .tiles { grid-column: 1; grid-row: 2; align-self: start; }
+  #t-power > #tmr-sec { grid-column: 2; grid-row: 1 / span 2; }
+  #tmr-sec > h2 { margin-top: 4px; }
+  .tmr-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* Jogos: jogo | recentes + biblioteca | semana, tudo numa tela */
+  #t-games.on { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1fr); grid-template-rows: auto auto 1fr;
+    gap: 10px; align-content: start; overflow: hidden; }
+  #t-games .game, #t-games .game > div:last-child { display: contents !important; }
+  #t-games .game > .card { grid-column: 1; grid-row: 1 / -1; }
+  #t-games .game > div:last-child > .card:first-child { grid-column: 2; grid-row: 1; }
+  #t-games .game > div:last-child > .card:last-child { grid-column: 3; grid-row: 1 / -1; }
+  #t-games > h2 { grid-column: 2; grid-row: 2; margin: 0; }
+  #t-games > .lib { grid-column: 2; grid-row: 3; align-self: start; min-width: 0; --libh: clamp(80px, calc(100cqh - 160px), 220px); }
+  #t-games .game .gart { height: 22cqh; }
+  #t-power > .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #t-power .tile { min-height: 72px; }
+}
+/* chips do cabeçalho: microfone do PC e timer */
+.hchip { flex: none; padding: 3px 8px 2px; border: 1px solid var(--p3); color: var(--p2); font: 18px/1 var(--display); border-radius: 2px; align-self: center; }
+.hchip.on { background: var(--p); border-color: var(--p); color: var(--bg); text-shadow: none; }
+header .host { flex: 0 1 auto; min-width: 0; }
+header .via { margin-right: auto; }
+@media (max-width: 480px) { header .via { display: none; } header .host { margin-right: auto; } }
+.rail-top .hchip { font-size: 16px; padding: 3px 4px 2px; }
+select.sel { flex: none; padding: 6px 8px; border: 1px solid var(--p3); background: var(--bg); color: var(--p); font: 14px var(--mono); border-radius: 2px; }
+.tmr-tiles { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); margin-top: 8px; }
+.tmr-tiles .tile { min-height: 48px; }
+#tmr-left { font-size: 64px; }
+
+/* jogos: FPS, semana e biblioteca */
+.fps { margin-top: 8px; font: 22px/1 var(--display); color: var(--p2); }
+.fps b { font: 56px/1 var(--display); color: var(--p); font-weight: 400; margin-right: 6px; }
+.fps-hint { margin-top: 8px; font-size: 12.5px; color: var(--p3); white-space: normal; }
+.week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; height: 96px; margin-top: 6px; }
+.wk { display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; gap: 4px; min-width: 0; text-align: center; font: 17px/1 var(--display); color: var(--p3); }
+.wk i { display: block; min-height: 2px; background: repeating-linear-gradient(to top, var(--p2) 0 5px, transparent 5px 7px); }
+.wk.today { color: var(--p); } .wk.today i { background: repeating-linear-gradient(to top, var(--p) 0 5px, transparent 5px 7px); }
+.wk small { font-size: 15px; color: var(--p2); }
+.toprow .bar { margin: 2px 0 8px; height: 6px; }
+/* trabalho: job ativo, semana por job (toque abre os arquivos) */
+.wnow { white-space: normal; }
+.wunid { color: #ffbf47; }  /* "Não identificado": âmbar de aviso (o do tema âmbar), como o amarelo do painel */
+.wjobrow { font-size: 14px; padding-left: 8px; }
+.wjob { cursor: pointer; }
+#t-work .btn:disabled { opacity: .35; }
+.wfile { font-size: 13px; color: var(--p2); padding: 1px 0 1px 10px; }
+.lib { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
+.lgame { border: 1px solid var(--p3); text-align: left; display: flex; flex-direction: column; border-radius: 2px; overflow: hidden; }
+.lgame .gart { border: 0; border-bottom: 1px solid var(--p3); display: grid; place-items: center; font: 32px/1 var(--display); color: var(--p2); padding: 6px; text-align: center; }
+.lgame .ln { padding: 9px 11px 10px; font-size: 15px; display: flex; justify-content: space-between; gap: 6px; }
+.lgame .ln span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.lgame .ln span:last-child { color: var(--p3); flex: none; }
+.lgame.run { border-color: var(--p); }
+.lgame:active { background: var(--p); color: var(--bg); text-shadow: none; }
+
+/* modo base: relógio grande com o celular parado no suporte */
+#dock { position: fixed; inset: 0; z-index: 44; background: var(--bg); display: grid; place-items: center; text-align: center; padding: 16px; cursor: pointer; }
+#dock .dk { transition: transform 2s; max-width: 100%; }
+.dk-time { font: min(30vw, 48vh)/.85 var(--display); letter-spacing: -.02em; }
+.dk-time i { font-style: normal; animation: blink 2s steps(1) infinite; }
+.dk-date { font: min(6vw, 7.5vh)/1.1 var(--display); color: var(--p2); }
+.dk-line { font-size: min(3.6vw, 4.6vh); color: var(--p2); margin-top: 1.6vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dk-line.hi { color: var(--p); }
+#idle-catch { position: fixed; inset: 0; z-index: 43; cursor: pointer; text-align: center; }
+#idle-catch .dk-hint { background: var(--bg); padding: 4px 0; }
+.dk-hint { position: absolute; left: 0; right: 0; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); color: var(--p3); font-size: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+<script>
+// Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
+// reescreve cada "@container (min-width/min-height)" como classes .cq-wN/.cq-hN nas abas
+// (.tab), ligadas por ResizeObserver, e as unidades cqw/cqh como variáveis --cqw/--cqh.
+(function cqShim() {
+  const force = /[?&]cqshim\b/.test(location.search);
+  if (CSS.supports("container-type: size") && !force) return;
+  const st = document.querySelector("style");
+  let css = st.textContent.replace(/\/\*[\s\S]*?\*\//g, "");
+  const ws = new Set(), hs = new Set();
+  const block = (str, open) => { let d = 0; for (let k = open; k < str.length; k++) { if (str[k] === "{") d++; else if (str[k] === "}" && !--d) return k; } return str.length - 1; };
+  const splitSel = (sel) => { const out = []; let d = 0, cur = ""; for (const c of sel) { if (c === "(") d++; if (c === ")") d--; if (c === "," && !d) { out.push(cur); cur = ""; } else cur += c; } out.push(cur); return out.map((x) => x.trim()).filter(Boolean); };
+  let res = "", pos = 0, m;
+  const re = /@container\s*([^{]*)\{/g;
+  while ((m = re.exec(css))) {
+    const open = m.index + m[0].length - 1, close = block(css, open);
+    const w = /min-width:\s*(\d+)px/.exec(m[1]), h = /min-height:\s*(\d+)px/.exec(m[1]);
+    const pre = (w ? ".cq-w" + w[1] : "") + (h ? ".cq-h" + h[1] : "");
+    const w0 = ":where(" + pre + ")";  // sem especificidade extra: a cascata fica igual à do navegador novo
+    if (w) ws.add(+w[1]); if (h) hs.add(+h[1]);
+    let body = css.slice(open + 1, close), conv = "", p = 0;
+    while (true) {
+      const b = body.indexOf("{", p); if (b < 0) break;
+      const e = block(body, b);
+      // "#t-sys .cols": a própria aba é o container, então a classe vai nela também
+      conv += splitSel(body.slice(p, b)).flatMap((x) => /^#t-[\w-]+\s/.test(x) ? [w0 + " " + x, x.replace(/^(#t-[\w-]+)/, "$1" + w0)] : [w0 + " " + x]).join(", ") + body.slice(b, e + 1) + "\n";
+      p = e + 1;
+    }
+    res += css.slice(pos, m.index) + conv; pos = close + 1; re.lastIndex = pos;
+  }
+  res += css.slice(pos);
+  res = res.replace(/(-?[\d.]+)cq(w|h)\b/g, "calc($1 * var(--cq$2, 1v$2))");
+  st.textContent = res;
+  const fit = (el, r) => {
+    for (const n of ws) el.classList.toggle("cq-w" + n, r.width >= n);
+    for (const n of hs) el.classList.toggle("cq-h" + n, r.height >= n);
+    el.style.setProperty("--cqw", r.width / 100 + "px"); el.style.setProperty("--cqh", r.height / 100 + "px");
+  };
+  const ro = new ResizeObserver((es) => es.forEach((e) => fit(e.target, e.contentRect)));
+  const go = () => document.querySelectorAll(".tab").forEach((t) => ro.observe(t));
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", go); else go();
+  window.CQ_SHIM = { ws: [...ws], hs: [...hs] };
+})();
+</script>
+</head>
+<body class="crt">
+<div id="boot" aria-hidden="true"><div id="boot-lines"></div></div>
+<div id="banner" class="banner hidden"></div>
+<header>
+  <span id="dot" class="dot"></span>
+  <span class="host" id="host">Companion PC</span>
+  <span class="via" id="via"></span>
+  <span class="hchip hidden" id="fps-chip"></span>
+  <button class="hchip hidden" id="tmr-chip" aria-label="Timer de energia"></button>
+  <button class="hchip hidden" id="mic-chip" aria-label="Microfone do PC">MIC</button>
+  <span class="clock" id="clock"></span>
+</header>
+<div class="subtabs" id="subtabs" role="tablist"></div>
+
+<main id="main">
+  <!-- STATUS > Sistema -->
+  <section class="tab" id="t-dash">
+    <div class="grid dash">
+      <div class="card c-cpu"><h3><span>CPU</span><span id="cpu-mhz"></span></h3><div class="big" id="cpu">–</div><div class="bar" id="cpu-bar"><i></i></div><canvas class="spark" id="sp-cpu"></canvas></div>
+      <div class="card c-ram"><h3><span>Memória</span><span id="ram-txt"></span></h3><div class="big" id="ram">–</div><div class="bar" id="ram-bar"><i></i></div><canvas class="spark" id="sp-ram"></canvas></div>
+      <div class="card c-gpu" id="gpu-card"><h3><span>GPU</span><span id="gpu-temp"></span></h3><div class="big" id="gpu">–</div><div class="bar" id="gpu-bar"><i></i></div><div class="sub" id="gpu-sub"></div><canvas class="spark" id="sp-gpu"></canvas></div>
+      <div class="card c-net"><h3><span>Rede</span></h3><div class="row"><span>Baixando</span><span id="net-down">–</span></div><div class="row"><span>Enviando</span><span id="net-up">–</span></div><div class="row"><span>Ping</span><span id="net-ping">–</span></div><canvas class="spark" id="sp-net"></canvas></div>
+      <div class="card c-win"><h3><span>Janela ativa</span></h3><div id="window" class="sub">–</div></div>
+      <div class="card c-procs"><h3><span>Processos</span><span>CPU / memória</span></h3><div id="procs"></div></div>
+      <div class="card c-disks"><h3><span>Discos</span></h3><div id="disks"></div></div>
+      <div class="card c-sys"><h3><span>Sistema</span></h3><div class="row"><span>Ligado há</span><span id="uptime">–</span></div><div class="row" id="bat-row"><span>Bateria</span><span id="bat">–</span></div><div class="row"><span>Windows</span><span id="os">–</span></div><div id="fans"></div></div>
+    </div>
+  </section>
+
+  <!-- STATUS > Jogos -->
+  <section class="tab" id="t-games">
+    <div class="game">
+      <div class="card">
+        <div class="gart" id="g-art"></div>
+        <div id="g-head"></div>
+        <div class="gtime" id="g-time"></div>
+        <div class="sub" id="g-extra"></div>
+        <div class="fps hidden" id="g-fps"><b id="g-fps-n">0</b>FPS <span id="g-fps-low"></span></div>
+        <div class="fps-hint hidden" id="g-fps-hint"></div>
+      </div>
+      <div style="display:grid; gap:10px; align-content:start">
+        <div class="card"><h3><span>Jogados recentemente</span></h3><div id="g-recent"></div></div>
+        <div class="card"><h3><span>Esta semana</span><span id="gh-total"></span></h3><div class="week" id="gh-days"></div><div id="gh-top" style="margin-top:10px"></div></div>
+      </div>
+    </div>
+    <h2>Biblioteca</h2>
+    <div class="lib" id="g-lib"><div class="empty">Carregando…</div></div>
+  </section>
+
+  <!-- STATUS > Trabalho (tempo no Photoshop, Premiere e After Effects) -->
+  <section class="tab" id="t-work">
+    <div class="game">
+      <div style="display:grid; gap:10px; align-content:start">
+        <div class="card"><h3><span>Agora</span></h3><div class="sub wnow" id="w-now"></div></div>
+        <div class="card"><h3><span>Hoje</span></h3><div class="gtime" id="w-today">–</div><div id="w-today-jobs"></div></div>
+      </div>
+      <div class="card"><h3><span id="w-range">Esta semana</span><span id="w-total"></span></h3>
+        <div class="brow" style="margin-top:0"><button class="btn sm" id="w-prev">&lt; anterior</button><button class="btn sm" id="w-next">próxima &gt;</button></div>
+        <div class="week" id="w-days"></div>
+        <div id="w-week-jobs" style="margin-top:10px"></div>
+        <div class="brow"><button class="btn sm" id="w-csv">Exportar CSV</button><span id="w-csv-link"></span></div></div>
+    </div>
+  </section>
+
+  <!-- RÁDIO > Tocando -->
+  <section class="tab" id="t-media">
+    <div class="media">
+      <div class="art" id="art"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg></div>
+      <div><div class="mtitle" id="m-title">Nada tocando</div><div class="martist" id="m-artist">Abra uma música ou vídeo no PC</div><div class="mapp" id="m-app"></div></div>
+      <div><div class="prog" id="prog"><div class="bar"><i id="prog-i"></i></div></div><div class="times"><span id="m-pos">0:00</span><span id="m-dur">0:00</span></div></div>
+      <div class="ctrls">
+        <button class="cbtn" id="b-prev" aria-label="Anterior"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
+        <button class="cbtn main" id="b-play" aria-label="Tocar/pausar"><svg viewBox="0 0 24 24" fill="currentColor" id="play-ico"><path d="M8 5v14l11-7z"/></svg></button>
+        <button class="cbtn" id="b-next" aria-label="Próxima"><svg viewBox="0 0 24 24" fill="currentColor"><path d="m6 18 8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+      </div>
+      <div class="vol">
+        <button id="b-mute" aria-label="Mudo"><svg viewBox="0 0 24 24" fill="currentColor" id="vol-ico"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4z"/></svg></button>
+        <input type="range" id="vol" min="0" max="100" step="1" value="50" aria-label="Volume do PC">
+        <span class="val" id="vol-val">–</span>
+      </div>
+      <button class="outchip" id="out-chip" title="Trocar saída de áudio"><span id="out-name">–</span></button>
+    </div>
+  </section>
+
+  <!-- RÁDIO > Mixer -->
+  <section class="tab" id="t-mix">
+    <div class="mixer" id="mixer">
+      <div class="card"><h3><span>Saída de áudio</span><span>toque para trocar</span></h3><div id="outs"><div class="empty">Carregando…</div></div></div>
+      <div class="card"><h3><span>Volume por aplicativo</span><span id="mx-master"></span></h3><div id="mx-list"></div></div>
+    </div>
+  </section>
+
+  <!-- CONTROLE > Mouse -->
+  <section class="tab" id="t-mouse"><div class="mwrap">
+    <div class="mcol mleft">
+      <div class="pad" id="pad">
+        <div class="hint" id="pad-hint">Arraste para mover, toque para clicar<br>2 dedos: toque = botão direito, arrastar = rolar<br>Toque duplo e arraste = segurar</div>
+        <div class="scrollbar" id="scrollbar"><svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 4-5 6h10zm0 16 5-6H7z"/></svg></div>
+      </div>
+      <div class="mbtns">
+        <button class="mbtn" id="mb-left">Esquerdo</button>
+        <button class="mbtn" id="mb-mid">Meio</button>
+        <button class="mbtn" id="mb-right">Direito</button>
+      </div>
+    </div>
+    <div class="mcol mright">
+      <div class="keys" id="keys1">
+        <button class="key kb" id="kb-btn">Teclado</button>
+        <button class="key mod" data-mod="ctrl">Ctrl</button>
+        <button class="key mod" data-mod="shift">Shift</button>
+        <button class="key mod" data-mod="alt">Alt</button>
+        <button class="key mod" data-mod="win">Win</button>
+        <button class="key" data-key="esc">Esc</button>
+        <button class="key" data-key="tab">Tab</button>
+        <button class="key" data-key="enter">Enter</button>
+        <button class="key" data-key="backspace" aria-label="Apagar">⌫</button>
+      </div>
+      <div class="keys" id="keys2">
+        <button class="key" data-key="left" aria-label="Esquerda">←</button>
+        <button class="key" data-key="up" aria-label="Cima">↑</button>
+        <button class="key" data-key="down" aria-label="Baixo">↓</button>
+        <button class="key" data-key="right" aria-label="Direita">→</button>
+        <button class="key" data-key="space">Espaço</button>
+        <button class="key" id="alttab">Alt+Tab</button>
+        <button class="key" data-key="ctrl+c">Copiar</button>
+        <button class="key" data-key="ctrl+v">Colar</button>
+        <button class="key" data-key="ctrl+z">Desfazer</button>
+        <button class="key" data-key="home">Home</button>
+        <button class="key" data-key="end">End</button>
+        <button class="key" data-key="pageup">PgUp</button>
+        <button class="key" data-key="pagedown">PgDn</button>
+        <button class="key" data-key="f5">F5</button>
+        <button class="key" data-key="f11">F11</button>
+        <button class="key" data-key="delete">Del</button>
+      </div>
+    </div>
+  </div></section>
+
+  <!-- CONTROLE > Tela -->
+  <section class="tab" id="t-screen">
+    <div class="scr" id="scr">
+      <img id="scr-img" alt="">
+      <div class="scr-msg" id="scr-msg">Abrindo a tela do PC…</div>
+      <div class="scr-scroll" id="scr-scroll">⇕</div>
+      <div class="scr-tools">
+        <button id="scr-mon" class="hidden">Monitor 1/1</button>
+        <button id="scr-q">Rápido</button>
+        <button id="scr-zoom">1×</button>
+        <button id="scr-kb">Teclado</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- BOTÕES -->
+  <section class="tab" id="t-deck">
+    <div class="deckbar"><div class="chips" id="deck-pages"></div><button class="btn sm" id="deck-edit">Editar</button></div>
+    <div class="deckgrid" id="deck-grid"><div class="empty">Carregando…</div></div>
+    <div class="deck-editbar hidden" id="deck-editbar"><span>Toque num botão para editar. Toque na página atual para renomear.</span><button class="btn sm" id="deck-reset">Restaurar padrão</button></div>
+  </section>
+
+  <!-- PC > Arquivos -->
+  <section class="tab" id="t-send">
+    <div class="cols">
+      <div>
+        <h2>Celular para o PC</h2>
+        <div class="card">
+          <textarea class="ta" id="snd-text" placeholder="Texto ou link para mandar ao PC"></textarea>
+          <div class="brow"><button class="btn" id="snd-copy">Copiar no PC</button><button class="btn primary" id="snd-paste">Colar no PC</button></div>
+        </div>
+        <div class="card" style="margin-top:10px">
+          <h3><span>Arquivos e fotos</span><span>Downloads\Companion PC</span></h3>
+          <div class="brow"><label class="btn primary">Escolher arquivos<input type="file" id="snd-files" multiple hidden></label><button class="btn" id="snd-folder">Abrir pasta no PC</button></div>
+          <div id="up-list"></div>
+        </div>
+      </div>
+      <div>
+        <h2>PC para o celular</h2>
+        <div class="card">
+          <button class="btn primary" id="rcv-get" style="width:100%">Pegar o que está copiado no PC</button>
+          <div class="sub" style="margin-top:8px; white-space:normal">Texto, print (Win+Shift+S) ou arquivos copiados no Explorador (Ctrl+C).</div>
+          <div id="rcv-out"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PC > Energia -->
+  <section class="tab" id="t-power">
+    <h2>Energia</h2>
+    <div class="tiles" id="power"></div>
+    <div id="tmr-sec">
+      <h2>Timer</h2>
+      <div class="card">
+        <div id="tmr-on" class="hidden"><div class="big" id="tmr-left">0:00</div><div class="sub" id="tmr-what"></div>
+          <div class="brow"><button class="btn danger" id="tmr-cancel">Cancelar timer</button></div></div>
+        <div id="tmr-off">
+          <div class="set"><label>Quando acabar</label><select id="tmr-act" class="sel"><option value="shutdown">Desligar</option><option value="sleep">Suspender</option><option value="monitor_off">Desligar monitor</option></select></div>
+          <div class="tiles tmr-tiles"><button class="tile" data-min="15">15 min</button><button class="tile" data-min="30">30 min</button><button class="tile" data-min="45">45 min</button><button class="tile" data-min="60">1 h</button><button class="tile" data-min="90">1 h 30</button><button class="tile" data-min="120">2 h</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PC > Ajustes -->
+  <section class="tab" id="t-sys">
+    <div class="cols">
+      <div>
+        <h2>Alertas</h2>
+        <div class="card">
+          <div class="set"><label>Download concluído<small>Arquivo novo na pasta Downloads do PC</small></label><button class="switch" id="al-download" aria-label="Download concluído"></button></div>
+          <div class="set"><label>GPU quente<small>Acima de <input class="num" id="al-gpu-v" type="number" inputmode="numeric"> °C</small></label><button class="switch" id="al-gpu" aria-label="GPU quente"></button></div>
+          <div class="set"><label>CPU quente<small>Acima de <input class="num" id="al-cpu-v" type="number" inputmode="numeric"> °C <span id="al-cpu-note">(precisa do LibreHardwareMonitor no PC)</span></small></label><button class="switch" id="al-cpu" aria-label="CPU quente"></button></div>
+          <div class="set"><label>Internet caiu<small>O PC ficou sem conexão (e quando volta)</small></label><button class="switch" id="al-net" aria-label="Internet caiu"></button></div>
+          <div class="set"><label>Notificações do PC<small id="pcn-note">WhatsApp, Discord, e-mail e outros avisos do Windows</small></label><button class="switch" id="sw-pcnotif" aria-label="Notificações do PC"></button></div>
+          <div class="set"><label>Memória cheia<small>Acima de <input class="num" id="al-ram-v" type="number" inputmode="numeric"> %</small></label><button class="switch" id="al-ram" aria-label="Memória cheia"></button></div>
+          <div class="set"><label>Notificações do Android<small>Avisa com o app em segundo plano</small></label><button class="btn sm" id="al-notif">Ativar</button></div>
+        </div>
+      </div>
+      <div>
+        <h2>Visual</h2>
+        <div class="card">
+          <div class="set"><label>Cor do terminal</label><div class="themes" id="themes">
+            <button data-theme="green" style="background:#5cff8a" aria-label="Verde"></button>
+            <button data-theme="amber" style="background:#ffbf47" aria-label="Âmbar"></button>
+            <button data-theme="cyan" style="background:#7cf4ff" aria-label="Ciano"></button></div></div>
+          <div class="set"><label>Efeito de tubo<small>Linhas de varredura e brilho</small></label><button class="switch" id="sw-crt" aria-label="Efeito de tubo"></button></div>
+          <div class="set"><label>Sons de terminal<small>Bipes curtos ao tocar e ao conectar</small></label><button class="switch" id="sw-snd" aria-label="Sons de terminal"></button></div>
+          <div class="set"><label>Quando ficar parado<small>Passa Sistema, Jogos, Tocando e o relógio, ou só o relógio</small></label><button class="btn sm" id="dock-now">Ver</button><select id="idle-mode" class="sel" aria-label="Quando ficar parado"><option value="cycle">Passar as telas</option><option value="clock">Só o relógio</option><option value="off">Nada</option></select></div>
+          <div class="set"><label>Depois de</label><select id="dock-min" class="sel" aria-label="Depois de quanto tempo parado"><option value="1">1 min</option><option value="2">2 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
+          <div class="set"><label>Botões seguem o programa<small>Troca a página de botões conforme o programa em foco no PC</small></label><button class="switch" id="sw-deckauto" aria-label="Botões seguem o programa"></button></div>
+        </div>
+        <h2>Este aparelho</h2>
+        <div class="card">
+          <div class="set"><label>Manter a tela ligada<small>Enquanto o app estiver aberto</small></label><button class="switch" id="sw-wake" aria-label="Manter a tela ligada"></button></div>
+          <div class="set"><label>Tela cheia<small>Esconde as barras do Android</small></label><button class="switch" id="sw-full" aria-label="Tela cheia"></button></div>
+          <div class="set"><label>Travar deitado<small>Abre em tela cheia e não gira mais</small></label><button class="switch" id="sw-land" aria-label="Travar deitado"></button></div>
+          <div class="set"><label>Vibrar ao tocar</label><button class="switch" id="sw-vib" aria-label="Vibrar ao tocar"></button></div>
+          <div class="set"><label>Velocidade do mouse <small id="sens-val"></small></label><input type="range" id="sens" min="0.5" max="4" step="0.1" style="max-width:50%" aria-label="Velocidade do mouse"></div>
+          <div class="set"><label>Conexão<small id="conn-info"></small></label><button class="btn sm" id="b-logout">Trocar token</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav id="nav">
+  <div class="rail-top"><span id="dot2" class="dot"></span><span id="clock2"></span><button class="hchip hidden" id="mic-chip2" aria-label="Microfone do PC">MIC</button></div>
+  <button data-sec="status">Status</button>
+  <button data-sec="radio">Rádio</button>
+  <button data-sec="ctrl">Controle</button>
+  <button data-sec="deck">Botões</button>
+  <button data-sec="pc">PC</button>
+</nav>
+
+<div class="overlay hidden" id="login">
+  <form class="dialog" id="login-form">
+    <h1>Conectar ao PC</h1>
+    <p>Escaneie o QR code no painel do Companion PC (ícone perto do relógio do PC) ou cole o token do <code>config.json</code>.</p>
+    <input class="fi" id="token" placeholder="token" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div class="acts"><button class="btn primary" type="submit">Conectar</button></div>
+  </form>
+</div>
+<div class="overlay hidden" id="bed">
+  <form class="dialog wide" id="bed-form">
+    <h1 id="bed-title">Botão</h1>
+    <div class="frow"><label>Nome<input class="fi" id="bed-label" maxlength="40" placeholder="ex.: Gravar"></label><label>Ícone<input class="fi" id="bed-icon" maxlength="8" placeholder="REC"></label></div>
+    <small style="margin:-4px 0 10px">Ícone: até 8 letras ou símbolos simples. Vazio usa as iniciais do nome.</small>
+    <label>O que faz<select id="bed-type"><option value="keys">Atalho de teclado</option><option value="text">Digitar um texto</option><option value="action">Ação pronta</option><option value="shortcut">Abrir programa</option><option value="macro">Sequência (macro)</option></select></label>
+    <label id="bed-v-keys">Teclas<input class="fi" id="bed-keys" placeholder="ctrl+shift+s" autocapitalize="off" autocorrect="off" spellcheck="false"><small>Junte com +: ctrl, shift, alt, win, a–z, 0–9, f1–f12, enter, esc, tab, space, up, down, left, right, home, end, delete, plus, minus, play_pause, vol_up…</small></label>
+    <label id="bed-v-text">Texto<textarea class="ta" id="bed-text" rows="3"></textarea><small>Quebra de linha vira Enter no PC.</small></label>
+    <label id="bed-v-action">Ação<select id="bed-action"></select></label>
+    <label id="bed-v-macro">Passos (um por linha)<textarea class="ta" id="bed-macro" rows="6" spellcheck="false" autocapitalize="off" placeholder="abrir vscode&#10;esperar 2s&#10;teclas ctrl+shift+p&#10;texto Terminal"></textarea>
+      <small>teclas ctrl+t &nbsp; texto olá &nbsp; esperar 500 (ms) ou esperar 2s &nbsp; abrir nome-do-programa &nbsp; acao media.next</small>
+      <small id="bed-macro-progs"></small></label>
+    <label id="bed-v-shortcut">Programa<select id="bed-shortcut"></select><small>A lista vem dos "shortcuts" do config.json do PC.</small></label>
+    <label id="bed-svg-l">Desenho<small>Sem desenho, o botão mostra o texto do campo Ícone.</small></label><div class="svgpick" id="bed-svgs"></div>
+    <label>Cor da marca</label><div class="colors" id="bed-colors"></div>
+    <label class="chk"><input type="checkbox" id="bed-confirm"> Pedir confirmação antes</label>
+    <div class="acts"><button type="button" class="btn danger" id="bed-del">Excluir</button><button type="button" class="btn" id="bed-left" aria-label="Mover para trás">&lt;</button><button type="button" class="btn" id="bed-right" aria-label="Mover para frente">&gt;</button><span style="flex:1"></span><button type="button" class="btn" id="bed-cancel">Cancelar</button><button class="btn primary">Salvar</button></div>
+  </form>
+</div>
+<div class="overlay hidden" id="ped">
+  <form class="dialog" id="ped-form">
+    <h1 id="ped-title">Página</h1>
+    <label>Nome<input class="fi" id="ped-name" maxlength="24"></label>
+    <label>Abrir sozinha com estes programas<input class="fi" id="ped-apps" placeholder="code.exe, obs64.exe" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <small>Nomes dos .exe separados por vírgula. @jogo vale para qualquer jogo aberto.</small></label>
+    <button type="button" class="btn sm" id="ped-cur">Adicionar o programa em foco no PC</button>
+    <div class="acts"><button type="button" class="btn danger" id="ped-del">Excluir</button><button type="button" class="btn" id="ped-left" aria-label="Mover para trás">&lt;</button><button type="button" class="btn" id="ped-right" aria-label="Mover para frente">&gt;</button><span style="flex:1"></span><button type="button" class="btn" id="ped-cancel">Cancelar</button><button class="btn primary">Salvar</button></div>
+  </form>
+</div>
+<div class="overlay hidden" id="confirm">
+  <div class="dialog"><h1 id="confirm-q"></h1><p id="confirm-sub">Confirme para executar no PC.</p>
+    <div class="acts"><button class="btn" id="confirm-no">Cancelar</button><button class="btn primary" id="confirm-yes">Confirmar</button></div></div>
+</div>
+<div id="dock" class="hidden" aria-label="Modo base. Toque para voltar."><div class="dk" id="dk">
+  <div class="dk-time"><span id="dk-h">--</span><i>:</i><span id="dk-m">--</span></div>
+  <div class="dk-date" id="dk-date"></div>
+  <div class="dk-line" id="dk-stats"></div>
+  <div class="dk-line hi" id="dk-media"></div>
+  <div class="dk-line" id="dk-extra"></div>
+</div><div class="dk-hint">Toque para voltar</div></div>
+<div id="idle-catch" class="hidden"><div class="dk-hint">Toque para voltar</div></div>
+<div class="toast hidden" id="toast"></div>
+<textarea id="kbd" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+
+// ---------------------------------------------------------------- ajustes
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("pcc." + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("pcc." + k, JSON.stringify(v)); } catch {} },
+};
+// token via QR/link: http://pc:8770/#t=TOKEN  (o # não vai pela rede)
+(() => {
+  const m = location.hash.match(/[#&]t=([^&]+)/);
+  if (m) store.set("token", decodeURIComponent(m[1]));
+  const tab = location.hash.match(/[#&]tab=(\w+)/);   // link direto para uma aba: #tab=mouse
+  if (tab) store.set("tab", tab[1]);
+  if (m || tab) history.replaceState(null, "", location.pathname);
+})();
+const prefs = { snd: store.get("snd", true), wake: store.get("wake", true), vib: store.get("vib", true), sens: store.get("sens", 1.8), tab: store.get("tab", "dash") };
+
+// ---------------------------------------------------------------- formatação
+const fmtBytes = (n, rate) => {
+  n = +n || 0; const u = ["B", "KB", "MB", "GB", "TB"]; let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return (i < 2 ? n.toFixed(0) : n.toFixed(1)) + " " + u[i] + (rate ? "/s" : "");
+};
+const fmtTime = (s) => { s = Math.max(0, Math.floor(s || 0)); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = String(s % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${x}` : `${m}:${x}`; };
+const humanDur = (s) => { s = Math.max(0, Math.floor(s || 0)); if (s < 60) return s + "s"; const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60;
+  return h ? `${h}h ${String(m).padStart(2, "0")}m` : `${m} min`; };
+const humanAgo = (s) => { s = Math.max(0, s || 0); if (s < 120) return "agora"; if (s < 3600) return `há ${Math.floor(s / 60)} min`;
+  if (s < 86400) return `há ${Math.floor(s / 3600)} h`; const d = Math.floor(s / 86400); return d === 1 ? "ontem" : `há ${d} dias`; };
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const setBar = (id, pct) => { const b = $(id); pct = Math.max(0, Math.min(100, +pct || 0));
+  b.firstElementChild.style.width = pct + "%"; b.classList.toggle("warn", pct >= 75 && pct < 90); b.classList.toggle("bad", pct >= 90); };
+
+function buzz(ms = 12) { snd(ms <= 8 ? "tab" : "tap"); if (prefs.vib && navigator.vibrate) try { navigator.vibrate(ms); } catch {} }
+// sons de terminal: bipes de onda quadrada gerados na hora (sem arquivos)
+let actx = null;
+const SOUNDS = { tap: [[1900, 0.022]], tab: [[1300, 0.025], [1900, 0.025]], ok: [[1400, 0.045], [2100, 0.06]],
+  err: [[320, 0.11], [220, 0.14]], on: [[800, 0.045], [1200, 0.045], [1800, 0.07]], off: [[1200, 0.06], [600, 0.1]], note: [[1700, 0.05], [1700, 0.05]] };
+function snd(kind) {
+  if (!prefs.snd) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === "suspended") actx.resume();
+    let t = actx.currentTime + 0.005;
+    for (const [f, d] of SOUNDS[kind] || []) {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = "square"; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.035, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      o.connect(g).connect(actx.destination); o.start(t); o.stop(t + d + 0.02); t += d + 0.018;
+    }
+  } catch {}
+}
+let toastT;
+function toast(msg, kind = "") {
+  if (kind === "ok" || kind === "bad") snd(kind === "ok" ? "ok" : "err");
+  const t = $("toast"); t.textContent = msg; t.className = "toast " + kind;
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.add("hidden"), 2200);
+}
+
+// ---------------------------------------------------------------- conexão
+let ws = null, welcome = {}, nextId = 1, retry = 0, retryT = null, wasOnline = false;
+const pending = new Map();
+let pageBuild = 0;
+const state = { stats: null, now: null, games: null, art: {}, gameart: {}, nowT: 0, gamesT: 0 };
+
+function wsUrl() { return (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws"; }
+
+function connect() {
+  clearTimeout(retryT);
+  const token = store.get("token", "");
+  if (!token) { showLogin(); return; }
+  setDot("wait", "Conectando…");
+  const sock = ws = new WebSocket(wsUrl());
+  sock.onopen = () => sock.send(JSON.stringify({ t: "hello", token, client: "android",
+    screen: `${innerWidth}x${innerHeight} dpr${devicePixelRatio} ${matchMedia("(orientation: landscape)").matches ? "deitado" : "em pé"} cq=${CSS.supports("container-type: size")} ${(navigator.userAgent.match(/Chrome\/[\d.]+/) || [navigator.userAgent.slice(0, 40)])[0]}` }));
+  sock.onmessage = (ev) => { if (sock === ws) onMsg(JSON.parse(ev.data)); };
+  sock.onclose = (ev) => {
+    if (sock !== ws) return;
+    ws = null;
+    for (const [, p] of pending) p.reject(new Error("desconectado")); pending.clear();
+    if (ev.code === 4001) { store.set("token", ""); setDot("", "Token inválido"); showLogin("Token inválido. Confira o config.json do PC."); return; }
+    setDot("", "Desconectado");
+    if (wasOnline) { wasOnline = false; snd("off"); }
+    retry = Math.min(retry + 1, 6);
+    retryT = setTimeout(connect, [500, 1000, 2000, 3000, 5000, 5000, 8000][retry]);
+  };
+  sock.onerror = () => {};
+}
+
+function send(a, p = {}, reply = true) {
+  if (!ws || ws.readyState !== 1) { if (reply) toast("Sem conexão com o PC", "bad"); return Promise.reject(new Error("offline")); }
+  const msg = { t: "req", a, p };
+  if (!reply) { ws.send(JSON.stringify(msg)); return Promise.resolve(); }
+  msg.id = nextId++;
+  ws.send(JSON.stringify(msg));
+  return new Promise((resolve, reject) => {
+    pending.set(msg.id, { resolve, reject });
+    setTimeout(() => { if (pending.delete(msg.id)) reject(new Error("sem resposta")); }, 8000);
+  });
+}
+function act(a, p, label) {
+  buzz();
+  return send(a, p).then((d) => { if (label) toast(label, "ok"); return d; }).catch((e) => { if (e.message !== "offline") toast(e.message, "bad"); });
+}
+
+function onMsg(m) {
+  switch (m.t) {
+    case "welcome":
+      // página nova no PC: recarrega (o app reconecta sozinho e nunca baixaria o HTML de novo)
+      if (m.web && pageBuild && m.web !== pageBuild) { location.reload(); return; }
+      pageBuild = pageBuild || m.web;
+      welcome = m; retry = 0;
+      $("host").textContent = m.host; $("os").textContent = m.os;
+      setDot("ok", "");
+      renderPower(); loadDeck(); pollMixer();
+      if (vis("screen")) screenLoop();
+      bootLine(`${m.host} conectado.`); bootDone();
+      snd("on"); wasOnline = true;
+      if (m.features?.notif) subNotif();
+      libT = 0; if (vis("games")) loadGamesExtra();
+      CONN = `${m.host} · servidor ${m.version} · ${location.host}`; showConn();
+      break;
+    case "res": {
+      const p = pending.get(m.id); if (!p) return; pending.delete(m.id);
+      m.ok ? p.resolve(m.d) : p.reject(new Error(m.e || "falhou"));
+      break;
+    }
+    case "stats": state.stats = m.d; renderStats(); break;
+    case "now": state.now = m.d; state.nowT = performance.now(); renderNow(); break;
+    case "art": state.art = { [m.id]: "data:image/jpeg;base64," + m.jpg }; renderNow(); break;
+    case "games": state.games = m.d; state.gamesT = performance.now(); renderGames(); break;
+    case "gameart": state.gameart = { [m.id]: "data:image/jpeg;base64," + m.jpg }; renderGames(); break;
+    case "event":
+      if (m.kind === "notif") { snd("note"); notify(`${m.app}: ${m.title}`, m.body, "pcn-" + m.app); break; }
+      if (m.kind === "download" && prefs.alerts.download) notify("Download concluído", m.name + (m.size ? ` · ${fmtBytes(m.size)}` : ""), "dl");
+      break;
+  }
+}
+
+function setDot(cls, text) {
+  $("dot").className = $("dot2").className = "dot " + cls;
+  $("via").textContent = text || (["localhost", "127.0.0.1"].includes(location.hostname) ? "cabo USB" : "Wi-Fi");
+  $("banner").classList.toggle("hidden", cls === "ok" || !welcome.host);
+  $("banner").textContent = "Sem conexão com o PC — tentando de novo…";
+}
+
+function showLogin(msg) {
+  bootDone(true);
+  $("login").classList.remove("hidden");
+  if (msg) $("login").querySelector("p").textContent = msg;
+  $("token").value = "";
+  setTimeout(() => $("token").focus(), 50);
+}
+$("login-form").onsubmit = (e) => {
+  e.preventDefault();
+  const t = $("token").value.trim(); if (!t) return;
+  store.set("token", t); $("login").classList.add("hidden"); connect();
+};
+$("b-logout").onclick = () => { store.set("token", ""); if (ws) { const s = ws; ws = null; s.close(); } showLogin(); };
+
+// ---------------------------------------------------------------- seções e vistas
+// 5 seções na barra; cada uma tem vistas (sub-abas). Em tablet deitado as vistas
+// da seção aparecem lado a lado.
+const SECTIONS = {
+  status: [["dash", "Sistema"], ["games", "Jogos"], ["work", "Trabalho"]],
+  radio: [["media", "Tocando"], ["mix", "Mixer"]],
+  ctrl: [["mouse", "Mouse e teclado"], ["screen", "Tela do PC"]],
+  deck: [["deck", "Botões"]],
+  pc: [["send", "Arquivos"], ["power", "Energia"], ["sys", "Ajustes"]],
+};
+const SPLIT = { status: "minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr)", radio: "minmax(0,1fr) minmax(0,1.1fr)",
+  ctrl: "minmax(0,1fr) minmax(0,1.7fr)", pc: "minmax(0,1.25fr) minmax(0,.75fr) minmax(0,1.2fr)" };
+const VIEWS = Object.values(SECTIONS).flat().map(([n]) => n);
+const secOf = (v) => Object.keys(SECTIONS).find((s) => SECTIONS[s].some(([n]) => n === v)) || "status";
+const wideMQ = matchMedia("(min-width: 1000px) and (min-height: 600px) and (orientation: landscape)");
+const MAIN = $("main"), lastView = store.get("views", {});
+let shown = new Set();
+const vis = (v) => shown.has(v);
+function showView(name, temp) {
+  if (!VIEWS.includes(name)) name = "dash";
+  const sec = secOf(name), views = SECTIONS[sec], multi = wideMQ.matches && views.length > 1;
+  shown = new Set(multi ? views.map(([n]) => n) : [name]);
+  document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", shown.has(t.id.slice(2))));
+  document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("on", b.dataset.sec === sec));
+  MAIN.classList.toggle("multi", multi);
+  MAIN.style.gridTemplateColumns = multi ? SPLIT[sec] : "";
+  const sub = $("subtabs"), showSub = !multi && views.length > 1;
+  sub.classList.toggle("hidden", !showSub);
+  sub.innerHTML = showSub ? views.map(([n, l]) => `<button role="tab" data-view="${n}" aria-selected="${n === name}"${n === name ? ' class="on"' : ""}>${l}</button>`).join("") : "";
+  document.querySelectorAll(".tab.on").forEach((t) => (t.scrollTop = 0));
+  prefs.tab = name;
+  if (!temp) { store.set("tab", name); lastView[sec] = name; store.set("views", lastView); }
+  if (!vis("mouse")) $("kbd").blur();
+  if (vis("dash")) requestAnimationFrame(drawSparks);
+  if (vis("screen")) requestAnimationFrame(() => { layoutScreen(); screenLoop(); });
+  if (vis("media") || vis("mix")) { mixT = 0; renderMixer(); pollMixer(); }
+  if (vis("games")) loadGamesExtra();
+  if (vis("work")) loadWork(true);
+}
+$("subtabs").onclick = (e) => { const b = e.target.closest("[data-view]"); if (b) { buzz(8); showView(b.dataset.view); } };
+document.querySelectorAll("nav button").forEach((b) => (b.onclick = () => { buzz(8); showView(lastView[b.dataset.sec] || SECTIONS[b.dataset.sec][0][0]); }));
+wideMQ.addEventListener("change", () => showView(prefs.tab));
+
+// ---------------------------------------------------------------- abertura (uma vez por carregamento)
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function bootLine(t, dim) {
+  const box = $("boot-lines"); if ($("boot").classList.contains("done")) return;
+  box.querySelector(".cur")?.classList.remove("cur");
+  const d = document.createElement("div"); d.className = "l cur" + (dim ? " dim" : ""); d.textContent = t; box.appendChild(d);
+}
+function bootDone(now) { setTimeout(() => $("boot").classList.add("done"), now || REDUCED ? 0 : 500); }
+bootLine("PC COMPANION 1.6");
+bootLine("Terminal de bolso para o seu PC", true);
+bootLine(`Conectando pelo ${["localhost", "127.0.0.1"].includes(location.hostname) ? "cabo USB" : "Wi-Fi"}…`);
+setTimeout(() => bootDone(true), 5000);   // sem PC: mostra o app com o aviso de conexão
+
+// ---------------------------------------------------------------- Painel
+const hist = { cpu: [], ram: [], gpu: [], down: [], up: [] };
+const HIST_N = 60;
+function pushHist(k, v) { const a = hist[k]; a.push(+v || 0); if (a.length > HIST_N) a.shift(); }
+function drawSpark(id, series, max) {
+  const c = $(id); if (!c || !c.offsetParent) return;
+  const dpr = devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+  if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); }
+  const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  const css = getComputedStyle(document.documentElement);
+  const top = max || Math.max(1, ...series.flatMap((s) => s.data));
+  for (const { data, color, fill } of series) {
+    if (data.length < 2) continue;
+    const col = css.getPropertyValue(color).trim() || color, step = w / (HIST_N - 1), x0 = w - (data.length - 1) * step;
+    g.beginPath();
+    data.forEach((v, i) => { const x = x0 + i * step, y = h - 1 - (Math.min(v, top) / top) * (h - 3); i ? g.lineTo(x, y) : g.moveTo(x, y); });
+    g.strokeStyle = col; g.lineWidth = 1.5; g.lineJoin = "miter"; g.stroke();
+    if (fill) { g.lineTo(w, h); g.lineTo(x0, h); g.closePath(); g.globalAlpha = 0.15; g.fillStyle = col; g.fill(); g.globalAlpha = 1; }
+  }
+}
+function renderStats() {
+  const s = state.stats; if (!s) return;
+  pushHist("cpu", s.cpu); pushHist("ram", s.ram_pct); pushHist("gpu", s.gpu?.util); pushHist("down", s.net_down); pushHist("up", s.net_up);
+  if (vis("dash")) drawSparks();
+  $("clock").textContent = $("clock2").textContent = s.time.slice(0, 5);
+  $("cpu").textContent = Math.round(s.cpu) + "%"; setBar("cpu-bar", s.cpu);
+  const sen = s.sensors;
+  $("cpu-mhz").textContent = [sen?.cpu_temp != null ? Math.round(sen.cpu_temp) + "°C" : "", s.cpu_mhz ? (s.cpu_mhz / 1000).toFixed(2) + " GHz" : ""].filter(Boolean).join(" · ");
+  $("fans").innerHTML = (sen?.fans || []).slice(0, 4).map((f) => `<div class="row"><span>${esc(f.name)}</span><span>${f.rpm} RPM</span></div>`).join("");
+  $("al-cpu-note").classList.toggle("hidden", !!sen);
+  checkAlerts(s);
+  renderMicTimer(s); deckFollow(s);
+  $("ram").textContent = Math.round(s.ram_pct) + "%"; setBar("ram-bar", s.ram_pct);
+  $("ram-txt").textContent = `${fmtBytes(s.ram_used)} / ${fmtBytes(s.ram_total)}`;
+  const g = s.gpu;
+  $("gpu-card").classList.toggle("hidden", !g);
+  if (g) {
+    $("gpu").textContent = Math.round(g.util) + "%"; setBar("gpu-bar", g.util);
+    $("gpu-temp").textContent = Math.round(g.temp) + "°C";
+    $("gpu-sub").textContent = [g.name, g.power != null ? Math.round(g.power) + " W" : "", g.fan != null ? `fan ${Math.round(g.fan)}%` : "",
+      `${fmtBytes(g.mem_used)} / ${fmtBytes(g.mem_total)}`].filter(Boolean).join(" · ");
+  }
+  $("net-down").textContent = fmtBytes(s.net_down, true); $("net-up").textContent = fmtBytes(s.net_up, true);
+  $("net-ping").textContent = !s.ping ? "–" : s.ping.ok ? s.ping.ms + " ms" : "sem internet";
+  $("net-ping").style.color = s.ping && !s.ping.ok ? "var(--alert)" : "";
+  netAlert(s.ping);
+  const f = s.fps?.fps != null ? s.fps : null;
+  $("fps-chip").classList.toggle("hidden", !f); if (f) $("fps-chip").textContent = f.fps + " FPS";
+  $("g-fps").classList.toggle("hidden", !f);
+  if (f) { $("g-fps-n").textContent = f.fps; $("g-fps-low").textContent = f.low ? `1% baixo: ${f.low}` : ""; }
+  const ferr = s.fps?.error;
+  $("g-fps-hint").classList.toggle("hidden", !ferr || !s.app_game);
+  if (ferr) $("g-fps-hint").textContent = ferr === "perm" ? "Para ver o FPS, o PC precisa liberar o PresentMon uma vez (veja o README)." : "Para ver o FPS, instale o PresentMon Console no PC.";
+  $("window").textContent = s.window || "Área de trabalho";
+  $("procs").innerHTML = (s.procs || []).map((p) => `<div class="row"><span>${esc(p.name)}</span><span>${p.cpu.toFixed(1)}% · ${fmtBytes(p.mem)}</span></div>`).join("");
+  $("disks").innerHTML = (s.disks || []).map((d) => `<div class="row"><span>${esc(d.name)}</span><span>${fmtBytes(d.used)} / ${fmtBytes(d.total)}</span></div>
+    <div class="bar ${d.pct >= 90 ? "bad" : d.pct >= 75 ? "warn" : ""}" style="margin:0 0 8px"><i style="width:${d.pct}%"></i></div>`).join("");
+  const up = s.uptime_s, d = Math.floor(up / 86400);
+  $("uptime").textContent = (d ? d + "d " : "") + humanDur(up % 86400);
+  $("bat-row").classList.toggle("hidden", !s.battery);
+  if (s.battery) $("bat").textContent = `${Math.round(s.battery.pct)}%${s.battery.plugged ? " · na tomada" : ""}`;
+}
+
+function drawSparks() {
+  drawSpark("sp-cpu", [{ data: hist.cpu, color: "--p", fill: true }], 100);
+  drawSpark("sp-ram", [{ data: hist.ram, color: "--p", fill: true }], 100);
+  drawSpark("sp-gpu", [{ data: hist.gpu, color: "--p", fill: true }], 100);
+  drawSpark("sp-net", [{ data: hist.down, color: "--p", fill: true }, { data: hist.up, color: "--p3" }]);
+}
+addEventListener("resize", () => vis("dash") && drawSparks());
+
+// ---------------------------------------------------------------- Tocando
+const ICON_PLAY = '<path d="M8 5v14l11-7z"/>', ICON_PAUSE = '<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>';
+let volDragging = false, seekPreview = null;
+function mediaPos() {
+  const m = state.now?.media; if (!m) return 0;
+  let pos = m.pos; if (m.status === "playing") pos += (performance.now() - state.nowT) / 1000;
+  return m.dur ? Math.min(pos, m.dur) : pos;
+}
+function renderNow() {
+  const n = state.now || {}, m = n.media;
+  if (m) {
+    $("m-title").textContent = m.title || "(sem título)";
+    $("m-artist").textContent = [m.artist, m.album].filter(Boolean).join(" · ");
+    $("m-app").textContent = m.app || "";
+    $("play-ico").innerHTML = m.status === "playing" ? ICON_PAUSE : ICON_PLAY;
+    $("b-prev").disabled = !m.can_prev; $("b-next").disabled = !m.can_next;
+  } else {
+    $("m-title").textContent = "Nada tocando"; $("m-artist").textContent = "Abra uma música ou vídeo no PC"; $("m-app").textContent = "";
+    $("play-ico").innerHTML = ICON_PLAY; $("b-prev").disabled = $("b-next").disabled = false;
+  }
+  const art = m?.art && state.art[m.art];
+  $("art").style.backgroundImage = art ? `url(${art})` : "";
+  $("art").firstElementChild.style.display = art ? "none" : "";
+  const v = n.volume;
+  $("vol").disabled = !v;
+  if (v && !volDragging) { $("vol").value = v.level; $("vol-val").textContent = v.muted ? "mudo" : v.level + "%"; }
+  if (!v) $("vol-val").textContent = "";
+  $("vol-ico").style.opacity = v?.muted ? 0.4 : 1;
+  tickProgress();
+}
+function tickProgress() {
+  const m = state.now?.media;
+  const pos = seekPreview ?? mediaPos(), dur = m?.dur || 0;
+  $("prog-i").style.width = dur ? (pos / dur) * 100 + "%" : "0";
+  $("m-pos").textContent = fmtTime(pos); $("m-dur").textContent = fmtTime(dur);
+}
+$("b-play").onclick = () => act("media.play_pause");
+$("b-prev").onclick = () => act("media.prev");
+$("b-next").onclick = () => act("media.next");
+$("b-mute").onclick = () => (welcome.features?.volume ? act("media.mute") : act("key.press", { keys: "vol_mute" }));
+const volInput = $("vol");
+let volT = 0;
+volInput.addEventListener("input", () => {
+  volDragging = true; $("vol-val").textContent = volInput.value + "%";
+  const now = performance.now(); if (now - volT > 80) { volT = now; send("volume.set", { level: +volInput.value }, false).catch(() => {}); }
+});
+volInput.addEventListener("change", () => { send("volume.set", { level: +volInput.value }, false).catch(() => {}); setTimeout(() => (volDragging = false), 600); });
+// arrastar na barra de progresso = pular para o ponto
+(() => {
+  const el = $("prog");
+  const at = (e) => { const r = el.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * (state.now?.media?.dur || 0); };
+  el.addEventListener("pointerdown", (e) => { if (!state.now?.media?.can_seek) return; el.setPointerCapture(e.pointerId); seekPreview = at(e); tickProgress(); });
+  el.addEventListener("pointermove", (e) => { if (seekPreview !== null) { seekPreview = at(e); tickProgress(); } });
+  el.addEventListener("pointerup", (e) => {
+    if (seekPreview === null) return;
+    const delta = at(e) - mediaPos(); seekPreview = null;
+    act("media.seek", { delta });
+  });
+  el.addEventListener("pointercancel", () => { seekPreview = null; });
+})();
+
+// ---------------------------------------------------------------- Games
+const STORE_COLORS = { Steam: "#66c0f4", Epic: "#dcdcdc", Riot: "#eb5757", GOG: "#aa82ff", EA: "#f07850", Ubisoft: "#58a6ff" };
+function renderGames() {
+  const d = state.games; if (!d) return;
+  const g = d.game, since = (performance.now() - state.gamesT) / 1000;
+  const art = g?.art && state.gameart[g.art];
+  $("g-art").style.backgroundImage = art ? `url(${art})` : "";
+  $("g-art").classList.toggle("hidden", !art);
+  if (g) {
+    $("g-head").innerHTML = `<span class="chip">${esc(g.store)}</span><span class="playing">jogando</span><div class="gname">${esc(g.name)}</div>`;
+    $("g-time").textContent = humanDur(g.elapsed + since);
+    $("g-extra").textContent = [`Hoje: ${humanDur(g.today_s + since)}`, g.total_h ? `Total: ${Math.round(g.total_h)} h` : ""].filter(Boolean).join(" · ");
+  } else {
+    $("g-head").innerHTML = `<div class="gname">Nenhum jogo aberto</div>`;
+    $("g-time").textContent = "";
+    $("g-extra").textContent = d.today_s ? `Hoje: ${humanDur(d.today_s)} jogando` : "Steam, Epic, GOG, Riot, EA, Ubisoft";
+  }
+  const r = d.recent || [];
+  $("g-recent").innerHTML = r.length ? r.map((x) => `<div class="row"><span>${esc(x.name)}</span><span>${humanDur(x.dur)} · ${humanAgo(x.ago + since)}</span></div>`).join("")
+    : '<div class="empty">Nenhuma sessão ainda</div>';
+}
+
+// ---------------------------------------------------------------- Jogos: semana e biblioteca
+let libT = 0, libData = [];
+async function loadGamesExtra() {
+  if (!ws || ws.readyState !== 1 || !welcome.features?.library || Date.now() - libT < 60000) return;
+  libT = Date.now();
+  try {
+    const [lib, h] = await Promise.all([send("games.library"), send("games.history")]);
+    libData = lib || []; renderLib(); renderWeek(h);
+  } catch { libT = 0; }
+}
+function renderWeek(h) {
+  if (!h) return;
+  const max = Math.max(3600, ...h.days.map((d) => d.s));
+  $("gh-total").textContent = h.week_s ? humanDur(h.week_s) : "";
+  $("gh-days").innerHTML = h.days.map((d, i) => `<div class="wk${i === h.days.length - 1 ? " today" : ""}" title="${humanDur(d.s)}">
+    <small>${d.s >= 3600 ? Math.round(d.s / 360) / 10 + "h" : d.s >= 60 ? Math.round(d.s / 60) + "m" : ""}</small>
+    <i style="height:${Math.round((d.s / max) * 62)}px"></i>${d.d}</div>`).join("");
+  const top = h.top[0]?.s || 1;
+  $("gh-top").innerHTML = h.top.length ? h.top.map((g) => `<div class="toprow"><div class="row"><span>${esc(g.name)}</span><span>${humanDur(g.s)}</span></div>
+    <div class="bar"><i style="width:${(g.s / top) * 100}%"></i></div></div>`).join("") : '<div class="empty">Nenhum jogo nos últimos 7 dias</div>';
+}
+function renderLib() {
+  $("g-lib").innerHTML = libData.length ? libData.map((g, i) => `<button class="lgame${g.running ? " run" : ""}" data-g="${i}">
+    <div class="gart"${g.art ? ` style="background-image:url(data:image/jpeg;base64,${g.art})"` : ""}>${g.art ? "" : esc(g.name)}</div>
+    <div class="ln"><span>${esc(g.name)}</span><span>${g.running ? "aberto" : g.ago != null ? humanAgo(g.ago) : esc(g.store)}</span></div></button>`).join("")
+    : '<div class="empty full">Nenhum jogo da Steam, Epic ou GOG encontrado no PC</div>';
+}
+$("g-lib").onclick = (e) => {
+  const b = e.target.closest("[data-g]"); if (!b) return;
+  const g = libData[+b.dataset.g]; buzz();
+  if (g.running) return toast(g.name + " já está aberto", "ok");
+  confirmAsk(`Abrir ${g.name}?`, () => act("games.launch", { id: g.id }, "Abrindo " + g.name).then(() => { libT = 0; setTimeout(loadGamesExtra, 8000); }));
+};
+setInterval(() => { if (vis("games")) loadGamesExtra(); }, 15000);
+
+// ---------------------------------------------------------------- Trabalho (tempo no Photoshop/Premiere/After)
+// Cliente e job vêm das pastas no PC (nada para escolher aqui). Toque no cliente para ver jobs e arquivos.
+let workData = null, workWeek = null, workOff = 0, workT = 0;
+const workOpen = new Set();
+async function loadWork(force) {
+  if (!ws || ws.readyState !== 1 || !welcome.features?.work) return;
+  try {
+    workData = await send("work.get");
+    if (force || Date.now() - workT > 30000) { workWeek = await send("work.week", { offset: workOff }); workT = Date.now(); }
+    renderWork();
+  } catch { workT = 0; }
+}
+function renderWork() {
+  const d = workData; if (!d) return;
+  const n = d.now, now = $("w-now");
+  now.classList.toggle("wunid", !!n?.app && !n.identified);
+  now.textContent = !n?.app ? "Nenhum programa da Adobe em foco no PC"
+    : `${n.counting ? "Contando" : "Parado (ninguém mexendo no PC)"}: ${n.app} · ${n.identified ? `${n.client} › ${n.job}` : n.client} · ${n.file}`;
+  $("w-today").textContent = humanDur(d.today_s);
+  $("w-today-jobs").innerHTML = d.today.length ? d.today.map((r) => `<div class="row${r.unidentified ? " wunid" : ""}"><span>${esc(r.client)}</span><span>${humanDur(r.s)}</span></div>`).join("")
+    : `<div class="empty">${d.roots.length ? "Nada contado hoje" : "Nenhuma pasta de clientes: escolha no painel do PC (aba Trabalho)"}</div>`;
+  const w = workWeek; if (!w) return;
+  const dm = (s) => s.slice(8, 10) + "/" + s.slice(5, 7);
+  $("w-range").textContent = w.offset === 0 ? "Esta semana" : `${dm(w.start)} a ${dm(w.end)}`;
+  $("w-total").textContent = w.total_s ? humanDur(w.total_s) : "";
+  $("w-next").disabled = w.offset >= 0;
+  const max = Math.max(3600, ...w.days.map((x) => x.s));
+  $("w-days").innerHTML = w.days.map((x) => `<div class="wk${x.today ? " today" : ""}" title="${humanDur(x.s)}">
+    <small>${x.s >= 3600 ? Math.round(x.s / 360) / 10 + "h" : x.s >= 60 ? Math.round(x.s / 60) + "m" : ""}</small>
+    <i style="height:${Math.round((x.s / max) * 62)}px"></i>${x.d}</div>`).join("");
+  const top = w.clients[0]?.s || 1;
+  const files = (fs) => fs.map((f) => `<div class="row wfile"><span>${esc(f.app)} · ${esc(f.file)}</span><span>${humanDur(f.s)}</span></div>`).join("");
+  $("w-week-jobs").innerHTML = w.clients.length ? w.clients.map((c, i) => `<div class="toprow wjob${c.unidentified ? " wunid" : ""}" data-i="${i}">
+    <div class="row"><span>${esc(c.client)}</span><span>${humanDur(c.s)}</span></div><div class="bar"><i style="width:${(c.s / top) * 100}%"></i></div>
+    ${workOpen.has(c.client) ? c.jobs.map((j) => (c.unidentified ? "" : `<div class="row wjobrow"><span>${esc(j.job)}</span><span>${humanDur(j.s)}</span></div>`) + files(j.files)).join("") : ""}</div>`).join("")
+    : '<div class="empty">Nenhum tempo nesta semana</div>';
+}
+$("w-week-jobs").onclick = (e) => {
+  const r = e.target.closest("[data-i]"); if (!r || !workWeek) return;
+  const name = workWeek.clients[+r.dataset.i]?.client; if (name == null) return;
+  workOpen.has(name) ? workOpen.delete(name) : workOpen.add(name); renderWork();
+};
+$("w-prev").onclick = () => { if (workOff > -104) { workOff--; $("w-csv-link").textContent = ""; buzz(8); loadWork(true); } };
+$("w-next").onclick = () => { if (workOff < 0) { workOff++; $("w-csv-link").textContent = ""; buzz(8); loadWork(true); } };
+// CSV da semana mostrada: link temporário (15 min) do PC; tocar no link baixa no celular
+$("w-csv").onclick = async () => {
+  buzz(8);
+  try {
+    const r = await send("work.csv", { offset: workOff });
+    $("w-csv-link").innerHTML = `<a class="btn sm" href="${esc(r.url)}" download="${esc(r.name)}">Baixar ${esc(r.name)}</a>`;
+  } catch (er) { toast(er.message, "bad"); }
+};
+setInterval(() => { if (vis("work")) loadWork(); }, 5000);
+
+// ---------------------------------------------------------------- Atalhos / Sistema
+function renderPower() {
+  $("tmr-sec").classList.toggle("hidden", !welcome.power);
+  const items = [["lock", "Bloquear o PC", false]];
+  if (welcome.power) items.push(["monitor_off", "Desligar monitor", false], ["sleep", "Suspender", true],
+    ["restart", "Reiniciar", true], ["shutdown", "Desligar", true], ["cancel", "Cancelar desligamento", false]);
+  $("power").innerHTML = items.map(([a, l, c]) => `<button class="tile${c ? " warn" : ""}" data-power="${a}" data-label="${l}"${c ? ' data-confirm="1"' : ""}>${l}</button>`).join("");
+}
+let confirmFn = null;
+function confirmAsk(q, fn) { $("confirm-q").textContent = q; confirmFn = fn; $("confirm").classList.remove("hidden"); }
+$("confirm-no").onclick = () => { $("confirm").classList.add("hidden"); confirmFn = null; };
+$("confirm-yes").onclick = () => { $("confirm").classList.add("hidden"); const f = confirmFn; confirmFn = null; f && f(); };
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-launch],button[data-power],button[data-act],.tiles button[data-key]");
+  if (!b) return;
+  const label = b.dataset.label || b.textContent.trim();
+  let run;
+  if (b.dataset.launch) run = () => act("app.launch", { id: b.dataset.launch }, "Abrindo " + label);
+  else if (b.dataset.power) run = () => act("power", { action: b.dataset.power }, label);
+  else if (b.dataset.act) run = () => act(b.dataset.act, {}, label);
+  else run = () => act("key.press", { keys: b.dataset.key }, label);
+  b.dataset.confirm ? confirmAsk(label + "?", run) : run();
+});
+
+// ---------------------------------------------------------------- Mouse (touchpad)
+(() => {
+  const pad = $("pad"), sb = $("scrollbar");
+  const pts = new Map();             // pointerId -> {x, y, x0, y0, t0}
+  let mode = null;                   // "move" | "scroll" | "drag"
+  let acc = { x: 0, y: 0 }, sacc = { x: 0, y: 0 }, moved = false, maxPts = 0, lastTapT = 0, raf = 0;
+  const TAP_MS = 220, TAP_PX = 10;
+
+  function flush() {
+    raf = 0;
+    const dx = Math.trunc(acc.x), dy = Math.trunc(acc.y);
+    if (dx || dy) { acc.x -= dx; acc.y -= dy; send("mouse.move", { dx, dy }, false).catch(() => {}); }
+    const sx = Math.trunc(sacc.x), sy = Math.trunc(sacc.y);
+    if (sx || sy) { sacc.x -= sx; sacc.y -= sy; send("mouse.scroll", { dx: sx, dy: sy }, false).catch(() => {}); }
+  }
+  const schedule = () => { if (!raf) raf = requestAnimationFrame(flush); };
+  const accel = (d, dt) => { const v = Math.abs(d) / Math.max(dt, 1); return d * prefs.sens * (1 + Math.min(v, 3) * 0.9); };
+
+  function down(e) {
+    e.preventDefault();
+    pad.setPointerCapture(e.pointerId);
+    const now = performance.now();
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t: now, t0: now });
+    maxPts = Math.max(maxPts, pts.size);
+    if (pts.size === 1) {
+      moved = false;
+      // toque duplo e arraste = segurar o botão esquerdo
+      if (now - lastTapT < 300) { lastTapT = 0; mode = "drag"; pad.classList.add("drag"); send("mouse.button", { button: "left", state: "down" }, false).catch(() => {}); buzz(20); }
+      else mode = "move";
+    } else if (pts.size === 2 && mode !== "drag") mode = "scroll";
+  }
+  function move(e) {
+    const p = pts.get(e.pointerId); if (!p) return;
+    e.preventDefault();
+    const now = performance.now(), dx = e.clientX - p.x, dy = e.clientY - p.y, dt = now - p.t;
+    p.x = e.clientX; p.y = e.clientY; p.t = now;
+    if (Math.hypot(p.x - p.x0, p.y - p.y0) > TAP_PX) moved = true;
+    if (mode === "scroll") {
+      if (pts.size < 2) return;
+      sacc.y += -dy * 6 / pts.size; sacc.x += dx * 6 / pts.size;   // média dos dois dedos; 120 = 1 "clique" da roda
+    } else { acc.x += accel(dx, dt); acc.y += accel(dy, dt); }
+    schedule();
+  }
+  function up(e) {
+    const p = pts.get(e.pointerId); if (!p) return;
+    pts.delete(e.pointerId);
+    if (pts.size) return;
+    const quick = performance.now() - p.t0 < TAP_MS + (maxPts > 1 ? 80 : 0);
+    if (mode === "drag") {
+      send("mouse.button", { button: "left", state: "up" }, false).catch(() => {});
+      pad.classList.remove("drag");
+    } else if (!moved && quick && e.type !== "pointercancel") {
+      if (maxPts >= 2) { send("mouse.button", { button: "right" }, false).catch(() => {}); buzz(); }
+      else {
+        // clique já; um 2º toque logo depois vira arraste
+        lastTapT = performance.now();
+        send("mouse.button", { button: "left" }, false).catch(() => {}); buzz(8);
+      }
+    }
+    mode = null; maxPts = 0;
+  }
+  pad.addEventListener("pointerdown", down);
+  pad.addEventListener("pointermove", move);
+  pad.addEventListener("pointerup", up);
+  pad.addEventListener("pointercancel", up);
+  pad.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // faixa da direita = rolagem com um dedo
+  let sy = null;
+  sb.addEventListener("pointerdown", (e) => { e.stopPropagation(); e.preventDefault(); sb.setPointerCapture(e.pointerId); sy = e.clientY; });
+  sb.addEventListener("pointermove", (e) => { if (sy === null) return; e.stopPropagation(); sacc.y += -(e.clientY - sy) * 8; sy = e.clientY; schedule(); });
+  const sbEnd = (e) => { e.stopPropagation(); sy = null; };
+  sb.addEventListener("pointerup", sbEnd); sb.addEventListener("pointercancel", sbEnd);
+
+  // botões físicos: segurar = arrastar
+  const hold = (id, button) => {
+    const b = $(id);
+    b.addEventListener("pointerdown", (e) => { e.preventDefault(); b.setPointerCapture(e.pointerId); b.classList.add("held"); buzz(8);
+      send("mouse.button", { button, state: "down" }, false).catch(() => {}); });
+    const rel = () => { if (!b.classList.contains("held")) return; b.classList.remove("held"); send("mouse.button", { button, state: "up" }, false).catch(() => {}); };
+    b.addEventListener("pointerup", rel); b.addEventListener("pointercancel", rel);
+    b.addEventListener("contextmenu", (e) => e.preventDefault());
+  };
+  hold("mb-left", "left"); hold("mb-mid", "middle"); hold("mb-right", "right");
+})();
+
+// ---------------------------------------------------------------- Teclado
+const mods = new Set();
+function withMods(key) { return mods.size ? [...mods, key].join("+") : key; }
+function clearMods() { mods.clear(); document.querySelectorAll(".key.mod").forEach((b) => b.classList.remove("on")); }
+document.querySelectorAll(".key.mod").forEach((b) => (b.onclick = () => {
+  buzz(8); const m = b.dataset.mod; mods.has(m) ? mods.delete(m) : mods.add(m); b.classList.toggle("on", mods.has(m));
+}));
+document.querySelectorAll(".keys .key[data-key]").forEach((b) => {
+  b.addEventListener("pointerdown", (e) => e.preventDefault()); // não tira o foco do teclado do Android
+  b.onclick = () => { buzz(8); send("key.press", { keys: withMods(b.dataset.key) }, false).catch(() => toast("Sem conexão", "bad")); clearMods(); };
+});
+// Alt+Tab: segura Alt; cada toque avança; solta Alt 1,2 s depois do último toque
+(() => {
+  let t = null; const b = $("alttab");
+  b.addEventListener("pointerdown", (e) => e.preventDefault());
+  b.onclick = () => {
+    buzz(8);
+    if (!t) send("key.down", { key: "alt" }, false).catch(() => {});
+    send("key.press", { keys: "tab" }, false).catch(() => {});
+    clearTimeout(t); t = setTimeout(() => { send("key.up", { key: "alt" }, false).catch(() => {}); t = null; }, 1200);
+  };
+})();
+
+// O texto digitado no teclado do Android é comparado com o anterior:
+// apaga o que mudou e digita o novo (funciona com autocorretor/composição).
+(() => {
+  const kbd = $("kbd"), btn = $("kb-btn");
+  let last = "";
+  btn.addEventListener("pointerdown", (e) => e.preventDefault());
+  btn.onclick = () => {
+    if (document.activeElement === kbd) { kbd.blur(); return; }
+    kbd.value = last = ""; kbd.focus(); buzz(8);
+  };
+  kbd.addEventListener("focus", () => btn.classList.add("on"));
+  kbd.addEventListener("blur", () => btn.classList.remove("on"));
+  kbd.addEventListener("keydown", (e) => {
+    // teclas que não geram texto (Enter, Backspace com campo vazio, setas de teclado físico)
+    const special = { Enter: "enter", Tab: "tab", Escape: "esc", ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down" };
+    if (special[e.key]) { e.preventDefault(); send("key.press", { keys: withMods(special[e.key]) }, false).catch(() => {}); clearMods(); kbd.value = last = ""; return; }
+    if (e.key === "Backspace" && !kbd.value) { e.preventDefault(); send("key.press", { keys: withMods("backspace") }, false).catch(() => {}); }
+  });
+  kbd.addEventListener("input", () => {
+    const v = kbd.value;
+    let i = 0; while (i < v.length && i < last.length && v[i] === last[i]) i++;
+    const del = [...last.slice(i)].length, add = v.slice(i);
+    last = v;
+    if (mods.size && add.length === 1 && /[a-z0-9]/i.test(add) && !del) {
+      send("key.press", { keys: withMods(add.toLowerCase()) }, false).catch(() => {}); clearMods();
+      kbd.value = last = ""; return;
+    }
+    const text = "\b".repeat(del) + add;
+    if (text) send("key.text", { text }, false).catch(() => toast("Sem conexão", "bad"));
+    // limpa o campo no fim de cada palavra para ele não crescer sem parar
+    if (/\s$/.test(v) && v.length > 40) kbd.value = last = "";
+  });
+})();
+
+// ---------------------------------------------------------------- Botões (deck)
+let deckData = null, deckEdit = false;
+prefs.deckPage = store.get("deckPage", 0);
+const DECK_COLORS = ["", "#58a6ff", "#50c878", "#f0b446", "#eb5757", "#aa82ff", "#5865f2", "#ff7ab6", "#3dd6d0"];
+const clone = (o) => JSON.parse(JSON.stringify(o));
+// ícone só em texto: emoji colorido é removido; sem ícone, usa as iniciais do nome
+const NO_EMOJI = /[\p{Extended_Pictographic}\u{FE0F}\u{200D}\u{20E3}]/gu;
+const deckIcon = (b) => (b.icon || "").replace(NO_EMOJI, "").trim()
+  || (b.label || "?").replace(NO_EMOJI, "").split(/[\s:/]+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?";
+// ícones desenhados: web/icons/lucide.svg (<symbol id="ic-nome">), carregado uma vez e embutido na página.
+// O botão guarda só o nome ("svg"); sem o arquivo ou sem o nome, fica a sigla de texto.
+let svgNames = [];
+const SVG_NAME = /^[a-z0-9-]{1,40}$/;
+const deckSvg = (b) => (b.svg && svgNames.includes(b.svg) ? `<svg class="isvg" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-${b.svg}"/></svg>` : "");
+fetch("icons/lucide.svg").then((r) => (r.ok ? r.text() : Promise.reject())).then((t) => {
+  const doc = new DOMParser().parseFromString(t, "image/svg+xml"), root = doc.documentElement;
+  if (root.nodeName !== "svg") return;
+  root.querySelectorAll("script, foreignObject").forEach((n) => n.remove());
+  const sprite = document.importNode(root, true);
+  sprite.setAttribute("aria-hidden", "true"); sprite.style.cssText = "position:absolute;width:0;height:0;overflow:hidden";
+  document.body.prepend(sprite);
+  svgNames = [...sprite.querySelectorAll("symbol[id^='ic-']")].map((s) => s.id.slice(3)).filter((n) => SVG_NAME.test(n)).sort();
+  if (deckData) renderDeck();
+}).catch(() => {});
+async function loadDeck() { try { deckData = await send("deck.get"); renderDeck(); } catch {} }
+const deckPages = () => deckData?.deck?.pages || [];
+function pageButtons(pg) {
+  if (pg.auto === "shortcuts") return (welcome.shortcuts || []).map((x) => ({ label: x.name, type: "shortcut", value: x.id }));
+  return pg.buttons || [];
+}
+function renderDeck() {
+  const pages = deckPages(); if (!pages.length) return;
+  prefs.deckPage = Math.max(0, Math.min(prefs.deckPage, pages.length - 1));
+  $("deck-pages").innerHTML = pages.map((pg, i) => `<button class="chip2${i === prefs.deckPage ? " on" : ""}" data-page="${i}">${esc(pg.name)}</button>`).join("")
+    + (deckEdit ? '<button class="chip2 add" data-page="new">+ Página</button>' : "");
+  const pg = pages[prefs.deckPage], btns = pageButtons(pg);
+  let html = btns.map((b, i) => `<button class="dbtn${b.confirm ? " warn" : ""}" data-i="${i}"${b.color ? ` style="--c:${b.color}"` : ""}>
+    <span class="di">${deckSvg(b) || esc(deckIcon(b))}</span><span class="dl">${esc(b.label)}</span></button>`).join("");
+  if (deckEdit && !pg.auto) html += '<button class="dbtn add" data-i="new"><span class="di">+</span><span class="dl">Novo botão</span></button>';
+  if (deckEdit && pg.auto) html += '<div class="empty full">Esta página mostra os programas do config.json do PC — edite lá.</div>';
+  if (!btns.length && !deckEdit) html = `<div class="empty full">${pg.auto ? "Nenhum programa no config.json do PC" : "Página vazia. Toque em Editar para adicionar botões."}</div>`;
+  $("deck-grid").innerHTML = html;
+  $("deck-grid").classList.toggle("editing", deckEdit);
+  $("deck-edit").textContent = deckEdit ? "Pronto" : "Editar";
+  $("deck-editbar").classList.toggle("hidden", !deckEdit);
+}
+$("deck-pages").onclick = (e) => {
+  const b = e.target.closest("[data-page]"); if (!b) return; buzz(8);
+  if (b.dataset.page === "new") return editPage(-1);
+  const i = +b.dataset.page;
+  if (deckEdit && i === prefs.deckPage) return editPage(i);
+  prefs.deckPage = i; store.set("deckPage", i); renderDeck();
+};
+$("deck-edit").onclick = () => { if (!deckData) return; deckEdit = !deckEdit; buzz(8); renderDeck(); };
+$("deck-reset").onclick = () => confirmAsk("Voltar aos botões padrão?", async () => {
+  try { deckData = await send("deck.reset"); prefs.deckPage = 0; renderDeck(); toast("Botões restaurados", "ok"); } catch (e) { toast(e.message, "bad"); }
+});
+$("deck-grid").onclick = (e) => {
+  const el = e.target.closest(".dbtn"); if (!el) return;
+  const pg = deckPages()[prefs.deckPage];
+  if (deckEdit) { if (!pg.auto) editButton(el.dataset.i === "new" ? -1 : +el.dataset.i); return; }
+  const i = +el.dataset.i, b = pageButtons(pg)[i];
+  el.classList.add("hit"); setTimeout(() => el.classList.remove("hit"), 160);
+  const run = () => (pg.auto ? act("app.launch", { id: b.value }, "Abrindo " + b.label)
+    : act("deck.press", { page: prefs.deckPage, index: i }, b.type === "action" || b.type === "shortcut" ? b.label : null));
+  b.confirm ? confirmAsk(b.label + "?", run) : run();
+};
+async function saveDeck(deck) {
+  try { deckData = await send("deck.save", { deck }); renderDeck(); return true; } catch (e) { toast(e.message, "bad"); return false; }
+}
+let bedIdx = -1, bedColor = "", bedSvg = "";
+function editButton(i) {
+  const pg = deckPages()[prefs.deckPage], b = i >= 0 ? pg.buttons[i] : { label: "", type: "keys", value: "" };
+  bedIdx = i;
+  $("bed-title").textContent = i >= 0 ? "Editar botão" : "Novo botão";
+  $("bed-label").value = b.label || ""; $("bed-icon").value = b.icon || "";
+  $("bed-type").value = b.type;
+  $("bed-keys").value = b.type === "keys" ? b.value : ""; $("bed-text").value = b.type === "text" ? b.value : "";
+  $("bed-action").innerHTML = Object.entries(deckData.actions).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+  $("bed-shortcut").innerHTML = (welcome.shortcuts || []).map((x) => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join("");
+  if (b.type === "action") $("bed-action").value = b.value;
+  if (b.type === "shortcut") $("bed-shortcut").value = b.value;
+  $("bed-macro").value = b.type === "macro" ? b.value : "";
+  $("bed-macro-progs").textContent = "Programas: " + (welcome.shortcuts || []).map((x) => x.id).join(", ");
+  $("bed-confirm").checked = !!b.confirm; bedColor = b.color || ""; renderColors();
+  bedSvg = b.svg || ""; renderSvgs();
+  ["bed-del", "bed-left", "bed-right"].forEach((id) => $(id).classList.toggle("hidden", i < 0));
+  bedType(); $("bed").classList.remove("hidden");
+}
+function bedType() { const t = $("bed-type").value; for (const k of ["keys", "text", "action", "shortcut", "macro"]) $("bed-v-" + k).classList.toggle("hidden", k !== t); }
+$("bed-type").onchange = bedType;
+function renderColors() {
+  $("bed-colors").innerHTML = DECK_COLORS.map((c) => `<button type="button" class="sw${c === bedColor ? " on" : ""}" data-c="${c}" style="background:${c || "var(--bg)"}" aria-label="${c || "sem cor"}"></button>`).join("");
+}
+$("bed-colors").onclick = (e) => { const x = e.target.closest(".sw"); if (x) { bedColor = x.dataset.c; renderColors(); } };
+function renderSvgs() {
+  $("bed-svg-l").classList.toggle("hidden", !svgNames.length);
+  $("bed-svgs").classList.toggle("hidden", !svgNames.length);
+  // bedSvg fica como veio mesmo se o arquivo de ícones não carregou: salvar não apaga o desenho do botão
+  $("bed-svgs").innerHTML = `<button type="button" class="txt${bedSvg ? "" : " on"}" data-s="" aria-label="Sem desenho (usar texto)">Aa</button>`
+    + svgNames.map((n) => `<button type="button"${n === bedSvg ? ' class="on"' : ""} data-s="${esc(n)}" aria-label="${esc(n)}" title="${esc(n)}">${deckSvg({ svg: n })}</button>`).join("");
+}
+$("bed-svgs").onclick = (e) => { const x = e.target.closest("[data-s]"); if (x) { bedSvg = x.dataset.s; renderSvgs(); } };
+$("bed-cancel").onclick = () => $("bed").classList.add("hidden");
+$("bed-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const t = $("bed-type").value;
+  const v = { keys: $("bed-keys").value.trim().toLowerCase().replace(/\s+/g, ""), text: $("bed-text").value, action: $("bed-action").value, shortcut: $("bed-shortcut").value, macro: $("bed-macro").value.trim() }[t];
+  if (!v) return toast("Preencha o que o botão faz", "bad");
+  if (t === "keys") { const bad = v.split("+").filter((k) => !deckData.keys.includes(k)); if (bad.length) return toast("Tecla desconhecida: " + bad.join(", "), "bad"); }
+  let label = $("bed-label").value.trim();
+  if (!label) label = t === "action" ? deckData.actions[v] : t === "shortcut" ? $("bed-shortcut").selectedOptions[0]?.text || v : t === "macro" ? "Macro" : v.slice(0, 24);
+  const b = { label, type: t, value: v };
+  const ic = $("bed-icon").value.replace(NO_EMOJI, "").trim(); if (ic) b.icon = ic;
+  if (bedColor) b.color = bedColor;
+  if (bedSvg) b.svg = bedSvg;
+  if ($("bed-confirm").checked) b.confirm = true;
+  const deck = clone(deckData.deck), pg = deck.pages[prefs.deckPage];
+  pg.buttons = pg.buttons || [];
+  bedIdx >= 0 ? (pg.buttons[bedIdx] = b) : pg.buttons.push(b);
+  if (await saveDeck(deck)) { $("bed").classList.add("hidden"); buzz(); }
+};
+$("bed-del").onclick = () => confirmAsk("Excluir este botão?", async () => {
+  const deck = clone(deckData.deck); deck.pages[prefs.deckPage].buttons.splice(bedIdx, 1);
+  if (await saveDeck(deck)) $("bed").classList.add("hidden");
+});
+async function moveBtn(d) {
+  const deck = clone(deckData.deck), arr = deck.pages[prefs.deckPage].buttons, j = bedIdx + d;
+  if (j < 0 || j >= arr.length) return;
+  [arr[bedIdx], arr[j]] = [arr[j], arr[bedIdx]];
+  if (await saveDeck(deck)) { bedIdx = j; buzz(8); }
+}
+$("bed-left").onclick = () => moveBtn(-1); $("bed-right").onclick = () => moveBtn(1);
+let pedIdx = -1;
+const parseApps = (t) => t.toLowerCase().split(/[,;\s]+/).map((a) => a.trim()).filter(Boolean)
+  .map((a) => (a === "@jogo" || a.endsWith(".exe") ? a : a + ".exe"));
+$("ped-cur").onclick = () => {
+  const s = state.stats; if (!s?.app) return toast("Nenhum programa em foco no PC", "bad");
+  const a = s.app_game ? "@jogo" : s.app, cur = parseApps($("ped-apps").value);
+  if (!cur.includes(a)) cur.push(a);
+  $("ped-apps").value = cur.join(", "); buzz(8);
+};
+function editPage(i) {
+  pedIdx = i;
+  $("ped-apps").value = i >= 0 ? (deckPages()[i].apps || []).join(", ") : "";
+  $("ped-title").textContent = i >= 0 ? "Página" : "Nova página";
+  $("ped-name").value = i >= 0 ? deckPages()[i].name : "";
+  ["ped-del", "ped-left", "ped-right"].forEach((id) => $(id).classList.toggle("hidden", i < 0));
+  $("ped").classList.remove("hidden"); setTimeout(() => $("ped-name").focus(), 50);
+}
+$("ped-cancel").onclick = () => $("ped").classList.add("hidden");
+$("ped-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const name = $("ped-name").value.trim() || "Página", deck = clone(deckData.deck);
+  const apps = parseApps($("ped-apps").value);
+  if (pedIdx >= 0) { deck.pages[pedIdx].name = name; deck.pages[pedIdx].apps = apps; }
+  else { deck.pages.push({ name, buttons: [], apps }); prefs.deckPage = deck.pages.length - 1; store.set("deckPage", prefs.deckPage); }
+  if (await saveDeck(deck)) $("ped").classList.add("hidden");
+};
+$("ped-del").onclick = () => {
+  if (deckPages().length <= 1) return toast("Precisa ter pelo menos uma página", "bad");
+  confirmAsk(`Excluir a página "${deckPages()[pedIdx].name}"?`, async () => {
+    const deck = clone(deckData.deck); deck.pages.splice(pedIdx, 1); prefs.deckPage = 0;
+    if (await saveDeck(deck)) $("ped").classList.add("hidden");
+  });
+};
+async function movePage(d) {
+  const deck = clone(deckData.deck), j = pedIdx + d;
+  if (j < 0 || j >= deck.pages.length) return;
+  [deck.pages[pedIdx], deck.pages[j]] = [deck.pages[j], deck.pages[pedIdx]];
+  if (await saveDeck(deck)) { pedIdx = j; prefs.deckPage = j; store.set("deckPage", j); renderDeck(); buzz(8); }
+}
+$("ped-left").onclick = () => movePage(-1); $("ped-right").onclick = () => movePage(1);
+
+// ---------------------------------------------------------------- página que segue o programa em foco
+prefs.deckAuto = store.get("deckAuto", true);
+let lastApp = null;
+function deckFollow(s) {
+  if (!deckData) return;          // espera os botões carregarem
+  const key = (s.app || "") + (s.app_game ? "@" : "");
+  if (key === lastApp) return;   // só troca quando o foco muda: escolher outra página na mão continua valendo
+  lastApp = key;
+  if (!prefs.deckAuto || deckEdit || !deckData || !s.app) return;
+  const pages = deckPages();
+  let i = pages.findIndex((p) => (p.apps || []).includes(s.app));
+  if (i < 0 && s.app_game) i = pages.findIndex((p) => (p.apps || []).includes("@jogo"));
+  if (i >= 0 && i !== prefs.deckPage) { prefs.deckPage = i; renderDeck(); }
+}
+
+// ---------------------------------------------------------------- microfone do PC e timer de energia
+function renderMicTimer(s) {
+  const m = s.mic;
+  for (const id of ["mic-chip", "mic-chip2"]) {
+    const b = $(id); b.classList.toggle("hidden", !m);
+    if (m) { b.classList.toggle("on", m.muted); b.textContent = m.muted ? "MIC OFF" : "MIC"; b.title = m.name; }
+  }
+  const t = s.timer;
+  $("tmr-chip").classList.toggle("hidden", !t);
+  $("tmr-on").classList.toggle("hidden", !t); $("tmr-off").classList.toggle("hidden", !!t);
+  if (t) {
+    $("tmr-chip").textContent = "TIMER " + fmtTime(t.left);
+    $("tmr-left").textContent = fmtTime(t.left); $("tmr-what").textContent = `${t.label} quando chegar a zero`;
+  }
+}
+async function micToggle() {
+  buzz();
+  try {
+    const r = await send("mic.set", { muted: "toggle" });
+    if (r && state.stats) { state.stats.mic = r; renderMicTimer(state.stats); }
+    toast(r?.muted ? "Microfone do PC no mudo" : "Microfone do PC ligado", "ok");
+  } catch (e) { if (e.message !== "offline") toast(e.message, "bad"); }
+}
+$("mic-chip").onclick = $("mic-chip2").onclick = micToggle;
+$("tmr-chip").onclick = () => { buzz(8); showView("power"); };
+document.querySelectorAll("[data-min]").forEach((b) => (b.onclick = () => {
+  const min = +b.dataset.min;
+  act("timer.start", { action: $("tmr-act").value, minutes: min }).then((r) => {
+    if (!r) return;
+    if (state.stats) { state.stats.timer = r; renderMicTimer(state.stats); }
+    toast(`${r.label} em ${fmtTime(min * 60)}`, "ok");
+  });
+}));
+$("tmr-cancel").onclick = () => act("timer.cancel", {}, "Timer cancelado").then(() => {
+  if (state.stats) { state.stats.timer = null; renderMicTimer(state.stats); }
+});
+
+// ---------------------------------------------------------------- celular parado: passa as telas / relógio
+prefs.dock = store.get("dock", 2);                 // minutos sem tocar
+prefs.idleMode = store.get("idleMode", "cycle");   // cycle | clock | off
+const IDLE_SLIDE_MS = 15000;
+let idleT = Date.now(), idleOn = false, docked = false, dockMoveT = 0, idleI = 0, idleStepT = 0, idleFrom = null;
+function idleList() {
+  if (prefs.idleMode === "clock") return ["clock"];
+  const playing = state.now?.media;
+  const list = wideMQ.matches ? ["dash", playing ? "media" : null] : ["dash", "games", playing ? "media" : null];
+  return [...list.filter(Boolean), "clock"];
+}
+function idleStart() {
+  if (idleOn || prefs.idleMode === "off" || !$("login").classList.contains("hidden") || !state.stats) return;
+  if (document.querySelector(".overlay:not(.hidden)")) return;   // diálogo aberto
+  idleOn = true; idleFrom = prefs.tab; idleI = -1; $("kbd").blur(); idleStep();
+}
+function idleStep() {
+  const list = idleList();
+  idleI = (idleI + 1) % list.length; idleStepT = Date.now();
+  const v = list[idleI];
+  docked = v === "clock";
+  $("dock").classList.toggle("hidden", !docked);
+  $("idle-catch").classList.toggle("hidden", docked);
+  if (docked) renderDock(); else showView(v, true);
+}
+function idleStop() {
+  if (!idleOn) return;
+  idleOn = docked = false; idleT = Date.now();
+  $("dock").classList.add("hidden"); $("idle-catch").classList.add("hidden");
+  showView(idleFrom || "dash", true);
+}
+function renderDock() {
+  const s = state.stats; if (!s) return;
+  const [h, m] = s.time.split(":");
+  $("dk-h").textContent = h; $("dk-m").textContent = m;
+  $("dk-date").textContent = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+  $("dk-stats").textContent = [`CPU ${Math.round(s.cpu)}%`, `RAM ${Math.round(s.ram_pct)}%`,
+    s.gpu ? `GPU ${Math.round(s.gpu.util)}% ${Math.round(s.gpu.temp)}°C` : ""].filter(Boolean).join("   ");
+  const md = state.now?.media, g = state.games?.game;
+  $("dk-media").textContent = md && md.status === "playing" ? `> ${md.title}${md.artist ? " / " + md.artist : ""}`
+    : g ? `Jogando ${g.name}, ${humanDur(g.elapsed + (performance.now() - state.gamesT) / 1000)}${s.fps?.fps != null ? `, ${s.fps.fps} FPS` : ""}` : "";
+  $("dk-extra").textContent = [s.mic?.muted ? "Microfone do PC no mudo" : "", s.timer ? `${s.timer.label} em ${fmtTime(s.timer.left)}` : ""].filter(Boolean).join("   ");
+  if (Date.now() - dockMoveT > 60000) {   // desloca um pouco a cada minuto para não marcar a tela
+    dockMoveT = Date.now();
+    $("dk").style.transform = `translate(${(Math.random() * 4 - 2).toFixed(1)}vw, ${(Math.random() * 4 - 2).toFixed(1)}vh)`;
+  }
+}
+["pointerdown", "keydown", "input"].forEach((ev) => addEventListener(ev, () => { idleT = Date.now(); }, true));
+$("dock").onclick = $("idle-catch").onclick = idleStop;
+$("dock-now").onclick = () => { buzz(8); setTimeout(idleStart, 150); };
+$("dock-min").value = String(prefs.dock);
+if (!$("dock-min").value) { prefs.dock = 2; $("dock-min").value = "2"; }
+$("dock-min").onchange = () => { prefs.dock = +$("dock-min").value; store.set("dock", prefs.dock); idleT = Date.now(); };
+$("idle-mode").value = prefs.idleMode;
+$("idle-mode").onchange = () => { prefs.idleMode = $("idle-mode").value; store.set("idleMode", prefs.idleMode); idleT = Date.now(); };
+setInterval(() => {
+  if (idleOn) {
+    if (docked) renderDock();
+    if (Date.now() - idleStepT > IDLE_SLIDE_MS && idleList().length > 1) idleStep();
+  } else if (prefs.idleMode !== "off" && !document.hidden && Date.now() - idleT > prefs.dock * 60000) idleStart();
+}, 1000);
+
+// ---------------------------------------------------------------- Mixer e saída de áudio
+let mixData = null, mixBusy = false, mixDrag = null, mixT = 0;
+async function pollMixer() {
+  if (mixBusy || !ws || ws.readyState !== 1 || !welcome.features?.mixer || document.hidden) return;
+  mixBusy = true; mixT = Date.now();
+  try { mixData = await send("mixer.get"); renderMixer(); } catch {} finally { mixBusy = false; }
+}
+setInterval(() => { if ((vis("media") || vis("mix")) && Date.now() - mixT > (vis("mix") ? 450 : 4000)) pollMixer(); }, 250);
+function renderMixer() {
+  const d = mixData; if (!d) return;
+  const cur = d.outputs.find((o) => o.default);
+  $("out-name").textContent = cur ? cur.name : "–";
+  if (!vis("mix")) return;
+  $("outs").innerHTML = d.outputs.map((o) => `<button class="outrow${o.default ? " on" : ""}" data-id="${esc(o.id)}"><i></i><span>${esc(o.name)}</span></button>`).join("")
+    || '<div class="empty">Nenhuma saída ativa</div>';
+  $("mx-master").textContent = d.master ? (d.master.muted ? "PC: mudo" : `PC: ${d.master.level}%`) : "";
+  const list = $("mx-list"), seen = new Set();
+  list.querySelector(".empty")?.remove();
+  for (const a of d.apps) {
+    seen.add(a.key);
+    let row = [...list.children].find((r) => r.dataset.key === a.key);
+    if (!row) {
+      row = document.createElement("div"); row.className = "mxrow"; row.dataset.key = a.key;
+      row.innerHTML = '<span class="mxic"></span><div class="mxmid"><div class="mxname"></div><input type="range" min="0" max="100"><div class="peak"><i></i></div></div><span class="mxval"></span><button class="mxmute"></button>';
+      list.appendChild(row); bindMixRow(row);
+    }
+    row.querySelector(".mxic").textContent = a.key === "_system" ? "#" : a.name.slice(0, 1).toUpperCase();
+    row.querySelector(".mxname").textContent = a.name;
+    if (mixDrag !== a.key) { row.querySelector("input").value = a.level; row.querySelector(".mxval").textContent = a.level + "%"; }
+    row.querySelector(".mxmute").textContent = a.muted ? "MUDO" : "SOM";
+    row.classList.toggle("muted", a.muted);
+    row.querySelector(".peak i").style.setProperty("--pk", Math.min(100, Math.sqrt(a.peak) * 100) + "%");
+  }
+  [...list.children].forEach((r) => { if (r.dataset.key && !seen.has(r.dataset.key)) r.remove(); });
+  if (!d.apps.length) list.innerHTML = '<div class="empty">Nenhum app tocando som agora</div>';
+}
+function bindMixRow(row) {
+  const key = row.dataset.key, inp = row.querySelector("input"); let t = 0;
+  inp.addEventListener("input", () => {
+    mixDrag = key; row.querySelector(".mxval").textContent = inp.value + "%";
+    const now = performance.now(); if (now - t > 70) { t = now; send("mixer.set", { key, level: +inp.value }, false).catch(() => {}); }
+  });
+  inp.addEventListener("change", () => { send("mixer.set", { key, level: +inp.value }, false).catch(() => {}); setTimeout(() => { if (mixDrag === key) mixDrag = null; }, 900); });
+  row.querySelector(".mxmute").onclick = () => { buzz(8); send("mixer.set", { key, muted: "toggle" }).then((d) => { if (d) { mixData = d; renderMixer(); } }).catch((e) => toast(e.message, "bad")); };
+}
+$("outs").onclick = (e) => {
+  const b = e.target.closest(".outrow"); if (!b || b.classList.contains("on")) return;
+  buzz(); act("audio.set_output", { id: b.dataset.id }).then((name) => { if (name) toast("Saída: " + name, "ok"); mixT = 0; pollMixer(); });
+};
+$("out-chip").onclick = () => { buzz(); act("audio.cycle").then((name) => { if (name) toast("Saída: " + name, "ok"); mixT = 0; pollMixer(); }); };
+// ---------------------------------------------------------------- Tela do PC
+const scr = { on: false, busy: false, mon: 0, mons: 1, fast: store.get("scrFast", true), z: 1, tx: 0, ty: 0, iw: 0, ih: 0, fw: 0, fh: 0,
+  sid: Math.random().toString(36).slice(2), timer: 0 };
+const screenActive = () => vis("screen") && !docked && !document.hidden && ws && ws.readyState === 1 && welcome.host;
+async function screenLoop() {
+  if (scr.busy) return;
+  clearTimeout(scr.timer);
+  if (!screenActive()) { scr.on = false; return; }
+  scr.on = true; scr.busy = true;
+  const t0 = performance.now(), box = $("scr"), dpr = Math.min(devicePixelRatio || 1, 2);
+  const want = Math.round(Math.min(scr.fast ? 1280 : 2560, box.clientWidth * dpr * Math.min(scr.z, 2.5) * (scr.fast ? 0.7 : 1.2)));
+  try {
+    const r = await send("screen.shot", { mon: scr.mon, w: Math.max(480, want), q: scr.fast ? 50 : 75, sid: scr.sid });
+    scr.mons = r.mons; scr.mon = r.mon;
+    $("scr-mon").textContent = `Monitor ${r.mon + 1}/${r.mons}`; $("scr-mon").classList.toggle("hidden", r.mons < 2);
+    if (!r.same) $("scr-img").src = "data:image/jpeg;base64," + r.jpg;
+    if (r.w !== scr.iw || r.h !== scr.ih) { scr.iw = r.w; scr.ih = r.h; layoutScreen(); }
+    $("scr-msg").classList.add("hidden");
+  } catch (e) {
+    $("scr-msg").textContent = "Sem imagem: " + e.message; $("scr-msg").classList.remove("hidden");
+  }
+  scr.busy = false;
+  scr.timer = setTimeout(screenLoop, Math.max(0, (scr.fast ? 90 : 350) - (performance.now() - t0)));
+}
+function layoutScreen() {
+  const box = $("scr"), img = $("scr-img"); if (!scr.iw || !box.clientWidth) return;
+  const bw = box.clientWidth, bh = box.clientHeight, k = Math.min(bw / scr.iw, bh / scr.ih);
+  scr.fw = scr.iw * k; scr.fh = scr.ih * k;
+  const mx = (scr.fw * (scr.z - 1)) / 2, my = (scr.fh * (scr.z - 1)) / 2;
+  scr.tx = Math.max(-mx, Math.min(mx, scr.tx)); scr.ty = Math.max(-my, Math.min(my, scr.ty));
+  Object.assign(img.style, { width: scr.fw + "px", height: scr.fh + "px", left: (bw - scr.fw) / 2 + "px", top: (bh - scr.fh) / 2 + "px",
+    transform: `translate(${scr.tx}px, ${scr.ty}px) scale(${scr.z})` });
+  $("scr-zoom").textContent = (Math.round(scr.z * 10) / 10) + "×";
+}
+addEventListener("resize", () => vis("screen") && layoutScreen());
+function screenClick(cx, cy, button) {
+  const r = $("scr-img").getBoundingClientRect(), x = (cx - r.left) / r.width, y = (cy - r.top) / r.height;
+  if (!r.width || x < 0 || x > 1 || y < 0 || y > 1) return;
+  buzz(button === "right" ? 30 : 10);
+  const box = $("scr"), b = box.getBoundingClientRect(), rp = document.createElement("div");
+  rp.className = "ripple" + (button === "right" ? " r" : ""); rp.style.left = cx - b.left + "px"; rp.style.top = cy - b.top + "px";
+  box.appendChild(rp); setTimeout(() => rp.remove(), 500);
+  send("screen.click", { mon: scr.mon, x, y, button }, false).catch(() => {});
+  setTimeout(() => { if (scr.on && !scr.busy) screenLoop(); }, 120);  // mostra o resultado logo
+}
+(() => {
+  const box = $("scr"), pts = new Map();
+  let start = null, moved = false, lp = 0, longFired = false, pinch = null;
+  box.addEventListener("pointerdown", (e) => {
+    if (e.target.closest(".scr-tools, .scr-scroll")) return;
+    e.preventDefault(); box.setPointerCapture(e.pointerId);
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 1) {
+      start = { x: e.clientX, y: e.clientY, tx: scr.tx, ty: scr.ty }; moved = false; longFired = false;
+      clearTimeout(lp); lp = setTimeout(() => { if (!moved && pts.size === 1) { longFired = true; screenClick(start.x, start.y, "right"); } }, 550);
+    } else if (pts.size === 2) {
+      clearTimeout(lp); moved = true;
+      const [a, b] = [...pts.values()];
+      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, z: scr.z, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, tx: scr.tx, ty: scr.ty };
+    }
+  });
+  box.addEventListener("pointermove", (e) => {
+    const p = pts.get(e.pointerId); if (!p) return;
+    p.x = e.clientX; p.y = e.clientY;
+    if (pts.size >= 2 && pinch) {
+      const [a, b] = [...pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
+      scr.z = Math.max(1, Math.min(5, (pinch.z * d) / pinch.d));
+      scr.tx = pinch.tx + ((a.x + b.x) / 2 - pinch.cx); scr.ty = pinch.ty + ((a.y + b.y) / 2 - pinch.cy);
+      layoutScreen(); return;
+    }
+    if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 10) { moved = true; clearTimeout(lp); }
+    if (moved && start && scr.z > 1) { scr.tx = start.tx + e.clientX - start.x; scr.ty = start.ty + e.clientY - start.y; layoutScreen(); }
+  });
+  const up = (e) => {
+    if (!pts.delete(e.pointerId)) return;
+    clearTimeout(lp);
+    if (!pts.size) {
+      if (!moved && !longFired && start && e.type === "pointerup") screenClick(start.x, start.y, "left");
+      start = null; pinch = null;
+    } else if (pts.size === 1) { pinch = null; const q = [...pts.values()][0]; start = { x: q.x, y: q.y, tx: scr.tx, ty: scr.ty }; moved = true; }
+  };
+  box.addEventListener("pointerup", up); box.addEventListener("pointercancel", up);
+  box.addEventListener("contextmenu", (e) => e.preventDefault());
+  // faixa da direita: rolagem
+  const sb = $("scr-scroll"); let sy = null, acc = 0;
+  sb.addEventListener("pointerdown", (e) => { e.preventDefault(); sb.setPointerCapture(e.pointerId); sy = e.clientY; });
+  sb.addEventListener("pointermove", (e) => {
+    if (sy === null) return; acc += -(e.clientY - sy) * 8; sy = e.clientY;
+    const n = Math.trunc(acc / 40) * 40; if (n) { acc -= n; send("mouse.scroll", { dy: n }, false).catch(() => {}); }
+  });
+  const sEnd = () => { sy = null; acc = 0; setTimeout(() => scr.on && !scr.busy && screenLoop(), 100); };
+  sb.addEventListener("pointerup", sEnd); sb.addEventListener("pointercancel", sEnd);
+})();
+$("scr-mon").onclick = () => { buzz(8); scr.mon = (scr.mon + 1) % scr.mons; scr.z = 1; scr.tx = scr.ty = 0; scr.iw = 0; if (!scr.busy) screenLoop(); };
+const setQ = () => { $("scr-q").textContent = scr.fast ? "Rápido" : "Nítido"; };
+$("scr-q").onclick = () => { buzz(8); scr.fast = !scr.fast; store.set("scrFast", scr.fast); setQ(); };
+setQ();
+$("scr-zoom").onclick = () => { buzz(8); scr.z = scr.z > 1 ? 1 : 2; scr.tx = scr.ty = 0; layoutScreen(); };
+$("scr-kb").addEventListener("pointerdown", (e) => e.preventDefault());
+$("scr-kb").onclick = () => $("kb-btn").click();
+
+// ---------------------------------------------------------------- Enviar / receber
+function sendText(paste) {
+  const text = $("snd-text").value;
+  if (!text) return toast("Escreva ou cole algo primeiro", "bad");
+  act("clip.set", { text, paste }, paste ? "Colado no PC" : "Copiado no PC (Ctrl+V lá)");
+}
+$("snd-copy").onclick = () => sendText(false);
+$("snd-paste").onclick = () => sendText(true);
+$("snd-folder").onclick = () => act("file.open_folder", {}, "Abrindo a pasta no PC");
+$("snd-files").onchange = (e) => { uploadFiles([...e.target.files]); e.target.value = ""; };
+const CHUNK = 512 * 1024;
+let upQueue = Promise.resolve();
+function uploadFiles(files) {
+  for (const f of files) { const row = addUpRow(f); upQueue = upQueue.then(() => uploadOne(f, row)); }
+}
+function addUpRow(f) {
+  const row = document.createElement("div"); row.className = "uprow";
+  row.innerHTML = `<div class="row"><span>${esc(f.name)}</span><span class="st">na fila · ${fmtBytes(f.size)}</span></div><div class="bar"><i></i></div>`;
+  $("up-list").prepend(row); return row;
+}
+function b64(buf) {
+  const u = new Uint8Array(buf); let x = "";
+  for (let i = 0; i < u.length; i += 0x8000) x += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+  return btoa(x);
+}
+async function uploadOne(f, row) {
+  const st = row.querySelector(".st"), bar = row.querySelector(".bar i"); let id = null;
+  try {
+    ({ id } = await send("file.begin", { name: f.name, size: f.size }));
+    const t0 = performance.now();
+    for (let off = 0; off < f.size; off += CHUNK) {
+      await send("file.chunk", { id, data: b64(await f.slice(off, off + CHUNK).arrayBuffer()) });
+      const done = Math.min(f.size, off + CHUNK), sec = Math.max((performance.now() - t0) / 1000, 0.001);
+      bar.style.width = (done / f.size) * 100 + "%";
+      st.textContent = `${Math.round((done / f.size) * 100)}% · ${fmtBytes(done / sec, true)}`;
+    }
+    const r = await send("file.end", { id });
+    st.textContent = "OK " + r.name; row.classList.add("done"); bar.style.width = "100%"; buzz(25);
+  } catch (e) {
+    st.textContent = "falhou: " + e.message; row.classList.add("fail");
+    if (id) send("file.cancel", { id }, false).catch(() => {});
+  }
+}
+async function copyLocal(text) {
+  try { await navigator.clipboard.writeText(text); }
+  catch { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
+  toast("Copiado no celular", "ok"); buzz();
+}
+$("rcv-get").onclick = async () => {
+  buzz(); const out = $("rcv-out"); out.innerHTML = '<div class="empty">Buscando…</div>';
+  try {
+    const r = await send("clip.get");
+    if (r.kind === "text") {
+      const url = /^https?:\/\/\S+$/.test(r.text.trim()) ? r.text.trim() : null;
+      out.innerHTML = `<pre class="cliptext"></pre><div class="brow"><button class="btn primary" id="rcv-copy">Copiar no celular</button>${url ? '<a class="btn" id="rcv-open" target="_blank" rel="noopener">Abrir link</a>' : ""}</div>`;
+      out.querySelector("pre").textContent = r.text;
+      $("rcv-copy").onclick = () => copyLocal(r.text);
+      if (url) $("rcv-open").href = url;
+    } else if (r.kind === "image") {
+      out.innerHTML = `<img class="clipimg" src="data:image/jpeg;base64,${r.preview}" alt="Imagem copiada no PC"><div class="sub" style="margin-top:6px">${r.w}×${r.h} px</div>
+        <div class="brow"><a class="btn primary" href="${r.url}" download="${esc(r.name)}">Salvar no celular</a></div>`;
+    } else if (r.kind === "files") {
+      out.innerHTML = '<div style="margin-top:10px"></div>' + r.files.map((f) => `<div class="row"><span>${f.dir ? "[pasta] " : ""}${esc(f.name)}</span><span>${f.url
+        ? `<a class="lnk" href="${f.url}" download="${esc(f.name)}">baixar · ${fmtBytes(f.size)}</a>` : f.dir ? "pasta (não dá)" : "grande demais"}</span></div>`).join("");
+    } else out.innerHTML = '<div class="empty">Nada copiado no PC.</div>';
+  } catch (e) { out.innerHTML = `<div class="empty">Erro: ${esc(e.message)}</div>`; }
+};
+// Compartilhar de outro app (PWA instalado): o service worker guarda e redireciona para /?shared=1
+async function handleShared() {
+  const q = new URLSearchParams(location.search);
+  if (!q.has("shared")) return;
+  history.replaceState(null, "", "/");
+  try {
+    const cache = await caches.open("share"), metaR = await cache.match("/share-meta");
+    if (!metaR) return;
+    const meta = await metaR.json(), files = [];
+    for (const f of meta.files) { const r = await cache.match(f.key); if (r) files.push(new File([await r.blob()], f.name, { type: r.headers.get("Content-Type") || "" })); }
+    await Promise.all((await cache.keys()).map((k) => cache.delete(k)));
+    showView("send");
+    const text = [meta.title, meta.text, meta.url].filter(Boolean).join("\n");
+    if (text) $("snd-text").value = text;
+    if (files.length) { toast(`Enviando ${files.length} arquivo(s) ao PC…`, "ok"); waitConnected().then(() => uploadFiles(files)); }
+  } catch { toast("Não consegui receber o compartilhamento", "bad"); }
+}
+const waitConnected = () => new Promise((res) => { const chk = () => (welcome.host && ws && ws.readyState === 1 ? res() : setTimeout(chk, 300)); chk(); });
+
+// ---------------------------------------------------------------- Alertas
+prefs.alerts = Object.assign({ net: true, download: true, gpu: false, gpuV: 85, cpu: false, cpuV: 90, ram: false, ramV: 90 }, store.get("alerts", {}));
+const alertOn = {};
+const saveAlerts = () => store.set("alerts", prefs.alerts);
+["net", "download", "gpu", "cpu", "ram"].forEach((k) => {
+  const sw = $("al-" + k); sw.classList.toggle("on", !!prefs.alerts[k]);
+  sw.onclick = () => { prefs.alerts[k] = !prefs.alerts[k]; saveAlerts(); sw.classList.toggle("on", prefs.alerts[k]); buzz(8); if (prefs.alerts[k]) askNotify(false); };
+  const inp = $(`al-${k}-v`);
+  if (inp) { inp.value = prefs.alerts[k + "V"]; inp.onchange = () => { const v = +inp.value; if (v > 0) { prefs.alerts[k + "V"] = v; saveAlerts(); } else inp.value = prefs.alerts[k + "V"]; }; }
+});
+function checkAlerts(s) {
+  const chk = (k, val, label, unit) => {
+    if (!prefs.alerts[k] || val == null) return;
+    const thr = prefs.alerts[k + "V"];
+    if (val >= thr && !alertOn[k]) { alertOn[k] = true; notify(`${label} em ${Math.round(val)}${unit}`, `Passou de ${thr}${unit}`, k); }
+    else if (val < thr - 5) alertOn[k] = false;   // só avisa de novo depois de baixar 5
+  };
+  chk("gpu", s.gpu?.temp, "GPU", "°C"); chk("cpu", s.sensors?.cpu_temp, "CPU", "°C"); chk("ram", s.ram_pct, "Memória", "%");
+}
+let netDown = false;
+function netAlert(p) {
+  if (!p || !prefs.alerts.net) return;
+  if (!p.ok && !netDown) { netDown = true; notify("Internet caiu", "O PC está sem conexão com a internet", "net"); }
+  else if (p.ok && netDown) { netDown = false; toast(`Internet voltou (${p.ms} ms)`, "ok"); }
+}
+prefs.pcnotif = store.get("pcnotif", true);
+function subNotif() {
+  send("notif.sub", { on: prefs.pcnotif }).then((r) => {
+    $("pcn-note").textContent = r?.available === false
+      ? "Bloqueado no PC: Configurações do Windows > Privacidade > Notificações"
+      : "WhatsApp, Discord, e-mail e outros avisos do Windows";
+  }).catch(() => {});
+}
+async function notify(title, body, tag) {
+  toast(`${title}${body ? " · " + body : ""}`, "warn");
+  if (navigator.vibrate) try { navigator.vibrate([90, 60, 90]); } catch {}
+  if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+    try {
+      const reg = await navigator.serviceWorker?.getRegistration();
+      if (reg) reg.showNotification(title, { body, tag, icon: "icon-192.png", badge: "icon-192.png" });
+      else new Notification(title, { body, tag });
+    } catch {}
+  }
+}
+function askNotify(explicit) {
+  if (!("Notification" in window) || !window.isSecureContext) {
+    if (explicit) toast("Notificações só funcionam pelo cabo (localhost)", "bad"); return;
+  }
+  if (Notification.permission === "default") Notification.requestPermission().then(updNotifBtn);
+  else if (explicit && Notification.permission === "denied") toast("Bloqueadas — libere nas configurações do Chrome", "bad");
+}
+function updNotifBtn() {
+  const ok = "Notification" in window && window.isSecureContext, p = ok ? Notification.permission : "na";
+  $("al-notif").textContent = { granted: "Ativas", denied: "Bloqueadas", na: "Só no cabo" }[p] || "Ativar";
+}
+$("al-notif").onclick = () => askNotify(true);
+updNotifBtn();
+
+// ---------------------------------------------------------------- Ajustes do celular
+let wakeLock = null;
+// Sem HTTPS (Wi-Fi) o Android não dá wakeLock: um vídeo mudo e minúsculo em loop mantém a tela acesa
+const keepVid = Object.assign(document.createElement("video"), { muted: true, loop: true, playsInline: true });
+keepVid.setAttribute("muted", ""); keepVid.setAttribute("playsinline", ""); keepVid.setAttribute("aria-hidden", "true");
+keepVid.innerHTML = '<source src="keepawake.webm" type="video/webm"><source src="keepawake.mp4" type="video/mp4">';
+keepVid.style.cssText = "position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:.01;pointer-events:none;z-index:-1";
+document.body.appendChild(keepVid);
+async function applyWake() {
+  const native = "wakeLock" in navigator && window.isSecureContext;
+  if (!native) { if (prefs.wake && document.visibilityState === "visible") keepVid.play().catch(() => {}); else keepVid.pause(); return; }
+  try {
+    if (prefs.wake && "wakeLock" in navigator && document.visibilityState === "visible" && !wakeLock) {
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => (wakeLock = null));
+    } else if (!prefs.wake && wakeLock) { await wakeLock.release(); wakeLock = null; }
+  } catch { /* sem HTTPS/localhost o Android não deixa */ }
+}
+function bindSwitch(id, key, onChange) {
+  const sw = $(id); sw.classList.toggle("on", !!prefs[key]);
+  sw.onclick = () => { prefs[key] = !prefs[key]; store.set(key, prefs[key]); sw.classList.toggle("on", prefs[key]); onChange && onChange(); };
+}
+bindSwitch("sw-wake", "wake", applyWake);
+bindSwitch("sw-vib", "vib");
+$("sw-full").onclick = () => {
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  else document.documentElement.requestFullscreen({ navigationUI: "hide" }).catch(() => toast("Tela cheia indisponível", "bad"));
+};
+document.addEventListener("fullscreenchange", () => $("sw-full").classList.toggle("on", !!document.fullscreenElement));
+// Travar deitado: o Android só deixa travar a rotação em tela cheia (ou no app instalado)
+prefs.land = store.get("land", false);
+async function applyLand() {
+  $("sw-land").classList.toggle("on", prefs.land);
+  if (!screen.orientation?.lock) return;
+  try {
+    if (prefs.land) {
+      if (!document.fullscreenElement && !matchMedia("(display-mode: fullscreen)").matches)
+        await document.documentElement.requestFullscreen({ navigationUI: "hide" });
+      await screen.orientation.lock("landscape");
+    } else screen.orientation.unlock();
+  } catch { if (prefs.land) toast("Não deu para travar a rotação aqui", "bad"); }
+}
+$("sw-land").onclick = () => { prefs.land = !prefs.land; store.set("land", prefs.land); applyLand(); };
+$("sw-land").classList.toggle("on", prefs.land);
+// tela cheia exige um toque: reaplica no primeiro toque depois de abrir o app
+document.addEventListener("pointerdown", () => { if (prefs.land && !document.fullscreenElement) applyLand(); }, { once: true });
+$("sens").value = prefs.sens; $("sens-val").textContent = prefs.sens + "×";
+$("sens").oninput = () => { prefs.sens = +$("sens").value; store.set("sens", prefs.sens); $("sens-val").textContent = prefs.sens.toFixed(1) + "×"; };
+document.addEventListener("pointerdown", () => applyWake(), { once: true });   // o vídeo só toca depois de um toque
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") { applyWake(); if (!ws) { retry = 0; connect(); } else if (vis("screen")) screenLoop(); }
+});
+
+// ---------------------------------------------------------------- loop de tela
+setInterval(() => {
+  if (vis("media")) tickProgress();
+  if (vis("games") && state.games?.game) renderGames();
+}, 1000);
+
+// tamanho da tela em Ajustes > Conexão (ajuda a acertar o layout de cada aparelho)
+let CONN = "";
+function showConn() { $("conn-info").textContent = [CONN, `tela ${innerWidth}×${innerHeight}`].filter(Boolean).join(" · "); }
+addEventListener("resize", showConn); showConn();
+if ("serviceWorker" in navigator && window.isSecureContext) navigator.serviceWorker.register("sw.js").catch(() => {});
+// visual: cor do terminal e efeito de tubo
+prefs.theme = store.get("theme", "green"); prefs.crt = store.get("crt", true);
+function applyTheme() {
+  document.documentElement.dataset.theme = prefs.theme;
+  document.body.classList.toggle("crt", prefs.crt);
+  document.querySelectorAll("#themes button").forEach((b) => b.classList.toggle("on", b.dataset.theme === prefs.theme));
+  document.querySelector('meta[name="theme-color"]').content = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+  if (vis("dash")) drawSparks();
+}
+$("themes").onclick = (e) => { const b = e.target.closest("[data-theme]"); if (!b) return; buzz(8); prefs.theme = b.dataset.theme; store.set("theme", prefs.theme); applyTheme(); };
+bindSwitch("sw-crt", "crt", applyTheme);
+bindSwitch("sw-deckauto", "deckAuto", () => { lastApp = null; });
+bindSwitch("sw-snd", "snd", () => snd("ok"));
+bindSwitch("sw-pcnotif", "pcnotif", () => { if (ws && welcome.features?.notif) subNotif(); });
+applyTheme();
+showView(prefs.tab == "apps" ? "deck" : prefs.tab);
+handleShared();
+renderPower();
+applyWake();
+connect();
+</script>
+</body>
+</html>

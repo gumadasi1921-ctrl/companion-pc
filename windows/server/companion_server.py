@@ -1,0 +1,1363 @@
+"""Companion PC - painel de dados pessoais e atalhos do PC, pela rede local.
+
+Serve o app web (PWA) + WebSocket na porta "web" (8770) - acessível de qualquer
+aparelho da rede local ou pelo cabo USB do celular (adb reverse, automático).
+Exige token e executa apenas ações de uma lista fechada (ACTIONS). Atalhos de
+programas vêm do config.json.
+
+Uso:  pythonw companion_server.py      (ícone na bandeja, sem janela)
+      py -3 companion_server.py --console  (no terminal, sem ícone)
+"""
+import os
+import sys
+import time
+
+if sys.stderr is None:
+    # pythonw não tem console: um erro antes do log começar (import, config) sumiria sem rastro.
+    # Vai para companion-server-erro.log, com data e hora.
+    try:
+        sys.stderr = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "companion-server-erro.log"),
+                          "a", encoding="utf-8", buffering=1)
+
+        def _hook(t, v, tb, _orig=sys.excepthook):
+            print(time.strftime("%Y-%m-%d %H:%M:%S"), "erro não tratado:", file=sys.stderr)
+            _orig(t, v, tb)
+            # pacote faltando (ex.: instalado em outra conta/sessão): sem console, avisa numa janela
+            if issubclass(t, ImportError) and not os.environ.get("COMPANION_SEM_JANELA"):
+                import ctypes
+                ctypes.windll.user32.MessageBoxW(
+                    None, f"O Companion PC não abriu: falta o pacote \"{getattr(v, 'name', None) or v}\".\n\n"
+                    "Reinstale num PowerShell (aberto pelo Menu Iniciar), na pasta do Companion-PC:\n"
+                    "powershell -ExecutionPolicy Bypass -File windows\\install-server.ps1\n\n"
+                    "Detalhes em companion-server-erro.log.", "Companion PC", 0x10)
+        sys.excepthook = _hook
+    except OSError:
+        pass
+
+import asyncio
+import ctypes
+import json
+import logging
+import logging.handlers
+import platform
+import re
+import secrets
+import shutil
+import socket
+import subprocess
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from ctypes import wintypes
+from http import HTTPStatus
+from pathlib import Path
+
+import psutil
+from websockets.asyncio.server import serve
+from websockets.datastructures import Headers
+from websockets.http11 import Response
+from websockets.exceptions import ConnectionClosed
+
+import extras
+import games
+import pc_info
+import watchers
+import work
+
+VERSION = "1.6"
+BASE = Path(__file__).resolve().parent
+CFG_PATH = BASE / "config.json"
+LOG_PATH = BASE / "companion-server.log"
+WEB_DIR = BASE / "web"
+
+DEFAULT_CFG = {
+    "token": "",
+    "allow_power": True,
+    "shutdown_delay_s": 30,
+    # App do celular. host "0.0.0.0" = rede local + cabo; "127.0.0.1" = só cabo (adb).
+    "web": {"host": "0.0.0.0", "port": 8770, "adb_reverse": True, "adb_path": ""},
+    "upload_dir": "%USERPROFILE%\\Downloads\\Companion PC",  # arquivos enviados pelo celular
+    "downloads_dir": "%USERPROFILE%\\Downloads",               # avisa no celular quando um download termina
+    # Teclas que o servidor aperta para o Discord. Configure as MESMAS como
+    # atalhos globais no Discord (Configurações > Atalhos de teclado).
+    "discord": {"mute_keys": "ctrl+shift+f9", "deafen_keys": "ctrl+shift+f10"},
+    "games_ignore": games.DEFAULT_IGNORE,
+    "game_folders": [],
+    "shortcuts": [
+        {"id": "explorer", "name": "Explorador de Arquivos", "open": "explorer.exe"},
+        {"id": "downloads", "name": "Pasta Downloads", "open": "%USERPROFILE%\\Downloads"},
+        {"id": "calc", "name": "Calculadora", "open": "calc.exe"},
+        {"id": "notepad", "name": "Bloco de Notas", "open": "notepad.exe"},
+        {"id": "taskmgr", "name": "Gerenciador de Tarefas", "open": "taskmgr.exe"},
+        {"id": "settings", "name": "Configurações do Windows", "open": "ms-settings:"},
+        {"id": "youtube", "name": "YouTube", "open": "https://www.youtube.com"},
+    ],
+}
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    handlers=[logging.handlers.RotatingFileHandler(LOG_PATH, maxBytes=1_000_000, backupCount=3, encoding="utf-8")]
+    + ([logging.StreamHandler(sys.stdout)] if sys.stdout else []),  # pythonw: sem stdout
+)
+log = logging.getLogger("companion")
+logging.getLogger("websockets").setLevel(logging.WARNING)  # sem "connection open/closed" a cada pedido
+
+
+class ConfigError(Exception):
+    pass
+
+
+def load_config():
+    cfg = dict(DEFAULT_CFG)
+    if CFG_PATH.exists():
+        # config.json quebrado: só avisa. Nunca regravar (o token e os atalhos do usuário estão nele).
+        try:
+            user = json.loads(CFG_PATH.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            raise ConfigError(f"{CFG_PATH} tem um erro: {e.msg} (linha {e.lineno}, coluna {e.colno})") from None
+        except (OSError, UnicodeDecodeError) as e:
+            raise ConfigError(f"não consegui ler {CFG_PATH}: {e}") from None
+        if not isinstance(user, dict):
+            raise ConfigError(f"{CFG_PATH} precisa ser um objeto JSON ({{ ... }})")
+        cfg.update(user)
+    if not cfg.get("token"):
+        cfg["token"] = secrets.token_urlsafe(24)
+        CFG_PATH.write_text(json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
+        log.info("token novo gerado em %s", CFG_PATH)
+    elif not CFG_PATH.exists():
+        CFG_PATH.write_text(json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
+    return cfg
+
+
+def config_fatal(msg):
+    """Sem config não dá para rodar: registra no log, avisa na tela (pythonw não tem console) e sai."""
+    log.error("%s - corrija o arquivo e abra o Companion PC de novo (o arquivo não foi alterado)", msg)
+    if "--console" not in sys.argv:
+        ctypes.windll.user32.MessageBoxW(
+            None, f"{msg}\n\nCorrija o arquivo e abra o Companion PC de novo.\nO arquivo não foi alterado.",
+            "Companion PC", 0x10)  # MB_ICONERROR
+    sys.exit(1)
+
+
+try:
+    CFG = load_config()
+except ConfigError as e:
+    config_fatal(str(e))
+WEB = {**DEFAULT_CFG["web"], **(CFG.get("web") or {})}
+
+# --------------------------------------------------------------------------
+# Win32: teclado, mouse, energia
+# --------------------------------------------------------------------------
+user32 = ctypes.windll.user32
+user32.keybd_event.argtypes = [wintypes.BYTE, wintypes.BYTE, wintypes.DWORD, ctypes.c_size_t]
+user32.mouse_event.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.DWORD, wintypes.DWORD, ctypes.c_size_t]
+user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+user32.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+user32.MapVirtualKeyW.argtypes = [wintypes.UINT, wintypes.UINT]
+user32.MapVirtualKeyW.restype = wintypes.UINT
+
+KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP = 0x1, 0x2
+VK = {
+    "enter": 0x0D, "esc": 0x1B, "tab": 0x09, "space": 0x20, "backspace": 0x08,
+    "delete": 0x2E, "home": 0x24, "end": 0x23, "pageup": 0x21, "pagedown": 0x22,
+    "up": 0x26, "down": 0x28, "left": 0x25, "right": 0x27,
+    "win": 0x5B, "alt": 0x12, "ctrl": 0x11, "shift": 0x10,
+    **{f"f{i}": 0x6F + i for i in range(1, 13)},
+    **{chr(c): c - 32 for c in range(ord("a"), ord("z") + 1)},  # VK das letras = ASCII maiúsculo
+    **{str(d): 0x30 + d for d in range(10)},
+    "insert": 0x2D, "printscreen": 0x2C, "menu": 0x5D, "plus": 0xBB, "minus": 0xBD,
+    "comma": 0xBC, "period": 0xBE,
+    "play_pause": 0xB3, "next": 0xB0, "prev": 0xB1, "stop": 0xB2,
+    "vol_mute": 0xAD, "vol_down": 0xAE, "vol_up": 0xAF,
+}
+EXTENDED = {"delete", "home", "end", "pageup", "pagedown", "up", "down", "left", "right", "win",
+            "insert", "printscreen", "menu",
+            "play_pause", "next", "prev", "stop", "vol_mute", "vol_down", "vol_up"}
+# Pontuação: o VK muda com o layout do teclado (ABNT2, US...). Resolve no layout atual
+# com VkKeyScanW e só registra a tecla se ela sair sem modificador (sem Shift/AltGr).
+VK_EXTRA_CHARS = {"colchete_esq": "[", "colchete_dir": "]", "barra_inv": "\\", "ponto_virgula": ";"}
+
+
+def _vk_extra():
+    out = {}
+    for name, ch in VK_EXTRA_CHARS.items():
+        r = ctypes.c_short(user32.VkKeyScanW(ord(ch))).value  # SHORT: byte baixo = VK, alto = modificadores
+        if r == -1 or (r >> 8) & 0xFF:
+            log.info("tecla %s (%s) não registrada: neste layout precisa de modificador ou não existe", name, ch)
+            continue
+        out[name] = r & 0xFF
+    return out
+
+
+VK.update(_vk_extra())
+MODIFIERS = {"alt", "ctrl", "shift", "win"}
+held_modifiers: set[str] = set()
+
+
+def _key(name, up=False):
+    flags = (KEYEVENTF_EXTENDEDKEY if name in EXTENDED else 0) | (KEYEVENTF_KEYUP if up else 0)
+    # Scan code junto com o VK: apps que leem o teclado em baixo nível (atalhos
+    # globais do Discord) ignoram eventos com scan code 0.
+    scan = user32.MapVirtualKeyW(VK[name], 0) & 0xFF  # MAPVK_VK_TO_VSC
+    user32.keybd_event(VK[name], scan, flags, 0)
+
+
+def valid_combo(combo: str):
+    keys = [k.strip().lower() for k in str(combo).split("+") if k.strip()]
+    if not keys or any(k not in VK for k in keys):
+        raise ValueError(f"tecla não permitida: {combo}")
+    return keys
+
+
+def press_combo(combo: str):
+    keys = valid_combo(combo)
+    # Pequenas pausas: o Discord não reconhece um atalho pressionado e solto
+    # no mesmo instante.
+    for k in keys:
+        _key(k)
+        time.sleep(0.02)
+    time.sleep(0.05)
+    for k in reversed(keys):
+        _key(k, up=True)
+        time.sleep(0.01)
+
+
+class _KEYBDINPUT(ctypes.Structure):
+    _fields_ = [("wVk", wintypes.WORD), ("wScan", wintypes.WORD), ("dwFlags", wintypes.DWORD),
+                ("time", wintypes.DWORD), ("dwExtraInfo", ctypes.c_size_t)]
+
+
+class _INPUT(ctypes.Structure):
+    class _U(ctypes.Union):
+        # MOUSEINPUT é o maior membro da união: reserva o tamanho certo
+        _fields_ = [("ki", _KEYBDINPUT), ("_pad", ctypes.c_byte * 32)]
+    _anonymous_ = ("u",)
+    _fields_ = [("type", wintypes.DWORD), ("u", _U)]
+
+
+user32.SendInput.argtypes = [wintypes.UINT, ctypes.POINTER(_INPUT), ctypes.c_int]
+KEYEVENTF_UNICODE = 0x4
+
+
+def type_text(text: str):
+    """Digita texto qualquer (acentos, emoji) como eventos Unicode.
+    "\\n" vira Enter e "\\b" vira Backspace."""
+    inputs = []
+
+    def flush():
+        if inputs:
+            _send(inputs)
+            inputs.clear()
+
+    for ch in str(text)[:1000].replace("\r\n", "\n"):
+        if ch in "\n\b":
+            flush()
+            press_combo("enter" if ch == "\n" else "backspace")
+            continue
+        data = ch.encode("utf-16-le")
+        for i in range(0, len(data), 2):  # emoji = par substituto (2 unidades)
+            unit = int.from_bytes(data[i:i + 2], "little")
+            for flags in (KEYEVENTF_UNICODE, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP):
+                inp = _INPUT(type=1)  # INPUT_KEYBOARD
+                inp.ki = _KEYBDINPUT(0, unit, flags, 0, 0)
+                inputs.append(inp)
+    flush()
+
+
+def _send(inputs):
+    arr = (_INPUT * len(inputs))(*inputs)
+    user32.SendInput(len(inputs), arr, ctypes.sizeof(_INPUT))
+
+
+def modifier(name, down):
+    """Segura/solta Alt, Ctrl, Shift ou Win (ex.: Alt segurado para Alt+Tab)."""
+    if name not in MODIFIERS:
+        raise ValueError("só modificadores podem ser segurados")
+    _key(name, up=not down)
+    (held_modifiers.add if down else held_modifiers.discard)(name)
+
+
+def release_modifiers():
+    for k in list(held_modifiers):
+        _key(k, up=True)
+    held_modifiers.clear()
+
+
+MOUSE = {"left": (0x2, 0x4), "right": (0x8, 0x10), "middle": (0x20, 0x40)}
+
+
+def _u32(v):
+    return int(v) & 0xFFFFFFFF
+
+
+def mouse_move(dx, dy):
+    dx, dy = max(-400, min(400, int(dx))), max(-400, min(400, int(dy)))
+    user32.mouse_event(0x1, _u32(dx), _u32(dy), 0, 0)
+
+
+def mouse_button(button="left", state="click"):
+    down, up = MOUSE[button]
+    if state in ("click", "down"):
+        user32.mouse_event(down, 0, 0, 0, 0)
+    if state in ("click", "up"):
+        user32.mouse_event(up, 0, 0, 0, 0)
+
+
+def mouse_scroll(dy=0, dx=0):
+    if dy:
+        user32.mouse_event(0x800, 0, 0, _u32(max(-1200, min(1200, int(dy)))), 0)
+    if dx:
+        user32.mouse_event(0x1000, 0, 0, _u32(max(-1200, min(1200, int(dx)))), 0)
+
+
+def foreground_title():
+    hwnd = user32.GetForegroundWindow()
+    buf = ctypes.create_unicode_buffer(256)
+    user32.GetWindowTextW(hwnd, buf, 256)
+    return buf.value
+
+
+def foreground_app():
+    """(nome do exe em minúsculas, caminho, pid) do programa em foco."""
+    pid = ctypes.c_ulong()
+    user32.GetWindowThreadProcessId(user32.GetForegroundWindow(), ctypes.byref(pid))
+    try:
+        p = psutil.Process(pid.value)
+        return p.name().lower(), p.exe(), pid.value
+    except (psutil.Error, OSError):
+        return "", None, 0
+
+
+def power(action):
+    if not CFG.get("allow_power"):
+        raise PermissionError("ações de energia desativadas no config.json")
+    delay = str(int(CFG.get("shutdown_delay_s", 30)))
+
+    def run(*args):
+        subprocess.run(["shutdown", *args], creationflags=pc_info.NO_WINDOW, capture_output=True)
+
+    if action == "lock":
+        user32.LockWorkStation()
+    elif action == "monitor_off":
+        user32.PostMessageW(0xFFFF, 0x0112, 0xF170, 2)
+    elif action == "sleep":
+        ctypes.windll.powrprof.SetSuspendState(0, 1, 0)
+    elif action == "shutdown":
+        run("/s", "/t", delay, "/c", "Desligamento pedido pelo Companion PC")
+    elif action == "restart":
+        run("/r", "/t", delay, "/c", "Reinício pedido pelo Companion PC")
+    elif action == "cancel":
+        run("/a")
+    else:
+        raise ValueError(f"ação de energia inválida: {action}")
+
+
+def launch(shortcut_id):
+    sc = next((s for s in CFG["shortcuts"] if s.get("id") == shortcut_id), None)
+    if not sc:
+        raise ValueError("atalho não configurado")
+    target = os.path.expandvars(sc["open"])
+    if sc.get("appx"):  # app da Microsoft Store (WhatsApp, Spotify, Terminal...)
+        os.startfile("shell:AppsFolder\\" + sc["appx"])
+        return sc["name"]
+    kw = {}
+    if sc.get("args"):
+        kw["arguments"] = sc["args"]
+    if target.lower().endswith(".exe") and os.path.isabs(target):
+        kw["cwd"] = os.path.dirname(target)  # OBS e outros só abrem a partir da própria pasta
+    os.startfile(target, **kw)
+    return sc["name"]
+
+
+# --------------------------------------------------------------------------
+# Estatísticas
+# --------------------------------------------------------------------------
+class Stats:
+    def __init__(self):
+        psutil.cpu_percent(None)
+        self.cores = psutil.cpu_count() or 1
+        self.last_net = psutil.net_io_counters()
+        self.last_t = time.monotonic()
+        self.pcache: dict[int, psutil.Process] = {}  # cache próprio (não usa o do process_iter)
+        self.slow: set[int] = set()  # processos protegidos: psutil cai num caminho lento (~5 ms cada)
+        self._top_procs()
+
+    def _app(self):
+        name, exe, self._fg_pid = foreground_app()
+        game = False
+        if exe and name not in ("explorer.exe", "applicationframehost.exe"):
+            try:
+                game = bool(MON.catalog.match(exe))
+            except Exception:  # noqa: BLE001
+                game = False
+        self.fg_pid = self._fg_pid if game else 0
+        return {"app": name, "app_game": game}
+
+    def _top_procs(self):
+        procs, pids = [], set(psutil.pids())
+        for pid in list(self.pcache):
+            if pid not in pids:
+                del self.pcache[pid]
+        self.slow &= pids
+        for pid in pids:
+            if pid == 0 or pid in self.slow:
+                continue
+            t0 = time.perf_counter()
+            p = self.pcache.get(pid)
+            try:
+                if p is None:
+                    p = self.pcache[pid] = psutil.Process(pid)
+                    p.cached_name = p.name()  # nome não muda; ler uma vez só
+                with p.oneshot():
+                    cpu = p.cpu_percent(None) / self.cores
+                    procs.append((cpu, p.memory_info().rss, p.cached_name))
+                if time.perf_counter() - t0 > 0.003 and pid in self.pcache and hasattr(p, "seen"):
+                    self.slow.add(pid)
+                p.seen = True
+            except psutil.Error:
+                self.pcache.pop(pid, None)
+        procs.sort(reverse=True)
+        return procs
+
+    def collect(self):
+        now = time.monotonic()
+        net = psutil.net_io_counters()
+        dt = max(now - self.last_t, 0.001)
+        up = (net.bytes_sent - self.last_net.bytes_sent) / dt
+        down = (net.bytes_recv - self.last_net.bytes_recv) / dt
+        self.last_net, self.last_t = net, now
+
+        vm = psutil.virtual_memory()
+        disks = []
+        for part in psutil.disk_partitions(all=False):
+            if "cdrom" in part.opts or not part.fstype:
+                continue
+            try:
+                u = psutil.disk_usage(part.mountpoint)
+            except OSError:
+                continue
+            disks.append({"name": part.mountpoint.rstrip("\\"), "used": u.used, "total": u.total, "pct": u.percent})
+
+        procs = self._top_procs()
+
+        bat = psutil.sensors_battery()
+        freq = psutil.cpu_freq()
+        return {
+            "time": time.strftime("%H:%M:%S"),
+            "date": time.strftime("%d/%m/%Y"),
+            "uptime_s": int(time.time() - psutil.boot_time()),
+            "cpu": psutil.cpu_percent(None),
+            "cpu_mhz": int(freq.current) if freq else 0,
+            "ram_used": vm.used, "ram_total": vm.total, "ram_pct": vm.percent,
+            "disks": disks,
+            "net_up": up, "net_down": down,
+            "battery": {"pct": bat.percent, "plugged": bat.power_plugged} if bat else None,
+            "window": foreground_title(),
+            **self._app(),
+            "gpu": pc_info.gpu(),
+            "procs": [{"name": n, "cpu": round(c, 1), "mem": m} for c, m, n in procs[:5]],
+            "sensors": pc_info.sensors(),
+        }
+
+
+# --------------------------------------------------------------------------
+# Ações permitidas
+# --------------------------------------------------------------------------
+ACTIONS = {
+    "media.vol_up": lambda p: press_combo("vol_up"),
+    "media.vol_down": lambda p: press_combo("vol_down"),
+    "key.press": lambda p: press_combo(p["keys"]),
+    "key.text": lambda p: type_text(p.get("text", "")),
+    "key.down": lambda p: modifier(p["key"], down=True),
+    "key.up": lambda p: modifier(p["key"], down=False),
+    "mouse.move": lambda p: mouse_move(p.get("dx", 0), p.get("dy", 0)),
+    "mouse.button": lambda p: mouse_button(p.get("button", "left"), p.get("state", "click")),
+    "mouse.scroll": lambda p: mouse_scroll(p.get("dy", 0), p.get("dx", 0)),
+    "app.launch": lambda p: launch(p["id"]),
+    "power": lambda p: power(p["action"]),
+    "discord.mute": lambda p: press_combo(CFG["discord"]["mute_keys"]),
+    "discord.deafen": lambda p: press_combo(CFG["discord"]["deafen_keys"]),
+    "discord.open": lambda p: open_discord(),
+    # celular: deck, área de transferência, arquivos
+    "deck.get": lambda p: deck_payload(),
+    "deck.save": lambda p: {**deck_payload(DECK.save(p["deck"], valid_combo, shortcut_map()))},
+    "deck.reset": lambda p: deck_payload(DECK.reset()),
+    "clip.set": lambda p: clip_set(p),
+    "file.begin": lambda p: UPLOADS.begin(p["name"], p["size"], p.get("_ws")),
+    "file.chunk": lambda p: UPLOADS.chunk(p["id"], p["data"]),
+    "file.end": lambda p: UPLOADS.end(p["id"]),
+    "file.cancel": lambda p: UPLOADS.cancel(p["id"]),
+    "file.open_folder": lambda p: UPLOADS.open_folder(),
+    # tempo de trabalho (work.py): roda na fila de disco, como todo o resto do WORK
+    "work.get": lambda p: WORK.get(),
+    "work.week": lambda p: WORK.week(p.get("offset", 0)),
+    "work.csv": lambda p: work_csv(p.get("offset", 0)),
+}
+
+
+def work_csv(offset):
+    """CSV da semana por um link temporário /dl/ (o mesmo do "Pegar o que está copiado")."""
+    name, data = WORK.csv(offset)
+    return {"name": name, "url": extras.dl_register(name, data=data, ctype="text/csv; charset=utf-8")}
+
+
+# --------------------------------------------------------------------------
+# config.json editado pelo painel do PC: um conjunto fechado de opções
+# --------------------------------------------------------------------------
+CONFIG_EDITABLE = {"upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "notif_ignore", "shortcuts",
+                   "idle_min"}
+CONFIG_RESTART = {"upload_dir", "downloads_dir"}  # lidas só na abertura do servidor
+SHORTCUT_ID = re.compile(r"^[a-z0-9_-]{1,40}$")
+_CTRL = re.compile(r"[\x00-\x1f\x7f]")
+_cfg_lock = threading.Lock()
+
+
+def _text(v, what, max_len, allow_empty=False):
+    if not isinstance(v, str) or _CTRL.search(v) or len(v) > max_len or (not v.strip() and not allow_empty):
+        raise ValueError(f"{what} inválido")
+    return v.strip()
+
+
+def clean_config_value(key, v):
+    """Validação das opções editáveis (a mesma para qualquer tela)."""
+    if key in ("upload_dir", "downloads_dir"):
+        v = _text(v, "caminho da pasta", 260)
+        if not (re.match(r"^[A-Za-z]:\\", v) or v.startswith("%USERPROFILE%")):
+            raise ValueError("a pasta precisa ser um caminho completo")
+        return v
+    if key == "allow_power":
+        if not isinstance(v, bool):
+            raise ValueError("allow_power precisa ser sim/não")
+        return v
+    if key == "shutdown_delay_s":
+        if isinstance(v, bool) or not isinstance(v, int) or not 0 <= v <= 600:
+            raise ValueError("atraso de desligar: 0 a 600 segundos")
+        return v
+    if key == "notif_ignore":
+        if not isinstance(v, list) or len(v) > 50:
+            raise ValueError("até 50 apps ignorados")
+        return [_text(a, "nome de app", 80) for a in v]
+    if key == "shortcuts":
+        if not isinstance(v, list) or len(v) > 50:
+            raise ValueError("até 50 programas")
+        out, ids = [], set()
+        for s in v:
+            if not isinstance(s, dict):
+                raise ValueError("programa inválido")
+            sid = s.get("id")
+            if not isinstance(sid, str) or not SHORTCUT_ID.match(sid) or sid in ids:
+                raise ValueError("id de programa inválido ou repetido")
+            ids.add(sid)
+            c = {"id": sid, "name": _text(s.get("name"), "nome do programa", 60),
+                 "open": _text(s.get("open"), "caminho do programa", 300)}
+            for opt in ("args", "appx"):
+                if s.get(opt):
+                    c[opt] = _text(s[opt], opt, 300)
+            out.append(c)
+        return out
+    if key == "idle_min":
+        return work.valid_idle_min(v)
+    raise ValueError(f"opção não editável: {key}")
+
+
+def config_save(changes):
+    """Único caminho de gravação do config.json depois da abertura. Roda na fila de disco, com lock.
+    Lê o arquivo do disco e troca só as chaves pedidas: token, web, shortcuts não editados etc. ficam iguais.
+    Antes de gravar: config.json.bak-<data-hora>. Gravação atômica (.tmp + replace)."""
+    if not isinstance(changes, dict) or not changes:
+        raise ValueError("nada para salvar")
+    clean = {k: clean_config_value(k, v) for k, v in changes.items()}
+    with _cfg_lock:
+        cur = json.loads(CFG_PATH.read_text(encoding="utf-8"))
+        changed = sorted(k for k, v in clean.items() if cur.get(k) != v)
+        if not changed:
+            return {"changed": [], "restart": False}
+        shutil.copy2(CFG_PATH, CFG_PATH.with_name("config.json.bak-" + time.strftime("%Y%m%d-%H%M%S")))
+        cur.update({k: clean[k] for k in changed})
+        tmp = CFG_PATH.with_name("config.json.tmp")
+        tmp.write_text(json.dumps(cur, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(CFG_PATH)
+        CFG.update({k: clean[k] for k in changed})
+    if "idle_min" in changed:
+        WORK.set_idle_min(clean["idle_min"])
+    if set(changed) & {"shortcuts", "allow_power"} and LOOP[0]:
+        asyncio.run_coroutine_threadsafe(push_welcome(), LOOP[0])
+    log.info("config.json: alterado pelo painel (%s)", ", ".join(changed))
+    return {"changed": changed, "restart": bool(set(changed) & CONFIG_RESTART)}
+
+
+def config_get():
+    """O que a aba Configurações mostra: só as opções editáveis (nunca o token) e a rede, só leitura."""
+    # opção ausente no config.json (ou null / tipo errado): a tela mostra o padrão em vez de quebrar
+    fallback = {"upload_dir": DEFAULT_CFG["upload_dir"], "downloads_dir": DEFAULT_CFG["downloads_dir"],
+                "allow_power": DEFAULT_CFG["allow_power"], "shutdown_delay_s": DEFAULT_CFG["shutdown_delay_s"],
+                "notif_ignore": [], "shortcuts": [], "idle_min": 5}
+    out = {}
+    for k in CONFIG_EDITABLE:
+        v = CFG.get(k)
+        ok = isinstance(v, type(fallback[k])) and not (isinstance(v, bool) and not isinstance(fallback[k], bool))
+        out[k] = json.loads(json.dumps(v if ok else fallback[k]))
+    out["idle_min"] = round(WORK.idle_s / 60)
+    out["net"] = {"ip": lan_ip(), "port": WEB["port"],
+                  "mode": "só cabo (127.0.0.1)" if WEB["host"] in ("127.0.0.1", "localhost") else "rede local + cabo"}
+    return out
+
+
+def io_call(fn, *args, timeout=15):
+    """Painel do PC (thread do tkinter): roda na fila de disco, a mesma das ações do celular, e espera."""
+    return IO_POOL.submit(fn, *args).result(timeout=timeout)
+
+
+PANEL_OPS = {
+    "work_get": lambda: io_call(WORK.get),
+    "work_week": lambda offset: io_call(WORK.week, offset),
+    "work_csv": lambda offset: io_call(WORK.csv, offset),
+    "work_add_root": lambda folder: io_call(WORK.add_root, folder),
+    "work_remove_root": lambda folder: io_call(WORK.remove_root, folder),
+    "work_reclass_preview": lambda: io_call(WORK.reclass_preview, timeout=60),  # reindexa as raízes
+    "work_reclass_apply": lambda: io_call(WORK.reclass_apply),
+    "config_save": lambda changes: io_call(config_save, changes),
+    "config_get": lambda: io_call(config_get),
+}
+
+# As ações de ACTIONS são síncronas e algumas demoram (pausas do teclado, área de
+# transferência, disco, abrir programa): rodam fora do event loop, cada grupo numa
+# fila de 1 thread. Teclado/mouse ficam todos na mesma fila, na ordem em que chegam.
+INPUT_POOL = ThreadPoolExecutor(max_workers=1, thread_name_prefix="input")
+IO_POOL = ThreadPoolExecutor(max_workers=1, thread_name_prefix="io")
+INPUT_ACTIONS = {"media.vol_up", "media.vol_down", "key.press", "key.text", "key.down", "key.up",
+                 "mouse.move", "mouse.button", "mouse.scroll", "discord.mute", "discord.deafen",
+                 "clip.set"}  # clip.set pode colar (ctrl+v)
+
+
+async def on_input(fn, *args):
+    return await asyncio.get_running_loop().run_in_executor(INPUT_POOL, fn, *args)
+
+
+async def on_io(fn, *args):
+    return await asyncio.get_running_loop().run_in_executor(IO_POOL, fn, *args)
+
+
+async def call_action(action, params):
+    """Executa uma ação de ACTIONS (em thread) ou de ASYNC_ACTIONS (no loop)."""
+    if action in ACTIONS:
+        return await (on_input if action in INPUT_ACTIONS else on_io)(ACTIONS[action], params)
+    res = ASYNC_ACTIONS[action](params)
+    if asyncio.iscoroutine(res):
+        res = await res
+    return res
+
+
+DECK = extras.Deck(BASE)
+UPLOADS = extras.Uploads(CFG.get("upload_dir") or DEFAULT_CFG["upload_dir"])
+DOWNLOADS = extras.DownloadWatcher(CFG.get("downloads_dir") or DEFAULT_CFG["downloads_dir"])
+
+
+def shortcut_map():
+    """Programas do config.json por id e por nome (minúsculos), para as macros."""
+    m = {}
+    for s in CFG["shortcuts"]:
+        m[s["name"].lower()] = s["id"]
+        m[s["id"].lower()] = s["id"]
+    return m
+
+
+def deck_payload(deck=None):
+    return {"deck": deck or DECK.get(), "actions": {k: v[0] for k, v in extras.DECK_ACTIONS.items()},
+            "keys": sorted(VK)}
+
+
+def clip_set(p):
+    extras.clip_set_text(p.get("text", ""))
+    if p.get("paste"):
+        time.sleep(0.05)
+        press_combo("ctrl+v")
+
+
+def open_discord():
+    upd = os.path.expandvars(r"%LOCALAPPDATA%\Discord\Update.exe")
+    if not os.path.exists(upd):
+        raise FileNotFoundError("Discord não encontrado")
+    subprocess.Popen([upd, "--processStart", "Discord.exe"], creationflags=pc_info.NO_WINDOW)
+
+
+async def media_action(name, p):
+    """Controla o player atual; se não houver sessão de mídia, usa a tecla de mídia."""
+    if name == "seek":
+        if not await pc_info.MEDIA.control("seek", float(p.get("delta", 0))):
+            raise RuntimeError("nada tocando")
+    elif not await pc_info.MEDIA.control(name):
+        await on_input(press_combo, {"play_pause": "play_pause", "next": "next", "prev": "prev", "stop": "stop"}[name])
+    await push_now()
+
+
+async def volume_action(p):
+    if "delta" in p:
+        cur = await pc_info.volume_get() or {"level": 50}
+        res = await pc_info.volume_set(level=cur["level"] + float(p["delta"]))
+    elif "level" in p:
+        res = await pc_info.volume_set(level=float(p["level"]))
+    elif p.get("toggle_mute"):
+        cur = await pc_info.volume_get() or {"muted": False}
+        res = await pc_info.volume_set(muted=not cur["muted"])
+    else:
+        raise ValueError("parâmetro de volume inválido")
+    await push_now()
+    return res
+
+
+ASYNC_ACTIONS = {
+    "media.play_pause": lambda p: media_action("play_pause", p),
+    "media.next": lambda p: media_action("next", p),
+    "media.prev": lambda p: media_action("prev", p),
+    "media.stop": lambda p: media_action("stop", p),
+    "media.seek": lambda p: media_action("seek", p),
+    "media.mute": lambda p: volume_action({"toggle_mute": True}),
+    "volume.change": volume_action,
+    "volume.set": volume_action,
+    "mixer.get": lambda p: pc_info.mixer_get(),
+    "mixer.set": lambda p: pc_info.mixer_set(str(p["key"]), p.get("level"), p.get("muted")),
+    "audio.set_output": lambda p: output_action(p.get("id")),
+    "audio.cycle": lambda p: output_action(cycle=True),
+    "deck.press": lambda p: deck_press(p),
+    "clip.get": lambda p: asyncio.to_thread(extras.clip_get),
+    "screen.shot": lambda p: asyncio.to_thread(extras.screen_shot, p.get("mon", 0), p.get("w", 1280),
+                                               p.get("q", 60), p.get("sid")),
+    "screen.click": lambda p: screen_click(p),
+    "mic.set": lambda p: pc_info.mic_set(p.get("muted", "toggle")),
+    "timer.start": lambda p: TIMER.start(p.get("action"), p.get("minutes")),
+    "timer.cancel": lambda p: timer_cancel(),
+    "games.library": lambda p: asyncio.to_thread(MON.library),
+    "games.history": lambda p: asyncio.to_thread(MON.summary),
+    "games.launch": lambda p: asyncio.to_thread(MON.launch, str(p.get("id"))),
+    "notif.sub": lambda p: notif_sub(p),
+}
+
+
+# --------------------------------------------------------------------------
+# Timer de energia: "desligar/suspender daqui a X minutos"
+# --------------------------------------------------------------------------
+class PowerTimer:
+    ACTIONS = {"shutdown": "Desligar", "sleep": "Suspender", "monitor_off": "Desligar monitor", "lock": "Bloquear"}
+
+    def __init__(self):
+        self.task, self.action, self.at = None, None, 0.0
+
+    def state(self):
+        if not self.task:
+            return None
+        return {"action": self.action, "label": self.ACTIONS[self.action], "left": max(0, round(self.at - time.time()))}
+
+    async def start(self, action, minutes):
+        if action not in self.ACTIONS:
+            raise ValueError("ação do timer inválida")
+        if not CFG.get("allow_power"):
+            raise PermissionError("ações de energia desativadas no config.json")
+        minutes = float(minutes)
+        if not 1 <= minutes <= 720:
+            raise ValueError("escolha entre 1 minuto e 12 horas")
+        self.cancel()
+        self.action, self.at = action, time.time() + minutes * 60
+        self.task = asyncio.create_task(self._run())
+        log.info("timer: %s em %d min", action, minutes)
+        return self.state()
+
+    async def _run(self):
+        try:
+            await asyncio.sleep(max(0, self.at - time.time()))
+        except asyncio.CancelledError:
+            return
+        action, self.task, self.action = self.action, None, None
+        log.info("timer: executando %s", action)
+        try:
+            await asyncio.to_thread(power, action)
+        except Exception:  # noqa: BLE001
+            log.exception("timer")
+
+    def cancel(self):
+        if self.task:
+            self.task.cancel()
+            log.info("timer cancelado")
+        self.task, self.action = None, None
+        return None
+
+
+TIMER = PowerTimer()
+
+
+async def timer_cancel():
+    return TIMER.cancel()
+
+
+async def output_action(dev_id=None, cycle=False):
+    name = await pc_info.set_output(dev_id, cycle)
+    asyncio.create_task(push_now())
+    return name
+
+
+async def screen_click(p):
+    await asyncio.to_thread(extras.screen_point, p.get("mon", 0), p["x"], p["y"])
+    if p.get("button"):
+        def click():
+            mouse_button(p["button"], p.get("state", "click"))
+            if p.get("double"):
+                mouse_button(p["button"])
+        await on_input(click)
+
+
+async def run_deck_action(v):
+    _label, action, params = extras.DECK_ACTIONS[v]
+    return await call_action(action, dict(params))
+
+
+async def deck_press(p):
+    b = await on_io(DECK.button, p.get("page"), p.get("index"))
+    t, v = b["type"], b["value"]
+    if t == "keys":
+        await on_input(press_combo, v)
+    elif t == "text":
+        await on_input(type_text, v)
+    elif t == "shortcut":
+        return await on_io(launch, v)
+    elif t == "action":
+        return await run_deck_action(v)
+    elif t == "macro":
+        for kind, arg in extras.parse_macro(v, valid_combo, shortcut_map()):
+            if kind == "keys":
+                await on_input(press_combo, arg)
+            elif kind == "text":
+                await on_input(type_text, arg)
+            elif kind == "wait":
+                await asyncio.sleep(arg / 1000)
+            elif kind == "open":
+                sid = shortcut_map().get(arg.lower())  # nome ou id -> id do config.json
+                if not sid:
+                    raise ValueError(f"atalho não configurado: {arg}")
+                await on_io(launch, sid)
+            elif kind == "action":
+                await run_deck_action(arg)
+            await asyncio.sleep(0.04)  # dá tempo de o Windows processar cada passo
+    return None
+
+
+# --------------------------------------------------------------------------
+# Ping, notificações do Windows e FPS (watchers.py)
+# --------------------------------------------------------------------------
+PING = watchers.Ping()
+NOTIF = watchers.WinNotifications()
+FPS = watchers.Fps(CFG.get("presentmon_path", ""))
+notif_subs: set = set()
+
+
+def notif_sub(p):
+    ws = p.get("_ws")
+    if ws is None:
+        raise ValueError("sem conexão")
+    (notif_subs.add if p.get("on") else notif_subs.discard)(ws)
+    return {"available": NOTIF.available}
+
+
+async def push_notif(n):
+    msg = json.dumps({"t": "event", "kind": "notif", **n}, ensure_ascii=False)
+    for ws in list(notif_subs):
+        try:
+            await ws.send(msg)
+        except ConnectionClosed:
+            notif_subs.discard(ws)
+
+
+def phone_connected():
+    return any(k == "celular" for k in client_kind.values())
+
+
+def fps_wanted():
+    st = STATS_REF[0]
+    return getattr(st, "fg_pid", 0) if st and phone_connected() else 0
+
+
+STATS_REF = [None]
+
+
+
+
+# --------------------------------------------------------------------------
+# WebSocket
+# --------------------------------------------------------------------------
+clients = set()
+client_kind: dict = {}  # ws -> "celular"
+
+
+async def web_handler(ws):
+    """Conexão de um aparelho (rede local ou cabo via adb reverse): só o token."""
+    peer = ws.remote_address[0] if ws.remote_address else "?"
+    await session(ws, "cabo USB" if peer in ("127.0.0.1", "::1") else peer, "celular")
+
+
+def welcome_payload():
+    return {
+        "t": "welcome", "version": VERSION, "web": web_build(), "host": socket.gethostname(),
+        "os": f"{platform.system()} {platform.release()}",
+        "shortcuts": [{"id": s["id"], "name": s["name"]} for s in CFG["shortcuts"]],
+        "power": bool(CFG.get("allow_power")),
+        "features": {"media": pc_info.HAS_MEDIA, "volume": pc_info.HAS_VOLUME, "mixer": pc_info.HAS_VOLUME,
+                     "screen": True, "clipboard": True, "files": True, "deck": True,
+                     "mic": pc_info.HAS_VOLUME, "timer": True, "deck_auto": True, "macro": True,
+                     "library": True, "ping": True, "notif": True, "fps": True, "work": True},
+    }
+
+
+async def push_welcome():
+    """Programas ou energia mudaram no painel do PC: os aparelhos conectados atualizam sem reconectar."""
+    msg = json.dumps(welcome_payload())
+    for ws in list(clients):
+        try:
+            await ws.send(msg)
+        except ConnectionClosed:
+            clients.discard(ws)
+
+
+async def session(ws, peer, kind):
+    try:
+        hello = json.loads(await asyncio.wait_for(ws.recv(), 5))
+    except Exception:
+        await ws.close(4001, "hello")
+        return
+    if hello.get("t") != "hello" or not secrets.compare_digest(str(hello.get("token", "")), CFG["token"]):
+        log.warning("recusado: token inválido de %s", peer)
+        await ws.close(4001, "token")
+        return
+
+    await ws.send(json.dumps(welcome_payload()))
+    clients.add(ws)
+    client_kind[ws] = kind
+    sent_art[ws] = None
+    sent_gameart[ws] = None
+    await send_games(ws, MON.state)
+    await push_now(only=ws)
+    log.info("conectado: %s (%s) tela %s", kind, peer, str(hello.get("screen", "?"))[:120])
+    try:
+        async for raw in ws:
+            try:
+                msg = json.loads(raw)
+            except ValueError:
+                continue
+            if msg.get("t") != "req":
+                continue
+            action, rid = msg.get("a"), msg.get("id")
+            try:
+                if action not in ACTIONS and action not in ASYNC_ACTIONS:
+                    raise ValueError(f"ação não permitida: {action}")
+                params = msg.get("p") or {}
+                if action in ("notif.sub", "file.begin"):  # precisam saber qual conexão está pedindo
+                    params = {**params, "_ws": ws}
+                data = await call_action(action, params)
+                res = {"t": "res", "id": rid, "a": action, "ok": True, "d": data if isinstance(data, (str, int, float, dict, list)) else None}
+                if action not in QUIET_ACTIONS:
+                    log.info("%s %s", action, msg.get("p") or "")
+            except Exception as e:  # noqa: BLE001
+                log.warning("falha %s: %s", action, e)
+                res = {"t": "res", "id": rid, "a": action, "ok": False, "e": str(e)}
+            if rid is not None:
+                await ws.send(json.dumps(res))
+    except ConnectionClosed:
+        pass
+    finally:
+        clients.discard(ws)
+        client_kind.pop(ws, None)
+        notif_subs.discard(ws)
+        sent_art.pop(ws, None)
+        sent_gameart.pop(ws, None)
+        await on_input(release_held)
+        await on_io(UPLOADS.cancel_owner, ws)  # envio pela metade: fecha e apaga o .part
+        log.info("desconectado: %s (%s)", kind, peer)
+
+
+def release_held():
+    release_modifiers()
+    user32.mouse_event(0x4, 0, 0, 0, 0)  # solta botão esquerdo se ficou preso (drag)
+
+
+sent_art: dict = {}
+# não vão para o log: repetitivas ou com conteúdo pessoal (texto digitado/copiado)
+QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "mouse.scroll", "key.text", "clip.set", "clip.get", "file.chunk",
+                 "screen.shot", "mixer.get", "deck.get", "deck.save",  # deck.save: textos/macros dos botões
+                 "work.get", "work.week", "work.csv"}  # nomes de cliente/job/arquivo
+
+
+async def now_payload():
+    media = await pc_info.MEDIA.info()
+    vol = await pc_info.volume_get()
+    return {"media": media, "volume": vol}
+
+
+async def send_now(ws, payload):
+    msg = json.dumps({"t": "now", "d": payload}, ensure_ascii=False)
+    try:
+        await ws.send(msg)
+        art = (payload.get("media") or {}).get("art")
+        if art and sent_art.get(ws) != art and pc_info.MEDIA.art_b64:
+            await ws.send(json.dumps({"t": "art", "id": art, "jpg": pc_info.MEDIA.art_b64}))
+            sent_art[ws] = art
+    except ConnectionClosed:
+        clients.discard(ws)
+
+
+async def push_now(only=None):
+    """Envia mídia/volume já (após uma ação), sem esperar o próximo ciclo."""
+    if not clients:
+        return
+    await asyncio.sleep(0.25)  # dá tempo do player reagir
+    payload = await now_payload()
+    for ws in ([only] if only else list(clients)):
+        await send_now(ws, payload)
+
+
+async def stats_loop(stats: Stats):
+    while True:
+        try:
+            if clients:
+                data = await asyncio.to_thread(stats.collect)
+                data["mic"] = await pc_info.mic_get()
+                data["timer"] = TIMER.state()
+                data["ping"] = PING.state()
+                data["fps"] = FPS.state(getattr(stats, "fg_pid", 0))
+                msg = json.dumps({"t": "stats", "d": data}, ensure_ascii=False)
+                for ws in list(clients):
+                    try:
+                        await ws.send(msg)
+                    except ConnectionClosed:
+                        clients.discard(ws)
+        except Exception:  # noqa: BLE001
+            log.exception("stats_loop")
+        await asyncio.sleep(1)
+
+
+MON = games.GameMonitor(CFG, BASE)
+WORK = work.WorkTracker(BASE, CFG.get("idle_min", 5))
+
+
+async def work_loop():
+    """Tempo no Photoshop/Premiere/After: lê o foco a cada 2 s, na fila de disco (WORK não usa locks)."""
+    while True:
+        try:
+            await on_io(WORK.poll)
+        except Exception as e:  # noqa: BLE001
+            log.warning("work_loop: %s", type(e).__name__)  # sem a mensagem: pode ter nome de arquivo
+        await asyncio.sleep(2)
+sent_gameart: dict = {}
+
+
+async def send_games(ws, state):
+    try:
+        await ws.send(json.dumps({"t": "games", "d": state}, ensure_ascii=False))
+        art = (state.get("game") or {}).get("art")
+        if art and sent_gameart.get(ws) != art and MON.art.get(art):
+            await ws.send(json.dumps({"t": "gameart", "id": art, "jpg": MON.art[art]}))
+            sent_gameart[ws] = art
+    except ConnectionClosed:
+        clients.discard(ws)
+
+
+async def downloads_loop():
+    """Avisa os celulares quando aparece um arquivo novo (completo) em Downloads."""
+    last_sweep = time.monotonic()
+    while True:
+        try:
+            for f in await asyncio.to_thread(DOWNLOADS.poll):
+                log.info("download concluído: %s", f["name"])
+                msg = json.dumps({"t": "event", "kind": "download", **f}, ensure_ascii=False)
+                for ws in [w for w in list(clients) if client_kind.get(w) == "celular"]:
+                    try:
+                        await ws.send(msg)
+                    except ConnectionClosed:
+                        pass
+        except Exception:  # noqa: BLE001
+            log.exception("downloads_loop")
+        if time.monotonic() - last_sweep >= 60:  # envios do celular abandonados
+            last_sweep = time.monotonic()
+            try:
+                await on_io(UPLOADS.sweep)
+            except Exception:  # noqa: BLE001
+                log.exception("uploads sweep")
+        await asyncio.sleep(3)
+
+
+async def games_loop():
+    while True:
+        try:
+            state = await asyncio.to_thread(MON.poll)
+            for ws in list(clients):
+                await send_games(ws, state)
+        except Exception:  # noqa: BLE001
+            log.exception("games_loop")
+        await asyncio.sleep(3)
+
+
+async def now_loop():
+    while True:
+        try:
+            if clients:
+                payload = await now_payload()
+                for ws in list(clients):
+                    await send_now(ws, payload)
+        except Exception:  # noqa: BLE001
+            log.exception("now_loop")
+        await asyncio.sleep(1)
+
+
+NET = {"web": False, "adb": []}
+
+
+def lan_ip():
+    """IP do PC na rede local (não envia nada: UDP connect só escolhe a rota)."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("192.168.255.255", 1))
+            return s.getsockname()[0]
+    except OSError:
+        return None
+
+
+def phone_links():
+    """Links para abrir o app no celular (o token vai no #, que não é enviado na rede)."""
+    port, tok = WEB["port"], CFG["token"]
+    links = {"cabo": f"http://localhost:{port}/#t={tok}"}
+    ip = lan_ip()
+    if ip and WEB["host"] not in ("127.0.0.1", "localhost"):
+        links["wifi"] = f"http://{ip}:{port}/#t={tok}"
+    return links
+
+
+def status():
+    """Estado para o ícone da bandeja/painel."""
+    kinds = [client_kind.get(ws) for ws in list(clients)]
+    game = (MON.state.get("game") or {}).get("name")
+    n = kinds.count("celular")
+    parts = ["aparelho conectado" if n == 1 else f"{n} aparelhos conectados"] if n else []
+    phone = {"web": NET["web"], "adb": list(NET["adb"]), "port": WEB["port"],
+             "links": phone_links() if NET["web"] else {}}
+    if parts:
+        return {"state": "ok", "text": " + ".join(parts), "game": game, "phone": phone}
+    text = "Aguardando conexão na rede local" if NET["web"] else "Porta do app indisponível (veja o log)"
+    return {"state": "wait" if NET["web"] else "off", "text": text, "game": game, "phone": phone}
+
+
+# --------------------------------------------------------------------------
+# Celular: app web + adb reverse
+# --------------------------------------------------------------------------
+MIME = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
+        ".css": "text/css; charset=utf-8", ".json": "application/json",
+        ".webmanifest": "application/manifest+json", ".png": "image/png", ".svg": "image/svg+xml", ".mp4": "video/mp4", ".webm": "video/webm",
+        ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8"}
+
+
+def web_build():
+    """Muda quando algum arquivo do app web muda: o celular recarrega a página sozinho."""
+    try:
+        return int(max(f.stat().st_mtime for f in WEB_DIR.rglob("*") if f.is_file()))
+    except (OSError, ValueError):
+        return 0
+
+
+def serve_static(connection, request):
+    """Requisições HTTP comuns recebem os arquivos de web/; WebSocket segue normal."""
+    if "websocket" in request.headers.get("Upgrade", "").lower():
+        return None
+    path = request.path.split("?", 1)[0].split("#", 1)[0]
+    if path.startswith("/dl/"):  # arquivo do PC liberado por clip.get (link temporário)
+        got = extras.dl_fetch(path)
+        if not got:
+            return connection.respond(HTTPStatus.NOT_FOUND, "link expirado\n")
+        name, body, ctype = got
+        from urllib.parse import quote
+        headers = Headers([("Content-Type", ctype), ("Content-Length", str(len(body))),
+                           ("Content-Disposition", f"attachment; filename*=UTF-8''{quote(name)}"),
+                           ("Cache-Control", "no-store")])
+        return Response(200, "OK", headers, body)
+    name = "index.html" if path in ("/", "") else path.lstrip("/")
+    f = (WEB_DIR / name).resolve()
+    if WEB_DIR.resolve() not in f.parents or not f.is_file() or f.suffix not in MIME:
+        return connection.respond(HTTPStatus.NOT_FOUND, "não encontrado\n")
+    body = f.read_bytes()
+    headers = Headers([("Content-Type", MIME[f.suffix]), ("Content-Length", str(len(body))),
+                       ("Cache-Control", "no-cache"), ("X-Content-Type-Options", "nosniff")])
+    return Response(200, "OK", headers, body)
+
+
+async def web_main():
+    host, port = WEB["host"], int(os.environ.get("COMPANION_WEB_PORT", WEB["port"]))
+    while True:
+        try:
+            async with serve(web_handler, host, port, process_request=serve_static,
+                             ping_interval=5, ping_timeout=10, max_size=4 * 2**20,
+                             max_queue=64) as server:
+                NET["web"] = True
+                for name, url in phone_links().items():
+                    log.info("celular (%s): %s", name, url.split("#")[0])
+                await server.serve_forever()
+        except OSError as e:
+            NET["web"] = False
+            log.warning("app do celular: não consegui escutar em %s:%s: %s", host, port, e)
+            await asyncio.sleep(10)
+
+
+def find_adb():
+    cands = [WEB.get("adb_path") or "", "adb",
+             os.path.expandvars(r"%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe"),
+             os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\WinGet\Links\adb.exe"),
+             os.path.expandvars(r"%USERPROFILE%\companion-pc\platform-tools\adb.exe")]
+    import glob
+    import shutil
+    cands += glob.glob(os.path.expandvars(
+        r"%LOCALAPPDATA%\Microsoft\WinGet\Packages\Google.PlatformTools*\platform-tools\adb.exe"))
+    for c in cands:
+        if c and (shutil.which(c) or os.path.isfile(c)):
+            return shutil.which(c) or c
+    return None
+
+
+def adb(path, *args, timeout=8):
+    return subprocess.run([path, *args], capture_output=True, text=True, timeout=timeout,
+                          creationflags=pc_info.NO_WINDOW)
+
+
+def adb_open_on_phone(serial=None):
+    """Abre o app no celular conectado pelo cabo (já com o token)."""
+    path = find_adb()
+    if not path:
+        raise RuntimeError("adb não encontrado (rode windows\\setup-network.ps1)")
+    serials = [serial] if serial else list(NET["adb"])
+    if not serials:
+        raise RuntimeError("nenhum celular com depuração USB conectado")
+    for sr in serials:
+        adb(path, "-s", sr, "shell", "am", "start", "-a", "android.intent.action.VIEW",
+            "-d", f"'{phone_links()['cabo']}'")
+
+
+async def adb_loop():
+    """Com o celular no cabo (depuração USB), mapeia localhost:8770 do celular para o PC."""
+    if not WEB.get("adb_reverse", True):
+        return
+    port = int(os.environ.get("COMPANION_WEB_PORT", WEB["port"]))
+    path, warned = None, False
+    while True:
+        try:
+            path = path or await asyncio.to_thread(find_adb)
+            if not path:
+                if not warned:
+                    log.info("adb não encontrado: cabo no celular desativado (Wi-Fi continua funcionando)")
+                    warned = True
+                await asyncio.sleep(30)
+                continue
+            out = (await asyncio.to_thread(adb, path, "devices")).stdout
+            ready = [ln.split()[0] for ln in out.splitlines()[1:] if ln.strip().endswith("\tdevice")]
+            for ln in out.splitlines()[1:]:
+                if "unauthorized" in ln and ln.split()[0] not in NET.setdefault("unauth", set()):
+                    NET["unauth"].add(ln.split()[0])
+                    log.info("celular %s: aceite a 'depuração USB' na tela do celular", ln.split()[0])
+            for sr in ready:
+                if sr not in NET["adb"]:
+                    r = await asyncio.to_thread(adb, path, "-s", sr, "reverse", f"tcp:{port}", f"tcp:{port}")
+                    if r.returncode == 0:
+                        NET["adb"].append(sr)
+                        log.info("celular %s no cabo: abra http://localhost:%s", sr, port)
+                    else:
+                        log.warning("adb reverse falhou (%s): %s", sr, (r.stderr or r.stdout).strip())
+            for sr in list(NET["adb"]):
+                if sr not in ready:
+                    NET["adb"].remove(sr)
+                    log.info("celular %s desconectado do cabo", sr)
+        except Exception as e:  # noqa: BLE001
+            log.warning("adb: %s", e)
+            path = None
+        await asyncio.sleep(4)
+
+
+async def web_watch():
+    """Página do app mudou no PC: avisa os aparelhos conectados (eles recarregam)."""
+    last = web_build()
+    while True:
+        await asyncio.sleep(3)
+        cur = await asyncio.to_thread(web_build)
+        if cur != last:
+            last = cur
+            log.info("app web atualizado - recarregando os aparelhos")
+            for ws in list(clients):
+                try:
+                    await ws.send(json.dumps({"t": "welcome", "web": cur}))
+                except Exception:  # noqa: BLE001
+                    pass
+
+
+LOOP = [None]  # event loop do servidor (o painel do PC agenda push_welcome nele)
+
+
+async def main():
+    LOOP[0] = asyncio.get_running_loop()
+    log.info("Companion PC %s", VERSION)
+    pc_info.MEDIA = pc_info.Media()
+    n = await on_io(UPLOADS.clean_stale_parts)
+    log.info("uploads: %d arquivo(s) .part de envios anteriores apagado(s)", n)
+    st = STATS_REF[0] = Stats()
+    asyncio.create_task(stats_loop(st))
+    asyncio.create_task(PING.loop(lambda: bool(clients)))
+    asyncio.create_task(NOTIF.loop(lambda: bool(notif_subs), push_notif,
+                                   lambda: {a.lower() for a in CFG.get("notif_ignore", [])}))
+    await asyncio.to_thread(watchers.kill_orphans)
+    asyncio.create_task(FPS.loop(fps_wanted))
+    asyncio.create_task(now_loop())
+    asyncio.create_task(games_loop())
+    asyncio.create_task(work_loop())
+    asyncio.create_task(adb_loop())
+    asyncio.create_task(downloads_loop())
+    asyncio.create_task(web_watch())
+    await web_main()
+
+
+def stop_server():
+    release_modifiers()
+    try:  # grava o tempo de trabalho que ainda não foi para o disco
+        IO_POOL.submit(WORK.save).result(timeout=3)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def run_with_tray():
+    import threading
+    import tray
+
+    if not tray.acquire_single_instance(wait_s=15 if "--restart" in sys.argv else 0):
+        if tray.signal_running_instance(wait_s=5):  # já está rodando e mostrou o painel
+            return
+        if not tray.ask_kill_stuck():  # não respondeu em 5 s: o usuário decide
+            return
+        n = tray.kill_running_instances()
+        log.warning("instância que não respondia encerrada pelo atalho (%d processo(s))", n)
+        if not tray.acquire_single_instance(wait_s=10):
+            ctypes.windll.user32.MessageBoxW(None, "Não consegui encerrar a instância travada. Reinicie o PC.",
+                                             "Companion PC", 0x10)
+            return
+    try:
+        import pystray  # noqa: F401
+    except ImportError:
+        log.warning("pystray não instalado - rodando sem ícone na bandeja")
+        asyncio.run(main())
+        return
+
+    def server_thread():
+        try:
+            asyncio.run(main())
+        except Exception:  # noqa: BLE001
+            log.exception("servidor parou")
+    threading.Thread(target=server_thread, daemon=True, name="server").start()
+    tray.TrayApp(status, LOG_PATH, BASE, VERSION, stop_server, open_on_phone=adb_open_on_phone, ops=PANEL_OPS).run()
+
+
+if __name__ == "__main__":
+    try:
+        if "--console" in sys.argv:
+            asyncio.run(main())
+        else:
+            run_with_tray()
+    except KeyboardInterrupt:
+        pass

@@ -1,0 +1,93 @@
+﻿COMPANION PC - COMO INSTALAR EM OUTRO COMPUTADOR
+================================================
+
+Versão deste pacote: commit f0bd9ed (19/11/2026)
+
+Você vai precisar de uns 10 minutos. Faça os passos na ordem.
+
+
+1. INSTALAR O PYTHON (só uma vez)
+---------------------------------
+- Abra o Menu Iniciar, digite PowerShell e abra (NÃO precisa ser "como administrador").
+- Cole este comando e aperte Enter:
+
+    winget install -e --id Python.Python.3.12 --scope user
+
+- Quando terminar, FECHE o PowerShell e abra de novo.
+- Confira com este comando (deve aparecer "Python 3.12..."):
+
+    py -3 --version
+
+
+2. EXTRAIR O ZIP NUMA PASTA FIXA
+--------------------------------
+- Clique com o botão direito no .zip > "Extrair tudo...".
+- Escolha uma pasta que você não vai apagar, por exemplo:
+    Documentos\Companion-PC
+- Não rode nada de dentro do zip sem extrair.
+- Depois de extrair, essa pasta deve ter: windows, extras, README.md e este LEIA-ME.
+
+
+3. INSTALAR O COMPANION
+-----------------------
+- No PowerShell aberto pelo Menu Iniciar (sem ser administrador), rode
+  (troque o caminho se você extraiu em outra pasta):
+
+    powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\Documents\Companion-PC\windows\install-server.ps1"
+
+- Ele instala os pacotes do Python, cria os atalhos (Menu Iniciar e início do Windows)
+  e abre o servidor. Aparece um ícone na bandeja (perto do relógio).
+- IMPORTANTE: rode VOCÊ MESMO, no seu PowerShell. Não peça para um assistente ou
+  sessão isolada rodar por você, senão os pacotes ficam invisíveis para o Windows
+  e o Companion não abre pelo atalho.
+
+
+4. REDE (para o celular achar o PC)
+-----------------------------------
+- Deixe a rede de casa como "Privada":
+  Configurações > Rede e Internet > (sua rede Wi-Fi ou cabo) > Tipo de perfil de rede > Privada.
+- Depois rode (vai pedir permissão de administrador uma vez, clique em Sim):
+
+    powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\Documents\Companion-PC\windows\setup-network.ps1"
+
+- Se o Windows perguntar sobre o Python no firewall, marque SÓ "Redes privadas".
+- Esse mesmo script também instala o adb (para usar o celular Android pelo cabo USB).
+
+
+5. USAR OS MESMOS BOTÕES DO OUTRO PC (opcional)
+-----------------------------------------------
+- Clique com o botão direito no ícone do Companion na bandeja > Sair.
+- Copie o arquivo  extras\deck.json  (desta pasta) para:
+    %USERPROFILE%\companion-pc\server\
+  (cole esse endereço na barra do Explorer; aceite substituir o arquivo).
+- Abra o Companion de novo pelo atalho "Companion PC" do Menu Iniciar.
+
+
+6. PASTA DE CLIENTES (contagem de tempo de trabalho)
+----------------------------------------------------
+- Clique no ícone da bandeja para abrir o painel > aba Trabalho.
+- Em "Pastas de clientes", clique em "Adicionar..." e escolha a pasta onde ficam
+  as pastas dos clientes NESTE computador.
+
+
+7. CELULAR
+----------
+- Celular e PC na mesma rede Wi-Fi.
+- No painel (aba Status), escaneie o QR code com a câmera do celular.
+- O token deste PC é NOVO. Se o app já estava instalado na tela inicial do celular,
+  ele vai pedir o token de novo: escanear o QR code resolve.
+
+
+8. ATALHO NA ÁREA DE TRABALHO (opcional)
+----------------------------------------
+- Abra o Menu Iniciar, procure "Companion PC", clique com o botão direito >
+  "Abrir local do arquivo".
+- Copie o atalho "Companion PC" que aparece e cole na Área de Trabalho.
+
+
+SE ALGO DER ERRADO
+------------------
+- O Companion não abre pelo atalho: veja o arquivo
+    %USERPROFILE%\companion-pc\server\companion-server-erro.log
+  Se falar de pacote faltando, rode de novo o passo 3 no SEU PowerShell.
+- O celular não conecta: confira o passo 4 (rede Privada + setup-network).

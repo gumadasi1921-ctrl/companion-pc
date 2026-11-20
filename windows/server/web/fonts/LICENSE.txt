@@ -1,0 +1,3 @@
+VT323 (c) 2011 The VT323 Project Authors (Peter Hull) — SIL Open Font License 1.1
+Share Tech Mono (c) 2012 Carrois Type Design (Ralph du Carrois) — SIL Open Font License 1.1
+https://openfontlicense.org

@@ -1,0 +1,1155 @@
+{
+  "pages": [
+    {
+      "name": "Photoshop",
+      "buttons": [
+        {
+          "label": "Desfazer (ctrl+z)",
+          "type": "keys",
+          "value": "ctrl+z",
+          "icon": "UND",
+          "svg": "undo-2",
+          "color": "#50c878"
+        },
+        {
+          "label": "Refazer (ctrl+shift+z)",
+          "type": "keys",
+          "value": "ctrl+shift+z",
+          "icon": "RED",
+          "svg": "redo-2",
+          "color": "#50c878"
+        },
+        {
+          "label": "Mover (V)",
+          "type": "keys",
+          "value": "v",
+          "icon": "MOV",
+          "svg": "move",
+          "color": "#58a6ff"
+        },
+        {
+          "label": "Pincel (B)",
+          "type": "keys",
+          "value": "b",
+          "icon": "PIN",
+          "svg": "paintbrush",
+          "color": "#58a6ff"
+        },
+        {
+          "label": "Pincel menor ([)",
+          "type": "keys",
+          "value": "colchete_esq",
+          "icon": "[-",
+          "svg": "circle-minus",
+          "color": "#58a6ff"
+        },
+        {
+          "label": "Pincel maior (])",
+          "type": "keys",
+          "value": "colchete_dir",
+          "icon": "]+",
+          "svg": "circle-plus",
+          "color": "#58a6ff"
+        },
+        {
+          "label": "Borracha (E)",
+          "type": "keys",
+          "value": "e",
+          "icon": "BOR",
+          "svg": "eraser",
+          "color": "#58a6ff"
+        },
+        {
+          "label": "Seleção rápida (W)",
+          "type": "keys",
+          "value": "w",
+          "icon": "SRP",
+          "svg": "wand-sparkles",
+          "color": "#58a6ff"
+        },
+        {
+          "label": "Laço (L)",
+          "type": "keys",
+          "value": "l",
+          "icon": "LAC",
+          "svg": "lasso",
+          "color": "#58a6ff"
+        },
+        {
+          "label": "Transformar (ctrl+t)",
+          "type": "keys",
+          "value": "ctrl+t",
+          "icon": "TRF",
+          "svg": "scaling",
+          "color": "#50c878"
+        },
+        {
+          "label": "Duplicar camada (ctrl+j)",
+          "type": "keys",
+          "value": "ctrl+j",
+          "icon": "DUP",
+          "svg": "copy",
+          "color": "#50c878"
+        },
+        {
+          "label": "Nova camada (ctrl+shift+n)",
+          "type": "keys",
+          "value": "ctrl+shift+n",
+          "icon": "NOV",
+          "svg": "layers-plus",
+          "color": "#50c878"
+        },
+        {
+          "label": "Desmarcar (ctrl+d)",
+          "type": "keys",
+          "value": "ctrl+d",
+          "icon": "DSM",
+          "svg": "square-x",
+          "color": "#50c878"
+        },
+        {
+          "label": "Carimbo (S)",
+          "type": "keys",
+          "value": "s",
+          "icon": "CAR",
+          "svg": "stamp",
+          "color": "#58a6ff"
+        },
+        {
+          "label": "Recuperação (J)",
+          "type": "keys",
+          "value": "j",
+          "icon": "REC",
+          "svg": "bandage",
+          "color": "#58a6ff"
+        },
+        {
+          "label": "Salvar (ctrl+s)",
+          "type": "keys",
+          "value": "ctrl+s",
+          "icon": "SAV",
+          "svg": "save",
+          "color": "#f0b446"
+        },
+        {
+          "label": "Ajustar à tela (ctrl+0)",
+          "type": "keys",
+          "value": "ctrl+0",
+          "icon": "FIT",
+          "svg": "maximize",
+          "color": "#50c878"
+        },
+        {
+          "label": "Seleção retangular (M)",
+          "type": "keys",
+          "value": "m",
+          "icon": "SEL",
+          "svg": "square-dashed",
+          "color": "#58a6ff"
+        },
+        {
+          "label": "Cortar (C)",
+          "type": "keys",
+          "value": "c",
+          "icon": "CRT",
+          "svg": "crop",
+          "color": "#58a6ff"
+        },
+        {
+          "label": "Texto (T)",
+          "type": "keys",
+          "value": "t",
+          "icon": "TXT",
+          "svg": "type",
+          "color": "#58a6ff"
+        },
+        {
+          "label": "Conta-gotas (I)",
+          "type": "keys",
+          "value": "i",
+          "icon": "GOT",
+          "svg": "pipette",
+          "color": "#58a6ff"
+        },
+        {
+          "label": "Agrupar (ctrl+g)",
+          "type": "keys",
+          "value": "ctrl+g",
+          "icon": "GRP",
+          "svg": "group",
+          "color": "#50c878"
+        },
+        {
+          "label": "Inverter seleção (ctrl+shift+i)",
+          "type": "keys",
+          "value": "ctrl+shift+i",
+          "icon": "INV",
+          "svg": "flip-horizontal",
+          "color": "#50c878"
+        },
+        {
+          "label": "Carimbar visíveis (ctrl+alt+shift+e)",
+          "type": "keys",
+          "value": "ctrl+alt+shift+e",
+          "icon": "MRG",
+          "svg": "layers",
+          "color": "#50c878"
+        },
+        {
+          "label": "Curvas (ctrl+m)",
+          "type": "keys",
+          "value": "ctrl+m",
+          "icon": "CRV",
+          "svg": "spline",
+          "color": "#50c878"
+        },
+        {
+          "label": "Camera Raw (ctrl+shift+a)",
+          "type": "keys",
+          "value": "ctrl+shift+a",
+          "icon": "RAW",
+          "svg": "aperture",
+          "color": "#50c878"
+        },
+        {
+          "label": "100% (ctrl+1)",
+          "type": "keys",
+          "value": "ctrl+1",
+          "icon": "1:1",
+          "svg": "scan",
+          "color": "#50c878"
+        },
+        {
+          "label": "Exportar como (ctrl+alt+shift+w)",
+          "type": "keys",
+          "value": "ctrl+alt+shift+w",
+          "icon": "EXP",
+          "svg": "file-output",
+          "color": "#f0b446"
+        }
+      ],
+      "apps": [
+        "photoshop.exe"
+      ]
+    },
+    {
+      "name": "Premiere",
+      "buttons": [
+        {
+          "label": "Tocar/parar (space)",
+          "type": "keys",
+          "value": "space",
+          "icon": ">||",
+          "svg": "play",
+          "color": "#50c878"
+        },
+        {
+          "label": "Navalha (C)",
+          "type": "keys",
+          "value": "c",
+          "icon": "CUT",
+          "svg": "scissors",
+          "color": "#58a6ff"
+        },
+        {
+          "label": "Seleção (V)",
+          "type": "keys",
+          "value": "v",
+          "icon": "SEL",
+          "svg": "mouse-pointer-2",
+          "color": "#58a6ff"
+        },
+        {
+          "label": "Desfazer (ctrl+z)",
+          "type": "keys",
+          "value": "ctrl+z",
+          "icon": "UND",
+          "svg": "undo-2",
+          "color": "#50c878"
+        },
+        {
+          "label": "Adicionar corte (ctrl+k)",
+          "type": "keys",
+          "value": "ctrl+k",
+          "icon": "CK",
+          "svg": "scissors",
+          "color": "#50c878"
+        },
+        {
+          "label": "Excluir ripple (shift+delete)",
+          "type": "keys",
+          "value": "shift+delete",
+          "icon": "RDL",
+          "svg": "delete",
+          "color": "#50c878"
+        },
+        {
+          "label": "Cortar ripple antes (q)",
+          "type": "keys",
+          "value": "q",
+          "icon": "RQ",
+          "svg": "arrow-left-to-line",
+          "color": "#50c878"
+        },
+        {
+          "label": "Cortar ripple depois (w)",
+          "type": "keys",
+          "value": "w",
+          "icon": "RW",
+          "svg": "arrow-right-to-line",
+          "color": "#50c878"
+        },
+        {
+          "label": "Frame anterior (left)",
+          "type": "keys",
+          "value": "left",
+          "icon": "<F",
+          "svg": "step-back",
+          "color": "#50c878"
+        },
+        {
+          "label": "Próximo frame (right)",
+          "type": "keys",
+          "value": "right",
+          "icon": "F>",
+          "svg": "step-forward",
+          "color": "#50c878"
+        },
+        {
+          "label": "Edição anterior (up)",
+          "type": "keys",
+          "value": "up",
+          "icon": "|<E",
+          "svg": "skip-back",
+          "color": "#50c878"
+        },
+        {
+          "label": "Próxima edição (down)",
+          "type": "keys",
+          "value": "down",
+          "icon": "E>|",
+          "svg": "skip-forward",
+          "color": "#50c878"
+        },
+        {
+          "label": "Marcador (m)",
+          "type": "keys",
+          "value": "m",
+          "icon": "MRK",
+          "svg": "bookmark",
+          "color": "#50c878"
+        },
+        {
+          "label": "Salvar (ctrl+s)",
+          "type": "keys",
+          "value": "ctrl+s",
+          "icon": "SAV",
+          "svg": "save",
+          "color": "#f0b446"
+        },
+        {
+          "label": "Exportar (ctrl+m)",
+          "type": "keys",
+          "value": "ctrl+m",
+          "icon": "EXP",
+          "svg": "file-output",
+          "color": "#f0b446"
+        },
+        {
+          "label": "Voltar (J)",
+          "type": "keys",
+          "value": "j",
+          "icon": "<<",
+          "svg": "rewind",
+          "color": "#50c878"
+        },
+        {
+          "label": "Pausar (K)",
+          "type": "keys",
+          "value": "k",
+          "icon": "||",
+          "svg": "pause",
+          "color": "#50c878"
+        },
+        {
+          "label": "Avançar (L)",
+          "type": "keys",
+          "value": "l",
+          "icon": ">>",
+          "svg": "fast-forward",
+          "color": "#50c878"
+        },
+        {
+          "label": "Seleção de faixa (A)",
+          "type": "keys",
+          "value": "a",
+          "icon": "FX>",
+          "svg": "chevrons-right",
+          "color": "#58a6ff"
+        },
+        {
+          "label": "Mão (H)",
+          "type": "keys",
+          "value": "h",
+          "icon": "MAO",
+          "svg": "hand",
+          "color": "#58a6ff"
+        },
+        {
+          "label": "Cortar todas as faixas (ctrl+shift+k)",
+          "type": "keys",
+          "value": "ctrl+shift+k",
+          "icon": "CKA",
+          "svg": "scissors-line-dashed",
+          "color": "#50c878"
+        },
+        {
+          "label": "Entrada (i)",
+          "type": "keys",
+          "value": "i",
+          "icon": "IN",
+          "svg": "log-in",
+          "color": "#50c878"
+        },
+        {
+          "label": "Saída (o)",
+          "type": "keys",
+          "value": "o",
+          "icon": "OUT",
+          "svg": "log-out",
+          "color": "#50c878"
+        },
+        {
+          "label": "Velocidade (ctrl+r)",
+          "type": "keys",
+          "value": "ctrl+r",
+          "icon": "VEL",
+          "svg": "gauge",
+          "color": "#50c878"
+        },
+        {
+          "label": "Encaixe (s)",
+          "type": "keys",
+          "value": "s",
+          "icon": "SNP",
+          "svg": "magnet",
+          "color": "#50c878"
+        },
+        {
+          "label": "Renderizar (enter)",
+          "type": "keys",
+          "value": "enter",
+          "icon": "RND",
+          "svg": "clapperboard",
+          "color": "#f0b446"
+        }
+      ],
+      "apps": [
+        "adobe premiere pro.exe"
+      ]
+    },
+    {
+      "name": "After",
+      "buttons": [
+        {
+          "label": "Preview (space)",
+          "type": "keys",
+          "value": "space",
+          "icon": ">||",
+          "svg": "play",
+          "color": "#50c878"
+        },
+        {
+          "label": "Desfazer (ctrl+z)",
+          "type": "keys",
+          "value": "ctrl+z",
+          "icon": "UND",
+          "svg": "undo-2",
+          "color": "#50c878"
+        },
+        {
+          "label": "Seleção (V)",
+          "type": "keys",
+          "value": "v",
+          "icon": "SEL",
+          "svg": "mouse-pointer-2",
+          "color": "#58a6ff"
+        },
+        {
+          "label": "Caneta (G)",
+          "type": "keys",
+          "value": "g",
+          "icon": "PEN",
+          "svg": "pen-tool",
+          "color": "#58a6ff"
+        },
+        {
+          "label": "Frame anterior (pageup)",
+          "type": "keys",
+          "value": "pageup",
+          "icon": "<F",
+          "svg": "step-back",
+          "color": "#50c878"
+        },
+        {
+          "label": "Próximo frame (pagedown)",
+          "type": "keys",
+          "value": "pagedown",
+          "icon": "F>",
+          "svg": "step-forward",
+          "color": "#50c878"
+        },
+        {
+          "label": "Dividir camada (ctrl+shift+d)",
+          "type": "keys",
+          "value": "ctrl+shift+d",
+          "icon": "SPL",
+          "svg": "square-split-horizontal",
+          "color": "#50c878"
+        },
+        {
+          "label": "Cortar início (alt+[)",
+          "type": "keys",
+          "value": "alt+colchete_esq",
+          "icon": "[I",
+          "svg": "align-horizontal-justify-start",
+          "color": "#50c878"
+        },
+        {
+          "label": "Cortar fim (alt+])",
+          "type": "keys",
+          "value": "alt+colchete_dir",
+          "icon": "I]",
+          "svg": "align-horizontal-justify-end",
+          "color": "#50c878"
+        },
+        {
+          "label": "Duplicar (ctrl+d)",
+          "type": "keys",
+          "value": "ctrl+d",
+          "icon": "DUP",
+          "svg": "copy",
+          "color": "#50c878"
+        },
+        {
+          "label": "Pré-compor (ctrl+shift+c)",
+          "type": "keys",
+          "value": "ctrl+shift+c",
+          "icon": "PRE",
+          "svg": "package",
+          "color": "#50c878"
+        },
+        {
+          "label": "Keyframes (u)",
+          "type": "keys",
+          "value": "u",
+          "icon": "KEY",
+          "svg": "diamond",
+          "color": "#50c878"
+        },
+        {
+          "label": "Posição (p)",
+          "type": "keys",
+          "value": "p",
+          "icon": "POS",
+          "svg": "move",
+          "color": "#50c878"
+        },
+        {
+          "label": "Escala (s)",
+          "type": "keys",
+          "value": "s",
+          "icon": "ESC",
+          "svg": "scaling",
+          "color": "#50c878"
+        },
+        {
+          "label": "Rotação (r)",
+          "type": "keys",
+          "value": "r",
+          "icon": "ROT",
+          "svg": "rotate-cw",
+          "color": "#50c878"
+        },
+        {
+          "label": "Opacidade (t)",
+          "type": "keys",
+          "value": "t",
+          "icon": "OPA",
+          "svg": "blend",
+          "color": "#50c878"
+        },
+        {
+          "label": "Salvar (ctrl+s)",
+          "type": "keys",
+          "value": "ctrl+s",
+          "icon": "SAV",
+          "svg": "save",
+          "color": "#f0b446"
+        },
+        {
+          "label": "Easy ease (f9)",
+          "type": "keys",
+          "value": "f9",
+          "icon": "EZ",
+          "svg": "activity",
+          "color": "#50c878"
+        },
+        {
+          "label": "Mão (H)",
+          "type": "keys",
+          "value": "h",
+          "icon": "MAO",
+          "svg": "hand",
+          "color": "#58a6ff"
+        },
+        {
+          "label": "Nova sólida (ctrl+y)",
+          "type": "keys",
+          "value": "ctrl+y",
+          "icon": "SOL",
+          "svg": "square",
+          "color": "#50c878"
+        },
+        {
+          "label": "Camada de ajuste (ctrl+alt+y)",
+          "type": "keys",
+          "value": "ctrl+alt+y",
+          "icon": "ADJ",
+          "svg": "sliders-horizontal",
+          "color": "#50c878"
+        },
+        {
+          "label": "Nova composição (ctrl+n)",
+          "type": "keys",
+          "value": "ctrl+n",
+          "icon": "CMP",
+          "svg": "film",
+          "color": "#50c878"
+        },
+        {
+          "label": "Início da área (b)",
+          "type": "keys",
+          "value": "b",
+          "icon": "B",
+          "svg": "arrow-left-to-line",
+          "color": "#50c878"
+        },
+        {
+          "label": "Fim da área (n)",
+          "type": "keys",
+          "value": "n",
+          "icon": "N",
+          "svg": "arrow-right-to-line",
+          "color": "#50c878"
+        },
+        {
+          "label": "Fila de render (ctrl+m)",
+          "type": "keys",
+          "value": "ctrl+m",
+          "icon": "FLA",
+          "svg": "list-video",
+          "color": "#f0b446"
+        },
+        {
+          "label": "Media Encoder (ctrl+alt+m)",
+          "type": "keys",
+          "value": "ctrl+alt+m",
+          "icon": "AME",
+          "svg": "send",
+          "color": "#f0b446"
+        }
+      ],
+      "apps": [
+        "afterfx.exe"
+      ]
+    },
+    {
+      "name": "Programas",
+      "auto": "shortcuts"
+    },
+    {
+      "name": "Janelas",
+      "buttons": [
+        {
+          "label": "Área de trabalho",
+          "type": "keys",
+          "value": "win+d",
+          "icon": "DSK",
+          "svg": "monitor"
+        },
+        {
+          "label": "Visão de tarefas",
+          "type": "keys",
+          "value": "win+tab",
+          "icon": "TSK",
+          "svg": "layout-grid"
+        },
+        {
+          "label": "Captura de tela",
+          "type": "keys",
+          "value": "win+shift+s",
+          "icon": "PRT",
+          "svg": "camera"
+        },
+        {
+          "label": "Explorador",
+          "type": "keys",
+          "value": "win+e",
+          "icon": "EXP",
+          "svg": "folder-open"
+        },
+        {
+          "label": "Gerenciador de Tarefas",
+          "type": "keys",
+          "value": "ctrl+shift+esc",
+          "icon": "GER",
+          "svg": "activity"
+        },
+        {
+          "label": "Fechar janela",
+          "type": "keys",
+          "value": "alt+f4",
+          "icon": "X",
+          "svg": "x",
+          "confirm": true
+        },
+        {
+          "label": "Maximizar",
+          "type": "keys",
+          "value": "win+up",
+          "icon": "[^]",
+          "svg": "maximize-2"
+        },
+        {
+          "label": "Minimizar",
+          "type": "keys",
+          "value": "win+down",
+          "icon": "[_]",
+          "svg": "minimize-2"
+        },
+        {
+          "label": "Janela p/ outro monitor",
+          "type": "keys",
+          "value": "win+shift+right",
+          "icon": "<->",
+          "svg": "arrow-right-left"
+        },
+        {
+          "label": "Bloquear o PC",
+          "type": "action",
+          "value": "power.lock",
+          "icon": "LCK",
+          "svg": "lock"
+        }
+      ]
+    },
+    {
+      "name": "Navegador",
+      "buttons": [
+        {
+          "label": "Nova aba",
+          "type": "keys",
+          "value": "ctrl+t",
+          "icon": "+",
+          "svg": "plus"
+        },
+        {
+          "label": "Fechar aba",
+          "type": "keys",
+          "value": "ctrl+w",
+          "icon": "x",
+          "svg": "x"
+        },
+        {
+          "label": "Reabrir aba",
+          "type": "keys",
+          "value": "ctrl+shift+t",
+          "icon": "<+",
+          "svg": "rotate-ccw"
+        },
+        {
+          "label": "Próxima aba",
+          "type": "keys",
+          "value": "ctrl+tab",
+          "icon": "->",
+          "svg": "chevrons-right"
+        },
+        {
+          "label": "Voltar",
+          "type": "keys",
+          "value": "alt+left",
+          "icon": "<",
+          "svg": "arrow-left"
+        },
+        {
+          "label": "Avançar",
+          "type": "keys",
+          "value": "alt+right",
+          "icon": ">",
+          "svg": "arrow-right"
+        },
+        {
+          "label": "Recarregar",
+          "type": "keys",
+          "value": "f5",
+          "icon": "F5",
+          "svg": "refresh-cw"
+        },
+        {
+          "label": "Tela cheia",
+          "type": "keys",
+          "value": "f11",
+          "icon": "F11",
+          "svg": "expand"
+        },
+        {
+          "label": "Zoom +",
+          "type": "keys",
+          "value": "ctrl+plus",
+          "icon": "Z+",
+          "svg": "zoom-in"
+        },
+        {
+          "label": "Zoom −",
+          "type": "keys",
+          "value": "ctrl+minus",
+          "icon": "Z-",
+          "svg": "zoom-out"
+        },
+        {
+          "label": "Teste",
+          "type": "shortcut",
+          "value": "notepad",
+          "color": "#eb5757"
+        },
+        {
+          "label": "Macro",
+          "type": "macro",
+          "value": "teclas win+r\nesperar 5s\ntexto notepad"
+        }
+      ],
+      "apps": [
+        "opera.exe",
+        "msedge.exe",
+        "chrome.exe",
+        "firefox.exe",
+        "brave.exe"
+      ]
+    },
+    {
+      "name": "Áudio",
+      "buttons": [
+        {
+          "label": "Tocar/pausar",
+          "type": "action",
+          "value": "media.play_pause",
+          "icon": ">||",
+          "svg": "play"
+        },
+        {
+          "label": "Anterior",
+          "type": "action",
+          "value": "media.prev",
+          "icon": "|<",
+          "svg": "skip-back"
+        },
+        {
+          "label": "Próxima",
+          "type": "action",
+          "value": "media.next",
+          "icon": ">|",
+          "svg": "skip-forward"
+        },
+        {
+          "label": "Volume −5",
+          "type": "action",
+          "value": "volume.down",
+          "icon": "V-",
+          "svg": "volume-1"
+        },
+        {
+          "label": "Volume +5",
+          "type": "action",
+          "value": "volume.up",
+          "icon": "V+",
+          "svg": "volume-2"
+        },
+        {
+          "label": "Mudo",
+          "type": "action",
+          "value": "media.mute",
+          "icon": "MUT",
+          "svg": "volume-x"
+        },
+        {
+          "label": "Trocar saída",
+          "type": "action",
+          "value": "audio.cycle",
+          "icon": "OUT",
+          "svg": "headphones"
+        },
+        {
+          "label": "Discord: mutar",
+          "type": "action",
+          "value": "discord.mute",
+          "icon": "MIC",
+          "svg": "mic-off"
+        },
+        {
+          "label": "Discord: ensurdecer",
+          "type": "action",
+          "value": "discord.deafen",
+          "icon": "AUD",
+          "svg": "headphone-off"
+        },
+        {
+          "label": "Microfone do PC",
+          "type": "action",
+          "value": "mic.toggle",
+          "icon": "MIC",
+          "svg": "mic"
+        }
+      ]
+    },
+    {
+      "name": "Discord",
+      "buttons": [
+        {
+          "label": "Mutar (Discord)",
+          "type": "action",
+          "value": "discord.mute",
+          "icon": "MIC",
+          "svg": "mic-off"
+        },
+        {
+          "label": "Ensurdecer",
+          "type": "action",
+          "value": "discord.deafen",
+          "icon": "AUD",
+          "svg": "headphone-off"
+        },
+        {
+          "label": "Microfone do PC",
+          "type": "action",
+          "value": "mic.toggle",
+          "icon": "PC",
+          "svg": "mic"
+        },
+        {
+          "label": "Busca rápida",
+          "type": "keys",
+          "value": "ctrl+k",
+          "icon": "FND",
+          "svg": "search"
+        },
+        {
+          "label": "Canal acima",
+          "type": "keys",
+          "value": "alt+up",
+          "icon": "^",
+          "svg": "chevron-up"
+        },
+        {
+          "label": "Canal abaixo",
+          "type": "keys",
+          "value": "alt+down",
+          "icon": "v",
+          "svg": "chevron-down"
+        },
+        {
+          "label": "Servidor acima",
+          "type": "keys",
+          "value": "ctrl+alt+up",
+          "icon": "^^",
+          "svg": "chevrons-up"
+        },
+        {
+          "label": "Servidor abaixo",
+          "type": "keys",
+          "value": "ctrl+alt+down",
+          "icon": "vv",
+          "svg": "chevrons-down"
+        },
+        {
+          "label": "Marcar como lido",
+          "type": "keys",
+          "value": "esc",
+          "icon": "OK",
+          "svg": "check-check"
+        }
+      ],
+      "apps": [
+        "discord.exe"
+      ]
+    },
+    {
+      "name": "Spotify",
+      "buttons": [
+        {
+          "label": "Tocar/pausar",
+          "type": "action",
+          "value": "media.play_pause",
+          "icon": ">||",
+          "svg": "play"
+        },
+        {
+          "label": "Anterior",
+          "type": "action",
+          "value": "media.prev",
+          "icon": "|<",
+          "svg": "skip-back"
+        },
+        {
+          "label": "Próxima",
+          "type": "action",
+          "value": "media.next",
+          "icon": ">|",
+          "svg": "skip-forward"
+        },
+        {
+          "label": "Aleatório",
+          "type": "keys",
+          "value": "ctrl+s",
+          "icon": "RND",
+          "svg": "shuffle"
+        },
+        {
+          "label": "Repetir",
+          "type": "keys",
+          "value": "ctrl+r",
+          "icon": "RPT",
+          "svg": "repeat"
+        },
+        {
+          "label": "Curtir",
+          "type": "keys",
+          "value": "alt+shift+b",
+          "icon": "<3",
+          "svg": "heart"
+        },
+        {
+          "label": "Buscar",
+          "type": "keys",
+          "value": "ctrl+k",
+          "icon": "FND",
+          "svg": "search"
+        },
+        {
+          "label": "Volume do Spotify −",
+          "type": "keys",
+          "value": "ctrl+down",
+          "icon": "V-",
+          "svg": "volume-1"
+        },
+        {
+          "label": "Volume do Spotify +",
+          "type": "keys",
+          "value": "ctrl+up",
+          "icon": "V+",
+          "svg": "volume-2"
+        }
+      ],
+      "apps": [
+        "spotify.exe"
+      ]
+    },
+    {
+      "name": "Macros",
+      "buttons": [
+        {
+          "label": "Modo trabalho",
+          "type": "macro",
+          "value": "abrir vscode\nesperar 2s\nabrir terminal\nesperar 1s\nabrir opera",
+          "icon": "DEV",
+          "svg": "briefcase"
+        },
+        {
+          "label": "Modo jogo",
+          "type": "macro",
+          "value": "abrir discord\nesperar 3s\nabrir steam",
+          "icon": "GAME",
+          "svg": "gamepad-2"
+        },
+        {
+          "label": "Ausente / voltar",
+          "type": "macro",
+          "value": "acao media.play_pause\nacao mic.toggle\nteclas win+d",
+          "icon": "AFK",
+          "svg": "coffee"
+        }
+      ]
+    },
+    {
+      "name": "Jogo",
+      "buttons": [
+        {
+          "label": "Overlay da Steam",
+          "type": "keys",
+          "value": "shift+tab",
+          "icon": "STM",
+          "svg": "layers"
+        },
+        {
+          "label": "Print da Steam",
+          "type": "keys",
+          "value": "f12",
+          "icon": "F12",
+          "svg": "camera"
+        },
+        {
+          "label": "Xbox Game Bar",
+          "type": "keys",
+          "value": "win+g",
+          "icon": "BAR",
+          "svg": "gamepad"
+        },
+        {
+          "label": "Gravar últimos 30 s",
+          "type": "keys",
+          "value": "win+alt+g",
+          "icon": "30S",
+          "svg": "history"
+        },
+        {
+          "label": "Gravar / parar",
+          "type": "keys",
+          "value": "win+alt+r",
+          "icon": "REC",
+          "svg": "circle-dot"
+        },
+        {
+          "label": "Print (Game Bar)",
+          "type": "keys",
+          "value": "win+alt+printscreen",
+          "icon": "PRT",
+          "svg": "image"
+        },
+        {
+          "label": "Discord: mutar",
+          "type": "action",
+          "value": "discord.mute",
+          "icon": "MIC",
+          "svg": "mic-off"
+        },
+        {
+          "label": "Discord: ensurdecer",
+          "type": "action",
+          "value": "discord.deafen",
+          "icon": "AUD",
+          "svg": "headphone-off"
+        },
+        {
+          "label": "Microfone do PC",
+          "type": "action",
+          "value": "mic.toggle",
+          "icon": "PC",
+          "svg": "mic"
+        }
+      ],
+      "apps": [
+        "@jogo"
+      ]
+    }
+  ]
+}
