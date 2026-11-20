@@ -59,6 +59,9 @@ window.pccTheme = (() => {
   /* pretos fixos (não mudam com a variante) */
   --scan: #0000002e; --vignette: #00000080; --black: #000; --scrim-soft: #0008; --scrim: #000c;
   --unid: #ffbf47;
+  /* gráficos do Início: uma cor só em intensidades diferentes */
+  --chart-cpu: var(--p); --chart-gpu: var(--p2); --chart-mem: var(--p); --chart-down: var(--p); --chart-up: var(--p3);
+  --chart-1: var(--p); --chart-2: var(--p2); --chart-3: var(--p3); --chart-4: var(--p2); --chart-5: var(--p3);
 }
 :root { --rail: 0px; }
 
@@ -691,6 +694,70 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .accents button.on { outline: 2px solid var(--p); outline-offset: -2px; }
 .accents [data-accent="blue"] { --c: #1F6FEB; } .accents [data-accent="purple"] { --c: #8E44EC; } .accents [data-accent="green"] { --c: #187F3B; }
 .accents [data-accent="orange"] { --c: #B4530A; } .accents [data-accent="pink"] { --c: #D6336C; }
+
+/* ------------------------------------------------------------------ Início (widgets) — docs/DESIGN.md §6
+   Só variáveis do tema (com fallback para o Fallout): nenhuma cor fixa. */
+.home-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 2px 0 10px; min-height: 44px; }
+.home-head h2 { margin: 0; }
+:root[data-theme="modern"] .home-head h2 { font-size: 34px; letter-spacing: -.01em; }
+.home { display: grid; gap: 12px; align-items: stretch; grid-template-columns: minmax(0, 1fr); }
+.hw { display: flex; flex-direction: column; gap: 8px; padding: 12px; min-width: 0; overflow: hidden; }
+.hw-t { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--p2); }
+.hw-t > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hw-t > span:last-child { color: var(--p3); text-transform: none; letter-spacing: 0; font-weight: 500; }
+.hw-b { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1; }
+.hw button { min-height: 44px; min-width: 44px; }
+.hw .hi { display: block; width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.hw-na { color: var(--p3); font-size: 14px; padding: 4px 0; }
+/* esqueleto: blocos pulsando até os dados chegarem (sem animação com prefers-reduced-motion: regra global) */
+.hw-sk { display: none; flex-direction: column; gap: 10px; }
+.hw.sk .hw-sk { display: flex; }
+.hw.sk .hw-b { display: none; }
+.hw-sk i { display: block; height: 16px; border-radius: var(--r-sm, 2px); background: var(--surface-2, var(--p4)); animation: hwpulse 1.4s ease-in-out infinite; }
+.hw-sk i:nth-child(1) { width: 60%; } .hw-sk i:nth-child(3) { width: 80%; height: 40px; }
+@keyframes hwpulse { 50% { opacity: .45; } }
+/* barra fina de progresso/medidor */
+.hbar { height: 8px; border-radius: var(--r-pill, 0); background: var(--surface-3, var(--p4)); overflow: hidden; min-width: 0; }
+.hbar > i { display: block; height: 100%; width: 0; background: var(--c, var(--accent-fill, var(--p))); border-radius: inherit; transition: width .4s; }
+.hbar.bad > i { background: var(--alert); }
+.hmeter { display: grid; grid-template-columns: 40px minmax(0, 1fr) 44px; align-items: center; gap: 8px; min-height: 26px; font-size: 14px; }
+.hmeter > span { color: var(--p2); font-size: 13px; font-weight: 600; }
+.hmeter > b { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* Tocando */
+.hnow { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.hart { flex: none; width: 84px; height: 84px; border-radius: var(--r-list, 2px); display: grid; place-items: center; color: var(--p3); background: var(--surface-2, var(--p4)) center / cover no-repeat; overflow: hidden; }
+.hart.has .hi { display: none; }
+.hart .hi { width: 30px; height: 30px; }
+.hmeta { min-width: 0; flex: 1; }
+.hti { font-size: 16px; font-weight: 700; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.har { margin-top: 2px; font-size: 13px; color: var(--p2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.hctl { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: auto; }
+.hctl button { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--p3); }
+.hctl button:disabled { opacity: .35; }
+.hctl .hplay { width: 64px; height: 64px; background: var(--accent-fill, var(--p)); border-color: var(--accent-fill, var(--p)); color: var(--on-accent, var(--bg)); text-shadow: none; }
+.hctl .hplay .hi { width: 28px; height: 28px; fill: currentColor; }
+.hw[data-w="now"] { cursor: pointer; }
+/* Tarefas */
+.htk-n { font-size: 14px; color: var(--p2); }
+.htk-list { display: flex; flex-direction: column; min-width: 0; }
+.hw .trow { min-height: 44px; padding: 4px 0; }
+.hw .ttx { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.htk-done { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 600; color: var(--success, var(--p)); }
+/* atalhos 2×2 */
+.hq { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.hq button { min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 6px 4px; border: 1px solid var(--p4); border-radius: var(--r-list, 2px); background: var(--surface-2, transparent); font-size: 12px; font-weight: 600; line-height: 1.1; text-align: center; }
+.hq button:active { transform: scale(.95); }
+.hq button.on { background: var(--accent-soft, var(--p)); color: var(--accent-text, var(--bg)); text-shadow: none; }
+.hq button:disabled { opacity: .45; }
+.hq button small { font-size: 10px; font-weight: 500; color: var(--p3); }
+@media (orientation: landscape) { .home.phone { grid-template-columns: repeat(var(--hn, 3), minmax(0, 1fr)); } }
+@media (orientation: landscape) and (max-height: 560px) {
+  .home-head { margin: 0 0 6px; }
+  :root[data-theme="modern"] .home-head h2 { font-size: 24px; }
+  .hw { padding: 10px; gap: 6px; }
+}
+.toast.undo { display: flex; align-items: center; gap: 8px; padding: 2px 2px 2px 14px; }
+.toast.undo button { min-height: 44px; padding: 0 14px; font-weight: 700; color: var(--accent-text, var(--p)); }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -752,10 +819,10 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 <div class="subtabs" id="subtabs" role="tablist"></div>
 
 <main id="main">
-  <!-- INÍCIO (provisório até a etapa 3) -->
+  <!-- INÍCIO: widgets montados pelo JS a partir do layout salvo (store "home") -->
   <section class="tab" id="t-inicio">
-    <h2>Início</h2>
-    <div class="card"><div class="empty">Em construção</div></div>
+    <div class="home-head"><h2>Início</h2></div>
+    <div class="home phone" id="home"></div>
   </section>
   <!-- MAIS: lista que leva às outras vistas -->
   <section class="tab" id="t-more">
@@ -1086,6 +1153,7 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 </div><div class="dk-hint">Toque para voltar</div></div>
 <div id="idle-catch" class="hidden"><div class="dk-hint">Toque para voltar</div></div>
 <div class="toast hidden" id="toast"></div>
+<div class="toast undo hidden" id="utoast" role="status"><span id="ut-msg"></span><button id="ut-btn">Desfazer</button></div>
 <textarea id="kbd" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
 
 <script>
@@ -1301,6 +1369,7 @@ function showView(name, temp) {
   if (vis("games")) loadGamesExtra();
   if (vis("work")) loadWork(true);
   if (vis("tasks")) loadTasks();
+  if (vis("inicio")) homeShow();
 }
 $("subtabs").onclick = (e) => { const b = e.target.closest("[data-view]"); if (b) { buzz(8); showView(b.dataset.view); } };
 $("more-list").onclick = (e) => { const b = e.target.closest("[data-view]"); if (b) { buzz(8); showView(b.dataset.view); } };
@@ -1423,7 +1492,7 @@ function renderNow() {
   if (v && !volDragging) { $("vol").value = v.level; $("vol-val").textContent = v.muted ? "mudo" : v.level + "%"; }
   if (!v) $("vol-val").textContent = "";
   $("vol-ico").style.opacity = v?.muted ? 0.4 : 1;
-  tickProgress();
+  tickProgress(); homeUpd("now");
 }
 function tickProgress() {
   const m = state.now?.media;
@@ -1579,6 +1648,7 @@ function tasksBadge(d) {
   b.parentElement.setAttribute("aria-label", n ? `Tarefas, ${n} pendentes` : "Tarefas");
 }
 function renderTasks(d) {
+  tasksData = d; homeUpd("tasks");
   tasksBadge(d);
   $("tk-count").textContent = d.total ? `${d.done} de ${d.total} feitas` : "";
   $("tk-list").innerHTML = d.items.length
@@ -1591,6 +1661,159 @@ $("tk-list").onclick = async (e) => {
   try { renderTasks(await send("tasks.toggle", { id: r.dataset.id })); } catch { loadTasks(); }
 };
 setInterval(loadTasks, 10000);   // também alimenta o selo da navegação
+
+// ---------------------------------------------------------------- Início (widgets)
+// Cada widget é independente: html(dev) monta a estrutura uma vez; upd(el) só troca texto/atributos (nada de
+// innerHTML a cada segundo nos controles, para o toque não se perder). Layout salvo em store "home" (celular e tablet separados).
+function undoToast(msg, fn) {
+  const t = $("utoast"); $("ut-msg").textContent = msg; t.classList.remove("hidden");
+  $("ut-btn").onclick = () => { clearTimeout(undoToast.t); t.classList.add("hidden"); fn(); };
+  clearTimeout(undoToast.t); undoToast.t = setTimeout(() => t.classList.add("hidden"), 4000);
+}
+const ic = (n, cls = "hi") => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-${n}"/></svg>`;
+const setText = (el, t) => { if (el && el.textContent !== t) el.textContent = t; };
+const setHtml = (el, h) => { if (el && el._h !== h) { el.innerHTML = h; el._h = h; } };
+const hk = (el, k) => ((el._k ||= {})[k] ||= el.querySelector(`[data-k="${k}"]`));
+const setBarW = (el, pct, bad = 90) => { pct = Math.max(0, Math.min(100, +pct || 0)); el.firstElementChild.style.width = pct + "%"; el.classList.toggle("bad", pct >= bad); };
+let tasksData = null;
+
+// atalhos: 4 ações que o servidor já tem (mic.set, power lock/monitor_off, key.press)
+const HOME_QUICK = [
+  ["mic", "Mudo mic", "mic"], ["lock", "Bloquear", "lock"], ["print", "Print", "camera"], ["mon", "Desligar monitor", "monitor"],
+];
+const quickHtml = () => `<div class="hq">${HOME_QUICK.map(([q, l, i]) => `<button data-q="${q}" aria-label="${l}">${ic(i)}<span>${l}</span><small class="hidden"></small></button>`).join("")}</div>`;
+function quickUpd(el) {
+  const st = state.stats, off = !welcome.power;
+  for (const b of el.querySelectorAll("[data-q]")) {
+    const q = b.dataset.q; let dis = false, why = "";
+    if (q === "mic") { dis = !st?.mic; why = "Indisponível neste PC"; b.classList.toggle("on", !!st?.mic?.muted); b.setAttribute("aria-pressed", !!st?.mic?.muted);
+      b.querySelector("use").setAttribute("href", st?.mic?.muted ? "#ic-mic-off" : "#ic-mic"); }
+    else if (q === "lock" || q === "mon") { dis = off; why = "Desativado no PC"; }
+    b.disabled = dis;
+    const sm = b.querySelector("small"); sm.classList.toggle("hidden", !dis); setText(sm, dis ? why : "");
+  }
+}
+function quickClick(q) {
+  if (q === "mic") return micToggle();
+  if (q === "lock") return act("power", { action: "lock" }, "Bloqueando o PC");
+  if (q === "print") return act("key.press", { keys: "printscreen" }, "Print enviado");
+  if (q === "mon") return act("power", { action: "monitor_off" }, "Monitor desligado");
+}
+
+const meterHtml = (k, label) => `<div class="hmeter" data-m="${k}"><span>${label}</span><div class="hbar" data-k="${k}b"><i></i></div><b data-k="${k}"></b></div>`;
+const HOME_W = {
+  now: {
+    name: "Tocando", icon: "headphones",
+    html: () => `<div class="hw-t"><span>Tocando</span><span data-k="app"></span></div>
+      <div class="hnow"><div class="hart" data-k="art">${ic("headphones")}</div><div class="hmeta"><div class="hti" data-k="title"></div><div class="har" data-k="artist"></div></div></div>
+      <div class="hbar" data-k="prog"><i></i></div>
+      <div class="hctl"><button data-a="prev" aria-label="Anterior">${ic("skip-back")}</button>
+        <button class="hplay" data-a="play" aria-label="Tocar ou pausar">${ic("play")}</button>
+        <button data-a="next" aria-label="Próxima">${ic("skip-forward")}</button></div>`,
+    ready: () => !!state.now,
+    upd(el) {
+      const m = state.now.media;
+      setText(hk(el, "title"), m ? m.title || "(sem título)" : "Nada tocando");
+      setText(hk(el, "artist"), m ? [m.artist, m.album].filter(Boolean).join(" · ") : "Abra uma música ou vídeo no PC");
+      setText(hk(el, "app"), m?.app || "");
+      const art = m?.art && state.art[m.art], a = hk(el, "art");
+      a.style.backgroundImage = art ? `url(${art})` : ""; a.classList.toggle("has", !!art);
+      const dur = m?.dur || 0; setBarW(hk(el, "prog"), dur ? (mediaPos() / dur) * 100 : 0, 101);
+      el.querySelector('[data-a="play"] use').setAttribute("href", m?.status === "playing" ? "#ic-pause" : "#ic-play");
+      el.querySelector('[data-a="prev"]').disabled = m ? !m.can_prev : false;
+      el.querySelector('[data-a="next"]').disabled = m ? !m.can_next : false;
+    },
+  },
+  tasks: {
+    name: "Tarefas", icon: "check-check",
+    html: () => `<div class="hw-t"><span>Tarefas</span><span data-k="cnt"></span></div><div class="hbar" data-k="bar"><i></i></div><div class="htk-list" data-k="list"></div>`,
+    ready: () => !!tasksData,
+    upd(el) {
+      const d = tasksData, items = d.items || [], total = d.total ?? items.length, done = d.done ?? items.filter((t) => t.done).length;
+      setText(hk(el, "cnt"), total ? `${done} de ${total}` : "");
+      setBarW(hk(el, "bar"), total ? (done / total) * 100 : 0, 101);
+      const pend = items.filter((t) => !t.done);
+      setHtml(hk(el, "list"), !total ? '<div class="hw-na">Nenhuma tarefa. Adicione pelo painel do PC.</div>'
+        : !pend.length ? `<div class="htk-done">${ic("check-check")}Tudo feito!</div>`
+        : pend.slice(0, 3).map((t) => `<div class="trow" data-id="${esc(t.id)}" role="checkbox" aria-checked="false" tabindex="0"><span class="tbox"></span><span class="ttx">${esc(t.text)}</span></div>`).join(""));
+    },
+  },
+  pcquick: {
+    name: "PC e atalhos", icon: "activity",
+    html: () => `<div class="hw-t"><span>PC</span><span data-k="host"></span></div>${meterHtml("cpu", "CPU")}${meterHtml("gpu", "GPU")}${meterHtml("ram", "Mem.")}${quickHtml()}`,
+    ready: () => !!state.stats,
+    upd(el) {
+      const s = state.stats, g = s.gpu;
+      setText(hk(el, "host"), welcome.host || "");
+      for (const [k, v, c] of [["cpu", s.cpu, "--chart-cpu"], ["gpu", g?.util, "--chart-gpu"], ["ram", s.ram_pct, "--chart-mem"]]) {
+        const row = el.querySelector(`[data-m="${k}"]`); row.classList.toggle("hidden", k === "gpu" && !g);
+        if (k === "gpu" && !g) continue;
+        const b = hk(el, k + "b"); b.style.setProperty("--c", `var(${c})`); setBarW(b, v); setText(hk(el, k), Math.round(v) + "%");
+      }
+      quickUpd(el);
+    },
+  },
+};
+const HOME_DEF = { phone: [{ id: "now", size: "S" }, { id: "tasks", size: "S" }, { id: "pcquick", size: "S" }] };
+const HOME_CAP = { phone: 3 };
+
+function homeLayout(dev) {
+  let raw = store.get("home", null); raw = raw && raw.v === 1 ? raw[dev] : null;
+  if (!Array.isArray(raw)) return HOME_DEF[dev];
+  const seen = new Set(), out = [];
+  for (const it of raw) {                       // item desconhecido, repetido ou torto: ignora
+    const id = it && typeof it === "object" ? it.id : null;
+    if (!HOME_W[id] || seen.has(id)) continue;
+    seen.add(id); out.push({ id, size: "S" });
+  }
+  if (out.length > HOME_CAP[dev] || (raw.length && !out.length)) return HOME_DEF[dev];
+  return out;
+}
+const homeDev = () => "phone";
+let homeList = [];
+function homeBuild() {
+  const root = $("home"), dev = homeDev();
+  homeList = homeLayout(dev);
+  root.className = "home " + dev; root.style.setProperty("--hn", Math.max(1, homeList.length));
+  root.innerHTML = homeList.length ? homeList.map(({ id, size }) => `<div class="card hw${size === "L" ? " big" : ""} sk" data-w="${id}">
+    <div class="hw-sk" aria-hidden="true"><i></i><i></i><i></i></div><div class="hw-b">${HOME_W[id].html(dev)}</div></div>`).join("")
+    : '<div class="card hw"><div class="hw-na">Nenhum widget na tela.</div></div>';
+  homeUpd();
+}
+function homeUpd(only) {
+  if (!vis("inicio")) return;
+  for (const el of $("home").querySelectorAll(".hw[data-w]")) {
+    const id = el.dataset.w; if (only && only !== id) continue;
+    const w = HOME_W[id], ok = w.ready();
+    el.classList.toggle("sk", !ok);
+    if (ok) w.upd(el);
+  }
+}
+function homeShow() { homeBuild(); loadTasks(); }
+async function homeTaskToggle(id, undo) {
+  const d = tasksData, t = d?.items.find((x) => x.id === id); if (!t) return;
+  buzz();
+  const flip = (v) => { t.done = v; d.done = d.items.filter((x) => x.done).length; tasksBadge(d); homeUpd("tasks"); };
+  const was = t.done; flip(!was);                       // otimista
+  try {
+    const r = await send("tasks.toggle", { id }); renderTasks(r);
+    if (!undo) undoToast(was ? "Tarefa reaberta" : "Tarefa feita", () => homeTaskToggle(id, true));
+  } catch (e) { flip(was); if (e.message !== "offline") toast(e.message, "bad"); }
+}
+$("home").addEventListener("click", (e) => {
+  const q = e.target.closest("[data-q]"); if (q) { buzz(); return quickClick(q.dataset.q); }
+  const a = e.target.closest("[data-a]");
+  if (a) {
+    const m = state.now?.media;
+    if (a.dataset.a === "play" && m) { const u = a.querySelector("use"); u.setAttribute("href", m.status === "playing" ? "#ic-play" : "#ic-pause"); }   // otimista
+    return act("media." + (a.dataset.a === "play" ? "play_pause" : a.dataset.a));
+  }
+  const t = e.target.closest(".trow[data-id]"); if (t) return homeTaskToggle(t.dataset.id);
+  if (e.target.closest('.hw[data-w="now"]')) { buzz(8); showView("media"); }   // fora dos botões: abre o Rádio
+});
+$("home").addEventListener("keydown", (e) => { const t = e.target.closest(".trow[data-id]"); if (t && (e.key === " " || e.key === "Enter")) { e.preventDefault(); homeTaskToggle(t.dataset.id); } });
+// 1×/s e só com o Início visível (gráficos e medidores)
+setInterval(() => { if (vis("inicio") && !document.hidden) homeUpd(); }, 1000);
 
 // ---------------------------------------------------------------- Atalhos / Sistema
 function renderPower() {
