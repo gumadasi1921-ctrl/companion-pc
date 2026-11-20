@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR" data-theme="fallout" data-variant="green">
+<html lang="pt-BR" data-theme="modern" data-mode="auto" data-accent="blue" data-scheme="dark" data-variant="green">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
@@ -10,9 +10,26 @@
 <link rel="icon" href="icon-192.png">
 <link rel="preload" href="fonts/vt323.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/share-tech-mono.woff2" as="font" type="font/woff2" crossorigin>
-<script>try { const g = (k) => JSON.parse(localStorage.getItem("pcc." + k)), d = document.documentElement.dataset, t = g("theme"), v = g("variant");
-  /* "theme" já guardou a cor do terminal (green/amber/cyan): vira "variant" */
-  d.theme = t === "modern" ? "modern" : "fallout"; d.variant = v || (["green", "amber", "cyan"].includes(t) ? t : "green"); } catch {}</script>
+<script>
+/* Tema, lido antes da primeira pintura (sem piscar). theme = modern | fallout; variant = verde/âmbar/ciano (só Fallout);
+   mode = auto | light | dark e accent = blue|purple|green|orange|pink (só Moderno). data-scheme = claro/escuro já resolvido. */
+window.pccTheme = (() => {
+  const g = (k) => { try { return JSON.parse(localStorage.getItem("pcc." + k)); } catch { return null; } };
+  const pick = (v, list) => (list.includes(v) ? v : null);
+  const t = g("theme"), legacy = pick(t, ["green", "amber", "cyan"]), variant = pick(g("variant"), ["green", "amber", "cyan"]);
+  /* quem já tinha escolhido uma cor do terminal escolheu o Fallout; quem nunca escolheu fica no Moderno */
+  const prefs = { theme: pick(t, ["modern", "fallout"]) || (legacy || variant ? "fallout" : "modern"), variant: variant || legacy || "green",
+    mode: pick(g("mode"), ["auto", "light", "dark"]) || "auto", accent: pick(g("accent"), ["blue", "purple", "green", "orange", "pink"]) || "blue" };
+  let cur = prefs, mq = null;
+  try { mq = matchMedia("(prefers-color-scheme: light)"); } catch {}
+  const api = { prefs, onScheme: null,
+    apply(p) { cur = p || cur; const d = document.documentElement.dataset;
+      d.theme = cur.theme; d.variant = cur.variant; d.mode = cur.mode; d.accent = cur.accent;
+      d.scheme = cur.mode === "auto" ? (mq && mq.matches ? "light" : "dark") : cur.mode; } };
+  if (mq) { const f = () => { if (cur.mode === "auto") { api.apply(); api.onScheme && api.onScheme(); } }; mq.addEventListener ? mq.addEventListener("change", f) : mq.addListener && mq.addListener(f); }
+  api.apply(prefs); return api;
+})();
+</script>
 <style>
 @font-face { font-family: "VT323"; src: url(fonts/vt323.woff2) format("woff2"); font-display: swap; }
 @font-face { font-family: "Share Tech Mono"; src: url(fonts/share-tech-mono.woff2) format("woff2"); font-display: swap; }
@@ -44,6 +61,59 @@
   --unid: #ffbf47;
 }
 :root { --rail: 0px; }
+
+/* ------------------------------------------------------------------ tema Moderno (docs/DESIGN.md §2–4)
+   Escuro é a base; data-scheme="light" (resolvido pelo JS a partir de data-mode) troca os tokens.
+   Os nomes antigos (--p, --p2, --p3, --p4, --panel...) apontam para os tokens, então as telas atuais já usam o tema. */
+:root[data-theme="modern"] {
+  color-scheme: dark;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --display: var(--font); --mono: var(--font);
+  --r-card: 22px; --r-list: 16px; --r-btn: 18px; --r-pill: 999px; --r-sm: 10px;
+  --bg: #000000; --surface: #1C1C1E; --surface-2: #2C2C2E; --surface-3: #3A3A3C; --nav-bg: #121214; --separator: #38383A;
+  --text: #F2F2F7; --text-2: #A1A1A6; --text-3: #8E8E93;
+  --success: #30D158; --warning: #FF9F0A; --danger-text: #FF6961; --danger-fill: #D70015; --danger-soft: #3A1214;
+  --on-accent: #FFFFFF;
+  --chart-cpu: #4C9AFF; --chart-gpu: #BF5AF2; --chart-mem: #FF9F0A; --chart-down: #64D2FF; --chart-up: #FF9F0A;
+  --chart-1: #4C9AFF; --chart-2: #BF5AF2; --chart-3: #FF9F0A; --chart-4: #64D2FF; --chart-5: #30D158;
+  /* nomes das telas atuais */
+  --p: var(--text); --p2: var(--text-2); --p3: var(--text-3); --p4: var(--separator);
+  --panel: var(--surface); --glow: transparent; --alert: var(--danger-text);
+  --accent: var(--accent-text); --ok: var(--p2); --warn: var(--p);
+  --dim: var(--p2); --faint: var(--p3); --line: var(--p3);
+  --scan: transparent; --vignette: transparent; --black: #000000; --scrim-soft: #000000CC; --scrim: #000000CC; --unid: var(--warning);
+}
+:root[data-theme="modern"][data-scheme="light"] {
+  color-scheme: light;
+  --bg: #F2F2F7; --surface: #FFFFFF; --surface-2: #E5E5EA; --surface-3: #D1D1D6; --nav-bg: #F9F9FB; --separator: #C6C6C8;
+  --text: #000000; --text-2: #3C3C43; --text-3: #6E6E73;
+  --success: #248A3D; --warning: #D9650B; --danger-text: #D70015; --danger-soft: var(--surface);
+}
+/* destaque: preenchimento igual nos dois modos; texto e fundo suave por modo (só o azul vem do DESIGN; os outros são derivados, ver relatório) */
+:root[data-theme="modern"][data-accent="blue"]   { --accent-fill: #1F6FEB; --accent-text: #4C9AFF; --accent-soft: #1C2B45; }
+:root[data-theme="modern"][data-accent="purple"] { --accent-fill: #8E44EC; --accent-text: #AB75F1; --accent-soft: #312344; }
+:root[data-theme="modern"][data-accent="green"]  { --accent-fill: #1E9E4A; --accent-text: #4BB16E; --accent-soft: #1C3426; }
+:root[data-theme="modern"][data-accent="orange"] { --accent-fill: #D9650B; --accent-text: #E1843C; --accent-soft: #3F2A1A; }
+:root[data-theme="modern"][data-accent="pink"]   { --accent-fill: #D6336C; --accent-text: #E16892; --accent-soft: #3E202C; }
+:root[data-theme="modern"][data-scheme="light"][data-accent="blue"]   { --accent-text: #0066CC; --accent-soft: #E1ECFB; }
+:root[data-theme="modern"][data-scheme="light"][data-accent="purple"] { --accent-text: #8540DE; --accent-soft: #F0E6FC; }
+:root[data-theme="modern"][data-scheme="light"][data-accent="green"]  { --accent-text: #177B3A; --accent-soft: #E1F2E7; }
+:root[data-theme="modern"][data-scheme="light"][data-accent="orange"] { --accent-text: #AE5109; --accent-soft: #FAEBDF; }
+:root[data-theme="modern"][data-scheme="light"][data-accent="pink"]   { --accent-text: #C12E61; --accent-soft: #FAE4EB; }
+/* o efeito de tubo é do Fallout */
+:root[data-theme="modern"] body.crt { text-shadow: none; }
+:root[data-theme="modern"] body.crt::after { display: none; }
+:root[data-theme="modern"] body.crt .isvg { filter: none; }
+:root[data-theme="modern"] h2::before { content: none; }
+:root[data-theme="modern"] h2 { font: 700 20px/1.2 var(--font); color: var(--text); }
+:root[data-theme="modern"] .card { border-radius: var(--r-card); }
+:root[data-theme="modern"] .btn { border-radius: var(--r-btn); }
+:root[data-theme="modern"] .btn.primary, :root[data-theme="modern"] .switch.on { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--on-accent); }
+:root[data-theme="modern"] .tile, :root[data-theme="modern"] .dbtn, :root[data-theme="modern"] .lgame { border-radius: var(--r-list); }
+:root[data-theme="modern"] .dialog { border-radius: var(--r-card); box-shadow: none; border-color: var(--separator); }
+:root[data-theme="modern"] .toast { border-radius: var(--r-btn); box-shadow: none; border-color: var(--separator); }
+:root[data-theme="modern"] .dot { width: 10px; height: 10px; border-radius: 50%; }
+:root[data-theme="modern"] header .host, :root[data-theme="modern"] header .clock { font-weight: 700; }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--p); overscroll-behavior: none; }
@@ -2192,16 +2262,18 @@ function showConn() { $("conn-info").textContent = [CONN, `tela ${innerWidth}×$
 addEventListener("resize", showConn); showConn();
 if ("serviceWorker" in navigator && window.isSecureContext) navigator.serviceWorker.register("sw.js").catch(() => {});
 // visual: cor do terminal e efeito de tubo
-{ const t = store.get("theme", "fallout"), v = store.get("variant", null);   // "theme" já guardou a cor (green/amber/cyan): vira "variant"
-  prefs.theme = t === "modern" ? "modern" : "fallout"; prefs.variant = v || (["green", "amber", "cyan"].includes(t) ? t : "green"); }
-prefs.crt = store.get("crt", true);
-function applyTheme() {
-  document.documentElement.dataset.theme = prefs.theme;
-  document.documentElement.dataset.variant = prefs.variant;
-  document.body.classList.toggle("crt", prefs.crt);
-  document.querySelectorAll("#themes button").forEach((b) => b.classList.toggle("on", b.dataset.variant === prefs.variant));
+// (tema, cor do terminal, modo e destaque: lidos em window.pccTheme, no <head>, antes da primeira pintura)
+Object.assign(prefs, pccTheme.prefs); prefs.crt = store.get("crt", true);
+function syncChrome() {
   document.querySelector('meta[name="theme-color"]').content = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
   if (vis("dash")) drawSparks();
+}
+pccTheme.onScheme = syncChrome;   // modo automático: o aparelho trocou claro/escuro
+function applyTheme() {
+  pccTheme.apply(prefs);
+  document.body.classList.toggle("crt", prefs.crt && prefs.theme === "fallout");
+  document.querySelectorAll("#themes button").forEach((b) => b.classList.toggle("on", b.dataset.variant === prefs.variant));
+  syncChrome();
 }
 $("themes").onclick = (e) => { const b = e.target.closest("[data-variant]"); if (!b) return; buzz(8); prefs.variant = b.dataset.variant; store.set("variant", prefs.variant); applyTheme(); };
 bindSwitch("sw-crt", "crt", applyTheme);
