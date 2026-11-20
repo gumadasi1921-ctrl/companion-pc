@@ -37,6 +37,7 @@ Seções: inicio | ctrl | deck | tasks | mais (lista → radio, games, work, fil
 - Rádio: capa grande | título, artista, barra de posição, anterior / Play 72 (--accent-fill) / próxima, volume, pílula da saída de áudio. Seletor no topo: Tocando | Mixer.
 - Mais › Energia: Bloquear, Desligar monitor, Suspender (neutros); Reiniciar… (--warning) e Desligar… (--danger-soft/--danger-text) abrem uma contagem com anel de 30 s e um botão "Cancelar" grande; pílulas de timer 15 min / 30 min / 1 h / 2 h.
 - Ajustes › Aparência: 2 cartões de tema com prévia (Moderno / Fallout), seletor Automático/Claro/Escuro, 5 bolinhas de destaque.
+- Mais › Widgets do Início (também pelo botão "Editar" no topo do Início): seletor Celular | Tablet (listas separadas, salvas por aparelho em store "home"). Lista "Na tela, nesta ordem" com remover (círculo vermelho), subir/descer e, no tablet, tamanho Pequeno/Grande (Grande = 2 espaços). Embaixo, pílulas "+" com os widgets de fora. Limites: celular deitado 3 colunas (em pé, empilha os mesmos); tablet 12 espaços. Lotado = pílulas desativadas + aviso. Remover tem Desfazer; "Restaurar" volta ao padrão. Catálogo: now, tasks, pcquick, cpu, net, mem, work, today, procs, games, notif, quick. Padrão celular: now, tasks, pcquick. Padrão tablet: cpu(G), net, mem, now, tasks, work(G), procs, games, notif, quick.
 
 ## 7. Comportamento (regras de UX)
 - Resposta < 400 ms: toques mudam a tela NA HORA (atualização otimista); se o PC recusar, volta ao estado anterior e mostra um toast de erro.
