@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR" data-theme="green">
+<html lang="pt-BR" data-theme="fallout" data-variant="green">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
@@ -10,7 +10,9 @@
 <link rel="icon" href="icon-192.png">
 <link rel="preload" href="fonts/vt323.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/share-tech-mono.woff2" as="font" type="font/woff2" crossorigin>
-<script>try { document.documentElement.dataset.theme = JSON.parse(localStorage.getItem("pcc.theme")) || "green"; } catch {}</script>
+<script>try { const g = (k) => JSON.parse(localStorage.getItem("pcc." + k)), d = document.documentElement.dataset, t = g("theme"), v = g("variant");
+  /* "theme" já guardou a cor do terminal (green/amber/cyan): vira "variant" */
+  d.theme = t === "modern" ? "modern" : "fallout"; d.variant = v || (["green", "amber", "cyan"].includes(t) ? t : "green"); } catch {}</script>
 <style>
 @font-face { font-family: "VT323"; src: url(fonts/vt323.woff2) format("woff2"); font-display: swap; }
 @font-face { font-family: "Share Tech Mono"; src: url(fonts/share-tech-mono.woff2) format("woff2"); font-display: swap; }
@@ -18,27 +20,30 @@
 /* ------------------------------------------------------------------ tema
    Terminal de fósforo: uma cor só em 4 intensidades. Estado ativo = vídeo
    inverso (fundo aceso, texto escuro). Vermelho só para ações perigosas. */
-:root, :root[data-theme="green"] {
+:root[data-theme="fallout"] {
   --p: #5cff8a; --p2: #33cf68; --p3: #1c7a3d; --p4: #0e3a1f;
   --bg: #040d07; --panel: #071a0e; --glow: #5cff8a55;
 }
-:root[data-theme="amber"] {
+:root[data-theme="fallout"][data-variant="amber"] {
   --p: #ffbf47; --p2: #e0962a; --p3: #8a5a17; --p4: #3d2a0c;
   --bg: #0c0703; --panel: #181006; --glow: #ffbf4750;
 }
-:root[data-theme="cyan"] {
+:root[data-theme="fallout"][data-variant="cyan"] {
   --p: #7cf4ff; --p2: #3cc4d6; --p3: #1b6f7a; --p4: #0c3036;
   --bg: #030b0d; --panel: #061619; --glow: #7cf4ff50;
 }
-:root {
+:root[data-theme="fallout"] {
   --alert: #ff5a4f;
   /* nomes usados pelo JS (gráficos) */
   --accent: var(--p); --ok: var(--p2); --warn: var(--p);
   --text: var(--p); --dim: var(--p2); --faint: var(--p3); --line: var(--p3);
   --display: "VT323", ui-monospace, monospace;
   --mono: "Share Tech Mono", ui-monospace, "Cascadia Mono", monospace;
-  --rail: 0px;
+  /* pretos fixos (não mudam com a variante) */
+  --scan: #0000002e; --vignette: #00000080; --black: #000; --scrim-soft: #0008; --scrim: #000c;
+  --unid: #ffbf47;
 }
+:root { --rail: 0px; }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--p); overscroll-behavior: none; }
@@ -54,8 +59,8 @@ body.crt { text-shadow: 0 0 5px var(--glow); }
 body.crt::after {
   content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 50;
   background:
-    repeating-linear-gradient(to bottom, transparent 0 2px, #0000002e 2px 3px),
-    radial-gradient(ellipse at center, transparent 60%, #00000080 100%);
+    repeating-linear-gradient(to bottom, transparent 0 2px, var(--scan) 2px 3px),
+    radial-gradient(ellipse at center, transparent 60%, var(--vignette) 100%);
 }
 button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; text-shadow: inherit; padding: 0; }
 input, textarea, select { user-select: text; -webkit-user-select: text; }
@@ -273,12 +278,12 @@ input[type=range]:disabled { opacity: .35; }
   .mright .key.kb { grid-column: 1 / -1; }
 }
 
-.scr { position: relative; flex: 1; min-height: 200px; background: #000; overflow: hidden; touch-action: none; border: 1px solid var(--p3); }
+.scr { position: relative; flex: 1; min-height: 200px; background: var(--black); overflow: hidden; touch-action: none; border: 1px solid var(--p3); }
 .scr img { position: absolute; transform-origin: center; pointer-events: none; -webkit-user-drag: none; }
 .scr-msg { position: absolute; inset: 0; display: grid; place-items: center; color: var(--p3); padding: 20px; text-align: center; }
 .scr-tools { position: absolute; top: 8px; right: 52px; display: flex; gap: 4px; }
 .scr-tools button { background: var(--bg); border: 1px solid var(--p3); padding: 6px 10px; font-size: 13px; border-radius: 2px; }
-.scr-scroll { position: absolute; right: 0; top: 0; bottom: 0; width: 44px; background: #0008; border-left: 1px dashed var(--p3); touch-action: none; display: grid; place-items: center; color: var(--p3); }
+.scr-scroll { position: absolute; right: 0; top: 0; bottom: 0; width: 44px; background: var(--scrim-soft); border-left: 1px dashed var(--p3); touch-action: none; display: grid; place-items: center; color: var(--p3); }
 .ripple { position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border: 2px solid var(--p); pointer-events: none; animation: rip .4s ease-out forwards; }
 .ripple.r { border-style: dashed; }
 @keyframes rip { from { transform: scale(.4); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
@@ -317,7 +322,7 @@ body.crt .isvg { filter: drop-shadow(0 0 3px var(--glow)); }
 .lnk { color: var(--p); }
 
 /* ------------------------------------------------------------------ diálogos, boot, toast */
-.overlay { position: fixed; inset: 0; background: #000c; display: grid; place-items: center; z-index: 40; padding: 16px; }
+.overlay { position: fixed; inset: 0; background: var(--scrim); display: grid; place-items: center; z-index: 40; padding: 16px; }
 .dialog { background: var(--bg); border: 1px solid var(--p); padding: 18px; width: min(440px, 100%); max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); overflow-y: auto; border-radius: 2px; box-shadow: 0 0 0 4px var(--bg), 0 0 0 5px var(--p3); }
 .dialog.wide { width: min(540px, 100%); }
 .dialog h1 { font: 30px/1 var(--display); margin: 0 0 12px; font-weight: 400; }
@@ -493,7 +498,7 @@ select.sel { flex: none; padding: 6px 8px; border: 1px solid var(--p3); backgrou
 .toprow .bar { margin: 2px 0 8px; height: 6px; }
 /* trabalho: job ativo, semana por job (toque abre os arquivos) */
 .wnow { white-space: normal; }
-.wunid { color: #ffbf47; }  /* "Não identificado": âmbar de aviso (o do tema âmbar), como o amarelo do painel */
+.wunid { color: var(--unid); }  /* "Não identificado": âmbar de aviso (o do tema âmbar), como o amarelo do painel */
 .wjobrow { font-size: 14px; padding-left: 8px; }
 .wjob { cursor: pointer; }
 #t-work .btn:disabled { opacity: .35; }
@@ -804,9 +809,9 @@ select.sel { flex: none; padding: 6px 8px; border: 1px solid var(--p3); backgrou
         <h2>Visual</h2>
         <div class="card">
           <div class="set"><label>Cor do terminal</label><div class="themes" id="themes">
-            <button data-theme="green" style="background:#5cff8a" aria-label="Verde"></button>
-            <button data-theme="amber" style="background:#ffbf47" aria-label="Âmbar"></button>
-            <button data-theme="cyan" style="background:#7cf4ff" aria-label="Ciano"></button></div></div>
+            <button data-variant="green" style="background:#5cff8a" aria-label="Verde"></button>
+            <button data-variant="amber" style="background:#ffbf47" aria-label="Âmbar"></button>
+            <button data-variant="cyan" style="background:#7cf4ff" aria-label="Ciano"></button></div></div>
           <div class="set"><label>Efeito de tubo<small>Linhas de varredura e brilho</small></label><button class="switch" id="sw-crt" aria-label="Efeito de tubo"></button></div>
           <div class="set"><label>Sons de terminal<small>Bipes curtos ao tocar e ao conectar</small></label><button class="switch" id="sw-snd" aria-label="Sons de terminal"></button></div>
           <div class="set"><label>Quando ficar parado<small>Passa Sistema, Jogos, Tocando e o relógio, ou só o relógio</small></label><button class="btn sm" id="dock-now">Ver</button><select id="idle-mode" class="sel" aria-label="Quando ficar parado"><option value="cycle">Passar as telas</option><option value="clock">Só o relógio</option><option value="off">Nada</option></select></div>
@@ -2187,15 +2192,18 @@ function showConn() { $("conn-info").textContent = [CONN, `tela ${innerWidth}×$
 addEventListener("resize", showConn); showConn();
 if ("serviceWorker" in navigator && window.isSecureContext) navigator.serviceWorker.register("sw.js").catch(() => {});
 // visual: cor do terminal e efeito de tubo
-prefs.theme = store.get("theme", "green"); prefs.crt = store.get("crt", true);
+{ const t = store.get("theme", "fallout"), v = store.get("variant", null);   // "theme" já guardou a cor (green/amber/cyan): vira "variant"
+  prefs.theme = t === "modern" ? "modern" : "fallout"; prefs.variant = v || (["green", "amber", "cyan"].includes(t) ? t : "green"); }
+prefs.crt = store.get("crt", true);
 function applyTheme() {
   document.documentElement.dataset.theme = prefs.theme;
+  document.documentElement.dataset.variant = prefs.variant;
   document.body.classList.toggle("crt", prefs.crt);
-  document.querySelectorAll("#themes button").forEach((b) => b.classList.toggle("on", b.dataset.theme === prefs.theme));
+  document.querySelectorAll("#themes button").forEach((b) => b.classList.toggle("on", b.dataset.variant === prefs.variant));
   document.querySelector('meta[name="theme-color"]').content = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
   if (vis("dash")) drawSparks();
 }
-$("themes").onclick = (e) => { const b = e.target.closest("[data-theme]"); if (!b) return; buzz(8); prefs.theme = b.dataset.theme; store.set("theme", prefs.theme); applyTheme(); };
+$("themes").onclick = (e) => { const b = e.target.closest("[data-variant]"); if (!b) return; buzz(8); prefs.variant = b.dataset.variant; store.set("variant", prefs.variant); applyTheme(); };
 bindSwitch("sw-crt", "crt", applyTheme);
 bindSwitch("sw-deckauto", "deckAuto", () => { lastApp = null; });
 bindSwitch("sw-snd", "snd", () => snd("ok"));

@@ -23,6 +23,6 @@ Rules:
 - Ao mudar o index.html, regenere este índice no mesmo commit.
 
 ### Índice index.html (linhas)
-- <style> 14–533; <nav id="nav"> 830; const SECTIONS 1057
-- Telas (section.tab): dash 595, games 609, work 629, tasks 644, media 650, mix 670, mouse 678, screen 724, deck 739, send 746, power 772, sys 789
-- JS: ajustes 896, formatação 911, conexão 953, seções/vistas 1054, abertura 1099, Painel 1112, Tocando 1183, Games 1244, Jogos semana 1266, Trabalho 1301, Tarefas 1355, Atalhos/Sistema 1373, Mouse 1398, Teclado 1484, Botões/deck 1541, foco 1715, microfone/energia 1730, celular parado 1767, Mixer 1829, Tela do PC 1879, Enviar/receber 1980, Alertas 2066, Ajustes celular 2124, loop de tela 2178
+- <style> 16–538 (tema: variáveis em :root[data-theme="fallout"], variantes data-variant); <nav id="nav"> 835; const SECTIONS 1062
+- Telas (section.tab): dash 600, games 614, work 634, tasks 649, media 655, mix 675, mouse 683, screen 729, deck 744, send 751, power 777, sys 794
+- JS: ajustes 901, formatação 916, conexão 958, seções/vistas 1059, abertura 1104, Painel 1117, Tocando 1188, Games 1249, Jogos semana 1271, Trabalho 1306, Tarefas 1360, Atalhos/Sistema 1378, Mouse 1403, Teclado 1489, Botões/deck 1546, foco 1720, microfone/energia 1735, celular parado 1772, Mixer 1834, Tela do PC 1884, Enviar/receber 1985, Alertas 2071, Ajustes celular 2129, loop de tela 2183
