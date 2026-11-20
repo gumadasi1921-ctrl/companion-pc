@@ -23,7 +23,8 @@ Rules:
 - Ao mudar o index.html, regenere este índice no mesmo commit.
 
 ### Índice index.html (linhas)
-- <head> script do tema (window.pccTheme) 14–32; <style> 33–694 (tokens Fallout, tokens Moderno, nav nova e Aparência no fim); <nav id="nav"> 1021; const SECTIONS 1257
+- <head> script do tema (window.pccTheme) 14–32; <style> 33–820 (tokens Fallout, tokens Moderno, nav nova, Aparência, Início/widgets e Widgets do Início no fim); <nav id="nav"> 1159; const SECTIONS 1397
 - Tema: data-theme=fallout|modern, data-variant (só Fallout), data-mode/data-accent/data-scheme (só Moderno); prefs em store theme/variant/mode/accent; applyTheme no JS "Ajustes do celular"
-- Telas (section.tab): inicio 756, more 761, dash 774, games 788, work 808, tasks 823, media 829, mix 849, mouse 857, screen 903, deck 918, send 925, power 951, sys 968
-- JS: ajustes 1095, formatação 1110, conexão 1152, seções/vistas 1253, abertura 1314, Painel 1327, Tocando 1398, Games 1459, Jogos semana 1481, Trabalho 1516, Tarefas 1570, Atalhos/Sistema 1595, Mouse 1620, Teclado 1706, Botões/deck 1763, foco 1937, microfone/energia 1952, celular parado 1989, Mixer 2051, Tela do PC 2101, Enviar/receber 2202, Alertas 2288, Ajustes celular 2346, loop de tela 2400
+- Início: widgets (catálogo HOME_W: now, tasks, pcquick, cpu, net, mem, work, today, procs, games, notif, quick); layout salvo em store "home" {v:1, phone[], tablet[]} (homeLayout/homeSave; padrão HOME_DEF; limites HOME_CAP 3/12); tela de edição = view "widgets" (wdShow/wdRender)
+- Telas (section.tab): inicio 882, more 887, widgets 901, dash 912, games 926, work 946, tasks 961, media 967, mix 987, mouse 995, screen 1041, deck 1056, send 1063, power 1089, sys 1106
+- JS: ajustes 1235, formatação 1250, conexão 1292, seções/vistas 1393, abertura 1456, Painel 1469, Tocando 1540, Games 1601, Jogos semana 1624, Trabalho 1659, Tarefas 1713, Início/widgets 1739 (gráficos SVG, HOME_W, homeBuild/homeUpd/homeFetch, Widgets do Início 2037), Atalhos/Sistema 2114, Mouse 2139, Teclado 2225, Botões/deck 2282, foco 2456, microfone/energia 2471, celular parado 2508, Mixer 2570, Tela do PC 2620, Enviar/receber 2721, Alertas 2807, Ajustes celular 2866, loop de tela 2920

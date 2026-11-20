@@ -792,6 +792,29 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
   :root[data-theme="modern"] .home-head h2 { font-size: 24px; }
   .hw { padding: 10px; gap: 6px; }
 }
+/* Mais › Widgets do Início */
+.wd-info { margin: 10px 0 4px; font-size: 14px; color: var(--p2); display: flex; flex-direction: column; gap: 6px; max-width: 640px; }
+.wd-info .hbar { margin: 0; }
+.wd-info .wd-full { color: var(--warning, var(--p)); font-weight: 600; }
+.wd-h { margin: 14px 0 6px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--p2); }
+.wd-list { display: flex; flex-direction: column; border: 1px solid var(--p4); border-radius: var(--r-list, 2px); background: var(--panel); max-width: 640px; }
+.wd-row { display: flex; align-items: center; gap: 6px; min-height: 60px; padding: 6px 8px; border-top: 1px solid var(--separator, var(--p4)); }
+.wd-row:first-child { border-top: 0; }
+.wd-row button { min-width: 44px; min-height: 44px; display: grid; place-items: center; border-radius: var(--r-sm, 2px); }
+.wd-row button:disabled { opacity: .3; }
+.wd-row .hi { display: block; width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.wd-rm { border-radius: 50% !important; background: var(--danger-fill, var(--alert)); color: var(--on-accent, var(--bg)); text-shadow: none; }
+.wd-nm { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; font-weight: 600; overflow-wrap: anywhere; }
+.wd-nm .hi { color: var(--accent-text, var(--p2)); flex: none; }
+.wd-sz { padding: 0 10px; border: 1px solid var(--p3); font-size: 13px; font-weight: 600; }
+.wd-empty { padding: 14px; color: var(--p3); }
+.wd-pills { display: flex; flex-wrap: wrap; gap: 8px; max-width: 640px; }
+.wd-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px 0 10px; border: 1px solid var(--p3); border-radius: var(--r-pill, 2px); font-size: 14px; font-weight: 600; }
+.wd-pill .hi { display: block; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.wd-pill:disabled { opacity: .35; }
+#wd-dev { max-width: 320px; }
+.home-head .btn, #wd-reset { min-height: 44px; }
+@media (prefers-reduced-motion: reduce) { .hq button:active { transform: none; } }
 .toast.undo { display: flex; align-items: center; gap: 8px; padding: 2px 2px 2px 14px; }
 .toast.undo button { min-height: 44px; padding: 0 14px; font-weight: 700; color: var(--accent-text, var(--p)); }
 </style>
@@ -857,7 +880,7 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 <main id="main">
   <!-- INÍCIO: widgets montados pelo JS a partir do layout salvo (store "home") -->
   <section class="tab" id="t-inicio">
-    <div class="home-head"><h2>Início</h2></div>
+    <div class="home-head"><h2>Início</h2><button class="btn sm" id="home-edit">Editar</button></div>
     <div class="home phone" id="home"></div>
   </section>
   <!-- MAIS: lista que leva às outras vistas -->
@@ -870,8 +893,20 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
       <button class="mrow" data-view="work"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-briefcase"/></svg><span>Trabalho</span></button>
       <button class="mrow" data-view="send"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-folder-open"/></svg><span>Arquivos</span></button>
       <button class="mrow" data-view="power"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-log-out"/></svg><span>Energia</span></button>
+      <button class="mrow" data-view="widgets"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-layout-grid"/></svg><span>Widgets do Início</span></button>
       <button class="mrow" data-view="sys"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-sliders-horizontal"/></svg><span>Ajustes</span></button>
     </div>
+  </section>
+  <!-- MAIS > Widgets do Início (também pelo botão Editar do Início) -->
+  <section class="tab" id="t-widgets">
+    <div class="home-head"><h2>Widgets do Início</h2><button class="btn sm primary" id="wd-done">Concluído</button></div>
+    <div class="seg" id="wd-dev" role="group" aria-label="Aparelho"><button data-dev="phone">Celular</button><button data-dev="tablet">Tablet</button></div>
+    <div class="wd-info" id="wd-info" role="status"></div>
+    <h3 class="wd-h">Na tela, nesta ordem</h3>
+    <div class="wd-list" id="wd-list"></div>
+    <h3 class="wd-h">Adicionar</h3>
+    <div class="wd-pills" id="wd-pills"></div>
+    <div class="brow"><button class="btn" id="wd-reset">Restaurar padrão</button></div>
   </section>
   <!-- Sistema (vira o Início na etapa 3) -->
   <section class="tab" id="t-dash">
@@ -1136,6 +1171,7 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
   <button class="nm" data-view="work"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-briefcase"/></svg><span>Trabalho</span></button>
   <button class="nm" data-view="send"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-folder-open"/></svg><span>Arquivos</span></button>
   <button class="nm" data-view="power"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-log-out"/></svg><span>Energia</span></button>
+  <button class="nm" data-view="widgets"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-layout-grid"/></svg><span>Widgets do Início</span></button>
   <button class="nm" data-view="sys"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-sliders-horizontal"/></svg><span>Ajustes</span></button>
 </nav>
 
@@ -1364,7 +1400,7 @@ const SECTIONS = {
   deck: [["deck", "Botões"]],
   tasks: [["tasks", "Tarefas"]],
   mais: [["more", "Mais"], ["dash", "Sistema"], ["media", "Tocando"], ["mix", "Mixer"], ["games", "Jogos"], ["work", "Trabalho"],
-    ["send", "Arquivos"], ["power", "Energia"], ["sys", "Ajustes"]],
+    ["send", "Arquivos"], ["power", "Energia"], ["widgets", "Widgets do Início"], ["sys", "Ajustes"]],
 };
 const GROUPS = { ctrl: ["mouse", "screen"], radio: ["media", "mix"] };
 const SPLIT = { ctrl: "minmax(0,1fr) minmax(0,1.7fr)", radio: "minmax(0,1fr) minmax(0,1.1fr)" };
@@ -1406,6 +1442,7 @@ function showView(name, temp) {
   if (vis("work")) loadWork(true);
   if (vis("tasks")) loadTasks();
   if (vis("inicio")) homeShow();
+  if (vis("widgets")) wdShow();
 }
 $("subtabs").onclick = (e) => { const b = e.target.closest("[data-view]"); if (b) { buzz(8); showView(b.dataset.view); } };
 $("more-list").onclick = (e) => { const b = e.target.closest("[data-view]"); if (b) { buzz(8); showView(b.dataset.view); } };
@@ -1952,7 +1989,7 @@ function homeLayout(dev) {
   const seen = new Set(), out = [];
   for (const it of raw) {                       // item desconhecido, repetido ou torto: ignora
     const id = it && typeof it === "object" ? it.id : null;
-    if (typeof id !== "string" || !HOME_W[id] || seen.has(id)) continue;
+    if (typeof id !== "string" || !Object.hasOwn(HOME_W, id) || seen.has(id)) continue;
     seen.add(id); out.push({ id, size: dev === "tablet" && it.size === "L" ? "L" : "S" });
   }
   if ((dev === "phone" ? out.length : homeSpaces(out)) > HOME_CAP[dev] || (raw.length && !out.length)) return HOME_DEF[dev];
@@ -1995,6 +2032,58 @@ async function homeFetch() {
     }
   } finally { homeData.busy = false; }
 }
+
+// ---- Mais › Widgets do Início: lista ordenada, tamanho (tablet), pílulas "+", lotação, Desfazer e Restaurar
+const wd = { dev: "phone", list: [] };
+function homeSave(dev, list) {
+  const cur = { v: 1, phone: homeLayout("phone").map((w) => ({ ...w })), tablet: homeLayout("tablet").map((w) => ({ ...w })) };
+  cur[dev] = list.map((w) => ({ id: w.id, size: w.size })); store.set("home", cur);
+}
+const wdUsed = () => (wd.dev === "phone" ? wd.list.length : homeSpaces(wd.list));
+function wdShow() { wd.dev = homeDev(); wd.list = homeLayout(wd.dev).map((w) => ({ ...w })); wdRender(); }
+function wdCommit() { homeSave(wd.dev, wd.list); wdRender(); }
+function wdRender() {
+  const cap = HOME_CAP[wd.dev], used = wdUsed(), full = used >= cap, tab = wd.dev === "tablet";
+  document.querySelectorAll("#wd-dev button").forEach((b) => { b.classList.toggle("on", b.dataset.dev === wd.dev); b.setAttribute("aria-pressed", b.dataset.dev === wd.dev); });
+  $("wd-info").innerHTML = `<div>${tab ? "Espaços" : "Colunas"}: ${used} de ${cap}</div><div class="hbar"><i style="width:${(used / cap) * 100}%"></i></div>` +
+    (full ? `<div class="wd-full">Lotado: remova ${tab ? "ou diminua " : ""}um widget para adicionar outro.</div>` : "");
+  $("wd-list").innerHTML = wd.list.length ? wd.list.map((w, i) => {
+    const c = HOME_W[w.id], L = w.size === "L";
+    return `<div class="wd-row" data-i="${i}"><button class="wd-rm" data-op="rm" aria-label="Remover ${esc(c.name)}">${ic("circle-minus")}</button>
+      <div class="wd-nm">${ic(c.icon)}<span>${esc(c.name)}</span></div>
+      ${tab ? `<button class="wd-sz" data-op="sz" aria-label="Tamanho de ${esc(c.name)}: ${L ? "Grande" : "Pequeno"}"${!L && full ? " disabled" : ""}>${L ? "Grande" : "Pequeno"}</button>` : ""}
+      <button data-op="up" aria-label="Subir ${esc(c.name)}"${i === 0 ? " disabled" : ""}>${ic("chevron-up")}</button>
+      <button data-op="dn" aria-label="Descer ${esc(c.name)}"${i === wd.list.length - 1 ? " disabled" : ""}>${ic("chevron-down")}</button></div>`;
+  }).join("") : '<div class="wd-empty">Nenhum widget na tela.</div>';
+  const out = Object.keys(HOME_W).filter((id) => !wd.list.some((w) => w.id === id));
+  $("wd-pills").innerHTML = out.length ? out.map((id) => `<button class="wd-pill" data-add="${id}"${full ? " disabled" : ""}>${ic("circle-plus")}<span>${esc(HOME_W[id].name)}</span></button>`).join("") : '<div class="hw-na">Todos os widgets já estão na tela.</div>';
+}
+$("wd-dev").onclick = (e) => { const b = e.target.closest("[data-dev]"); if (!b) return; buzz(8); wd.dev = b.dataset.dev; wd.list = homeLayout(wd.dev).map((w) => ({ ...w })); wdRender(); };
+$("wd-list").onclick = (e) => {
+  const b = e.target.closest("[data-op]"), row = e.target.closest(".wd-row"); if (!b || !row || b.disabled) return;
+  const i = +row.dataset.i, w = wd.list[i]; buzz(8);
+  if (b.dataset.op === "rm") {
+    wd.list.splice(i, 1); wdCommit();
+    undoToast(`${HOME_W[w.id].name} removido`, () => {
+      if (wd.list.some((x) => x.id === w.id) || wdUsed() + (w.size === "L" ? 2 : 1) > HOME_CAP[wd.dev]) return toast("Sem espaço para desfazer", "bad");
+      wd.list.splice(Math.min(i, wd.list.length), 0, w); wdCommit();
+    });
+  } else if (b.dataset.op === "sz") {
+    if (w.size !== "L" && wdUsed() + 1 > HOME_CAP[wd.dev]) return;
+    w.size = w.size === "L" ? "S" : "L"; wdCommit();
+  } else { const j = b.dataset.op === "up" ? i - 1 : i + 1; if (j >= 0 && j < wd.list.length) { [wd.list[i], wd.list[j]] = [wd.list[j], wd.list[i]]; wdCommit(); } }
+};
+$("wd-pills").onclick = (e) => {
+  const b = e.target.closest("[data-add]"); if (!b || b.disabled || wdUsed() + 1 > HOME_CAP[wd.dev]) return;
+  buzz(8); wd.list.push({ id: b.dataset.add, size: "S" }); wdCommit();
+};
+$("wd-reset").onclick = () => {
+  buzz(8); const prev = wd.list.map((w) => ({ ...w }));
+  wd.list = HOME_DEF[wd.dev].map((w) => ({ ...w })); wdCommit();
+  undoToast("Padrão restaurado", () => { wd.list = prev; wdCommit(); });
+};
+$("home-edit").onclick = () => { buzz(8); showView("widgets"); };
+$("wd-done").onclick = () => { buzz(8); showView("inicio"); };
 
 function homeShow() { homeBuild(); loadTasks(); homeFetch(); }
 async function homeTaskToggle(id, undo) {
