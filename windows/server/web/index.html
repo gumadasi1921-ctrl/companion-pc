@@ -750,6 +750,42 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .hq button.on { background: var(--accent-soft, var(--p)); color: var(--accent-text, var(--bg)); text-shadow: none; }
 .hq button:disabled { opacity: .45; }
 .hq button small { font-size: 10px; font-weight: 500; color: var(--p3); }
+/* gráficos (SVG): só variáveis do tema */
+.hchartbox { min-width: 0; flex: 1 1 auto; min-height: 70px; display: flex; }
+.hchart { width: 100%; height: 100%; min-height: 70px; max-height: 120px; display: block; }
+.hline { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.harea { opacity: .16; }
+.hgrid { stroke: var(--separator, var(--p4)); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.hbars { display: block; max-width: 100%; height: auto; }
+.hbt, .hbl { font: 600 10px var(--font, var(--mono)); text-anchor: middle; fill: var(--p2); }
+.hbl.now { fill: var(--p); }
+.hstack { display: block; width: 100%; height: 12px; border-radius: var(--r-pill, 0); overflow: hidden; }
+.hring { display: block; width: 76px; height: 76px; }
+.hringbox { display: flex; justify-content: center; }
+.hring-t { fill: none; stroke: var(--surface-3, var(--p4)); stroke-width: 10; }
+.hring-f { fill: none; stroke-width: 10; stroke-linecap: butt; }
+.hring-x { font: 700 22px var(--font, var(--mono)); text-anchor: middle; fill: var(--p); }
+.hring-s { font: 500 10px var(--font, var(--mono)); text-anchor: middle; fill: var(--p2); }
+.hlegs { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--p2); }
+.hleg { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; min-width: 0; }
+.hleg i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.hleg b { color: var(--p); font-weight: 600; }
+.hw-sub { font-size: 12px; color: var(--p3); }
+.hbig { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-top: 4px; }
+.hbig span { color: var(--p2); font-size: 13px; font-weight: 600; }
+.hbig b { font-size: 22px; font-variant-numeric: tabular-nums; }
+.hnt { padding: 6px 0; border-top: 1px solid var(--separator, var(--p4)); min-width: 0; }
+.hnt:first-child { border-top: 0; }
+.hnt-a { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.hnt-a span { color: var(--p3); flex: none; }
+.hnt-b { font-size: 13px; color: var(--p2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.htk-head { display: flex; align-items: center; gap: 12px; }
+.htk-head .hring { width: 64px; height: 64px; }
+.htk-head .htk-n { font-size: 17px; font-weight: 700; color: var(--p); }
+/* tablet (≥ 1000×600): grade de 4 colunas e 12 espaços; Grande = 2 colunas */
+.home.tablet { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-flow: row dense; }
+.home.tablet .hw.big { grid-column: span 2; }
+@media (min-width: 1000px) and (min-height: 600px) and (orientation: landscape) { :root[data-theme="modern"] .home-head h2 { font-size: 30px; } }
 @media (orientation: landscape) { .home.phone { grid-template-columns: repeat(var(--hn, 3), minmax(0, 1fr)); } }
 @media (orientation: landscape) and (max-height: 560px) {
   .home-head { margin: 0 0 6px; }
@@ -1291,7 +1327,7 @@ function onMsg(m) {
     case "games": state.games = m.d; state.gamesT = performance.now(); renderGames(); break;
     case "gameart": state.gameart = { [m.id]: "data:image/jpeg;base64," + m.jpg }; renderGames(); break;
     case "event":
-      if (m.kind === "notif") { snd("note"); notify(`${m.app}: ${m.title}`, m.body, "pcn-" + m.app); break; }
+      if (m.kind === "notif") { homeNotifPush(m); snd("note"); notify(`${m.app}: ${m.title}`, m.body, "pcn-" + m.app); break; }
       if (m.kind === "download" && prefs.alerts.download) notify("Download concluído", m.name + (m.size ? ` · ${fmtBytes(m.size)}` : ""), "dl");
       break;
   }
@@ -1542,6 +1578,7 @@ function renderGames() {
     $("g-time").textContent = "";
     $("g-extra").textContent = d.today_s ? `Hoje: ${humanDur(d.today_s)} jogando` : "Steam, Epic, GOG, Riot, EA, Ubisoft";
   }
+  homeUpd("today"); homeUpd("games");
   const r = d.recent || [];
   $("g-recent").innerHTML = r.length ? r.map((x) => `<div class="row"><span>${esc(x.name)}</span><span>${humanDur(x.dur)} · ${humanAgo(x.ago + since)}</span></div>`).join("")
     : '<div class="empty">Nenhuma sessão ainda</div>';
@@ -1726,13 +1763,16 @@ const HOME_W = {
   },
   tasks: {
     name: "Tarefas", icon: "check-check",
-    html: () => `<div class="hw-t"><span>Tarefas</span><span data-k="cnt"></span></div><div class="hbar" data-k="bar"><i></i></div><div class="htk-list" data-k="list"></div>`,
+    html: (dev) => `<div class="hw-t"><span>Tarefas</span><span data-k="cnt"></span></div>${dev === "tablet" ? '<div class="htk-head"><div data-k="ring"></div><div class="htk-n" data-k="lbl"></div></div>' : '<div class="hbar" data-k="bar"><i></i></div>'}<div class="htk-list" data-k="list"></div>`,
     ready: () => !!tasksData,
-    upd(el) {
+    upd(el, dev) {
       const d = tasksData, items = d.items || [], total = d.total ?? items.length, done = d.done ?? items.filter((t) => t.done).length;
       setText(hk(el, "cnt"), total ? `${done} de ${total}` : "");
-      setBarW(hk(el, "bar"), total ? (done / total) * 100 : 0, 101);
       const pend = items.filter((t) => !t.done);
+      if (dev === "tablet") {
+        setHtml(hk(el, "ring"), ringSvg(total ? (done / total) * 100 : 0, "--accent-fill, var(--p)", total ? String(pend.length) : "–", total ? "faltam" : "", total ? `${pend.length} tarefas pendentes` : "Sem tarefas"));
+        setText(hk(el, "lbl"), !total ? "" : !pend.length ? "Tudo feito!" : pend.length === 1 ? "Só falta 1!" : `Faltam ${pend.length}`);
+      } else setBarW(hk(el, "bar"), total ? (done / total) * 100 : 0, 101);
       setHtml(hk(el, "list"), !total ? '<div class="hw-na">Nenhuma tarefa. Adicione pelo painel do PC.</div>'
         : !pend.length ? `<div class="htk-done">${ic("check-check")}Tudo feito!</div>`
         : pend.slice(0, 3).map((t) => `<div class="trow" data-id="${esc(t.id)}" role="checkbox" aria-checked="false" tabindex="0"><span class="tbox"></span><span class="ttx">${esc(t.text)}</span></div>`).join(""));
@@ -1754,25 +1794,174 @@ const HOME_W = {
     },
   },
 };
-const HOME_DEF = { phone: [{ id: "now", size: "S" }, { id: "tasks", size: "S" }, { id: "pcquick", size: "S" }] };
-const HOME_CAP = { phone: 3 };
+// ---- gráficos em SVG desenhado aqui (sem biblioteca): usam o histórico de 60 s que renderStats já mantém (hist.*)
+function lineChart(series, max, label) {
+  const W = 240, H = 80, step = W / (HIST_N - 1), top = max || Math.max(1, ...series.flatMap((s) => s.data));
+  const grid = [25, 50, 75].map((p) => `<line x1="0" x2="${W}" y1="${H * p / 100}" y2="${H * p / 100}" class="hgrid"/>`).join("");
+  const paths = series.map(({ data, color, fill }) => {
+    if (data.length < 2) return "";
+    const x0 = W - (data.length - 1) * step;
+    const pts = data.map((v, i) => `${(x0 + i * step).toFixed(1)},${(H - 1.5 - (Math.min(v, top) / top) * (H - 4)).toFixed(1)}`).join(" ");
+    return (fill ? `<polygon points="${x0.toFixed(1)},${H} ${pts} ${W},${H}" class="harea" style="fill:var(${color})"/>` : "") + `<polyline points="${pts}" class="hline" style="stroke:var(${color})"/>`;
+  }).join("");
+  return `<svg class="hchart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${label}">${grid}${paths}</svg>`;
+}
+const shortDur = (s) => (s >= 3600 ? Math.round(s / 360) / 10 + "h" : s >= 60 ? Math.round(s / 60) + "m" : "");
+function barChart(vals, labels, hi, color, w, label) {
+  w = Math.max(120, Math.round(w || 200)); const H = 100, n = vals.length, gap = 6, bw = (w - gap * (n - 1)) / n, top = Math.max(3600, ...vals), ch = H - 14 - 16;
+  const bars = vals.map((v, i) => {
+    const h = Math.max(v > 0 ? 2 : 0, (v / top) * ch), x = i * (bw + gap), y = 14 + ch - h;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" class="hbarr" style="fill:var(${color});opacity:${i === hi ? 1 : .55}"/>
+      <text x="${(x + bw / 2).toFixed(1)}" y="${(y - 3).toFixed(1)}" class="hbt">${shortDur(v)}</text><text x="${(x + bw / 2).toFixed(1)}" y="${H - 3}" class="hbl${i === hi ? " now" : ""}">${esc(labels[i])}</text>`;
+  }).join("");
+  return `<svg class="hbars" viewBox="0 0 ${w} ${H}" width="${w}" height="${H}" role="img" aria-label="${label}">${bars}</svg>`;
+}
+function ringSvg(pct, color, txt, sub, label) {
+  const r = 42, C = 2 * Math.PI * r, off = C * (1 - Math.max(0, Math.min(100, pct)) / 100);
+  return `<svg class="hring" viewBox="0 0 100 100" role="img" aria-label="${label}"><circle cx="50" cy="50" r="${r}" class="hring-t"/>
+    <circle cx="50" cy="50" r="${r}" class="hring-f" style="stroke:var(${color});stroke-dasharray:${C.toFixed(1)};stroke-dashoffset:${off.toFixed(1)}" transform="rotate(-90 50 50)"/>
+    <text x="50" y="${sub ? 50 : 57}" class="hring-x">${esc(txt)}</text>${sub ? `<text x="50" y="68" class="hring-s">${esc(sub)}</text>` : ""}</svg>`;
+}
+const legend = (c, name, val) => `<span class="hleg"><i style="background:var(${c})"></i><b>${name}</b> ${val}</span>`;
+const NA = '<div class="hw-na">Indisponível neste PC</div>';
+const clientColor = (i) => `--chart-${(i % 5) + 1}`;
+const homeNotif = [];
+function homeNotifPush(m) { homeNotif.unshift({ app: m.app || "", title: m.title || "", body: m.body || "", time: new Date().toTimeString().slice(0, 5) }); homeNotif.length = Math.min(homeNotif.length, 3); homeUpd("notif"); }
+const homeData = { work: null, week: null, hist: null, t: { work: 0, hist: 0 }, busy: false };
+
+Object.assign(HOME_W, {
+  cpu: {
+    name: "CPU e GPU", icon: "gauge",
+    html: () => `<div class="hw-t"><span>CPU e GPU</span><span>60 s</span></div><div class="hchartbox" data-k="chart"></div><div class="hlegs" data-k="legs"></div>`,
+    ready: () => !!state.stats,
+    upd(el) {
+      const s = state.stats, g = s.gpu, sen = s.sensors;
+      const series = [{ data: hist.cpu, color: "--chart-cpu", fill: true }]; if (g) series.push({ data: hist.gpu, color: "--chart-gpu", fill: true });
+      setHtml(hk(el, "chart"), lineChart(series, 100, "CPU e GPU nos últimos 60 segundos"));
+      const cpuL = [Math.round(s.cpu) + "%", sen?.cpu_temp != null ? Math.round(sen.cpu_temp) + " °C" : "", s.cpu_mhz ? (s.cpu_mhz / 1000).toFixed(2) + " GHz" : ""].filter(Boolean).join(" · ");
+      const gpuL = g ? [Math.round(g.util) + "%", Math.round(g.temp) + " °C", g.power != null ? Math.round(g.power) + " W" : "", g.fan != null ? `ventoinha ${Math.round(g.fan)}%` : ""].filter(Boolean).join(" · ") : "";
+      const fans = (sen?.fans || []).slice(0, 2).map((f) => `${esc(f.name)} ${f.rpm} RPM`).join(" · ");
+      setHtml(hk(el, "legs"), `<div>${legend("--chart-cpu", "CPU", esc(cpuL))}</div>${fans ? `<div class="hw-sub">${fans}</div>` : ""}
+        ${g ? `<div>${legend("--chart-gpu", "GPU", esc(gpuL))}</div>` : '<div class="hw-sub">GPU: indisponível neste PC</div>'}
+        ${sen ? "" : '<div class="hw-sub">Temperatura e ventoinhas da CPU: indisponível neste PC</div>'}`);
+    },
+  },
+  net: {
+    name: "Rede", icon: "arrow-right-left",
+    html: () => `<div class="hw-t"><span>Rede</span><span data-k="ping"></span></div><div class="hchartbox" data-k="chart"></div><div class="hlegs" data-k="legs"></div>`,
+    ready: () => !!state.stats,
+    upd(el) {
+      const s = state.stats, top = Math.max(1e5, ...hist.down, ...hist.up);
+      setHtml(hk(el, "chart"), lineChart([{ data: hist.down, color: "--chart-down", fill: true }, { data: hist.up, color: "--chart-up" }], top, "Rede nos últimos 60 segundos"));
+      setText(hk(el, "ping"), !s.ping ? "" : s.ping.ok ? s.ping.ms + " ms" : "sem internet");
+      setHtml(hk(el, "legs"), `<div>${legend("--chart-down", "Baixando", fmtBytes(s.net_down, true))}</div><div>${legend("--chart-up", "Enviando", fmtBytes(s.net_up, true))}</div><div class="hw-sub">pico ${fmtBytes(top, true)}</div>`);
+    },
+  },
+  mem: {
+    name: "Memória e discos", icon: "layers",
+    html: () => `<div class="hw-t"><span>Memória</span><span data-k="txt"></span></div><div class="hringbox" data-k="ring"></div><div data-k="disks"></div>`,
+    ready: () => !!state.stats,
+    upd(el) {
+      const s = state.stats;
+      setText(hk(el, "txt"), `${fmtBytes(s.ram_used)} / ${fmtBytes(s.ram_total)}`);
+      setHtml(hk(el, "ring"), ringSvg(s.ram_pct, "--chart-mem", Math.round(s.ram_pct) + "%", "em uso", `Memória em uso: ${Math.round(s.ram_pct)}%`));
+      setHtml(hk(el, "disks"), (s.disks || []).slice(0, 3).map((d) => `<div class="hmeter" title="${esc(fmtBytes(d.used))} / ${esc(fmtBytes(d.total))}"><span>${esc(d.name)}</span><div class="hbar${d.pct >= 90 ? " bad" : ""}"><i style="width:${Math.round(d.pct)}%"></i></div><b>${Math.round(d.pct)}%</b></div>`).join(""));
+    },
+  },
+  work: {
+    name: "Trabalho na semana", icon: "briefcase",
+    html: () => `<div class="hw-t"><span>Trabalho na semana</span><span data-k="tot"></span></div><div class="hchartbox" data-k="chart"></div><div data-k="stack"></div><div class="hlegs" data-k="legs"></div>`,
+    ready: () => !welcome.features?.work || !!homeData.week,
+    upd(el) {
+      if (!welcome.features?.work) { setHtml(hk(el, "chart"), NA); return; }
+      const w = homeData.week;
+      setText(hk(el, "tot"), w.total_s ? humanDur(w.total_s) : "");
+      if (!w.total_s) { setHtml(hk(el, "chart"), '<div class="hw-na">Nenhum tempo nesta semana</div>'); setHtml(hk(el, "stack"), ""); setHtml(hk(el, "legs"), ""); return; }
+      const cw = hk(el, "chart").clientWidth;
+      setHtml(hk(el, "chart"), barChart(w.days.map((d) => d.s), w.days.map((d) => d.d), w.days.findIndex((d) => d.today), "--chart-cpu", cw, "Horas trabalhadas por dia nesta semana"));
+      // distribuição por cliente: o servidor só devolve o total semanal de cada um (não por dia), então é uma barra única
+      const cl = w.clients, top = cl.slice(0, 4), rest = cl.slice(4).reduce((a, c) => a + c.s, 0), tot = w.total_s || 1;
+      let x = 0;
+      const seg = [...top.map((c, i) => [c.s, clientColor(i)]), ...(rest ? [[rest, "--surface-3, var(--p4)"]] : [])];
+      setHtml(hk(el, "stack"), `<svg class="hstack" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="Distribuição por cliente">${seg.map(([s, c]) => { const wd = (s / tot) * 100, r = `<rect x="${x.toFixed(2)}" width="${wd.toFixed(2)}" height="10" style="fill:var(${c})"/>`; x += wd; return r; }).join("")}</svg>`);
+      setHtml(hk(el, "legs"), top.map((c, i) => `<span class="hleg"><i style="background:var(${clientColor(i)})"></i><b>${esc(c.client)}</b> ${humanDur(c.s)}</span>`).join("") + (rest ? `<span class="hleg"><i style="background:var(--surface-3, var(--p4))"></i><b>Outros</b> ${humanDur(rest)}</span>` : ""));
+    },
+  },
+  today: {
+    name: "Hoje", icon: "history",
+    html: () => `<div class="hw-t"><span>Hoje</span><span data-k="date"></span></div><div data-k="body"></div>`,
+    ready: () => !!state.games || !!homeData.work || !welcome.features?.work,
+    upd(el) {
+      const g = state.games, wk = homeData.work, rows = [];
+      setText(hk(el, "date"), state.stats?.date?.slice(0, 5) || "");
+      if (welcome.features?.work && wk) rows.push(`<div class="hbig"><span>Trabalho</span><b>${humanDur(wk.today_s)}</b></div>` +
+        (wk.today || []).slice(0, 3).map((r) => `<div class="row"><span>${esc(r.client)}</span><span>${humanDur(r.s)}</span></div>`).join(""));
+      if (g) { const s = g.game ? g.game.today_s : g.today_s; rows.push(`<div class="hbig"><span>Jogando</span><b>${s ? humanDur(s + (performance.now() - state.gamesT) / 1000) : "0 min"}</b></div>`); }
+      setHtml(hk(el, "body"), rows.join("") || '<div class="hw-na">Nada contado hoje</div>');
+    },
+  },
+  procs: {
+    name: "Mais pesados agora", icon: "list-video",
+    html: () => `<div class="hw-t"><span>Mais pesados agora</span><span>CPU</span></div><div data-k="list"></div>`,
+    ready: () => !!state.stats,
+    upd(el) { setHtml(hk(el, "list"), (state.stats.procs || []).slice(0, 5).map((p) => `<div class="row"><span>${esc(p.name)}</span><span>${p.cpu.toFixed(1)}% · ${fmtBytes(p.mem)}</span></div>`).join("") || '<div class="hw-na">Sem dados</div>'); },
+  },
+  games: {
+    name: "Jogos", icon: "gamepad-2",
+    html: () => `<div class="hw-t"><span>Jogos na semana</span><span data-k="tot"></span></div><div class="hchartbox" data-k="chart"></div><div data-k="top"></div>`,
+    ready: () => !welcome.features?.library || !!homeData.hist,
+    upd(el) {
+      if (!welcome.features?.library) { setHtml(hk(el, "chart"), NA); return; }
+      const h = homeData.hist, now = state.games?.game;
+      setText(hk(el, "tot"), h.week_s ? humanDur(h.week_s) : "");
+      setHtml(hk(el, "chart"), barChart(h.days.map((d) => d.s), h.days.map((d) => d.d), h.days.length - 1, "--chart-gpu", hk(el, "chart").clientWidth, "Tempo de jogo por dia na última semana"));
+      setHtml(hk(el, "top"), (now ? `<div class="row"><span>Jogando agora</span><span>${esc(now.name)}</span></div>` : "") +
+        (h.top.slice(0, 2).map((g) => `<div class="row"><span>${esc(g.name)}</span><span>${humanDur(g.s)}</span></div>`).join("") || (now ? "" : '<div class="hw-na">Nenhum jogo nos últimos 7 dias</div>')));
+    },
+  },
+  notif: {
+    name: "Notificações", icon: "bookmark",
+    html: () => `<div class="hw-t"><span>Notificações</span></div><div data-k="list"></div>`,
+    ready: () => !!welcome.host,
+    upd(el) {
+      let h;
+      if (!welcome.features?.notif || state.notifAvail === false) h = NA;
+      else if (!prefs.pcnotif) h = '<div class="hw-na">Desligadas em Ajustes</div>';
+      else h = homeNotif.slice(0, 3).map((n) => `<div class="hnt"><div class="hnt-a"><b>${esc(n.app)}</b><span>${esc(n.time)}</span></div><div class="hnt-b">${esc([n.title, n.body].filter(Boolean).join(" · "))}</div></div>`).join("")
+        || '<div class="hw-na">Nenhum aviso desde que o app abriu</div>';
+      setHtml(hk(el, "list"), h);
+    },
+  },
+  quick: {
+    name: "Atalhos", icon: "layout-grid",
+    html: () => `<div class="hw-t"><span>Atalhos</span></div>${quickHtml()}`,
+    ready: () => !!welcome.host,
+    upd: (el) => quickUpd(el),
+  },
+});
+const HOME_DEF = {
+  phone: [{ id: "now", size: "S" }, { id: "tasks", size: "S" }, { id: "pcquick", size: "S" }],
+  tablet: [["cpu", "L"], ["net"], ["mem"], ["now"], ["tasks"], ["work", "L"], ["procs"], ["games"], ["notif"], ["quick"]].map(([id, z]) => ({ id, size: z || "S" })),
+};
+const HOME_CAP = { phone: 3, tablet: 12 };
+const homeSpaces = (l) => l.reduce((a, w) => a + (w.size === "L" ? 2 : 1), 0);
 
 function homeLayout(dev) {
-  let raw = store.get("home", null); raw = raw && raw.v === 1 ? raw[dev] : null;
+  let raw = store.get("home", null); raw = raw && typeof raw === "object" && raw.v === 1 ? raw[dev] : null;
   if (!Array.isArray(raw)) return HOME_DEF[dev];
   const seen = new Set(), out = [];
   for (const it of raw) {                       // item desconhecido, repetido ou torto: ignora
     const id = it && typeof it === "object" ? it.id : null;
-    if (!HOME_W[id] || seen.has(id)) continue;
-    seen.add(id); out.push({ id, size: "S" });
+    if (typeof id !== "string" || !HOME_W[id] || seen.has(id)) continue;
+    seen.add(id); out.push({ id, size: dev === "tablet" && it.size === "L" ? "L" : "S" });
   }
-  if (out.length > HOME_CAP[dev] || (raw.length && !out.length)) return HOME_DEF[dev];
+  if ((dev === "phone" ? out.length : homeSpaces(out)) > HOME_CAP[dev] || (raw.length && !out.length)) return HOME_DEF[dev];
   return out;
 }
-const homeDev = () => "phone";
-let homeList = [];
+const homeDev = () => (wideMQ.matches ? "tablet" : "phone");
+let homeList = [], homeCur = "phone";
 function homeBuild() {
-  const root = $("home"), dev = homeDev();
+  const root = $("home"), dev = homeCur = homeDev();
   homeList = homeLayout(dev);
   root.className = "home " + dev; root.style.setProperty("--hn", Math.max(1, homeList.length));
   root.innerHTML = homeList.length ? homeList.map(({ id, size }) => `<div class="card hw${size === "L" ? " big" : ""} sk" data-w="${id}">
@@ -1786,10 +1975,28 @@ function homeUpd(only) {
     const id = el.dataset.w; if (only && only !== id) continue;
     const w = HOME_W[id], ok = w.ready();
     el.classList.toggle("sk", !ok);
-    if (ok) w.upd(el);
+    if (ok) w.upd(el, homeCur);
   }
 }
-function homeShow() { homeBuild(); loadTasks(); }
+// dados que não chegam sozinhos: busca só o que o layout usa, com o Início visível, e tenta de novo em 5 s se falhar
+async function homeFetch() {
+  if (!vis("inicio") || homeData.busy || !ws || ws.readyState !== 1) return;
+  const ids = new Set(homeList.map((w) => w.id)), now = Date.now(), f = welcome.features || {};
+  homeData.busy = true;
+  try {
+    if ((ids.has("work") || ids.has("today")) && f.work && now - homeData.t.work > 20000) {
+      homeData.t.work = now;
+      try { [homeData.work, homeData.week] = await Promise.all([send("work.get"), send("work.week", { offset: 0 })]); homeUpd("work"); homeUpd("today"); }
+      catch { homeData.t.work = now - 15000; }
+    }
+    if (ids.has("games") && f.library && now - homeData.t.hist > 60000) {
+      homeData.t.hist = now;
+      try { homeData.hist = await send("games.history"); homeUpd("games"); } catch { homeData.t.hist = now - 55000; }
+    }
+  } finally { homeData.busy = false; }
+}
+
+function homeShow() { homeBuild(); loadTasks(); homeFetch(); }
 async function homeTaskToggle(id, undo) {
   const d = tasksData, t = d?.items.find((x) => x.id === id); if (!t) return;
   buzz();
@@ -1813,7 +2020,7 @@ $("home").addEventListener("click", (e) => {
 });
 $("home").addEventListener("keydown", (e) => { const t = e.target.closest(".trow[data-id]"); if (t && (e.key === " " || e.key === "Enter")) { e.preventDefault(); homeTaskToggle(t.dataset.id); } });
 // 1×/s e só com o Início visível (gráficos e medidores)
-setInterval(() => { if (vis("inicio") && !document.hidden) homeUpd(); }, 1000);
+setInterval(() => { if (vis("inicio") && !document.hidden) { homeUpd(); homeFetch(); } }, 1000);
 
 // ---------------------------------------------------------------- Atalhos / Sistema
 function renderPower() {
@@ -2536,6 +2743,7 @@ function netAlert(p) {
 prefs.pcnotif = store.get("pcnotif", true);
 function subNotif() {
   send("notif.sub", { on: prefs.pcnotif }).then((r) => {
+    state.notifAvail = r?.available; homeUpd("notif");
     $("pcn-note").textContent = r?.available === false
       ? "Bloqueado no PC: Configurações do Windows > Privacidade > Notificações"
       : "WhatsApp, Discord, e-mail e outros avisos do Windows";
