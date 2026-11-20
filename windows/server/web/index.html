@@ -660,6 +660,37 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
   :root[data-theme="modern"] nav .nav-label { font: 600 12px/1 var(--font); letter-spacing: .04em; }
   :root[data-theme="modern"] nav { padding: 8px 8px 8px calc(8px + env(safe-area-inset-left, 0px)); }
 }
+
+/* Ajustes › Aparência */
+.fo-only { display: none; }
+:root[data-theme="fallout"] .fo-only { display: flex; }
+:root[data-theme="modern"] .mo-only { display: flex; }
+.mo-only { display: none; }
+:root[data-theme="fallout"] .mo-only { display: none; }
+.set.col { flex-direction: column; align-items: stretch; gap: 8px; }
+.thcards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 4px 0 8px; }
+.thcard { display: flex; flex-direction: column; gap: 8px; padding: 8px; text-align: center; border: 1px solid var(--p4); border-radius: 12px; min-height: 44px; font-size: 14px; }
+.thcard[aria-pressed="true"] { outline: 2px solid var(--accent-text, var(--p)); outline-offset: 1px; }
+.thprev { display: block; height: 64px; padding: 8px; border: 1px solid; position: relative; overflow: hidden; border-radius: 8px; text-shadow: none; }
+.thprev i { position: absolute; display: block; }
+.thprev .pv-bar { left: 8px; right: 8px; top: 8px; height: 8px; }
+.thprev .pv-card { left: 8px; right: 8px; top: 22px; bottom: 8px; }
+.thprev .pv-pill { left: 14px; bottom: 14px; width: 40px; height: 10px; }
+/* prévias fixas: mostram cada tema como ele é, qualquer que seja o tema atual */
+.pv-modern { background: #000000; border-color: #38383A; }
+.pv-modern .pv-bar { background: #2C2C2E; border-radius: 4px; } .pv-modern .pv-card { background: #1C2B45; border-radius: 8px; } .pv-modern .pv-pill { background: #1F6FEB; border-radius: 999px; }
+.pv-fallout { background: #040d07; border-color: #1c7a3d; border-radius: 2px; }
+.pv-fallout .pv-bar { background: #1c7a3d; } .pv-fallout .pv-card { background: #071a0e; border: 1px solid #1c7a3d; } .pv-fallout .pv-pill { background: #5cff8a; }
+.seg { display: flex; border: 1px solid var(--p4); border-radius: 12px; overflow: hidden; background: var(--panel); }
+.seg button { flex: 1; min-height: 44px; padding: 0 8px; font-size: 14px; }
+.seg button + button { border-left: 1px solid var(--p4); }
+.seg button.on { background: var(--accent-fill); color: var(--on-accent); }
+.accents { display: flex; gap: 4px; flex-wrap: wrap; }
+.accents button { width: 44px; height: 44px; position: relative; border-radius: 50%; }
+.accents button::before { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--c); }
+.accents button.on { outline: 2px solid var(--p); outline-offset: -2px; }
+.accents [data-accent="blue"] { --c: #1F6FEB; } .accents [data-accent="purple"] { --c: #8E44EC; } .accents [data-accent="green"] { --c: #1E9E4A; }
+.accents [data-accent="orange"] { --c: #D9650B; } .accents [data-accent="pink"] { --c: #D6336C; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -949,13 +980,25 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
         </div>
       </div>
       <div>
+        <h2>Aparência</h2>
+        <div class="card" id="ap">
+          <div class="thcards" id="ap-theme" role="group" aria-label="Tema">
+            <button class="thcard" data-pick="modern" aria-pressed="false"><span class="thprev pv-modern"><i class="pv-bar"></i><i class="pv-card"></i><i class="pv-pill"></i></span><b>Moderno</b></button>
+            <button class="thcard" data-pick="fallout" aria-pressed="false"><span class="thprev pv-fallout"><i class="pv-bar"></i><i class="pv-card"></i><i class="pv-pill"></i></span><b>Fallout</b></button>
+          </div>
+          <div class="set col mo-only"><label>Modo<small>Automático segue o claro/escuro do aparelho</small></label>
+            <div class="seg" id="ap-mode" role="group" aria-label="Modo"><button data-mode="auto">Automático</button><button data-mode="light">Claro</button><button data-mode="dark">Escuro</button></div></div>
+          <div class="set col mo-only"><label>Cor de destaque</label>
+            <div class="accents" id="ap-accent" role="group" aria-label="Cor de destaque">
+              <button data-accent="blue" aria-label="Azul"></button><button data-accent="purple" aria-label="Roxo"></button><button data-accent="green" aria-label="Verde"></button><button data-accent="orange" aria-label="Laranja"></button><button data-accent="pink" aria-label="Rosa"></button></div></div>
+        </div>
         <h2>Visual</h2>
         <div class="card">
-          <div class="set"><label>Cor do terminal</label><div class="themes" id="themes">
+          <div class="set fo-only"><label>Cor do terminal</label><div class="themes" id="themes">
             <button data-variant="green" style="background:#5cff8a" aria-label="Verde"></button>
             <button data-variant="amber" style="background:#ffbf47" aria-label="Âmbar"></button>
             <button data-variant="cyan" style="background:#7cf4ff" aria-label="Ciano"></button></div></div>
-          <div class="set"><label>Efeito de tubo<small>Linhas de varredura e brilho</small></label><button class="switch" id="sw-crt" aria-label="Efeito de tubo"></button></div>
+          <div class="set fo-only"><label>Efeito de tubo<small>Linhas de varredura e brilho</small></label><button class="switch" id="sw-crt" aria-label="Efeito de tubo"></button></div>
           <div class="set"><label>Sons de terminal<small>Bipes curtos ao tocar e ao conectar</small></label><button class="switch" id="sw-snd" aria-label="Sons de terminal"></button></div>
           <div class="set"><label>Quando ficar parado<small>Passa Sistema, Jogos, Tocando e o relógio, ou só o relógio</small></label><button class="btn sm" id="dock-now">Ver</button><select id="idle-mode" class="sel" aria-label="Quando ficar parado"><option value="cycle">Passar as telas</option><option value="clock">Só o relógio</option><option value="off">Nada</option></select></div>
           <div class="set"><label>Depois de</label><select id="dock-min" class="sel" aria-label="Depois de quanto tempo parado"><option value="1">1 min</option><option value="2">2 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
@@ -1529,7 +1572,14 @@ async function loadTasks() {
   if (!ws || ws.readyState !== 1) return;
   try { renderTasks(await send("tasks.get")); } catch {}
 }
+// selo da navegação: tarefas pendentes (dado do próprio tasks.get)
+function tasksBadge(d) {
+  const n = d.items ? d.items.filter((t) => !t.done).length : 0, b = $("tk-badge");
+  b.textContent = n > 99 ? "99+" : n; b.classList.toggle("hidden", !n);
+  b.parentElement.setAttribute("aria-label", n ? `Tarefas, ${n} pendentes` : "Tarefas");
+}
 function renderTasks(d) {
+  tasksBadge(d);
   $("tk-count").textContent = d.total ? `${d.done} de ${d.total} feitas` : "";
   $("tk-list").innerHTML = d.items.length
     ? d.items.map((t) => `<div class="trow${t.done ? " done" : ""}" data-id="${t.id}"><span class="tbox">${t.done ? "✓" : ""}</span><span class="ttx">${esc(t.text)}</span></div>`).join("")
@@ -2370,9 +2420,15 @@ function applyTheme() {
   pccTheme.apply(prefs);
   document.body.classList.toggle("crt", prefs.crt && prefs.theme === "fallout");
   document.querySelectorAll("#themes button").forEach((b) => b.classList.toggle("on", b.dataset.variant === prefs.variant));
+  document.querySelectorAll("#ap-theme button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.pick === prefs.theme));
+  document.querySelectorAll("#ap-mode button").forEach((b) => b.classList.toggle("on", b.dataset.mode === prefs.mode));
+  document.querySelectorAll("#ap-accent button").forEach((b) => b.classList.toggle("on", b.dataset.accent === prefs.accent));
   syncChrome();
 }
 $("themes").onclick = (e) => { const b = e.target.closest("[data-variant]"); if (!b) return; buzz(8); prefs.variant = b.dataset.variant; store.set("variant", prefs.variant); applyTheme(); };
+$("ap-theme").onclick = (e) => { const b = e.target.closest("[data-pick]"); if (!b) return; buzz(8); prefs.theme = b.dataset.pick; store.set("theme", prefs.theme); applyTheme(); };
+$("ap-mode").onclick = (e) => { const b = e.target.closest("[data-mode]"); if (!b) return; buzz(8); prefs.mode = b.dataset.mode; store.set("mode", prefs.mode); applyTheme(); };
+$("ap-accent").onclick = (e) => { const b = e.target.closest("[data-accent]"); if (!b) return; buzz(8); prefs.accent = b.dataset.accent; store.set("accent", prefs.accent); applyTheme(); };
 bindSwitch("sw-crt", "crt", applyTheme);
 bindSwitch("sw-deckauto", "deckAuto", () => { lastApp = null; });
 bindSwitch("sw-snd", "snd", () => snd("ok"));

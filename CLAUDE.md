@@ -23,6 +23,7 @@ Rules:
 - Ao mudar o index.html, regenere este índice no mesmo commit.
 
 ### Índice index.html (linhas)
-- <style> 16–538 (tema: variáveis em :root[data-theme="fallout"], variantes data-variant); <nav id="nav"> 835; const SECTIONS 1062
-- Telas (section.tab): dash 600, games 614, work 634, tasks 649, media 655, mix 675, mouse 683, screen 729, deck 744, send 751, power 777, sys 794
-- JS: ajustes 901, formatação 916, conexão 958, seções/vistas 1059, abertura 1104, Painel 1117, Tocando 1188, Games 1249, Jogos semana 1271, Trabalho 1306, Tarefas 1360, Atalhos/Sistema 1378, Mouse 1403, Teclado 1489, Botões/deck 1546, foco 1720, microfone/energia 1735, celular parado 1772, Mixer 1834, Tela do PC 1884, Enviar/receber 1985, Alertas 2071, Ajustes celular 2129, loop de tela 2183
+- <head> script do tema (window.pccTheme) 14–32; <style> 33–694 (tokens Fallout, tokens Moderno, nav nova e Aparência no fim); <nav id="nav"> 1021; const SECTIONS 1257
+- Tema: data-theme=fallout|modern, data-variant (só Fallout), data-mode/data-accent/data-scheme (só Moderno); prefs em store theme/variant/mode/accent; applyTheme no JS "Ajustes do celular"
+- Telas (section.tab): inicio 756, more 761, dash 774, games 788, work 808, tasks 823, media 829, mix 849, mouse 857, screen 903, deck 918, send 925, power 951, sys 968
+- JS: ajustes 1095, formatação 1110, conexão 1152, seções/vistas 1253, abertura 1314, Painel 1327, Tocando 1398, Games 1459, Jogos semana 1481, Trabalho 1516, Tarefas 1570, Atalhos/Sistema 1595, Mouse 1620, Teclado 1706, Botões/deck 1763, foco 1937, microfone/energia 1952, celular parado 1989, Mixer 2051, Tela do PC 2101, Enviar/receber 2202, Alertas 2288, Ajustes celular 2346, loop de tela 2400
