@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Companion PC</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Companion">
+<meta name="theme-color" content="#000000">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+*{-webkit-box-sizing:border-box;box-sizing:border-box;-webkit-tap-highlight-color:rgba(0,0,0,0)}
+html,body{margin:0;padding:0;background:#000;color:#F2F2F7;font:16px/1.3 -apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif;-webkit-text-size-adjust:100%}
+body{position:fixed;top:0;left:0;right:0;bottom:0;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;overflow:hidden}
+button{font:inherit;color:inherit;border:0;margin:0;padding:0;background:#2C2C2E;border-radius:12px;min-height:44px;-webkit-appearance:none;touch-action:manipulation}
+button:active{background:#3A3A3C}
+button[disabled]{opacity:.4}
+.hidden{display:none !important}
+.row{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center}
+.rowb{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:space-between;justify-content:space-between}
+.rowc{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center}
+.wrap{-webkit-flex-wrap:wrap;flex-wrap:wrap}
+.f1{-webkit-flex:1;flex:1;min-width:0}
+.fx{-webkit-flex:none;flex:none}
+#banner{background:#3A2A00;color:#FF9F0A;text-align:center;padding:8px 12px;font-weight:600;-webkit-flex:none;flex:none}
+#main{-webkit-flex:1;flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px}
+#tabs{-webkit-flex:none;flex:none;display:-webkit-flex;display:flex;background:#121214;border-top:1px solid #38383A;height:56px}
+#tabs button{-webkit-flex:1;flex:1;border-radius:0;background:transparent;color:#A1A1A6;font-size:17px;font-weight:600;height:56px}
+#tabs button.on{color:#4C9AFF;background:#1C2B45}
+.page{display:none}
+.page.on{display:block}
+.cols{display:-webkit-flex;display:flex;-webkit-flex-direction:row;flex-direction:row;-webkit-align-items:flex-start;align-items:flex-start}
+.colx{-webkit-flex:1;flex:1;min-width:0}
+.colx+.colx{margin-left:12px}
+.card{background:#1C1C1E;border-radius:16px;padding:14px;margin-bottom:12px}
+h3{margin:0 0 10px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#98989D;font-weight:600}
+.sub{color:#A1A1A6;font-size:15px}
+.big{font-size:22px;font-weight:700}
+.clk{font-size:84px;font-weight:200;line-height:1;text-align:center;font-variant-numeric:tabular-nums}
+.dt{text-align:center;color:#A1A1A6;font-size:18px;margin-top:6px}
+.ttl{font-size:20px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctl{margin-top:10px}
+.ctl button{-webkit-flex:1;flex:1;height:56px;margin-right:8px}
+.ctl button:last-child{margin-right:0}
+.ctl button.pp{background:#1F6FEB}
+svg.ic{width:26px;height:26px;fill:#F2F2F7;vertical-align:middle}
+.lbl{font-size:15px;color:#A1A1A6;margin-top:8px}
+.lbl b{color:#F2F2F7;font-weight:600}
+.bar{height:10px;background:#2C2C2E;border-radius:5px;overflow:hidden;margin-top:4px}
+.bar i{display:block;height:100%;width:0;border-radius:5px}
+.kv{padding:6px 0;border-top:1px solid #38383A;font-size:16px}
+.kv span:first-child{color:#A1A1A6}
+.chart{margin-top:10px;background:#000;border-radius:10px;height:90px;overflow:hidden}
+.chart svg{display:block;width:100%;height:90px}
+.mic{width:100%;height:92px;font-size:24px;font-weight:700;border-radius:18px;margin-bottom:12px}
+.mic.on{background:#1B7431;color:#fff}
+.mic.off{background:#D70015;color:#fff}
+.mic small{display:block;font-size:14px;font-weight:500;opacity:.85}
+.trow{min-height:48px;padding:6px 0;border-top:1px solid #38383A}
+.trow:first-child{border-top:0}
+.tbox{width:30px;height:30px;border:2px solid #98989D;border-radius:8px;margin-right:12px;text-align:center;line-height:26px;font-size:20px;font-weight:700;-webkit-flex:none;flex:none}
+.trow.done .tbox{background:#1F6FEB;border-color:#1F6FEB;color:#fff}
+.trow.done .ttx{color:#98989D;text-decoration:line-through}
+.empty{color:#98989D;padding:10px 0}
+.art{width:100%;height:0;padding-bottom:100%;background:#2C2C2E center/cover no-repeat;border-radius:14px}
+.rcols{display:-webkit-flex;display:flex;-webkit-align-items:flex-start;align-items:flex-start}
+.rcols>.colx:first-child{-webkit-flex:none;flex:none;width:300px}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:44px;background:transparent;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:6px;background:#3A3A3C;border-radius:3px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:30px;margin-top:-12px;border-radius:15px;background:#F2F2F7}
+.mxrow{padding:8px 0;border-top:1px solid #38383A}
+.mxrow:first-child{border-top:0}
+.mxrow.muted .mxname{color:#98989D}
+.mxname{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mxm{width:84px;margin-left:10px;-webkit-flex:none;flex:none}
+.mxrow.muted .mxm{background:#3A1214;color:#FF6961}
+.chip{background:#1C2B45;color:#4C9AFF;border-radius:22px;padding:0 16px;height:44px;font-weight:600;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pills{margin-bottom:8px;-webkit-flex-wrap:wrap;flex-wrap:wrap;display:-webkit-flex;display:flex}
+.pill{margin:0 8px 8px 0;padding:0 18px;border-radius:22px;height:44px;background:#2C2C2E;font-weight:600}
+.pill.on{background:#1F6FEB;color:#fff}
+.dpad{display:-webkit-flex;display:flex;-webkit-flex-wrap:wrap;flex-wrap:wrap;margin:0 -5px}
+.dcell{width:25%;padding:5px}
+.dbtn{width:100%;height:116px;padding:6px;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;background:#1C1C1E;border-radius:16px;overflow:hidden}
+.dbtn.hit{background:#1F6FEB}
+.dbtn.warn{background:#3A1214}
+.dbtn svg{width:34px;height:34px;stroke:#4C9AFF;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.dbtn .di{height:36px;line-height:36px;font-size:22px;font-weight:700;color:#4C9AFF}
+.dbtn .dl{font-size:15px;font-weight:600;margin-top:4px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dbtn .dk{font-size:12px;color:#98989D;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tiles{display:-webkit-flex;display:flex;-webkit-flex-wrap:wrap;flex-wrap:wrap;margin:0 -5px}
+.tile{width:33.333%;padding:5px;background:transparent;border-radius:0;min-height:0}
+.tile button{width:100%;height:68px;font-size:17px;font-weight:600}
+.tile.warn button{background:#3A1214;color:#FF6961}
+.tile.cancel button{background:#1F6FEB;color:#fff}
+select{font:inherit;height:44px;border-radius:10px;border:0;background:#2C2C2E;color:#F2F2F7;padding:0 10px;margin-left:10px}
+.danger{background:#D70015;color:#fff}
+#toast{position:fixed;left:50%;bottom:76px;-webkit-transform:translateX(-50%);transform:translateX(-50%);background:#3A3A3C;color:#F2F2F7;padding:12px 18px;border-radius:12px;font-weight:600;z-index:9;max-width:80%;text-align:center}
+#toast.bad{background:#D70015;color:#fff}
+.ov{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.8);z-index:10;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;padding:20px}
+.dlg{background:#1C1C1E;border-radius:18px;padding:20px;width:100%;max-width:420px}
+.dlg p{margin:0 0 16px;font-size:18px}
+.dlg input{width:100%;height:48px;font:inherit;border-radius:10px;border:1px solid #38383A;background:#000;color:#F2F2F7;padding:0 12px;margin-bottom:14px}
+.dlg button{-webkit-flex:1;flex:1;height:50px;font-weight:600}
+.dlg button+button{margin-left:10px}
+.dlg .go{background:#1F6FEB;color:#fff}
+@media (orientation:portrait){
+ .cols,.rcols{-webkit-flex-direction:column;flex-direction:column;display:block}
+ .colx+.colx{margin-left:0}
+ .rcols>.colx:first-child{width:auto;max-width:420px;margin:0 auto}
+ .dcell{width:33.333%}
+ .tile{width:50%}
+}
+</style>
+</head>
+<body>
+<div id="banner">Conectando…</div>
+<div id="main">
+
+<section class="page on" id="p-inicio">
+ <div class="cols">
+  <div class="colx">
+   <div class="card"><div class="clk" id="clk">--:--</div><div class="dt" id="dt"></div></div>
+   <div class="card">
+    <h3>Tocando</h3>
+    <div class="ttl" id="h-title">Indisponível</div>
+    <div class="sub" id="h-artist"></div>
+    <div class="row ctl">
+     <button data-a="media.prev" aria-label="Anterior"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+     <button class="pp" data-pp="1" aria-label="Tocar ou pausar"><span class="ppi"></span></button>
+     <button data-a="media.next" aria-label="Próxima"><svg class="ic" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+    </div>
+   </div>
+   <button class="mic" data-mic="1"></button>
+  </div>
+  <div class="colx">
+   <div class="card"><h3>Tarefas</h3><div class="sub" id="h-tcount"></div><div id="h-tasks" data-tk="1"></div></div>
+   <div class="card">
+    <h3>PC</h3>
+    <div class="rowb lbl" style="margin-top:0"><span>CPU</span><b id="v-cpu">–</b></div><div class="bar"><i id="b-cpu" style="background:#4C9AFF"></i></div>
+    <div class="rowb lbl"><span>GPU</span><b id="v-gpu">Indisponível</b></div><div class="bar"><i id="b-gpu" style="background:#BF5AF2"></i></div>
+    <div class="rowb lbl"><span>Memória</span><b id="v-ram">–</b></div><div class="bar"><i id="b-ram" style="background:#FF9F0A"></i></div>
+    <div class="rowb kv" style="margin-top:10px"><span>Ping</span><b id="v-ping">Indisponível</b></div>
+    <div class="rowb kv"><span>Jogo aberto</span><b id="v-game">Indisponível</b></div>
+    <div class="rowb kv"><span>Trabalho hoje</span><b id="v-work">Indisponível</b></div>
+    <div class="lbl">CPU no último minuto</div>
+    <div class="chart"><svg viewBox="0 0 300 90" preserveAspectRatio="none"><line x1="0" y1="45" x2="300" y2="45" stroke="#2C2C2E" stroke-width="1"/><polygon id="c-fill" points="" fill="#4C9AFF" fill-opacity=".18"/><polyline id="c-line" points="" fill="none" stroke="#4C9AFF" stroke-width="2" stroke-linejoin="round"/></svg></div>
+   </div>
+  </div>
+ </div>
+</section>
+
+<section class="page" id="p-radio">
+ <div class="rcols">
+  <div class="colx">
+   <div class="card"><div class="art" id="r-art"></div></div>
+  </div>
+  <div class="colx">
+   <div class="card">
+    <div class="ttl" id="r-title">Indisponível</div>
+    <div class="sub" id="r-artist"></div>
+    <div class="rowb sub" style="margin-top:8px"><span id="r-pos">0:00</span><span id="r-dur">0:00</span></div>
+    <input type="range" id="r-seek" min="0" max="100" value="0" step="1">
+    <div class="row ctl">
+     <button data-a="media.prev" aria-label="Anterior"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+     <button class="pp" data-pp="1" aria-label="Tocar ou pausar"><span class="ppi"></span></button>
+     <button data-a="media.next" aria-label="Próxima"><svg class="ic" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+    </div>
+    <div class="row" style="margin-top:12px">
+     <button id="r-mute" style="width:84px" class="fx">Som</button>
+     <div class="f1" style="margin:0 10px"><input type="range" id="r-vol" min="0" max="100" value="0" step="1"></div>
+     <span id="r-volv" class="fx" style="width:56px;text-align:right">–</span>
+    </div>
+    <div class="row" style="margin-top:8px"><span class="sub fx" style="margin-right:10px">Saída</span><button class="chip" id="r-out" data-out="1">Indisponível</button></div>
+   </div>
+   <div class="card">
+    <div class="rowb"><h3 style="margin:0">Mixer</h3><span class="sub" id="mx-master"></span></div>
+    <div id="mx-list"><div class="empty">Indisponível</div></div>
+   </div>
+  </div>
+ </div>
+</section>
+
+<section class="page" id="p-botoes">
+ <div class="pills" id="d-pills"></div>
+ <div class="dpad" id="d-btns"><div class="empty" style="padding:10px 5px">Indisponível</div></div>
+</section>
+
+<section class="page" id="p-pc">
+ <div class="cols">
+  <div class="colx">
+   <button class="mic" data-mic="1"></button>
+   <div class="card"><h3>Energia</h3>
+    <div class="tiles" id="pw"></div>
+    <div class="sub" id="pw-note" style="margin-top:8px"></div>
+   </div>
+  </div>
+  <div class="colx" id="tm-col">
+   <div class="card"><h3>Timer de energia</h3>
+    <div id="tm-on" class="hidden"><div class="big" id="tm-left">0:00</div><div class="sub" id="tm-what"></div>
+     <button class="danger" id="tm-cancel" style="width:100%;margin-top:12px;height:52px;font-weight:600">Cancelar timer</button></div>
+    <div id="tm-off">
+     <div class="row" style="margin-bottom:8px"><span>Quando acabar</span><select id="tm-act"><option value="shutdown">Desligar</option><option value="sleep">Suspender</option><option value="monitor_off">Desligar monitor</option></select></div>
+     <div class="tiles">
+      <div class="tile"><button data-min="15">15 min</button></div><div class="tile"><button data-min="30">30 min</button></div><div class="tile"><button data-min="45">45 min</button></div>
+      <div class="tile"><button data-min="60">1 h</button></div><div class="tile"><button data-min="90">1 h 30</button></div><div class="tile"><button data-min="120">2 h</button></div>
+     </div>
+    </div>
+   </div>
+  </div>
+ </div>
+</section>
+
+</div>
+<div id="tabs"><button data-pg="inicio" class="on">Início</button><button data-pg="radio">Rádio</button><button data-pg="botoes">Botões</button><button data-pg="pc">PC</button></div>
+<div id="toast" class="hidden"></div>
+<div class="ov hidden" id="cf"><div class="dlg"><p id="cf-q"></p><div class="row"><button id="cf-n">Não</button><button class="go" id="cf-y">Sim</button></div></div></div>
+<div class="ov hidden" id="login"><form class="dlg" id="lg-f"><p id="lg-p">Digite o token do PC (config.json).</p><input id="lg-t" type="text" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false"><div class="row"><button class="go" type="submit">Entrar</button></div></form></div>
+
+<script>
+(function () {
+"use strict";
+function $(id) { return document.getElementById(id); }
+function pad2(n) { return (n < 10 ? "0" : "") + n; }
+function esc(s) {
+  var m = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+  return String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g, function (c) { return m[c]; });
+}
+function fmtTime(s) {
+  s = Math.max(0, Math.floor(s || 0));
+  var h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = pad2(s % 60);
+  return h ? h + ":" + pad2(m) + ":" + x : m + ":" + x;
+}
+function humanDur(s) {
+  s = Math.max(0, Math.floor(s || 0));
+  if (s < 60) return s + "s";
+  var h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60;
+  return h ? h + "h " + pad2(m) + "m" : m + " min";
+}
+var store = {
+  get: function (k, d) { try { var v = localStorage.getItem("pcc." + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set: function (k, v) { try { localStorage.setItem("pcc." + k, JSON.stringify(v)); } catch (e) {} }
+};
+(function () {
+  var m = location.hash.match(/[#&]t=([^&]+)/);
+  if (m) {
+    try { store.set("token", decodeURIComponent(m[1])); } catch (e) { store.set("token", m[1]); }
+    try { history.replaceState(null, "", location.pathname); } catch (e2) {}
+  }
+})();
+function setHtml(el, html) { if (el._h !== html) { el._h = html; el.innerHTML = html; } }
+function setText(el, t) { t = String(t); if (el._t !== t) { el._t = t; el.textContent = t; } }
+
+// ---------------------------------------------------------------- estado e conexão
+var ws = null, welcome = {}, nextId = 1, retry = 0, retryT = null, pending = {}, pageBuild = 0, online = false;
+var S = { stats: null, now: null, games: null, art: {}, nowT: 0, tasks: null, mix: null, work: null, deck: null, gamesT: 0 };
+var page = "inicio";
+function wsUrl() { return (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws"; }
+function banner(on, txt) { var b = $("banner"); b.className = on ? "" : "hidden"; if (txt) b.textContent = txt; }
+function showLogin(msg) {
+  banner(false);
+  if (msg) $("lg-p").textContent = msg;
+  $("lg-t").value = "";
+  $("login").className = "ov";
+}
+$("lg-f").onsubmit = function (e) {
+  e.preventDefault();
+  var t = $("lg-t").value.replace(/^\s+|\s+$/g, ""); if (!t) return;
+  store.set("token", t); $("login").className = "ov hidden"; connect();
+};
+function connect() {
+  clearTimeout(retryT);
+  var token = store.get("token", "");
+  if (!token) { showLogin(); return; }
+  banner(true, welcome.host ? "Reconectando…" : "Conectando…");
+  var sock;
+  try { sock = new WebSocket(wsUrl()); } catch (e) { scheduleRetry(); return; }
+  ws = sock;
+  sock.onopen = function () {
+    sock.send(JSON.stringify({ t: "hello", token: token, client: "tablet-legado", screen: innerWidth + "x" + innerHeight + " legado" }));
+  };
+  sock.onmessage = function (ev) { if (sock !== ws) return; var m; try { m = JSON.parse(ev.data); } catch (e) { return; } onMsg(m); };
+  sock.onclose = function (ev) {
+    if (sock !== ws) return;
+    ws = null; online = false;
+    var k, p;
+    for (k in pending) { p = pending[k]; delete pending[k]; p.reject(new Error("desconectado")); }
+    if (ev.code === 4001) { store.set("token", ""); showLogin("Token inválido. Confira o config.json do PC."); return; }
+    banner(true, "Reconectando…");
+    render();
+    scheduleRetry();
+  };
+  sock.onerror = function () {};
+}
+function scheduleRetry() {
+  retry = Math.min(retry + 1, 6);
+  retryT = setTimeout(connect, [500, 1000, 2000, 3000, 5000, 5000, 8000][retry]);
+}
+function send(a, p, reply) {
+  if (reply === undefined) reply = true;
+  if (!ws || ws.readyState !== 1) { if (reply) toast("Sem conexão com o PC", true); return Promise.reject(new Error("offline")); }
+  var msg = { t: "req", a: a, p: p || {} };
+  if (!reply) { ws.send(JSON.stringify(msg)); return Promise.resolve(); }
+  msg.id = nextId++;
+  ws.send(JSON.stringify(msg));
+  return new Promise(function (resolve, reject) {
+    pending[msg.id] = { resolve: resolve, reject: reject };
+    setTimeout(function () { if (pending[msg.id]) { delete pending[msg.id]; reject(new Error("sem resposta")); } }, 8000);
+  });
+}
+function quiet() {}
+function act(a, p, label) {
+  return send(a, p).then(function (d) { if (label) toast(label); return d; }, function (e) { if (e.message !== "offline") toast(e.message, true); throw e; });
+}
+function onMsg(m) {
+  switch (m.t) {
+    case "welcome":
+      if (m.web && pageBuild && m.web !== pageBuild) { location.reload(); return; }
+      pageBuild = pageBuild || m.web;
+      welcome = m; retry = 0; online = true;
+      banner(false);
+      loadDeck(); loadTasks(); loadWork(); pollMixer();
+      buildPower(); render();
+      break;
+    case "res":
+      var p = pending[m.id]; if (!p) return; delete pending[m.id];
+      if (m.ok) p.resolve(m.d); else p.reject(new Error(m.e || "falhou"));
+      break;
+    case "stats": S.stats = m.d; deckFollow(m.d); dirty = true; break;
+    case "now": S.now = m.d; S.nowT = Date.now(); dirty = true; break;
+    case "art": S.art = {}; S.art[m.id] = "data:image/jpeg;base64," + m.jpg; dirty = true; break;
+    case "games": S.games = m.d; S.gamesT = Date.now(); dirty = true; break;
+  }
+}
+
+// ---------------------------------------------------------------- avisos e confirmação
+var toastT;
+function toast(msg, bad) {
+  var t = $("toast"); t.textContent = msg; t.className = bad ? "bad" : "";
+  clearTimeout(toastT); toastT = setTimeout(function () { t.className = "hidden"; }, 2400);
+}
+var confirmFn = null;
+function confirmAsk(q, fn) { $("cf-q").textContent = q; confirmFn = fn; $("cf").className = "ov"; }
+$("cf-n").onclick = function () { $("cf").className = "ov hidden"; confirmFn = null; };
+$("cf-y").onclick = function () { $("cf").className = "ov hidden"; var f = confirmFn; confirmFn = null; if (f) f(); };
+
+// ---------------------------------------------------------------- abas
+function showPage(n) {
+  page = n;
+  var ps = document.querySelectorAll(".page"), i;
+  for (i = 0; i < ps.length; i++) ps[i].className = "page" + (ps[i].id === "p-" + n ? " on" : "");
+  var bs = $("tabs").children;
+  for (i = 0; i < bs.length; i++) bs[i].className = bs[i].getAttribute("data-pg") === n ? "on" : "";
+  $("main").scrollTop = 0;
+  if (n === "radio") pollMixer();
+  if (n === "botoes") renderDeck();
+  render();
+}
+$("tabs").onclick = function (e) { var b = e.target; while (b && b !== this && !b.getAttribute("data-pg")) b = b.parentNode; if (b && b.getAttribute) { var g = b.getAttribute("data-pg"); if (g) showPage(g); } };
+
+// ---------------------------------------------------------------- dados
+function mediaPos() {
+  var m = S.now && S.now.media; if (!m) return 0;
+  var pos = m.pos || 0; if (m.status === "playing") pos += (Date.now() - S.nowT) / 1000;
+  return m.dur ? Math.min(pos, m.dur) : pos;
+}
+function loadTasks() { if (!ws || ws.readyState !== 1) return; send("tasks.get", {}).then(function (d) { S.tasks = d; dirty = true; }, quiet); }
+function loadWork() {
+  if (!ws || ws.readyState !== 1 || !(welcome.features && welcome.features.work)) return;
+  send("work.get", {}).then(function (d) { S.work = d; dirty = true; }, quiet);
+}
+var mixBusy = false;
+function pollMixer() {
+  if (mixBusy || !ws || ws.readyState !== 1 || !(welcome.features && welcome.features.mixer) || document.hidden) return;
+  mixBusy = true;
+  send("mixer.get", {}).then(function (d) { S.mix = d; dirty = true; mixBusy = false; }, function () { mixBusy = false; });
+}
+function loadDeck() { send("deck.get", {}).then(function (d) { S.deck = d; deckHtml = null; renderDeck(); }, quiet); }
+
+// ---------------------------------------------------------------- Início e Rádio
+var ICON_PLAY = '<svg class="ic" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+var ICON_PAUSE = '<svg class="ic" viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>';
+var DIAS = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
+var MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+var dirty = true;
+function barColor(base, pct) { return pct >= 90 ? "#FF6961" : pct >= 75 ? "#FFD60A" : base; }
+function setBar(id, pct, base) {
+  var b = $(id); pct = Math.max(0, Math.min(100, +pct || 0));
+  b.style.width = pct + "%"; b.style.background = barColor(base, pct);
+}
+function renderNow() {
+  var m = S.now && S.now.media, i, t, a, pp = document.querySelectorAll(".ppi");
+  var title = m ? (m.title || "(sem título)") : (S.now ? "Nada tocando" : "Indisponível");
+  var artist = m ? [m.artist, m.album].filter(Boolean).join(" · ") : (S.now ? "Abra uma música ou vídeo no PC" : "");
+  setText($("h-title"), title); setText($("h-artist"), artist);
+  setText($("r-title"), title); setText($("r-artist"), artist);
+  for (i = 0; i < pp.length; i++) setHtml(pp[i], m && m.status === "playing" ? ICON_PAUSE : ICON_PLAY);
+  var art = m && m.art && S.art[m.art];
+  $("r-art").style.backgroundImage = art ? "url(" + art + ")" : "none";
+  var dur = m ? (m.dur || 0) : 0, pos = seeking ? +$("r-seek").value : mediaPos();
+  var sk = $("r-seek");
+  sk.disabled = !(m && m.can_seek && dur);
+  if (!seeking) { sk.max = dur || 1; sk.value = dur ? pos : 0; }
+  setText($("r-pos"), fmtTime(pos)); setText($("r-dur"), fmtTime(dur));
+  var v = S.now && S.now.volume;
+  $("r-vol").disabled = !v; $("r-mute").disabled = !v;
+  if (v && !volDrag) { $("r-vol").value = v.level; }
+  setText($("r-volv"), v ? (v.muted ? "mudo" : v.level + "%") : "");
+  setText($("r-mute"), v && v.muted ? "Mudo" : "Som");
+  $("r-mute").style.background = v && v.muted ? "#3A1214" : "";
+  a = S.mix && S.mix.outputs; t = "Indisponível";
+  if (a) { for (i = 0; i < a.length; i++) if (a[i]["default"]) t = a[i].name; }
+  setText($("r-out"), t);
+}
+function renderMic() {
+  var m = S.stats && S.stats.mic, bs = document.querySelectorAll(".mic"), i, h;
+  if (!m) h = "Microfone<small>Indisponível</small>";
+  else h = m.muted ? "MICROFONE MUDO<small>Toque para ativar</small>" : "MICROFONE ATIVO<small>Toque para silenciar</small>";
+  for (i = 0; i < bs.length; i++) { setHtml(bs[i], h); bs[i].disabled = !m; bs[i].className = "mic" + (m ? (m.muted ? " off" : " on") : ""); }
+}
+function renderTasks() {
+  var d = S.tasks, el = $("h-tasks");
+  if (!d) { setText($("h-tcount"), "Indisponível"); setHtml(el, ""); return; }
+  setText($("h-tcount"), d.total ? d.done + " de " + d.total + " feitas" : "");
+  var items = d.items || [], h = "", i, t, max = 8;
+  for (i = 0; i < items.length && i < max; i++) {
+    t = items[i];
+    h += '<div class="trow row' + (t.done ? " done" : "") + '" data-id="' + esc(t.id) + '"><span class="tbox">' + (t.done ? "&#10003;" : "") + '</span><span class="ttx f1">' + esc(t.text) + "</span></div>";
+  }
+  if (items.length > max) h += '<div class="sub" style="padding-top:6px">+' + (items.length - max) + " mais</div>";
+  if (!items.length) h = '<div class="empty">Nenhuma tarefa</div>';
+  setHtml(el, h);
+}
+function renderStats() {
+  var s = S.stats;
+  if (!s) return;
+  setText($("v-cpu"), Math.round(s.cpu) + "%"); setBar("b-cpu", s.cpu, "#4C9AFF");
+  setText($("v-ram"), Math.round(s.ram_pct) + "%"); setBar("b-ram", s.ram_pct, "#FF9F0A");
+  if (s.gpu) { setText($("v-gpu"), Math.round(s.gpu.util) + "%"); setBar("b-gpu", s.gpu.util, "#BF5AF2"); }
+  else { setText($("v-gpu"), "Indisponível"); setBar("b-gpu", 0, "#BF5AF2"); }
+  setText($("v-ping"), !s.ping ? "Indisponível" : s.ping.ok ? s.ping.ms + " ms" : "sem internet");
+  $("v-ping").style.color = s.ping && !s.ping.ok ? "#FF6961" : "";
+}
+function renderGameWork() {
+  var g = S.games, w = S.work;
+  setText($("v-game"), !g ? "Indisponível" : g.game ? g.game.name : "Nenhum");
+  setText($("v-work"), w && w.today_s !== undefined ? humanDur(w.today_s) : "Indisponível");
+}
+function renderClock() {
+  var d = new Date();
+  setText($("clk"), pad2(d.getHours()) + ":" + pad2(d.getMinutes()));
+  setText($("dt"), DIAS[d.getDay()] + ", " + d.getDate() + " de " + MESES[d.getMonth()]);
+}
+// gráfico de CPU: 30 pontos a cada 2 s = 1 minuto
+var cpuHist = [];
+function chartTick() {
+  if (S.stats && online) { cpuHist.push(+S.stats.cpu || 0); if (cpuHist.length > 30) cpuHist.shift(); }
+  if (page !== "inicio" || document.hidden) return;
+  var n = cpuHist.length, step = 300 / 29, x0 = 300 - (n - 1) * step, pts = [], i, x, y;
+  if (n < 2) return;
+  for (i = 0; i < n; i++) { x = x0 + i * step; y = 88 - Math.min(100, cpuHist[i]) / 100 * 84; pts.push(x.toFixed(1) + "," + y.toFixed(1)); }
+  $("c-line").setAttribute("points", pts.join(" "));
+  $("c-fill").setAttribute("points", pts.join(" ") + " 300,90 " + x0.toFixed(1) + ",90");
+}
+function renderMixer() {
+  var d = S.mix, list = $("mx-list"), i, a, h, sig = "";
+  if (!d) return;
+  setText($("mx-master"), d.master ? (d.master.muted ? "PC: mudo" : "PC: " + d.master.level + "%") : "");
+  if (!d.apps.length) { setHtml(list, '<div class="empty">Nenhum app tocando som agora</div>'); list._sig = ""; return; }
+  for (i = 0; i < d.apps.length; i++) sig += d.apps[i].key + "|";
+  if (list._sig !== sig) {
+    h = "";
+    for (i = 0; i < d.apps.length; i++) {
+      a = d.apps[i];
+      h += '<div class="mxrow" data-key="' + esc(a.key) + '"><div class="rowb"><span class="mxname">' + esc(a.name) + '</span><span class="mxv sub"></span></div>' +
+        '<div class="row"><div class="f1"><input type="range" min="0" max="100" step="1" data-key="' + esc(a.key) + '"></div><button class="mxm" data-key="' + esc(a.key) + '"></button></div></div>';
+    }
+    list.innerHTML = h; list._sig = sig; list._h = null;
+  }
+  var rows = list.children;
+  for (i = 0; i < rows.length && i < d.apps.length; i++) {
+    a = d.apps[i];
+    rows[i].className = "mxrow" + (a.muted ? " muted" : "");
+    if (mixDrag !== a.key) { rows[i].querySelector("input").value = a.level; rows[i].querySelector(".mxv").textContent = a.level + "%"; }
+    rows[i].querySelector(".mxm").textContent = a.muted ? "MUDO" : "SOM";
+  }
+}
+function render() {
+  dirty = false;
+  if (page === "inicio") { renderClock(); renderNow(); renderMic(); renderTasks(); renderStats(); renderGameWork(); }
+  else if (page === "radio") { renderNow(); renderMixer(); }
+  else if (page === "pc") { renderMic(); renderTimer(); }
+}
+
+// ---------------------------------------------------------------- toques
+function findAttr(el, attr, stop) {
+  while (el && el !== stop && el.getAttribute) { if (el.getAttribute(attr) !== null) return el; el = el.parentNode; }
+  return null;
+}
+document.addEventListener("click", function (e) {
+  var b;
+  if ((b = findAttr(e.target, "data-a", document))) { act(b.getAttribute("data-a"), {}).then(function () { setTimeout(render, 300); }, quiet); return; }
+  if (findAttr(e.target, "data-pp", document)) { playPause(); return; }
+  if (findAttr(e.target, "data-mic", document)) { micToggle(); return; }
+  if (findAttr(e.target, "data-out", document)) { act("audio.cycle", {}).then(function (n) { if (n) toast("Saída: " + n); pollMixer(); }, quiet); return; }
+  if ((b = findAttr(e.target, "data-id", $("h-tasks")))) { if (b.className.indexOf("trow") >= 0) taskToggle(b.getAttribute("data-id")); return; }
+});
+function playPause() {
+  var m = S.now && S.now.media, prev = m ? m.status : null;
+  if (m) { m.status = prev === "playing" ? "paused" : "playing"; S.nowT = Date.now(); renderNow(); }
+  act("media.play_pause", {}).then(quiet, function () { if (m) { m.status = prev; renderNow(); } });
+}
+function micToggle() {
+  var m = S.stats && S.stats.mic; if (!m) return;
+  var prev = m.muted; m.muted = !prev; renderMic();
+  send("mic.set", { muted: "toggle" }).then(function (r) {
+    if (r && S.stats) S.stats.mic = r;
+    renderMic(); toast(r && r.muted ? "Microfone do PC no mudo" : "Microfone do PC ligado");
+  }, function (e) { m.muted = prev; renderMic(); if (e.message !== "offline") toast("O PC recusou: " + e.message, true); });
+}
+function taskToggle(id) {
+  var d = S.tasks, i, t = null;
+  if (!d) return;
+  for (i = 0; i < d.items.length; i++) if (String(d.items[i].id) === String(id)) t = d.items[i];
+  if (!t) return;
+  t.done = !t.done; d.done += t.done ? 1 : -1; renderTasks();
+  send("tasks.toggle", { id: id }).then(function (r) { if (r && r.items) { S.tasks = r; renderTasks(); } }, function (e) {
+    t.done = !t.done; d.done += t.done ? 1 : -1; renderTasks(); loadTasks();
+    if (e.message !== "offline") toast("O PC recusou: " + e.message, true);
+  });
+}
+
+// sliders: volume e posição
+var volDrag = false, volT = 0, seeking = false;
+var vol = $("r-vol");
+vol.addEventListener("input", function () {
+  volDrag = true; $("r-volv").textContent = vol.value + "%";
+  var n = Date.now(); if (n - volT >= 150) { volT = n; send("volume.set", { level: +vol.value }, false).then(quiet, quiet); }
+});
+vol.addEventListener("change", function () { send("volume.set", { level: +vol.value }, false).then(quiet, quiet); setTimeout(function () { volDrag = false; }, 600); });
+$("r-mute").onclick = function () {
+  var v = S.now && S.now.volume; if (!v) return;
+  var prev = v.muted; v.muted = !prev; renderNow();
+  var p = welcome.features && welcome.features.volume ? act("media.mute", {}) : act("key.press", { keys: "vol_mute" });
+  p.then(quiet, function () { v.muted = prev; renderNow(); });
+};
+var sk = $("r-seek");
+sk.addEventListener("input", function () { seeking = true; $("r-pos").textContent = fmtTime(+sk.value); });
+sk.addEventListener("change", function () {
+  var delta = +sk.value - mediaPos();
+  act("media.seek", { delta: delta }).then(quiet, quiet);
+  setTimeout(function () { seeking = false; }, 700);
+});
+
+// mixer (delegado)
+var mixDrag = null, mxT = {};
+function mxFind(key) { var a = S.mix ? S.mix.apps : [], i; for (i = 0; i < a.length; i++) if (a[i].key === key) return a[i]; return null; }
+$("mx-list").addEventListener("input", function (e) {
+  var key = e.target.getAttribute("data-key"); if (!key) return;
+  mixDrag = key; var row = e.target.parentNode.parentNode.parentNode;
+  var v = row.querySelector(".mxv"); if (v) v.textContent = e.target.value + "%";
+  var n = Date.now(); if (n - (mxT[key] || 0) >= 150) { mxT[key] = n; send("mixer.set", { key: key, level: +e.target.value }, false).then(quiet, quiet); }
+});
+$("mx-list").addEventListener("change", function (e) {
+  var key = e.target.getAttribute("data-key"); if (!key) return;
+  send("mixer.set", { key: key, level: +e.target.value }, false).then(quiet, quiet);
+  setTimeout(function () { if (mixDrag === key) mixDrag = null; }, 900);
+});
+$("mx-list").addEventListener("click", function (e) {
+  var b = e.target; if (b.tagName !== "BUTTON") return;
+  var key = b.getAttribute("data-key"), a = mxFind(key); if (!a) return;
+  var prev = a.muted; a.muted = !prev; renderMixer();
+  send("mixer.set", { key: key, muted: "toggle" }).then(function (d) { if (d && d.apps) { S.mix = d; renderMixer(); } }, function (er) {
+    a.muted = prev; renderMixer(); if (er.message !== "offline") toast("O PC recusou: " + er.message, true);
+  });
+});
+
+// ---------------------------------------------------------------- Botões (deck)
+var svgNames = {}, deckHtml = null, deckPage = store.get("deckPage", 0), deckAuto = store.get("deckAuto", true), lastApp = null;
+(function () {
+  try {
+    var x = new XMLHttpRequest();
+    x.open("GET", "icons/lucide.svg");
+    x.onload = function () {
+      if (x.status !== 200) return;
+      var re = /id="ic-([a-z0-9-]{1,40})"/g, m;
+      while ((m = re.exec(x.responseText))) svgNames[m[1]] = 1;
+      deckHtml = null; renderDeck();
+    };
+    x.send();
+  } catch (e) {}
+})();
+function deckPages() { return S.deck && S.deck.deck && S.deck.deck.pages ? S.deck.deck.pages : []; }
+function pageButtons(pg) {
+  var r = [], i, s;
+  if (pg.auto === "shortcuts") { s = welcome.shortcuts || []; for (i = 0; i < s.length; i++) r.push({ label: s[i].name, type: "shortcut", value: s[i].id }); return r; }
+  return pg.buttons || [];
+}
+function initials(l) {
+  var w = String(l || "?").split(/[\s:\/]+/), o = "", i;
+  for (i = 0; i < w.length && o.length < 2; i++) if (w[i]) o += w[i].charAt(0);
+  return (o || "?").toUpperCase();
+}
+function renderDeck() {
+  var pages = deckPages();
+  if (!pages.length) return;
+  deckPage = Math.max(0, Math.min(deckPage, pages.length - 1));
+  var h = "", i, pg = pages[deckPage], bs = pageButtons(pg), b, ic;
+  for (i = 0; i < pages.length; i++) h += '<button class="pill' + (i === deckPage ? " on" : "") + '" data-page="' + i + '">' + esc(pages[i].name) + "</button>";
+  setHtml($("d-pills"), h);
+  h = "";
+  for (i = 0; i < bs.length; i++) {
+    b = bs[i];
+    ic = b.svg && svgNames[b.svg] ? '<svg viewBox="0 0 24 24"><use xlink:href="icons/lucide.svg#ic-' + esc(b.svg) + '"/></svg>' : '<span class="di">' + esc(initials(b.label)) + "</span>";
+    h += '<div class="dcell" data-i="' + i + '"><button class="dbtn' + (b.confirm ? " warn" : "") + '">' + ic + '<span class="dl">' + esc(b.label) + "</span>" +
+      (b.type === "keys" && b.value ? '<span class="dk">' + esc(String(b.value).toUpperCase()) + "</span>" : "") + "</button></div>";
+  }
+  if (!bs.length) h = '<div class="empty" style="padding:10px 5px">' + (pg.auto ? "Nenhum programa no config.json do PC" : "Página vazia") + "</div>";
+  setHtml($("d-btns"), h);
+}
+$("d-pills").onclick = function (e) {
+  var b = findAttr(e.target, "data-page", this); if (!b) return;
+  deckPage = +b.getAttribute("data-page"); store.set("deckPage", deckPage); renderDeck();
+};
+$("d-btns").onclick = function (e) {
+  var c = findAttr(e.target, "data-i", this); if (!c) return;
+  var pg = deckPages()[deckPage], i = +c.getAttribute("data-i"), b = pageButtons(pg)[i], el = c.firstChild;
+  if (!b) return;
+  el.className += " hit"; setTimeout(function () { el.className = el.className.replace(" hit", ""); }, 180);
+  var run = function () {
+    return (pg.auto ? act("app.launch", { id: b.value }, "Abrindo " + b.label)
+      : act("deck.press", { page: deckPage, index: i }, b.type === "action" || b.type === "shortcut" ? b.label : null)).then(quiet, quiet);
+  };
+  if (b.confirm) confirmAsk(b.label + "?", run); else run();
+};
+function deckFollow(s) {
+  if (!S.deck) return;
+  var key = (s.app || "") + (s.app_game ? "@" : "");
+  if (key === lastApp) return;
+  lastApp = key;
+  if (!deckAuto || !s.app) return;
+  var pages = deckPages(), i, j, idx = -1;
+  for (i = 0; i < pages.length && idx < 0; i++) { var ap = pages[i].apps || []; for (j = 0; j < ap.length; j++) if (ap[j] === s.app) idx = i; }
+  if (idx < 0 && s.app_game) {
+    for (i = 0; i < pages.length && idx < 0; i++) { var ag = pages[i].apps || []; for (j = 0; j < ag.length; j++) if (ag[j] === "@jogo") idx = i; }
+  }
+  if (idx >= 0 && idx !== deckPage) { deckPage = idx; renderDeck(); }
+}
+
+// ---------------------------------------------------------------- PC: energia e timer
+function buildPower() {
+  var items = [["lock", "Bloquear", false]], h = "", i;
+  if (welcome.power) items.push(["monitor_off", "Desligar monitor", false], ["sleep", "Suspender", true], ["restart", "Reiniciar…", true], ["shutdown", "Desligar…", true], ["cancel", "Cancelar desligamento", false]);
+  for (i = 0; i < items.length; i++) h += '<div class="tile' + (items[i][2] ? " warn" : "") + (items[i][0] === "cancel" ? " cancel" : "") + '"><button data-pw="' + items[i][0] + '" data-c="' + (items[i][2] ? 1 : 0) + '" data-l="' + esc(items[i][1]) + '">' + esc(items[i][1]) + "</button></div>";
+  setHtml($("pw"), h);
+  setText($("pw-note"), welcome.power ? "Reiniciar e Desligar mostram a contagem no PC; use Cancelar desligamento para abortar." : "Ações de energia desativadas no config.json do PC.");
+  $("tm-col").className = welcome.power ? "colx" : "colx hidden";
+}
+$("pw").onclick = function (e) {
+  var b = findAttr(e.target, "data-pw", this); if (!b) return;
+  var a = b.getAttribute("data-pw"), l = b.getAttribute("data-l").replace("…", "");
+  var run = function () { act("power", { action: a }, a === "cancel" ? "Desligamento cancelado" : l).then(quiet, quiet); };
+  if (b.getAttribute("data-c") === "1") confirmAsk(l + " o PC?", run); else run();
+};
+var tmBtns = document.querySelectorAll("[data-min]"), ti;
+for (ti = 0; ti < tmBtns.length; ti++) tmBtns[ti].onclick = function () {
+  var min = +this.getAttribute("data-min");
+  act("timer.start", { action: $("tm-act").value, minutes: min }).then(function (r) {
+    if (!r) return;
+    if (S.stats) S.stats.timer = r;
+    renderTimer(); toast(r.label + " em " + fmtTime(min * 60));
+  }, quiet);
+};
+$("tm-cancel").onclick = function () {
+  act("timer.cancel", {}, "Timer cancelado").then(function () { if (S.stats) S.stats.timer = null; renderTimer(); }, quiet);
+};
+function renderTimer() {
+  var t = S.stats && S.stats.timer;
+  $("tm-on").className = t ? "" : "hidden"; $("tm-off").className = t ? "hidden" : "";
+  if (t) { setText($("tm-left"), fmtTime(t.left)); setText($("tm-what"), t.label + " quando chegar a zero"); }
+}
+
+// ---------------------------------------------------------------- ciclos (tela no máximo 1×/s)
+setInterval(function () { if (!document.hidden) render(); }, 1000);
+setInterval(chartTick, 2000);
+setInterval(loadTasks, 10000);
+setInterval(loadWork, 30000);
+setInterval(function () { if (page === "radio") pollMixer(); }, 1000);
+connect();
+})();
+</script>
+</body>
+</html>
