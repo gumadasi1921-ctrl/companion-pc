@@ -1179,9 +1179,10 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 <div class="overlay hidden" id="login">
   <form class="dialog" id="login-form">
     <h1>Conectar ao PC</h1>
-    <p>Escaneie o QR code no painel do Companion PC (ícone perto do relógio do PC) ou cole o token do <code>config.json</code>.</p>
-    <input class="fi" id="token" placeholder="token" autocomplete="off" autocapitalize="off" spellcheck="false">
-    <div class="acts"><button class="btn primary" type="submit">Conectar</button></div>
+    <p id="login-msg">Digite o código de 6 dígitos que aparece no painel do Companion PC (ícone perto do relógio do PC), ou escaneie o QR code.</p>
+    <input class="fi" id="code" type="tel" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" placeholder="Código do painel do PC" autocomplete="one-time-code" autocapitalize="off" spellcheck="false">
+    <input class="fi hidden" id="token" placeholder="token" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div class="acts"><button class="btn" type="button" id="login-alt">Usar token</button><button class="btn primary" type="submit">Entrar</button></div>
   </form>
 </div>
 <div class="overlay hidden" id="bed">
@@ -1298,19 +1299,21 @@ const state = { stats: null, now: null, games: null, art: {}, gameart: {}, nowT:
 
 function wsUrl() { return (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws"; }
 
-function connect() {
+function connect(pairCode) {
   clearTimeout(retryT);
   const token = store.get("token", "");
-  if (!token) { showLogin(); return; }
+  if (!token && !pairCode) { showLogin(); return; }
   setDot("wait", "Conectando…");
   const sock = ws = new WebSocket(wsUrl());
-  sock.onopen = () => sock.send(JSON.stringify({ t: "hello", token, client: "android",
+  sock.onopen = () => sock.send(JSON.stringify({ t: pairCode ? "pair" : "hello", ...(pairCode ? { code: pairCode } : { token }), client: "android",
     screen: `${innerWidth}x${innerHeight} dpr${devicePixelRatio} ${matchMedia("(orientation: landscape)").matches ? "deitado" : "em pé"} cq=${CSS.supports("container-type: size")} ${(navigator.userAgent.match(/Chrome\/[\d.]+/) || [navigator.userAgent.slice(0, 40)])[0]}` }));
   sock.onmessage = (ev) => { if (sock === ws) onMsg(JSON.parse(ev.data)); };
   sock.onclose = (ev) => {
     if (sock !== ws) return;
     ws = null;
     for (const [, p] of pending) p.reject(new Error("desconectado")); pending.clear();
+    if (ev.code === 4002) { showLogin("Código errado ou vencido. Gere outro no painel do PC."); return; }
+    if (ev.code === 4003) { showLogin("Muitas tentativas. Espere 1 minuto."); return; }
     if (ev.code === 4001) { store.set("token", ""); setDot("", "Token inválido"); showLogin("Token inválido. Confira o config.json do PC."); return; }
     setDot("", "Desconectado");
     if (wasOnline) { wasOnline = false; snd("off"); }
@@ -1338,6 +1341,7 @@ function act(a, p, label) {
 
 function onMsg(m) {
   switch (m.t) {
+    case "paired": store.set("token", m.token); $("login").classList.add("hidden"); break;   // o token nunca aparece na tela
     case "welcome":
       // página nova no PC: recarrega (o app reconecta sozinho e nunca baixaria o HTML de novo)
       if (m.web && pageBuild && m.web !== pageBuild) { location.reload(); return; }
@@ -1380,14 +1384,27 @@ function setDot(cls, text) {
 function showLogin(msg) {
   bootDone(true);
   $("login").classList.remove("hidden");
-  if (msg) $("login").querySelector("p").textContent = msg;
-  $("token").value = "";
-  setTimeout(() => $("token").focus(), 50);
+  if (msg) $("login-msg").textContent = msg;
+  $("token").value = ""; $("code").value = "";
+  setTimeout(() => (loginTok ? $("token") : $("code")).focus(), 50);
 }
+let loginTok = false;   // false = código do painel (padrão); true = token colado
+$("login-alt").onclick = () => {
+  loginTok = !loginTok;
+  $("code").classList.toggle("hidden", loginTok); $("token").classList.toggle("hidden", !loginTok);
+  $("login-alt").textContent = loginTok ? "Usar código" : "Usar token";
+  (loginTok ? $("token") : $("code")).focus();
+};
 $("login-form").onsubmit = (e) => {
   e.preventDefault();
-  const t = $("token").value.trim(); if (!t) return;
-  store.set("token", t); $("login").classList.add("hidden"); connect();
+  if (loginTok) {
+    const t = $("token").value.trim(); if (!t) return;
+    store.set("token", t); $("login").classList.add("hidden"); connect();
+    return;
+  }
+  const c = $("code").value.replace(/\D/g, "");
+  if (c.length !== 6) { $("login-msg").textContent = "Digite os 6 dígitos do código."; return; }
+  $("login").classList.add("hidden"); connect(c);
 };
 $("b-logout").onclick = () => { store.set("token", ""); if (ws) { const s = ws; ws = null; s.close(); } showLogin(); };
 

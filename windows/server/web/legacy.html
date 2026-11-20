@@ -215,7 +215,7 @@ select{font:inherit;height:44px;border-radius:10px;border:0;background:#2C2C2E;c
 <div id="tabs"><button data-pg="inicio" class="on">Início</button><button data-pg="radio">Rádio</button><button data-pg="botoes">Botões</button><button data-pg="pc">PC</button></div>
 <div id="toast" class="hidden"></div>
 <div class="ov hidden" id="cf"><div class="dlg"><p id="cf-q"></p><div class="row"><button id="cf-n">Não</button><button class="go" id="cf-y">Sim</button></div></div></div>
-<div class="ov hidden" id="login"><form class="dlg" id="lg-f"><p id="lg-p">Digite o token do PC (config.json).</p><input id="lg-t" type="text" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false"><div class="row"><button class="go" type="submit">Entrar</button></div></form></div>
+<div class="ov hidden" id="login"><form class="dlg" id="lg-f"><p id="lg-p">Digite o código de 6 dígitos que aparece no painel do PC.</p><input id="lg-c" type="tel" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" placeholder="Código do painel do PC" autocomplete="one-time-code" autocapitalize="off" autocorrect="off" spellcheck="false"><input id="lg-t" class="hidden" type="text" placeholder="token" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false"><div class="row"><button type="button" id="lg-alt">Usar token</button><button class="go" type="submit">Entrar</button></div></form></div>
 
 <script>
 (function () {
@@ -260,24 +260,38 @@ function banner(on, txt) { var b = $("banner"); b.className = on ? "" : "hidden"
 function showLogin(msg) {
   banner(false);
   if (msg) $("lg-p").textContent = msg;
-  $("lg-t").value = "";
+  $("lg-t").value = ""; $("lg-c").value = "";
   $("login").className = "ov";
 }
 $("lg-f").onsubmit = function (e) {
   e.preventDefault();
-  var t = $("lg-t").value.replace(/^\s+|\s+$/g, ""); if (!t) return;
-  store.set("token", t); $("login").className = "ov hidden"; connect();
+  if (loginTok) {
+    var t = $("lg-t").value.replace(/^\s+|\s+$/g, ""); if (!t) return;
+    store.set("token", t); $("login").className = "ov hidden"; connect();
+    return;
+  }
+  var c = $("lg-c").value.replace(/\D/g, "");
+  if (c.length !== 6) { $("lg-p").textContent = "Digite os 6 dígitos do código."; return; }
+  $("login").className = "ov hidden"; connect(c);
 };
-function connect() {
+var loginTok = false;   // false = código do painel (padrão); true = token colado
+$("lg-alt").onclick = function () {
+  loginTok = !loginTok;
+  $("lg-c").className = loginTok ? "hidden" : ""; $("lg-t").className = loginTok ? "" : "hidden";
+  $("lg-alt").textContent = loginTok ? "Usar código" : "Usar token";
+};
+function connect(pairCode) {
   clearTimeout(retryT);
   var token = store.get("token", "");
-  if (!token) { showLogin(); return; }
+  if (!token && !pairCode) { showLogin(); return; }
   banner(true, welcome.host ? "Reconectando…" : "Conectando…");
   var sock;
   try { sock = new WebSocket(wsUrl()); } catch (e) { scheduleRetry(); return; }
   ws = sock;
   sock.onopen = function () {
-    sock.send(JSON.stringify({ t: "hello", token: token, client: "tablet-legado", screen: innerWidth + "x" + innerHeight + " legado" }));
+    var o = { t: pairCode ? "pair" : "hello", client: "tablet-legado", screen: innerWidth + "x" + innerHeight + " legado" };
+    if (pairCode) o.code = pairCode; else o.token = token;
+    sock.send(JSON.stringify(o));
   };
   sock.onmessage = function (ev) { if (sock !== ws) return; var m; try { m = JSON.parse(ev.data); } catch (e) { return; } onMsg(m); };
   sock.onclose = function (ev) {
@@ -285,6 +299,8 @@ function connect() {
     ws = null; online = false;
     var k, p;
     for (k in pending) { p = pending[k]; delete pending[k]; p.reject(new Error("desconectado")); }
+    if (ev.code === 4002) { showLogin("Código errado ou vencido. Gere outro no painel do PC."); return; }
+    if (ev.code === 4003) { showLogin("Muitas tentativas. Espere 1 minuto."); return; }
     if (ev.code === 4001) { store.set("token", ""); showLogin("Token inválido. Confira o config.json do PC."); return; }
     banner(true, "Reconectando…");
     render();
@@ -314,6 +330,7 @@ function act(a, p, label) {
 }
 function onMsg(m) {
   switch (m.t) {
+    case "paired": store.set("token", m.token); $("login").className = "ov hidden"; break;   // o token nunca aparece na tela
     case "welcome":
       if (m.web && pageBuild && m.web !== pageBuild) { location.reload(); return; }
       pageBuild = pageBuild || m.web;
