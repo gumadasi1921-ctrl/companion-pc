@@ -19,8 +19,9 @@ Rules:
 - Instalação: windows/install-server.ps1 copia para %USERPROFILE%\companion-pc\server. Testar = rodar o install de novo.
 - Regra: consulte o grafo (graphify query "...") e este mapa ANTES de abrir arquivos; abra só os trechos indicados.
 - Grafo só dos .py (.graphifyignore exclui web/, extras/, docs); regenerar: graphify update .
+- Ao mudar o index.html, regenere este índice no mesmo commit.
 
 ### Índice index.html (linhas)
-- <style> 14–525; <nav id="nav"> 816; const SECTIONS 1042
-- Telas (section.tab): dash 587, games 601, work 621, media 636, mix 656, mouse 664, screen 710, deck 725, send 732, power 758, sys 775
-- JS: ajustes 881, formatação 896, conexão 938, seções/vistas 1039, abertura 1082, Painel 1095, Tocando 1166, Games 1227, Jogos semana 1249, Trabalho 1284, Atalhos/Sistema 1338, Mouse 1363, Teclado 1449, Botões/deck 1506, foco 1680, microfone/energia 1695, celular parado 1732, Mixer 1794, Tela do PC 1844, Enviar/receber 1945, Alertas 2031, Ajustes celular 2089, loop de tela 2143
+- <style> 14–533; <nav id="nav"> 830; const SECTIONS 1057
+- Telas (section.tab): dash 595, games 609, work 629, tasks 644, media 650, mix 670, mouse 678, screen 724, deck 739, send 746, power 772, sys 789
+- JS: ajustes 896, formatação 911, conexão 953, seções/vistas 1054, abertura 1099, Painel 1112, Tocando 1183, Games 1244, Jogos semana 1266, Trabalho 1301, Tarefas 1355, Atalhos/Sistema 1373, Mouse 1398, Teclado 1484, Botões/deck 1541, foco 1715, microfone/energia 1730, celular parado 1767, Mixer 1829, Tela do PC 1879, Enviar/receber 1980, Alertas 2066, Ajustes celular 2124, loop de tela 2178
