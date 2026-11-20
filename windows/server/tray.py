@@ -214,6 +214,8 @@ class TrayApp:
             log.exception("painel")
         finally:
             self.panel_open = False
+            if self.ops and "pair_close" in self.ops:
+                self.ops["pair_close"]()   # painel fechado: o código deixa de valer
 
     def run(self):
         import pystray
@@ -332,7 +334,16 @@ class Panel:
         info.pack(side="left", fill="both", expand=True, padx=(4, 12), pady=10)
         self.phone_wifi = tk.Label(info, font=f, fg=self.TEXT, bg=self.CARD, anchor="w", justify="left", wraplength=380)
         self.phone_wifi.pack(fill="x")
-        self.phone_cable = tk.Label(info, font=f, fg=self.DIM, bg=self.CARD, anchor="w", justify="left", wraplength=380)
+        # pareamento por código (tablet/celular sem digitar o token); só existe com o painel aberto
+        self.pair_lbl = tk.Label(info, font=f_b, fg=self.TEXT, bg=self.CARD, anchor="w", justify="left", wraplength=380)
+        self.pair_btn = tk.Button(info, text="Novo código", font=f, fg=self.TEXT, bg="#2b323c",
+                                  activebackground="#36404c", activeforeground=self.TEXT, relief="flat",
+                                  borderwidth=0, padx=12, pady=5, cursor="hand2", command=self._pair_new)
+        if self.app.ops and "pair_new" in self.app.ops:
+            self.pair_lbl.pack(fill="x", pady=(8, 0))
+            self.pair_btn.pack(anchor="w", pady=(4, 0))
+            self.app.ops["pair_new"]()
+        self.phone_cable =tk.Label(info, font=f, fg=self.DIM, bg=self.CARD, anchor="w", justify="left", wraplength=380)
         self.phone_cable.pack(fill="x", pady=(8, 0))
         self.phone_btn = tk.Button(info, text="Abrir app no celular (cabo)", font=f, fg=self.TEXT, bg="#2b323c",
                                    activebackground="#36404c", activeforeground=self.TEXT, relief="flat",
@@ -978,6 +989,23 @@ class Panel:
         else:
             self.c_msg.configure(text="Salvo.", fg="#2ecc71")
 
+    def _pair_new(self):
+        self.app.ops["pair_new"]()
+        self._pair_refresh()
+
+    def _pair_refresh(self):
+        if not (self.app.ops and "pair_state" in self.app.ops):
+            return
+        st = self.app.ops["pair_state"]()
+        if st["code"]:
+            c, left = st["code"], st["left"]
+            self.pair_lbl.configure(text=f"Código para parear: {c[:3]} {c[3:]} · expira em {left // 60}:{left % 60:02d}",
+                                    fg=self.TEXT)
+        else:
+            why = {"tentativas": "Código invalidado por tentativas erradas. Gere outro.",
+                   "vencido": "Código expirado. Gere outro."}.get(st["dead"], "Código usado. Gere outro para outro aparelho.")
+            self.pair_lbl.configure(text=why, fg="#f1c40f")
+
     def _open_phone(self):
         err = self.app.open_on_phone()
         self.phone_msg.configure(text=err or "Abrindo no celular…", fg="#e74c3c" if err else self.DIM)
@@ -1043,6 +1071,7 @@ class Panel:
         self.game.configure(text=f"Jogando: {st['game']}" if st.get("game") else "Nenhum jogo detectado")
         if "phone" in st:
             self._refresh_phone(st["phone"])
+        self._pair_refresh()
 
         try:
             mtime = self.app.log_path.stat().st_mtime
