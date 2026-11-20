@@ -17,6 +17,7 @@ Rules:
 - extras.py: deck, área de transferência, arquivos, tela. games.py: jogos. pc_info.py: info do PC. watchers.py: observadores.
 - web/index.html (windows/server/web): app do celular (PWA) em 1 arquivo; SECTIONS = seções da barra de baixo + sub-abas; store = localStorage prefixo "pcc.".
 - Instalação: windows/install-server.ps1 copia para %USERPROFILE%\companion-pc\server. Testar = rodar o install de novo.
+- Redesign: ler só a seção relevante de docs/DESIGN.md antes de mexer no visual.
 - Regra: consulte o grafo (graphify query "...") e este mapa ANTES de abrir arquivos; abra só os trechos indicados.
 - Grafo só dos .py (.graphifyignore exclui web/, extras/, docs); regenerar: graphify update .
 - Ao mudar o index.html, regenere este índice no mesmo commit.
