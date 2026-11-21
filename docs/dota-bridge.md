@@ -193,6 +193,7 @@ com a imagem falhando, o app mostra o nome em texto na mesma caixa (campo `null`
 | Últimas partidas e Mais jogados | retrato 128×72 → 64×36, `object-fit: cover`; borda verde/vermelha = vitória/derrota (só nas partidas) |
 | Faixa do herói (draft/pregame, game, postgame) | loadout 448×678, `object-fit: cover` com `object-position` no topo (rosto), sem esticar: 72×96 (132×176 no fim da partida) |
 | Itens (build, inventário, próximo item) | 88×64 → 44×32 (inventário: 44×32; mochila 32×23 a 60% de opacidade; neutro, `slot` 9, num círculo de 40 px ao lado) |
+| Widget "Dota" do Início | retrato 64×36 (miniaturas de 48×27 no menu), item 44×32 |
 
 O ícone 32×32 do herói não é usado em nenhuma tela. No máximo ~40 imagens por tela (`DOTA_IMG_MAX`; o resto da build
 vira só texto). Todas têm `loading="lazy"`, tamanho reservado (o layout não pula) e esqueleto até carregar.

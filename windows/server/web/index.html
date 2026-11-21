@@ -1071,6 +1071,10 @@ select.sel { min-height: 44px; }
 .dnring .dimg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
 .hdota .dbig { font: 700 28px/1.05 var(--display); font-variant-numeric: tabular-nums; }
 .hdota .sub { white-space: normal; }
+.hdota .dwr { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.hdota .dwm { display: flex; gap: 8px; margin-top: 8px; }
+.hdota .dwmi { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.hdota .dwmi small { font: 500 11px/1.2 var(--font, var(--mono)); color: var(--text-2, var(--p2)); white-space: nowrap; }
 input.num { min-height: 36px; }
 :root[data-theme="modern"] .lgame { background: var(--surface-2); border-color: var(--separator); }
 :root[data-theme="modern"] .lgame:active { background: var(--surface-3); color: var(--text); }
@@ -2636,26 +2640,49 @@ Object.assign(HOME_W, {
     },
   },
 });
+// Widget do Início: as <img> só são refeitas quando a assinatura muda; a cada segundo só os textos (data-w)
+function dotaWidgetPlan(d) {
+  const L = d.live, l = d.lobby, h = d.hero, k = dota.k;
+  if (d.phase === "game" && L) {
+    const n = L.next_item;
+    return { sig: JSON.stringify(["g", h?.hero_id, h?.hero, n?.item_id, n?.item, nn(L.clock_s), !!dKda(L), k]),
+      html: `<div class="dwr">${dImg("hero", h?.hero_id, "portrait", h?.hero, 64, 36)}<div class="dmid">${nn(L.clock_s) ? '<div class="dbig" data-w="clock"></div>' : ""}${dKda(L) ? '<span data-w="kda"></span>' : ""}</div></div>`
+        + (n ? `<div class="dwr">${dImg("item", n.item_id, "", n.item, 44, 32)}<div class="dmid"><b>${esc(n.item)}</b><span data-w="miss"></span></div></div>` : "") };
+  }
+  if (d.phase === "draft" || d.phase === "pregame") {
+    return { sig: JSON.stringify(["p", h?.hero_id, h?.hero, k]),
+      html: `<div class="dwr">${h ? dImg("hero", h.hero_id, "portrait", h.hero, 64, 36) : ""}<div class="dmid"><div class="dbig">${esc(h?.hero || "Escolhendo…")}</div></div></div>` };
+  }
+  if (d.phase === "postgame") {
+    const r = d.result || {}, id = nn(r.hero_id) ? r.hero_id : h?.hero_id;
+    return { sig: JSON.stringify(["e", id, h?.hero, r.win, dKda(r), k]),
+      html: `<div class="dwr">${dImg("hero", id, "portrait", h?.hero, 64, 36, dResult(r.win))}<div class="dmid"><div class="dbig">${dWin(r.win, "Vitória", "Derrota", "Fim")}</div>${dKda(r) ? `<span>${dKda(r)}</span>` : ""}</div></div>` };
+  }
+  const rec = (l?.recent || []).slice(0, 3).filter((m) => dId(m.hero_id));
+  return { sig: JSON.stringify(["m", d.phase, d.reason, l?.mmr, l?.today, rec, k]),
+    html: (l?.mmr ? `<div class="dbig">${dNum(l.mmr.value)}</div><div class="sub">${esc(l.mmr.medal || "")}${l.mmr.estimated ? " · estimado" : ""}</div>` : "")
+      + (l?.today ? `<div class="row"><span>Hoje</span><span>${l.today.wins}V – ${l.today.losses}D</span></div>` : "")
+      + (rec.length ? `<div class="dwm">${rec.map((m) => `<div class="dwmi">${dImg("hero", m.hero_id, "portrait", m.hero, 48, 27, dResult(m.win))}<small>${dKda(m)}</small></div>`).join("")}</div>` : "")
+      + (d.phase === "offline" ? `<div class="hw-na">${esc(d.reason || "Dota fechado")}</div>` : "") };
+}
+function dotaWidgetTick(b, d) {
+  const L = d.live; if (d.phase !== "game" || !L) return;
+  const q = (k) => b.querySelector(`[data-w="${k}"]`);
+  if (nn(L.clock_s)) setText(q("clock"), dClock(L.clock_s + dAge()));
+  setText(q("kda"), dKda(L));
+  const m = L.next_item?.missing_gold;
+  setText(q("miss"), nn(m) && m > 0 ? "falta " + dNum(m) : "");
+}
 Object.assign(HOME_W, {
   dota: {
     name: "Dota", icon: "gamepad",
     html: () => `<div class="hw-t"><span>Dota</span><span data-k="ph"></span></div><div class="hdota" data-k="body"></div>`,
     ready: () => !!dota.d,
     upd(el) {
-      const d = dota.d, L = d.live, l = d.lobby;
+      const d = dota.d, p = dotaWidgetPlan(d), b = hk(el, "body");
       setText(hk(el, "ph"), DOTA_PH[d.phase] || "");
-      let h;
-      if (d.phase === "game" && L) {
-        h = (nn(L.clock_s) ? `<div class="dbig">${dClock(L.clock_s + dAge())}</div>` : "") + (d.hero?.hero ? `<div class="sub">${esc(d.hero.hero)}${dKda(L) ? " · " + dKda(L) : ""}</div>` : "")
-          + (L.next_item ? `<div class="row"><span>${esc(L.next_item.item)}</span><span>${nn(L.next_item.missing_gold) && L.next_item.missing_gold > 0 ? "falta " + dNum(L.next_item.missing_gold) : ""}</span></div>` : "");
-      } else if (d.phase === "draft" || d.phase === "pregame") h = `<div class="dbig">${esc(d.hero?.hero || "Escolhendo…")}</div>`;
-      else if (d.phase === "postgame") h = `<div class="dbig">${dWin(d.result?.win, "Vitória", "Derrota", "Fim")}</div>${dKda(d.result) ? `<div class="sub">${dKda(d.result)}</div>` : ""}`;
-      else {
-        h = (l?.mmr ? `<div class="dbig">${dNum(l.mmr.value)}</div><div class="sub">${esc(l.mmr.medal || "")}${l.mmr.estimated ? " · estimado" : ""}</div>` : "")
-          + (l?.today ? `<div class="row"><span>Hoje</span><span>${l.today.wins}V – ${l.today.losses}D</span></div>` : "")
-          + (d.phase === "offline" ? `<div class="hw-na">${esc(d.reason || "Dota fechado")}</div>` : "");
-      }
-      setHtml(hk(el, "body"), h || '<div class="hw-na">Sem dados</div>');
+      if (b._sig !== p.sig) { b.innerHTML = p.html; b._sig = p.sig; }
+      dotaWidgetTick(b, d);
     },
   },
 });
