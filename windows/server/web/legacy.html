@@ -164,6 +164,21 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:30px;heigh
 .dlg button{-webkit-flex:1;flex:1;height:50px;font-weight:600}
 .dlg button+button{margin-left:10px}
 .dlg .go{background:#1F6FEB;color:#fff}
+.pmcol{-webkit-flex:none;flex:none;width:300px}
+.pmw{position:relative;width:140px;height:140px;margin:0 auto}
+.pmw .ring{position:absolute;top:0;left:0}
+.pmc{position:absolute;top:0;left:0;right:0;bottom:0;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center}
+.pmt{font-size:34px;font-weight:300;line-height:1.1;font-variant-numeric:tabular-nums}
+.pmp{font-size:13px;color:#A1A1A6}
+.pmd{text-align:center;margin-top:14px;height:12px}
+.pmd i{display:inline-block;width:12px;height:12px;border-radius:6px;background:#3A3A3C;margin:0 4px;vertical-align:top}
+.pmd i.on{background:#4C9AFF}
+.pmd i.cur{background:#1C2B45;border:2px solid #4C9AFF}
+.pmb{display:-webkit-flex;display:flex}
+.pmb button{-webkit-flex:1;flex:1;min-width:0;height:52px;font-weight:600;border-radius:18px}
+.pmb button+button{margin-left:10px}
+.pmb .pmgo,.pmgo{background:#1F6FEB;color:#fff;font-weight:600}
+.pmsel{width:100%;height:48px;font:inherit;border-radius:12px;border:1px solid #38383A;background:#000;color:#F2F2F7;padding:0 12px;margin-top:6px}
 @media (orientation:portrait){
  #wrap{-webkit-flex-direction:column;flex-direction:column}
  #tabs{-webkit-order:2;order:2;width:auto;-webkit-flex-direction:row;flex-direction:row;border-right:0;border-top:.5px solid #38383A;height:64px;padding:4px;overflow:hidden}
@@ -181,6 +196,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:30px;heigh
  #r-pl{min-height:0}
  .dcell{width:33.333%}
  .tile{width:50%}
+ .pmcol{width:auto}
 }
 @media (prefers-reduced-motion:reduce){.sk{-webkit-animation:none;animation:none}button:active{-webkit-transform:none;transform:none}}
 </style>
@@ -204,6 +220,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:30px;heigh
  <div class="cols eq">
   <div class="colx fl">
    <div class="card"><div class="clk" id="clk">--:--</div><div class="dt" id="dt"></div></div>
+   <div class="card" id="h-pmc"><div class="rowb"><div class="f1"><h3>Foco</h3><div class="sub" id="h-pmp">Indisponível</div></div><div class="big fx" id="h-pmt" style="margin:0 14px;font-variant-numeric:tabular-nums">--:--</div><button class="pmgo fx" id="h-pmb" style="padding:0 18px;height:48px">Começar</button></div></div>
    <div class="card">
     <h3>Tocando</h3>
     <div class="art" id="h-art"></div>
@@ -323,11 +340,24 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:30px;heigh
 </section>
 
 <section class="page" id="p-tarefas">
+ <div class="seg" id="tk-seg" style="margin-bottom:12px;max-width:320px"><button data-tkm="list" class="on">Lista</button><button data-tkm="foco">Foco</button></div>
+ <div id="tk-foco" class="hidden">
+  <div class="cols">
+   <div class="colx pmcol"><div class="card rbig"><div class="pmw"><svg class="ring" id="pm-ring" width="140" height="140" viewBox="0 0 140 140"><circle class="rt" cx="70" cy="70" r="60"/><circle class="rf" cx="70" cy="70" r="60" transform="rotate(-90 70 70)" stroke-dasharray="0 377"/></svg><div class="pmc"><div class="pmt" id="pm-time">--:--</div><div class="pmp" id="pm-ph">Conectando…</div></div></div><div class="pmd" id="pm-dots"></div></div></div>
+   <div class="colx"><div class="card">
+    <div class="pmb"><button class="pmgo" id="pm-go" data-pm="go">Começar</button><button data-pm="skip">Pular</button><button data-pm="reset">Zerar</button></div>
+    <div class="lbl" style="margin-top:14px">Focando em</div><select class="pmsel" id="pm-task"></select>
+    <div class="sub" id="pm-today" style="margin-top:14px"></div>
+   </div></div>
+  </div>
+ </div>
+ <div id="tk-list">
  <div class="cols">
   <div class="colx" style="-webkit-flex:none;flex:none;width:300px"><div class="card rbig"><svg class="ring" id="tk-ring" width="140" height="140" viewBox="0 0 140 140"><circle class="rt" cx="70" cy="70" r="60"/><circle class="rf" cx="70" cy="70" r="60" transform="rotate(-90 70 70)" stroke-dasharray="0 377"/></svg><div class="big" id="tk-rt"></div><div class="sub" id="tk-rs"></div></div></div>
   <div class="colx"><div class="card"><div class="rowb"><h3 style="margin:0">Pendentes</h3><span class="sub" id="tk-pc"></span></div><div id="tk-p"><div class="sk"></div><div class="sk w2"></div><div class="sk w3"></div></div></div>
    <div class="card"><div class="rowb"><h3 style="margin:0">Feitas</h3><span class="sub" id="tk-dc"></span></div><div id="tk-d"></div></div>
   </div>
+ </div>
  </div>
 </section>
 
@@ -368,7 +398,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:30px;heigh
 </div>
 </div>
 <div id="undo" class="hidden"><span id="undo-t"></span><button id="undo-b">Desfazer</button></div>
-<div id="base" class="hidden"><div id="bs-in"><div class="bk" id="bs-clk">--:--</div><div class="bd" id="bs-dt"></div><div class="bl" id="bs-now"></div><div class="bl" id="bs-sys"></div><div class="bl" id="bs-game"></div></div></div>
+<div id="base" class="hidden"><div id="bs-in"><div class="bk" id="bs-clk">--:--</div><div class="bd" id="bs-dt"></div><div class="bl" id="bs-now"></div><div class="bl" id="bs-pm"></div><div class="bl" id="bs-sys"></div><div class="bl" id="bs-game"></div></div></div>
 <div id="toast" class="hidden"></div>
 <div class="ov hidden" id="cf"><div class="dlg"><p id="cf-q"></p><div class="row"><button id="cf-n">Não</button><button class="go" id="cf-y">Sim</button></div></div></div>
 <div class="ov hidden" id="login"><form class="dlg" id="lg-f"><p id="lg-p">Digite o código de 6 dígitos que aparece no painel do PC.</p><input id="lg-c" type="tel" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" placeholder="Código do painel do PC" autocomplete="one-time-code" autocapitalize="off" autocorrect="off" spellcheck="false"><input id="lg-t" class="hidden" type="text" placeholder="token" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false"><div class="row"><button type="button" id="lg-alt">Usar token</button><button class="go" type="submit">Entrar</button></div></form></div>
@@ -492,7 +522,7 @@ function onMsg(m) {
       pageBuild = pageBuild || m.web;
       welcome = m; retry = 0; online = true;
       banner(false);
-      loadDeck(); loadTasks(); loadWork(); pollMixer(); subNotif();
+      loadDeck(); loadTasks(); loadWork(); pollMixer(); subNotif(); loadPomo();
       buildPower(); render();
       break;
     case "res":
@@ -503,15 +533,19 @@ function onMsg(m) {
     case "now": S.now = m.d; S.nowT = Date.now(); dirty = true; break;
     case "art": S.art = {}; S.art[m.id] = "data:image/jpeg;base64," + m.jpg; dirty = true; break;
     case "games": S.games = m.d; S.gamesT = Date.now(); dirty = true; break;
-    case "event": if (m.kind === "notif") { notifPush(m); dirty = true; } break;
+    case "pomo": pomoSet(m.d); break;
+    case "event":
+      if (m.kind === "notif") { notifPush(m); dirty = true; }
+      else if (m.kind === "pomo.done") pomoDone(m);
+      break;
   }
 }
 
 // ---------------------------------------------------------------- avisos e confirmação
 var toastT;
-function toast(msg, bad) {
+function toast(msg, bad, ms) {
   var t = $("toast"); t.textContent = msg; t.className = bad ? "bad" : "";
-  clearTimeout(toastT); toastT = setTimeout(function () { t.className = "hidden"; }, 2400);
+  clearTimeout(toastT); toastT = setTimeout(function () { t.className = "hidden"; }, ms || 2400);
 }
 var confirmFn = null;
 function confirmAsk(q, fn) { $("cf-q").textContent = q; confirmFn = fn; $("cf").className = "ov"; }
@@ -838,6 +872,7 @@ function renderSis() {
 }
 function render() {
   dirty = false;
+  pmUpd();
   if (page === "jogos") { renderJogos(); return; }
   if (page === "trabalho") { renderTrab(); return; }
   if (page === "sistema") { renderSis(); return; }
@@ -910,6 +945,97 @@ function renderTarefas() {
 }
 $("p-tarefas").onclick = function (e) { var b = findAttr(e.target, "data-id", this); if (b) taskToggle(b.getAttribute("data-id")); };
 
+// Pomodoro: o relógio é do servidor (ends_at + server_now); aqui só se conta e se desenha (1×/s, pelo render)
+var PMPH = { focus: "Foco", short: "Pausa curta", long: "Pausa longa", idle: "Pronto" };
+var pm = { d: null, off: 0, mode: store.get("ltkmode", "list") === "foco" ? "foco" : "list", sel: null, sig: null };
+function pmClock(s) { s = Math.ceil(s - 0.001); return pad2(Math.floor(s / 60)) + ":" + pad2(s % 60); }
+function pmRem() {
+  var d = pm.d; if (!d) return 0;
+  return d.running ? Math.max(0, d.ends_at - (Date.now() / 1000 + pm.off)) : d.remaining_s;
+}
+function pmBtn(d) { return d.running ? "Pausar" : (d.remaining_s < d.total_s - 0.5 ? "Continuar" : "Começar"); }
+function pomoSet(d) {
+  if (!d || typeof d !== "object" || !d.config) return;
+  pm.d = d; pm.off = d.server_now - Date.now() / 1000;
+  if (d.task_id) pm.sel = d.task_id;
+  pmUpd();
+}
+function loadPomo() { if (hasF("pomo")) send("pomo.get", {}).then(pomoSet, quiet); }
+function pomoCall(a, p) { return send(a, p).then(pomoSet, function (e) { if (e.message !== "offline") toast(e.message, true); }); }
+function pomoToggle() { var d = pm.d; if (!d) return; pomoCall(d.running ? "pomo.pause" : "pomo.start", d.running ? {} : { task_id: pm.sel || null }); }
+var touched = false, pmAc = null;
+document.addEventListener("touchend", function () {   // iOS 9 só libera o som depois de um toque do usuário
+  if (touched) return;
+  touched = true;
+  try {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) { pmAc = new AC(); var o = pmAc.createOscillator(); o.connect(pmAc.destination); o.start(0); o.stop(0); }
+  } catch (e) { pmAc = null; }
+}, true);
+function pmBeep() {
+  if (!touched || !pmAc) return;
+  try {
+    var o = pmAc.createOscillator(), g = pmAc.createGain();
+    o.frequency.value = 880; g.gain.value = 0.15; o.connect(g); g.connect(pmAc.destination);
+    o.start(0); o.stop(pmAc.currentTime + 0.35);
+  } catch (e) {}
+}
+function pomoDone(m) {
+  toast(m.finished === "focus" ? "Foco concluído! " + (m.next === "long" ? "Pausa longa" : "Pausa") + " de " + m.next_min + " min" : "Pausa acabou, bora focar", false, 5000);
+  pmBeep();
+}
+function pmTaskOpts() {
+  var sel = $("pm-task"), items, pend = [], i, h, sig = "";
+  if (!S.tasks) return;
+  items = S.tasks.items || [];
+  for (i = 0; i < items.length; i++) if (!items[i].done) pend.push(items[i]);
+  if (pm.sel) { for (i = 0; i < pend.length; i++) if (pend[i].id === pm.sel) break; if (i === pend.length) pm.sel = null; }
+  for (i = 0; i < pend.length; i++) sig += pend[i].id + pend[i].text + "|";
+  sig += "#" + (pm.sel || "");
+  if (sig === pm.sig) return;
+  pm.sig = sig; h = '<option value="">Sem tarefa</option>';
+  for (i = 0; i < pend.length; i++) h += '<option value="' + esc(pend[i].id) + '">' + esc(pend[i].text) + "</option>";
+  sel.innerHTML = h; sel.value = pm.sel || "";
+}
+function pmUpd() {
+  var d = pm.d, rem, n, filled, cur, h, i, brk;
+  if (page === "inicio") {
+    setText($("h-pmt"), d ? pmClock(pmRem()) : "--:--");
+    setText($("h-pmp"), d ? PMPH[d.phase] + " · hoje: " + d.today : (hasF("pomo") ? "Conectando…" : "Indisponível"));
+    setText($("h-pmb"), d ? pmBtn(d) : "Começar"); $("h-pmb").disabled = !d;
+  }
+  if (page === "tarefas" && pm.mode === "foco") {
+    if (!d) { setText($("pm-time"), "--:--"); setText($("pm-ph"), hasF("pomo") ? "Conectando…" : "Indisponível"); ringSet("pm-ring", 0, 60); setHtml($("pm-dots"), ""); setText($("pm-go"), "Começar"); setText($("pm-today"), ""); return; }
+    rem = pmRem(); brk = d.phase === "short" || d.phase === "long";
+    ringSet("pm-ring", d.total_s ? 1 - rem / d.total_s : 0, 60, brk);
+    setText($("pm-time"), pmClock(rem)); setText($("pm-ph"), PMPH[d.phase]);
+    n = d.config.long_every; filled = d.phase === "long" ? n : d.cycle; cur = d.phase === "focus" ? d.cycle : -1; h = "";
+    for (i = 0; i < n; i++) h += '<i class="' + (i < filled ? "on" : i === cur ? "cur" : "") + '"></i>';
+    setHtml($("pm-dots"), h);
+    setText($("pm-go"), pmBtn(d));
+    setText($("pm-today"), "Hoje: " + d.today + " pomodoro" + (d.today === 1 ? "" : "s") + " · semana: " + d.week);
+    pmTaskOpts();
+  }
+}
+function pmShowMode() {
+  var c = $("tk-seg").children, i;
+  $("tk-list").className = pm.mode === "foco" ? "hidden" : ""; $("tk-foco").className = pm.mode === "foco" ? "" : "hidden";
+  for (i = 0; i < c.length; i++) c[i].className = c[i].getAttribute("data-tkm") === pm.mode ? "on" : "";
+  pmUpd();
+}
+$("tk-seg").onclick = function (e) { var b = findAttr(e.target, "data-tkm", this); if (!b) return; pm.mode = b.getAttribute("data-tkm"); store.set("ltkmode", pm.mode); pmShowMode(); };
+$("tk-foco").onclick = function (e) {
+  var b = findAttr(e.target, "data-pm", this), a; if (!b || !pm.d) return;
+  a = b.getAttribute("data-pm");
+  if (a === "go") pomoToggle(); else if (a === "skip") pomoCall("pomo.skip", {}); else if (a === "reset") pomoCall("pomo.reset", {});
+};
+$("pm-task").onchange = function () {
+  pm.sel = this.value || null; pm.sig = null;
+  if (pm.d && pm.d.running) pomoCall("pomo.start", { task_id: pm.sel });   // rodando: só troca a tarefa
+};
+$("h-pmb").onclick = pomoToggle;
+pmShowMode();
+
 // notificações do PC (só na memória; somem ao recarregar)
 S.notifs = []; S.notifAvail = null;
 function subNotif() {
@@ -951,6 +1077,7 @@ function renderBase() {
   setText($("bs-clk"), pad2(d.getHours()) + ":" + pad2(d.getMinutes()));
   setText($("bs-dt"), DIAS[d.getDay()] + ", " + d.getDate() + " de " + MESES[d.getMonth()]);
   setText($("bs-now"), md && md.status === "playing" ? "Tocando: " + (md.title || "(sem título)") + (md.artist ? " · " + md.artist : "") : "");
+  setText($("bs-pm"), pm.d && pm.d.running ? PMPH[pm.d.phase] + " · " + pmClock(pmRem()) : "");
   if (s) { a.push("CPU " + Math.round(s.cpu) + "%"); if (s.gpu) a.push("GPU " + Math.round(s.gpu.util) + "%" + (s.gpu.temp !== undefined ? " " + Math.round(s.gpu.temp) + " °C" : "")); }
   setText($("bs-sys"), a.join("   "));
   setText($("bs-game"), g ? "Jogando " + g.name + " · " + humanDur(g.elapsed + (Date.now() - S.gamesT) / 1000) : "");
