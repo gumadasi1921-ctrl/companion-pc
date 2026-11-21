@@ -11,10 +11,10 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
 *{-webkit-box-sizing:border-box;box-sizing:border-box;-webkit-tap-highlight-color:rgba(0,0,0,0)}
-html,body{margin:0;padding:0;background:#000;color:#F2F2F7;font:16px/1.3 -apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif;-webkit-text-size-adjust:100%}
+html,body{margin:0;padding:0;background:#000;color:#F2F2F7;font:17px/1.3 -apple-system,"Helvetica Neue",sans-serif;-webkit-text-size-adjust:100%}
 body{position:fixed;top:0;left:0;right:0;bottom:0;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;overflow:hidden}
-button{font:inherit;color:inherit;border:0;margin:0;padding:0;background:#2C2C2E;border-radius:12px;min-height:44px;-webkit-appearance:none;touch-action:manipulation}
-button:active{background:#3A3A3C}
+button{font:inherit;color:inherit;border:0;margin:0;padding:0;background:#2C2C2E;border-radius:18px;min-height:44px;-webkit-appearance:none;appearance:none;touch-action:manipulation;-webkit-transition:-webkit-transform .12s,background-color .12s;transition:transform .12s,background-color .12s}
+button:active{background:#3A3A3C;-webkit-transform:scale(.95);transform:scale(.95)}
 button[disabled]{opacity:.4}
 .hidden{display:none !important}
 .row{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center}
@@ -23,32 +23,38 @@ button[disabled]{opacity:.4}
 .wrap{-webkit-flex-wrap:wrap;flex-wrap:wrap}
 .f1{-webkit-flex:1;flex:1;min-width:0}
 .fx{-webkit-flex:none;flex:none}
-#banner{background:#3A2A00;color:#FF9F0A;text-align:center;padding:8px 12px;font-weight:600;-webkit-flex:none;flex:none}
-#main{-webkit-flex:1;flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px}
+#banner{background:#2C2C2E;color:#FF9F0A;text-align:center;padding:8px 12px;font-size:15px;font-weight:600;-webkit-flex:none;flex:none}
+#main{-webkit-flex:1;flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 12px}
 #wrap{-webkit-flex:1;flex:1;min-height:0;display:-webkit-flex;display:flex;-webkit-flex-direction:row;flex-direction:row}
-#tabs{-webkit-flex:none;flex:none;width:200px;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;background:#121214;border-right:1px solid #38383A;padding:8px;overflow-y:auto}
-#tabs button{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;width:100%;height:52px;margin-bottom:4px;padding:0 12px;text-align:left;background:transparent;color:#A1A1A6;font-size:17px;font-weight:600}
+#tabs{-webkit-flex:none;flex:none;width:200px;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;background:#121214;border-right:.5px solid #38383A;padding:12px 8px;overflow-y:auto}
+#tabs button{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;width:100%;height:52px;margin-bottom:4px;padding:0 14px;text-align:left;background:transparent;border-radius:14px;color:#A1A1A6;font-size:17px;font-weight:600}
+#tabs button:active{background:#1C1C1E}
 #tabs button.on{color:#4C9AFF;background:#1C2B45}
 #tabs svg{width:24px;height:24px;fill:currentColor;margin-right:12px;-webkit-flex:none;flex:none}
 #tabs span{white-space:nowrap}
 .wk7{display:-webkit-flex;display:flex;-webkit-align-items:flex-end;align-items:flex-end;height:104px;margin-top:6px}
 .wkc{-webkit-flex:1;flex:1;min-width:0;margin:0 3px;text-align:center;font-size:13px;color:#A1A1A6;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-justify-content:flex-end;justify-content:flex-end}
 .wkc small{font-size:11px;height:14px}
-.wkc i{display:block;background:#4C9AFF;border-radius:4px 4px 0 0;margin-bottom:4px}
+.wkc i{display:block;background:#4C9AFF;border-radius:6px 6px 0 0;margin-bottom:4px}
 .wkc.today i{background:#FF9F0A}
-.lg{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:space-between;justify-content:space-between;min-height:48px;padding:0 12px;margin-bottom:4px;background:#2C2C2E;border-radius:12px;cursor:pointer}
+.grp{background:#2C2C2E;border-radius:16px;overflow:hidden}
+.grp .empty{padding:14px 16px}
+.grp .sub{padding:12px 16px}
+.grp .sk{background:#3A3A3C;margin:14px 16px}
+.lg{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:space-between;justify-content:space-between;min-height:48px;padding:0 16px;border-top:.5px solid #38383A;cursor:pointer;-webkit-transition:background-color .12s;transition:background-color .12s}
+.lg:first-child{border-top:0}
 .lg:active{background:#3A3A3C}
 .lgn{-webkit-flex:1;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.lgs{color:#98989D;font-size:14px;margin-left:10px;-webkit-flex:none;flex:none}
+.lgs{color:#98989D;font-size:13px;margin-left:10px;-webkit-flex:none;flex:none}
 .lg.run .lgn{color:#30D158}
 .jb{margin-left:16px;font-size:14px}
 .bar.jb{height:6px}
 .trow{cursor:pointer}
-.nt{padding:8px 0;border-top:1px solid #38383A}
+.nt{padding:8px 0;border-top:.5px solid #38383A}
 .nt:first-child{border-top:0}
 .nb{font-size:15px;color:#D1D1D6;max-height:2.7em;overflow:hidden;word-wrap:break-word}
-#undo{position:fixed;left:50%;bottom:72px;-webkit-transform:translateX(-50%);transform:translateX(-50%);background:#3A3A3C;border-radius:14px;padding:4px 4px 4px 18px;z-index:9;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;white-space:nowrap}
-#undo button{margin-left:14px;padding:0 18px;background:#1F6FEB;color:#fff;font-weight:600}
+#undo{position:fixed;left:50%;bottom:72px;-webkit-transform:translateX(-50%);transform:translateX(-50%);background:#2C2C2E;border:1px solid #38383A;border-radius:18px;padding:4px 4px 4px 18px;z-index:9;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;white-space:nowrap;font-size:15px;font-weight:600;-webkit-box-shadow:0 2px 6px rgba(0,0,0,.5);box-shadow:0 2px 6px rgba(0,0,0,.5)}
+#undo button{margin-left:14px;padding:0 18px;border-radius:14px;background:#1F6FEB;color:#fff;font-weight:600}
 #base{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:8;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center}
 #bs-in{text-align:center;width:92%}
 .bk{font-size:170px;font-weight:200;line-height:1.05;color:#D1D1D6;font-variant-numeric:tabular-nums}
@@ -57,83 +63,110 @@ button[disabled]{opacity:.4}
 .page{display:none}
 .page.on{display:block}
 .cols{display:-webkit-flex;display:flex;-webkit-flex-direction:row;flex-direction:row;-webkit-align-items:flex-start;align-items:flex-start}
+.cols.eq{-webkit-align-items:stretch;align-items:stretch}
 .colx{-webkit-flex:1;flex:1;min-width:0}
 .colx+.colx{margin-left:12px}
-.card{background:#1C1C1E;border-radius:16px;padding:14px;margin-bottom:12px}
-h3{margin:0 0 10px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#98989D;font-weight:600}
+.colx.fl{display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column}
+.colx.fl>.card{-webkit-flex:1 1 auto;flex:1 1 auto;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-justify-content:center;justify-content:center}
+.card{background:#1C1C1E;border-radius:22px;padding:16px;margin-bottom:12px}
+h3{margin:0 0 10px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#98989D;font-weight:600}
 .sub{color:#A1A1A6;font-size:15px}
 .big{font-size:22px;font-weight:700}
 .clk{font-size:84px;font-weight:200;line-height:1;text-align:center;font-variant-numeric:tabular-nums}
-.dt{text-align:center;color:#A1A1A6;font-size:18px;margin-top:6px}
+.dt{text-align:center;color:#A1A1A6;font-size:17px;margin-top:6px}
 .ttl{font-size:20px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ctl{margin-top:10px}
-.ctl button{-webkit-flex:1;flex:1;height:56px;margin-right:8px}
-.ctl button:last-child{margin-right:0}
-.ctl button.pp{background:#1F6FEB}
+.ctl{margin-top:12px}
+.ctl button{width:48px;height:48px;min-height:48px;border-radius:24px;margin:0 10px}
+.ctl button.pp{width:64px;height:64px;border-radius:32px;background:#1F6FEB}
+#p-radio .ctl button.pp{width:72px;height:72px;border-radius:36px}
 svg.ic{width:26px;height:26px;fill:#F2F2F7;vertical-align:middle}
+.pp svg.ic{width:30px;height:30px;fill:#fff}
 .lbl{font-size:15px;color:#A1A1A6;margin-top:8px}
 .lbl b{color:#F2F2F7;font-weight:600}
-.bar{height:10px;background:#2C2C2E;border-radius:5px;overflow:hidden;margin-top:4px}
-.bar i{display:block;height:100%;width:0;border-radius:5px}
-.kv{padding:6px 0;border-top:1px solid #38383A;font-size:16px}
+.bar{height:8px;background:#2C2C2E;border-radius:4px;overflow:hidden;margin-top:4px}
+.bar i{display:block;height:100%;width:0;border-radius:4px}
+.kv{padding:6px 0;border-top:.5px solid #38383A;font-size:16px}
 .kv span:first-child{color:#A1A1A6}
-.chart{margin-top:10px;background:#000;border-radius:10px;height:90px;overflow:hidden}
+.chart{margin-top:10px;background:#000;border-radius:12px;height:90px;overflow:hidden}
 .chart svg{display:block;width:100%;height:90px}
-.mic{width:100%;height:92px;font-size:24px;font-weight:700;border-radius:18px;margin-bottom:12px}
-.mic.on{background:#1B7431;color:#fff}
-.mic.off{background:#D70015;color:#fff}
-.mic small{display:block;font-size:14px;font-weight:500;opacity:.85}
-.trow{min-height:48px;padding:6px 0;border-top:1px solid #38383A}
+.mic{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;width:100%;height:56px;padding:0 12px;font-size:16px;font-weight:600;border-radius:18px;background:#2C2C2E;color:#F2F2F7}
+.mic svg{width:24px;height:24px;margin-right:10px;-webkit-flex:none;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.mic.on{background:#2C2C2E;color:#F2F2F7}
+.mic.off{background:#3A1214;color:#FF6961}
+.trow{min-height:52px;padding:6px 0;border-top:.5px solid #38383A}
 .trow:first-child{border-top:0}
-.tbox{width:30px;height:30px;border:2px solid #98989D;border-radius:8px;margin-right:12px;text-align:center;line-height:26px;font-size:20px;font-weight:700;-webkit-flex:none;flex:none}
+.tbox{width:28px;height:28px;border:2px solid #98989D;border-radius:14px;margin-right:12px;text-align:center;line-height:24px;font-size:18px;font-weight:700;-webkit-flex:none;flex:none}
 .trow.done .tbox{background:#1F6FEB;border-color:#1F6FEB;color:#fff}
 .trow.done .ttx{color:#98989D;text-decoration:line-through}
+.ring{display:block;-webkit-flex:none;flex:none}
+.ring circle{fill:none;stroke-width:6}
+.ring .rt{stroke:#2C2C2E}
+.ring .rf{stroke:#4C9AFF;stroke-linecap:round}
+.ring.ok .rf{stroke:#30D158}
+.rbig{text-align:center;padding:8px 0}
+.rbig .ring{margin:0 auto}
+.rbig .big{margin-top:12px}
 .empty{color:#98989D;padding:10px 0}
-.art{width:100%;height:0;padding-bottom:100%;background:#2C2C2E center/cover no-repeat;border-radius:14px}
-.rcols{display:-webkit-flex;display:flex;-webkit-align-items:flex-start;align-items:flex-start}
-.rcols>.colx:first-child{-webkit-flex:none;flex:none;width:300px}
+.sk{height:16px;border-radius:8px;background:#2C2C2E;margin:12px 0;-webkit-animation:pl .6s ease-in-out infinite alternate;animation:pl .6s ease-in-out infinite alternate}
+.sk.w2{width:70%}
+.sk.w3{width:45%}
+.sk.bx{height:96px;border-radius:16px;margin:0}
+@-webkit-keyframes pl{from{opacity:.45}to{opacity:1}}
+@keyframes pl{from{opacity:.45}to{opacity:1}}
+.art{width:100%;height:0;padding-bottom:100%;background:#2C2C2E center/cover no-repeat;border-radius:18px;margin-bottom:12px}
+.card.artc{padding:0;overflow:hidden;background:transparent}
+.card.artc .art{border-radius:22px;margin:0}
+.rcols{display:-webkit-flex;display:flex;-webkit-align-items:stretch;align-items:stretch}
+.rcols>.colx:first-child{-webkit-flex:none;flex:none;width:360px}
+.rcols>.colx>.card{margin-bottom:12px}
+#r-pl{min-height:360px;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-justify-content:space-between;justify-content:space-between}
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:44px;background:transparent;margin:0}
 input[type=range]::-webkit-slider-runnable-track{height:6px;background:#3A3A3C;border-radius:3px}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:30px;margin-top:-12px;border-radius:15px;background:#F2F2F7}
-.mxrow{padding:8px 0;border-top:1px solid #38383A}
+.mxrow{padding:8px 0;border-top:.5px solid #38383A}
 .mxrow:first-child{border-top:0}
 .mxrow.muted .mxname{color:#98989D}
 .mxname{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mxm{width:84px;margin-left:10px;-webkit-flex:none;flex:none}
-.mxrow.muted .mxm{background:#3A1214;color:#FF6961}
+.vb{width:44px;height:44px;border-radius:22px;margin-left:10px;-webkit-flex:none;flex:none;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center}
+.vb svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.vb.mu{background:#3A1214;color:#FF6961}
 .chip{background:#1C2B45;color:#4C9AFF;border-radius:22px;padding:0 16px;height:44px;font-weight:600;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pills{margin-bottom:8px;-webkit-flex-wrap:wrap;flex-wrap:wrap;display:-webkit-flex;display:flex}
-.pill{margin:0 8px 8px 0;padding:0 18px;border-radius:22px;height:44px;background:#2C2C2E;font-weight:600}
+.pill{margin:0 8px 8px 0;padding:0 18px;border-radius:22px;height:44px;background:#2C2C2E;font-size:15px;font-weight:600}
 .pill.on{background:#1F6FEB;color:#fff}
+.seg{display:-webkit-flex;display:flex;border:1px solid #38383A;border-radius:12px;overflow:hidden;background:#2C2C2E}
+.seg button{-webkit-flex:1;flex:1;min-width:0;height:44px;padding:0 6px;border-radius:0;background:transparent;font-size:14px;font-weight:600;white-space:nowrap}
+.seg button+button{border-left:1px solid #38383A}
+.seg button.on{background:#1F6FEB;color:#fff}
+.seg button:active{-webkit-transform:none;transform:none}
 .dpad{display:-webkit-flex;display:flex;-webkit-flex-wrap:wrap;flex-wrap:wrap;margin:0 -5px}
 .dcell{width:25%;padding:5px}
 .dbtn{width:100%;height:116px;padding:6px;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;background:#1C1C1E;border-radius:16px;overflow:hidden}
 .dbtn.hit{background:#1F6FEB}
 .dbtn.warn{background:#3A1214}
-.dbtn svg{width:34px;height:34px;stroke:#4C9AFF;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.dbtn .di{height:36px;line-height:36px;font-size:22px;font-weight:700;color:#4C9AFF}
-.dbtn .dl{font-size:15px;font-weight:600;margin-top:4px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dbtn .dk{font-size:12px;color:#98989D;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dbtn svg{width:34px;height:34px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.dbtn .di{height:36px;line-height:36px;font-size:22px;font-weight:700}
+.dbtn .dl{font-size:15px;font-weight:600;margin-top:6px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#F2F2F7}
+.dbtn .dk{font-size:12px;font-weight:600;color:#98989D;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tiles{display:-webkit-flex;display:flex;-webkit-flex-wrap:wrap;flex-wrap:wrap;margin:0 -5px}
-.tile{width:33.333%;padding:5px;background:transparent;border-radius:0;min-height:0}
-.tile button{width:100%;height:68px;font-size:17px;font-weight:600}
+.tile{width:33.333%;padding:5px}
+.tile button{width:100%;height:56px;padding:0 6px;font-size:16px;font-weight:600;border-radius:16px}
+.tile.pl button{height:44px;min-height:44px;border-radius:22px}
 .tile.warn button{background:#3A1214;color:#FF6961}
-.tile.cancel button{background:#1F6FEB;color:#fff}
-select{font:inherit;height:44px;border-radius:10px;border:0;background:#2C2C2E;color:#F2F2F7;padding:0 10px;margin-left:10px}
-.danger{background:#D70015;color:#fff}
-#toast{position:fixed;left:50%;bottom:76px;-webkit-transform:translateX(-50%);transform:translateX(-50%);background:#3A3A3C;color:#F2F2F7;padding:12px 18px;border-radius:12px;font-weight:600;z-index:9;max-width:80%;text-align:center}
-#toast{bottom:130px}
-#toast.bad{background:#D70015;color:#fff}
+.tile.cancel button{background:#2C2C2E;color:#4C9AFF}
+.danger{background:#3A1214;color:#FF6961}
+#toast{position:fixed;left:50%;bottom:130px;-webkit-transform:translateX(-50%);transform:translateX(-50%);background:#2C2C2E;color:#F2F2F7;border:1px solid #38383A;padding:12px 18px;border-radius:18px;font-size:15px;font-weight:600;z-index:9;max-width:80%;text-align:center}
+#toast.bad{background:#3A1214;color:#FF6961;border-color:#3A1214}
 .ov{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.8);z-index:10;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;padding:20px}
-.dlg{background:#1C1C1E;border-radius:18px;padding:20px;width:100%;max-width:420px}
-.dlg p{margin:0 0 16px;font-size:18px}
-.dlg input{width:100%;height:48px;font:inherit;border-radius:10px;border:1px solid #38383A;background:#000;color:#F2F2F7;padding:0 12px;margin-bottom:14px}
+.dlg{background:#1C1C1E;border:1px solid #38383A;border-radius:22px;padding:20px;width:100%;max-width:420px}
+.dlg p{margin:0 0 16px;font-size:17px}
+.dlg input{width:100%;height:48px;font:inherit;border-radius:12px;border:1px solid #38383A;background:#000;color:#F2F2F7;padding:0 12px;margin-bottom:14px}
 .dlg button{-webkit-flex:1;flex:1;height:50px;font-weight:600}
 .dlg button+button{margin-left:10px}
 .dlg .go{background:#1F6FEB;color:#fff}
 @media (orientation:portrait){
  #wrap{-webkit-flex-direction:column;flex-direction:column}
- #tabs{-webkit-order:2;order:2;width:auto;-webkit-flex-direction:row;flex-direction:row;border-right:0;border-top:1px solid #38383A;height:64px;padding:4px;overflow:hidden}
+ #tabs{-webkit-order:2;order:2;width:auto;-webkit-flex-direction:row;flex-direction:row;border-right:0;border-top:.5px solid #38383A;height:64px;padding:4px;overflow:hidden}
  #tabs button{-webkit-flex:1;flex:1;width:auto;min-width:0;height:56px;margin:0 2px;padding:0;-webkit-justify-content:center;justify-content:center}
  #tabs button.on{-webkit-flex:3.2;flex:3.2}
  #tabs svg{margin-right:0}
@@ -141,11 +174,15 @@ select{font:inherit;height:44px;border-radius:10px;border:0;background:#2C2C2E;c
  #tabs span{display:none}
  #tabs button.on span{display:inline;font-size:16px}
  .cols,.rcols{-webkit-flex-direction:column;flex-direction:column;display:block}
+ .colx.fl{display:block}
+ .colx.fl>.card{display:block}
  .colx+.colx{margin-left:0}
  .rcols>.colx:first-child{width:auto;max-width:420px;margin:0 auto}
+ #r-pl{min-height:0}
  .dcell{width:33.333%}
  .tile{width:50%}
 }
+@media (prefers-reduced-motion:reduce){.sk{-webkit-animation:none;animation:none}button:active{-webkit-transform:none;transform:none}}
 </style>
 </head>
 <body>
@@ -164,23 +201,24 @@ select{font:inherit;height:44px;border-radius:10px;border:0;background:#2C2C2E;c
 <div id="main">
 
 <section class="page on" id="p-inicio">
- <div class="cols">
-  <div class="colx">
+ <div class="cols eq">
+  <div class="colx fl">
    <div class="card"><div class="clk" id="clk">--:--</div><div class="dt" id="dt"></div></div>
    <div class="card">
     <h3>Tocando</h3>
+    <div class="art" id="h-art"></div>
     <div class="ttl" id="h-title">Indisponível</div>
     <div class="sub" id="h-artist"></div>
-    <div class="row ctl">
+    <div class="bar" style="margin-top:10px"><i id="h-prog" style="background:#4C9AFF"></i></div>
+    <div class="rowc ctl">
      <button data-a="media.prev" aria-label="Anterior"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
      <button class="pp" data-pp="1" aria-label="Tocar ou pausar"><span class="ppi"></span></button>
      <button data-a="media.next" aria-label="Próxima"><svg class="ic" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
     </div>
    </div>
-   <button class="mic" data-mic="1"></button>
   </div>
   <div class="colx">
-   <div class="card"><h3>Tarefas</h3><div class="sub" id="h-tcount"></div><div id="h-tasks" data-tk="1"></div></div>
+   <div class="card"><div class="rowb"><div><h3>Tarefas</h3><div class="sub" id="h-tcount"></div></div><svg class="ring" id="h-ring" width="56" height="56" viewBox="0 0 56 56"><circle class="rt" cx="28" cy="28" r="23"/><circle class="rf" cx="28" cy="28" r="23" transform="rotate(-90 28 28)" stroke-dasharray="0 144.5"/></svg></div><div id="h-tasks" data-tk="1" style="margin-top:6px"><div class="sk"></div><div class="sk w2"></div><div class="sk w3"></div></div></div>
    <div class="card"><div class="rowb"><h3 style="margin:0">Notificações</h3><button id="h-nall" class="chip">Ver 20</button></div><div id="h-notif"></div></div>
    <div class="card">
     <h3>PC</h3>
@@ -192,6 +230,7 @@ select{font:inherit;height:44px;border-radius:10px;border:0;background:#2C2C2E;c
     <div class="rowb kv"><span>Trabalho hoje</span><b id="v-work">Indisponível</b></div>
     <div class="lbl">CPU no último minuto</div>
     <div class="chart"><svg viewBox="0 0 300 90" preserveAspectRatio="none"><line x1="0" y1="45" x2="300" y2="45" stroke="#2C2C2E" stroke-width="1"/><polygon id="c-fill" points="" fill="#4C9AFF" fill-opacity=".18"/><polyline id="c-line" points="" fill="none" stroke="#4C9AFF" stroke-width="2" stroke-linejoin="round"/></svg></div>
+    <button class="mic" data-mic="1" style="margin-top:12px"></button>
    </div>
   </div>
  </div>
@@ -200,37 +239,39 @@ select{font:inherit;height:44px;border-radius:10px;border:0;background:#2C2C2E;c
 <section class="page" id="p-radio">
  <div class="rcols">
   <div class="colx">
-   <div class="card"><div class="art" id="r-art"></div></div>
+   <div class="card artc"><div class="art" id="r-art"></div></div>
   </div>
   <div class="colx">
-   <div class="card">
-    <div class="ttl" id="r-title">Indisponível</div>
+   <div class="card" id="r-pl">
+    <div><div class="ttl" id="r-title">Indisponível</div>
     <div class="sub" id="r-artist"></div>
     <div class="rowb sub" style="margin-top:8px"><span id="r-pos">0:00</span><span id="r-dur">0:00</span></div>
-    <input type="range" id="r-seek" min="0" max="100" value="0" step="1">
-    <div class="row ctl">
+    <input type="range" id="r-seek" min="0" max="100" value="0" step="1"></div>
+    <div>
+    <div class="rowc ctl">
      <button data-a="media.prev" aria-label="Anterior"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
      <button class="pp" data-pp="1" aria-label="Tocar ou pausar"><span class="ppi"></span></button>
      <button data-a="media.next" aria-label="Próxima"><svg class="ic" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
     </div>
     <div class="row" style="margin-top:12px">
-     <button id="r-mute" style="width:84px" class="fx">Som</button>
+     <button id="r-mute" class="vb" style="margin:0" aria-label="Silenciar o som do PC"></button>
      <div class="f1" style="margin:0 10px"><input type="range" id="r-vol" min="0" max="100" value="0" step="1"></div>
      <span id="r-volv" class="fx" style="width:56px;text-align:right">–</span>
     </div>
     <div class="row" style="margin-top:8px"><span class="sub fx" style="margin-right:10px">Saída</span><button class="chip" id="r-out" data-out="1">Indisponível</button></div>
-   </div>
-   <div class="card">
-    <div class="rowb"><h3 style="margin:0">Mixer</h3><span class="sub" id="mx-master"></span></div>
-    <div id="mx-list"><div class="empty">Indisponível</div></div>
+    </div>
    </div>
   </div>
+ </div>
+ <div class="card">
+  <div class="rowb"><h3 style="margin:0">Mixer</h3><span class="sub" id="mx-master"></span></div>
+  <div id="mx-list"><div class="sk"></div><div class="sk w2"></div></div>
  </div>
 </section>
 
 <section class="page" id="p-botoes">
  <div class="pills" id="d-pills"></div>
- <div class="dpad" id="d-btns"><div class="empty" style="padding:10px 5px">Indisponível</div></div>
+ <div class="dpad" id="d-btns"><div class="dcell"><div class="sk bx"></div></div><div class="dcell"><div class="sk bx"></div></div><div class="dcell"><div class="sk bx"></div></div><div class="dcell"><div class="sk bx"></div></div></div>
 </section>
 
 <section class="page" id="p-jogos">
@@ -241,7 +282,7 @@ select{font:inherit;height:44px;border-radius:10px;border:0;background:#2C2C2E;c
    <div class="card"><h3>Mais jogados (7 dias)</h3><div id="gh-top"><div class="empty">Indisponível neste PC</div></div></div>
   </div>
   <div class="colx">
-   <div class="card"><h3>Biblioteca</h3><div class="pills" id="gl-pills"></div><div id="gl-list"></div><button id="gl-more" class="hidden" style="width:100%;margin-top:6px"></button></div>
+   <div class="card"><h3>Biblioteca</h3><div class="pills" id="gl-pills"></div><div class="grp" id="gl-list"></div><button id="gl-more" class="hidden" style="width:100%;margin-top:6px"></button></div>
   </div>
  </div>
 </section>
@@ -274,17 +315,19 @@ select{font:inherit;height:44px;border-radius:10px;border:0;background:#2C2C2E;c
    <div class="card hidden" id="y-gpuc"><h3>GPU</h3><div id="y-gpul"></div></div>
   </div>
   <div class="colx">
-   <div class="card"><h3>Discos</h3><div id="y-disks"><div class="empty">Indisponível neste PC</div></div></div>
+   <div class="card"><h3>Discos</h3><div id="y-disks"><div class="sk"></div><div class="sk w2"></div></div></div>
    <div class="card"><h3>Rede</h3><div id="y-net"></div></div>
-   <div class="card"><h3>Mais pesados</h3><div id="y-procs"><div class="empty">Indisponível neste PC</div></div></div>
+   <div class="card"><h3>Mais pesados · memória</h3><div id="y-procs"><div class="sk"></div><div class="sk w2"></div><div class="sk w3"></div></div></div>
   </div>
  </div>
 </section>
 
 <section class="page" id="p-tarefas">
  <div class="cols">
-  <div class="colx"><div class="card"><div class="rowb"><h3 style="margin:0">Pendentes</h3><span class="sub" id="tk-pc"></span></div><div id="tk-p"><div class="empty">Indisponível</div></div></div></div>
-  <div class="colx"><div class="card"><div class="rowb"><h3 style="margin:0">Feitas</h3><span class="sub" id="tk-dc"></span></div><div id="tk-d"></div></div></div>
+  <div class="colx" style="-webkit-flex:none;flex:none;width:300px"><div class="card rbig"><svg class="ring" id="tk-ring" width="140" height="140" viewBox="0 0 140 140"><circle class="rt" cx="70" cy="70" r="60"/><circle class="rf" cx="70" cy="70" r="60" transform="rotate(-90 70 70)" stroke-dasharray="0 377"/></svg><div class="big" id="tk-rt"></div><div class="sub" id="tk-rs"></div></div></div>
+  <div class="colx"><div class="card"><div class="rowb"><h3 style="margin:0">Pendentes</h3><span class="sub" id="tk-pc"></span></div><div id="tk-p"><div class="sk"></div><div class="sk w2"></div><div class="sk w3"></div></div></div>
+   <div class="card"><div class="rowb"><h3 style="margin:0">Feitas</h3><span class="sub" id="tk-dc"></span></div><div id="tk-d"></div></div>
+  </div>
  </div>
 </section>
 
@@ -295,26 +338,26 @@ select{font:inherit;height:44px;border-radius:10px;border:0;background:#2C2C2E;c
 <section class="page" id="p-pc">
  <div class="cols">
   <div class="colx">
-   <button class="mic" data-mic="1"></button>
+   <button class="mic" data-mic="1" style="margin-bottom:12px"></button>
    <div class="card"><h3>Energia</h3>
     <div class="tiles" id="pw"></div>
     <div class="sub" id="pw-note" style="margin-top:8px"></div>
    </div>
    <div class="card"><h3>Modo base</h3>
-    <div class="row"><span>Entrar após</span><select id="bs-sel"><option value="1">1 min</option><option value="3">3 min</option><option value="5">5 min</option><option value="10">10 min</option><option value="0">Desligado</option></select></div>
+    <div class="lbl" style="margin:0 0 8px">Entrar após</div><div class="seg" id="bs-seg"><button data-v="0">Desligado</button><button data-v="1">1 min</button><button data-v="3">3 min</button><button data-v="5">5 min</button><button data-v="10">10 min</button></div>
     <div class="sub" style="margin:8px 0 10px">Tela preta com relógio quando ninguém toca no tablet. Tocar volta para onde estava.</div>
-    <button id="bs-go" style="width:100%;height:52px;font-weight:600">Ver agora</button>
+    <button id="bs-go" style="width:100%;height:52px;font-weight:600;border-radius:18px">Ver agora</button>
    </div>
   </div>
   <div class="colx" id="tm-col">
    <div class="card"><h3>Timer de energia</h3>
     <div id="tm-on" class="hidden"><div class="big" id="tm-left">0:00</div><div class="sub" id="tm-what"></div>
-     <button class="danger" id="tm-cancel" style="width:100%;margin-top:12px;height:52px;font-weight:600">Cancelar timer</button></div>
+     <button class="danger" id="tm-cancel" style="width:100%;margin-top:12px;height:52px;font-weight:600;border-radius:18px">Cancelar timer</button></div>
     <div id="tm-off">
-     <div class="row" style="margin-bottom:8px"><span>Quando acabar</span><select id="tm-act"><option value="shutdown">Desligar</option><option value="sleep">Suspender</option><option value="monitor_off">Desligar monitor</option></select></div>
+     <div class="lbl" style="margin:0 0 8px">Quando acabar</div><div class="seg" id="tm-seg" style="margin-bottom:10px"><button data-v="shutdown" class="on">Desligar</button><button data-v="sleep">Suspender</button><button data-v="monitor_off">Desligar monitor</button></div>
      <div class="tiles">
-      <div class="tile"><button data-min="15">15 min</button></div><div class="tile"><button data-min="30">30 min</button></div><div class="tile"><button data-min="45">45 min</button></div>
-      <div class="tile"><button data-min="60">1 h</button></div><div class="tile"><button data-min="90">1 h 30</button></div><div class="tile"><button data-min="120">2 h</button></div>
+      <div class="tile pl"><button data-min="15">15 min</button></div><div class="tile pl"><button data-min="30">30 min</button></div><div class="tile pl"><button data-min="45">45 min</button></div>
+      <div class="tile pl"><button data-min="60">1 h</button></div><div class="tile pl"><button data-min="90">1 h 30</button></div><div class="tile pl"><button data-min="120">2 h</button></div>
      </div>
     </div>
    </div>
@@ -533,6 +576,15 @@ function loadDeck() { send("deck.get", {}).then(function (d) { S.deck = d; deckH
 
 // ---------------------------------------------------------------- Início e Rádio
 var ICON_PLAY = '<svg class="ic" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+function volIcon(m) { return '<svg viewBox="0 0 24 24"><use xlink:href="icons/lucide.svg#ic-' + (m ? "volume-x" : "volume-2") + '"/></svg>'; }
+function micIcon(n) { return '<svg viewBox="0 0 24 24"><use xlink:href="icons/lucide.svg#ic-' + n + '"/></svg>'; }
+var SK3 = '<div class="sk"></div><div class="sk w2"></div><div class="sk w3"></div>';
+function ringSet(id, f, r, ok) {
+  var e = $(id), c = e.querySelector(".rf"), t = 2 * Math.PI * r;
+  f = Math.max(0, Math.min(1, f || 0));
+  c.setAttribute("stroke-dasharray", (f * t).toFixed(1) + " " + t.toFixed(1)); c.style.display = f ? "" : "none";
+  e.setAttribute("class", "ring" + (ok ? " ok" : ""));
+}
 var ICON_PAUSE = '<svg class="ic" viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>';
 var DIAS = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
 var MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
@@ -551,36 +603,41 @@ function renderNow() {
   for (i = 0; i < pp.length; i++) setHtml(pp[i], m && m.status === "playing" ? ICON_PAUSE : ICON_PLAY);
   var art = m && m.art && S.art[m.art];
   $("r-art").style.backgroundImage = art ? "url(" + art + ")" : "none";
+  $("h-art").style.backgroundImage = art ? "url(" + art + ")" : "none";
   var dur = m ? (m.dur || 0) : 0, pos = seeking ? +$("r-seek").value : mediaPos();
   var sk = $("r-seek");
   sk.disabled = !(m && m.can_seek && dur);
   if (!seeking) { sk.max = dur || 1; sk.value = dur ? pos : 0; }
+  $("h-prog").style.width = (dur ? Math.min(100, pos / dur * 100) : 0).toFixed(1) + "%";
   setText($("r-pos"), fmtTime(pos)); setText($("r-dur"), fmtTime(dur));
   var v = S.now && S.now.volume;
   $("r-vol").disabled = !v; $("r-mute").disabled = !v;
   if (v && !volDrag) { $("r-vol").value = v.level; }
   setText($("r-volv"), v ? (v.muted ? "mudo" : v.level + "%") : "");
-  setText($("r-mute"), v && v.muted ? "Mudo" : "Som");
-  $("r-mute").style.background = v && v.muted ? "#3A1214" : "";
+  var mu = !!(v && v.muted), rm = $("r-mute");
+  setHtml(rm, volIcon(mu)); rm.className = "vb" + (mu ? " mu" : "");
+  rm.setAttribute("aria-label", mu ? "Ativar som do PC" : "Silenciar o som do PC");
   a = S.mix && S.mix.outputs; t = "Indisponível";
   if (a) { for (i = 0; i < a.length; i++) if (a[i]["default"]) t = a[i].name; }
   setText($("r-out"), t);
 }
 function renderMic() {
   var m = S.stats && S.stats.mic, bs = document.querySelectorAll(".mic"), i, h;
-  if (!m) h = "Microfone<small>Indisponível</small>";
-  else h = m.muted ? "MICROFONE MUDO<small>Toque para ativar</small>" : "MICROFONE ATIVO<small>Toque para silenciar</small>";
+  if (!m) h = micIcon("mic") + "<span>Microfone indisponível</span>";
+  else h = m.muted ? micIcon("mic-off") + "<span>Microfone mudo · toque para ativar</span>" : micIcon("mic") + "<span>Microfone ativo · toque para silenciar</span>";
   for (i = 0; i < bs.length; i++) { setHtml(bs[i], h); bs[i].disabled = !m; bs[i].className = "mic" + (m ? (m.muted ? " off" : " on") : ""); }
+}
+function taskRow(t) {
+  return '<div class="trow row' + (t.done ? " done" : "") + '" data-id="' + esc(t.id) + '"><span class="tbox">' + (t.done ? "&#10003;" : "") + '</span><span class="ttx f1">' + esc(t.text) + "</span></div>";
 }
 function renderTasks() {
   var d = S.tasks, el = $("h-tasks");
-  if (!d) { setText($("h-tcount"), "Indisponível"); setHtml(el, ""); return; }
+  if (!d) { setText($("h-tcount"), ""); ringSet("h-ring", 0, 23); setHtml(el, online ? SK3 : '<div class="empty">Indisponível</div>'); return; }
   setText($("h-tcount"), d.total ? d.done + " de " + d.total + " feitas" : "");
-  var items = d.items || [], h = "", i, t, max = 8;
-  for (i = 0; i < items.length && i < max; i++) {
-    t = items[i];
-    h += '<div class="trow row' + (t.done ? " done" : "") + '" data-id="' + esc(t.id) + '"><span class="tbox">' + (t.done ? "&#10003;" : "") + '</span><span class="ttx f1">' + esc(t.text) + "</span></div>";
-  }
+  ringSet("h-ring", d.total ? d.done / d.total : 0, 23, d.total && d.done === d.total);
+  var items = d.items || [], h = "", i, n = 0, max = 3;
+  for (i = 0; i < items.length && n < max; i++) if (!items[i].done) { h += taskRow(items[i]); n++; }
+  for (i = 0; i < items.length && n < max; i++) if (items[i].done) { h += taskRow(items[i]); n++; }
   if (items.length > max) h += '<div class="sub" style="padding-top:6px">+' + (items.length - max) + " mais</div>";
   if (!items.length) h = '<div class="empty">Nenhuma tarefa</div>';
   setHtml(el, h);
@@ -624,7 +681,7 @@ function drawChart(l, f) {
 }
 function renderMixer() {
   var d = S.mix, list = $("mx-list"), i, a, h, sig = "";
-  if (!d) return;
+  if (!d) { if (online && !hasF("mixer")) setHtml(list, '<div class="empty">' + NA + "</div>"); return; }
   setText($("mx-master"), d.master ? (d.master.muted ? "PC: mudo" : "PC: " + d.master.level + "%") : "");
   if (!d.apps.length) { setHtml(list, '<div class="empty">Nenhum app tocando som agora</div>'); list._sig = ""; return; }
   for (i = 0; i < d.apps.length; i++) sig += d.apps[i].key + "|";
@@ -633,7 +690,7 @@ function renderMixer() {
     for (i = 0; i < d.apps.length; i++) {
       a = d.apps[i];
       h += '<div class="mxrow" data-key="' + esc(a.key) + '"><div class="rowb"><span class="mxname">' + esc(a.name) + '</span><span class="mxv sub"></span></div>' +
-        '<div class="row"><div class="f1"><input type="range" min="0" max="100" step="1" data-key="' + esc(a.key) + '"></div><button class="mxm" data-key="' + esc(a.key) + '"></button></div></div>';
+        '<div class="row"><div class="f1"><input type="range" min="0" max="100" step="1" data-key="' + esc(a.key) + '"></div><button class="vb mxm" data-key="' + esc(a.key) + '"></button></div></div>';
     }
     list.innerHTML = h; list._sig = sig; list._h = null;
   }
@@ -642,7 +699,9 @@ function renderMixer() {
     a = d.apps[i];
     rows[i].className = "mxrow" + (a.muted ? " muted" : "");
     if (mixDrag !== a.key) { rows[i].querySelector("input").value = a.level; rows[i].querySelector(".mxv").textContent = a.level + "%"; }
-    rows[i].querySelector(".mxm").textContent = a.muted ? "MUDO" : "SOM";
+    var bt = rows[i].querySelector(".mxm");
+    setHtml(bt, volIcon(a.muted)); bt.className = "vb mxm" + (a.muted ? " mu" : "");
+    bt.setAttribute("aria-label", (a.muted ? "Ativar som de " : "Silenciar ") + a.name);
   }
 }
 // ---------------------------------------------------------------- Jogos, Trabalho e Sistema
@@ -693,7 +752,7 @@ function renderLib() {
   var L = GX.lib, i, h = "", st = {}, sts = [], idx = [], cap, more = $("gl-more");
   more.className = "hidden";
   if (!hasF("library")) { setHtml($("gl-pills"), ""); setHtml($("gl-list"), '<div class="empty">' + NA + "</div>"); return; }
-  if (!L) { setHtml($("gl-pills"), ""); setHtml($("gl-list"), '<div class="empty">Carregando…</div>'); return; }
+  if (!L) { setHtml($("gl-pills"), ""); setHtml($("gl-list"), SK3); return; }
   for (i = 0; i < L.length; i++) {
     if (!st[L[i].store]) { st[L[i].store] = 1; sts.push(L[i].store); }
     if (!GX.filter || L[i].store === GX.filter) idx.push(i);
@@ -773,7 +832,8 @@ function renderSis() {
   if (s.ping) h += kvRow("Ping", s.ping.ok ? s.ping.ms + " ms" : "sem internet");
   setHtml($("y-net"), h);
   h = "";
-  for (i = 0; i < (s.procs || []).length && i < 5; i++) h += kvRow(s.procs[i].name, Math.round(s.procs[i].cpu) + "% · " + fmtMem(s.procs[i].mem));
+  var ps = (s.procs || []).slice().sort(function (x, y) { return y.mem - x.mem; });   // o CPU por processo vem zerado do servidor: só memória
+  for (i = 0; i < ps.length && i < 5; i++) h += kvRow(ps[i].name, fmtMem(ps[i].mem));
   setHtml($("y-procs"), h || '<div class="empty">' + NA + "</div>");
 }
 function render() {
@@ -835,12 +895,15 @@ function hideUndo() { clearTimeout(undoT); undoId = null; $("undo").className = 
 $("undo-b").onclick = function () { var id = undoId; hideUndo(); if (id !== null) taskToggle(id, true); };
 function renderTarefas() {
   var d = S.tasks, p = "", f = "", i, t, row, np = 0, nd = 0;
-  if (!d) { setText($("tk-pc"), ""); setText($("tk-dc"), ""); setHtml($("tk-p"), '<div class="empty">Indisponível</div>'); setHtml($("tk-d"), ""); return; }
+  if (!d) { setText($("tk-pc"), ""); setText($("tk-dc"), ""); setText($("tk-rt"), ""); setText($("tk-rs"), ""); ringSet("tk-ring", 0, 60); setHtml($("tk-p"), online ? SK3 : '<div class="empty">Indisponível</div>'); setHtml($("tk-d"), ""); return; }
   for (i = 0; i < d.items.length; i++) {
     t = d.items[i];
-    row = '<div class="trow row' + (t.done ? " done" : "") + '" data-id="' + esc(t.id) + '"><span class="tbox">' + (t.done ? "&#10003;" : "") + '</span><span class="ttx f1">' + esc(t.text) + "</span></div>";
+    row = taskRow(t);
     if (t.done) { f += row; nd++; } else { p += row; np++; }
   }
+  ringSet("tk-ring", d.items.length ? nd / d.items.length : 0, 60, d.items.length && !np);
+  setText($("tk-rt"), !d.items.length ? "Nenhuma tarefa" : !np ? "Tudo feito!" : np === 1 ? "Só falta 1!" : "Faltam " + np);
+  setText($("tk-rs"), d.items.length ? nd + " de " + d.items.length + " feitas" : "");
   setText($("tk-pc"), np ? String(np) : ""); setText($("tk-dc"), nd ? String(nd) : "");
   setHtml($("tk-p"), p || '<div class="empty">' + (d.items.length ? "Tudo feito" : "Nenhuma tarefa") + "</div>");
   setHtml($("tk-d"), f || '<div class="empty">Nenhuma feita</div>');
@@ -901,8 +964,9 @@ function renderBase() {
   var evs = ["touchstart", "touchmove", "mousedown", "keydown", "input"], i;
   for (i = 0; i < evs.length; i++) document.addEventListener(evs[i], function () { idleT = Date.now(); }, true);
   $("base").onclick = baseStop;
-  $("bs-sel").value = String(baseMin());
-  $("bs-sel").onchange = function () { store.set("ldock", +$("bs-sel").value); idleT = Date.now(); };
+  function baseSeg() { var m = baseMin(), b = $("bs-seg").children, k; for (k = 0; k < b.length; k++) b[k].className = +b[k].getAttribute("data-v") === m ? "on" : ""; }
+  baseSeg();
+  $("bs-seg").onclick = function (e) { var b = findAttr(e.target, "data-v", this); if (!b) return; store.set("ldock", +b.getAttribute("data-v")); idleT = Date.now(); baseSeg(); };
   $("bs-go").onclick = function () { setTimeout(baseStart, 150); };
   setInterval(function () {
     var m = baseMin();
@@ -948,7 +1012,8 @@ $("mx-list").addEventListener("change", function (e) {
   setTimeout(function () { if (mixDrag === key) mixDrag = null; }, 900);
 });
 $("mx-list").addEventListener("click", function (e) {
-  var b = e.target; if (b.tagName !== "BUTTON") return;
+  var b = e.target; while (b && b !== this && b.tagName !== "BUTTON") b = b.parentNode;
+  if (!b || b === this) return;
   var key = b.getAttribute("data-key"), a = mxFind(key); if (!a) return;
   var prev = a.muted; a.muted = !prev; renderMixer();
   send("mixer.set", { key: key, muted: "toggle" }).then(function (d) { if (d && d.apps) { S.mix = d; renderMixer(); } }, function (er) {
@@ -986,14 +1051,15 @@ function renderDeck() {
   var pages = deckPages();
   if (!pages.length) return;
   deckPage = Math.max(0, Math.min(deckPage, pages.length - 1));
-  var h = "", i, pg = pages[deckPage], bs = pageButtons(pg), b, ic;
+  var h = "", i, pg = pages[deckPage], bs = pageButtons(pg), b, ic, col;
   for (i = 0; i < pages.length; i++) h += '<button class="pill' + (i === deckPage ? " on" : "") + '" data-page="' + i + '">' + esc(pages[i].name) + "</button>";
   setHtml($("d-pills"), h);
   h = "";
   for (i = 0; i < bs.length; i++) {
     b = bs[i];
     ic = b.svg && svgNames[b.svg] ? '<svg viewBox="0 0 24 24"><use xlink:href="icons/lucide.svg#ic-' + esc(b.svg) + '"/></svg>' : '<span class="di">' + esc(initials(b.label)) + "</span>";
-    h += '<div class="dcell" data-i="' + i + '"><button class="dbtn' + (b.confirm ? " warn" : "") + '">' + ic + '<span class="dl">' + esc(b.label) + "</span>" +
+    col = b.color && /^#[0-9a-fA-F]{3,8}$/.test(b.color) ? b.color : "#4C9AFF";
+    h += '<div class="dcell" data-i="' + i + '"><button class="dbtn' + (b.confirm ? " warn" : "") + '" style="color:' + col + '">' + ic + '<span class="dl">' + esc(b.label) + "</span>" +
       (b.type === "keys" && b.value ? '<span class="dk">' + esc(String(b.value).toUpperCase()) + "</span>" : "") + "</button></div>";
   }
   if (!bs.length) h = '<div class="empty" style="padding:10px 5px">' + (pg.auto ? "Nenhum programa no config.json do PC" : "Página vazia") + "</div>";
@@ -1030,9 +1096,9 @@ function deckFollow(s) {
 
 // ---------------------------------------------------------------- PC: energia e timer
 function buildPower() {
-  var items = [["lock", "Bloquear", false]], h = "", i;
-  if (welcome.power) items.push(["monitor_off", "Desligar monitor", false], ["sleep", "Suspender", true], ["restart", "Reiniciar…", true], ["shutdown", "Desligar…", true], ["cancel", "Cancelar desligamento", false]);
-  for (i = 0; i < items.length; i++) h += '<div class="tile' + (items[i][2] ? " warn" : "") + (items[i][0] === "cancel" ? " cancel" : "") + '"><button data-pw="' + items[i][0] + '" data-c="' + (items[i][2] ? 1 : 0) + '" data-l="' + esc(items[i][1]) + '">' + esc(items[i][1]) + "</button></div>";
+  var items = [["lock", "Bloquear", false, false]], h = "", i;
+  if (welcome.power) items.push(["monitor_off", "Desligar monitor", false, false], ["sleep", "Suspender", true, false], ["restart", "Reiniciar…", true, true], ["shutdown", "Desligar…", true, true], ["cancel", "Cancelar desligamento", false, false]);
+  for (i = 0; i < items.length; i++) h += '<div class="tile' + (items[i][3] ? " warn" : "") + (items[i][0] === "cancel" ? " cancel" : "") + '"><button data-pw="' + items[i][0] + '" data-c="' + (items[i][2] ? 1 : 0) + '" data-l="' + esc(items[i][1]) + '">' + esc(items[i][1]) + "</button></div>";
   setHtml($("pw"), h);
   setText($("pw-note"), welcome.power ? "Reiniciar e Desligar mostram a contagem no PC; use Cancelar desligamento para abortar." : "Ações de energia desativadas no config.json do PC.");
   $("tm-col").className = welcome.power ? "colx" : "colx hidden";
@@ -1043,10 +1109,16 @@ $("pw").onclick = function (e) {
   var run = function () { act("power", { action: a }, a === "cancel" ? "Desligamento cancelado" : l).then(quiet, quiet); };
   if (b.getAttribute("data-c") === "1") confirmAsk(l + " o PC?", run); else run();
 };
+var tmAct = "shutdown";
+$("tm-seg").onclick = function (e) {
+  var b = findAttr(e.target, "data-v", this), c = this.children, k; if (!b) return;
+  tmAct = b.getAttribute("data-v");
+  for (k = 0; k < c.length; k++) c[k].className = c[k] === b ? "on" : "";
+};
 var tmBtns = document.querySelectorAll("[data-min]"), ti;
 for (ti = 0; ti < tmBtns.length; ti++) tmBtns[ti].onclick = function () {
   var min = +this.getAttribute("data-min");
-  act("timer.start", { action: $("tm-act").value, minutes: min }).then(function (r) {
+  act("timer.start", { action: tmAct, minutes: min }).then(function (r) {
     if (!r) return;
     if (S.stats) S.stats.timer = r;
     renderTimer(); toast(r.label + " em " + fmtTime(min * 60));
