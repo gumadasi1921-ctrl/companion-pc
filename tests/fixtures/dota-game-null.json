@@ -1,0 +1,39 @@
+{
+ "v": 1,
+ "updated_at": 1795279000,
+ "phase": "game",
+ "lobby": null,
+ "hero": {
+  "hero_id": null,
+  "hero": null,
+  "position": null,
+  "position_source": null,
+  "mine": null,
+  "build": null
+ },
+ "live": {
+  "clock_s": null,
+  "daytime": null,
+  "gold": null,
+  "gpm": null,
+  "xpm": null,
+  "k": null,
+  "d": null,
+  "a": null,
+  "last_hits": null,
+  "denies": null,
+  "level": null,
+  "items": [],
+  "items_detail": [],
+  "next_item": null,
+  "timers": {
+   "patch": "7.41",
+   "power_rune_in_s": null,
+   "bounty_rune_in_s": null,
+   "wisdom_rune_in_s": null,
+   "neutral_tier": null,
+   "neutral_next_in_s": null
+  }
+ },
+ "result": null
+}

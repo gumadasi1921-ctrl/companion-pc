@@ -182,3 +182,25 @@ O celular nunca fala com a ponte: o servidor do Companion busca na ponte e guard
   id/kind inválido = `400`; caminho fora do formato = `404`; sem chave = `403`. Erros: `Cache-Control: no-store`.
 - **Log:** nada de imagem, id, nome de arquivo nem chave.
 - **Testes:** `py -3 tests/test_dota_img.py` (unidade com ponte falsa + cópia do servidor em outra porta).
+
+### Tela Dota com imagens (`windows/server/web/index.html`)
+
+Só imagens vindas da ponte (pelo proxy acima); o Companion não busca nada na internet. Sem `img_key`, sem id ou
+com a imagem falhando, o app mostra o nome em texto na mesma caixa (campo `null` = item escondido; nada inventado).
+
+| Onde | Imagem (tamanho real → máximo na tela) |
+| --- | --- |
+| Últimas partidas e Mais jogados | retrato 128×72 → 64×36, `object-fit: cover`; borda verde/vermelha = vitória/derrota (só nas partidas) |
+| Faixa do herói (draft/pregame, game, postgame) | loadout 448×678, `object-fit: cover` com `object-position` no topo (rosto), sem esticar: 72×96 (132×176 no fim da partida) |
+| Itens (build, inventário, próximo item) | 88×64 → 44×32 (inventário: 44×32; mochila 32×23 a 60% de opacidade; neutro, `slot` 9, num círculo de 40 px ao lado) |
+
+O ícone 32×32 do herói não é usado em nenhuma tela. No máximo ~40 imagens por tela (`DOTA_IMG_MAX`; o resto da build
+vira só texto). Todas têm `loading="lazy"`, tamanho reservado (o layout não pula) e esqueleto até carregar.
+
+**Atualização a cada segundo sem recriar `<img>`:** a tela é feita de seções com assinatura (`dotaPlan` → `renderDota`):
+o HTML de uma seção só é refeito quando muda o que ela mostra (ids, estágios, slots...). O relógio, os tempos, o anel do ouro,
+os números e o check da build (item comprado = check verde; os outros a 40%) mudam no lugar em `dotaTick` (`data-d`).
+
+Teste visual sem o Dota: `py -3 tests/dota_preview.py` sobe uma ponte falsa (fixtures de cada fase, incluindo `game-full` com
+slots 0–9 e `game-null` com campos `null`, e PNGs nos tamanhos reais) e uma cópia do servidor em portas de teste.
+

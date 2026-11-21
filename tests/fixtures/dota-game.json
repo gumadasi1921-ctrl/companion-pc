@@ -103,6 +103,18 @@
      "cost": 2250
     },
     {
+     "stage": "core",
+     "item": "Black King Bar",
+     "item_id": 116,
+     "cost": 4050
+    },
+    {
+     "stage": "late",
+     "item": "Aghanim's Scepter",
+     "item_id": 108,
+     "cost": 4200
+    },
+    {
      "stage": "late",
      "item": "Coração de Tarrasque",
      "item_id": 114,
@@ -136,10 +148,13 @@
   "level": 9,
   "items": [
    "Tango",
-   "Botas de Velocidade"
+   "Botas de Velocidade",
+   "Ramo de Ferro",
+   "item_nao_catalogado"
   ],
   "next_item": {
    "item": "Blink Dagger",
+   "item_id": 1,
    "cost": 2250,
    "missing_gold": 1350
   },
@@ -150,7 +165,34 @@
    "wisdom_rune_in_s": 20,
    "neutral_tier": 1,
    "neutral_next_in_s": 500
-  }
+  },
+  "items_detail": [
+   {
+    "item": "Tango",
+    "item_id": 44,
+    "slot": 0
+   },
+   {
+    "item": "Botas de Velocidade",
+    "item_id": 29,
+    "slot": 1
+   },
+   {
+    "item": "Ramo de Ferro",
+    "item_id": 16,
+    "slot": 6
+   },
+   {
+    "item": "item_nao_catalogado",
+    "item_id": null,
+    "slot": 7
+   },
+   {
+    "item": "Pá Confiável",
+    "item_id": 1055,
+    "slot": 9
+   }
+  ]
  },
  "result": null
 }

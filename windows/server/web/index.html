@@ -1000,6 +1000,7 @@ select.sel { min-height: 44px; }
 .dota { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); align-content: start; }
 .dota > .dcol { display: grid; gap: 10px; align-content: start; min-width: 0; }
 .dota > .dfull { grid-column: 1 / -1; }
+.dsec { display: contents; }
 .dota .dhead { margin: 0; }
 @media (orientation: landscape) and (min-width: 640px) {
   .dota.c3 { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1.1fr); }
@@ -1019,29 +1020,55 @@ select.sel { min-height: 44px; }
 .dota .dkv { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px 12px; }
 .dota .dkv > div { display: flex; flex-direction: column; min-width: 0; }
 .dota .dkv span { color: var(--text-2, var(--p2)); font-size: 12px; }
-.dota .dkv b { font: 600 20px/1.2 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dota .dkv b { font: 600 20px/1.2 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; min-height: 24px; }
 .dota .dtimer { padding: 5px 0; }
 .dota .dtimer .row { padding: 0; }
 .dota .dtimer .row span:last-child { font-variant-numeric: tabular-nums; }
 .dota .dtimer .bar { margin-top: 4px; height: 8px; }
 .dota .dtimer.soon .row span:last-child { color: var(--warning, var(--p)); font-weight: 600; }
-.dota .dstage { margin: 8px 0 2px; font: 600 11px/1.2 var(--font, var(--mono)); letter-spacing: .05em; text-transform: uppercase; color: var(--text-2, var(--p2)); }
-.dota .ditem { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 30px; font-size: 15px; }
-.dota .ditem > span:first-child { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dota .ditem small { color: var(--text-3, var(--p3)); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.dota .ditem .hi { width: 16px; height: 16px; flex: none; }
-.dota .ditem.got > span:first-child { color: var(--success, var(--p)); }
-.dota .ditem:not(.got) .hi { visibility: hidden; }
+.dota .dstage { margin: 8px 0 4px; font: 600 11px/1.2 var(--font, var(--mono)); letter-spacing: .05em; text-transform: uppercase; color: var(--text-2, var(--p2)); }
 .dota .dskills { display: flex; flex-wrap: wrap; gap: 6px; }
-.dota .dskills span { display: inline-flex; flex-direction: column; align-items: center; min-width: 34px; padding: 4px 6px; border-radius: 10px; background: var(--surface-2, transparent); border: 1px solid var(--separator, var(--p4)); font: 700 15px/1.1 var(--display); text-transform: uppercase; }
+.dota .dskills span { display: inline-flex; flex-direction: column; align-items: center; min-width: 34px; padding: 4px 6px; border-radius: var(--r-sm, 2px); background: var(--surface-2, transparent); border: 1px solid var(--separator, var(--p4)); font: 700 15px/1.1 var(--display); text-transform: uppercase; }
 .dota .dskills small { font: 500 10px/1 var(--font, var(--mono)); color: var(--text-3, var(--p3)); }
 .dota .dnext { display: flex; align-items: center; gap: 12px; }
-.dota .dnext .hring { width: 84px; height: 84px; flex: none; }
-.dota .dnext .hring-x { font-size: 18px; }
-.dota .dnext .sub { white-space: normal; }
+.dota .dnext .sub { white-space: normal; min-height: 18px; }
 .dota .dnext > div:last-child { min-width: 0; }
-.dota .dres { text-align: center; padding: 22px 16px; display: grid; gap: 8px; justify-items: center; }
+/* imagens (proxy do servidor): tamanho reservado, esqueleto até carregar, nome em texto se faltar */
+.dimg { position: relative; display: inline-block; flex: none; overflow: hidden; box-sizing: border-box; border-radius: var(--r-sm, 2px); background: var(--surface-2, var(--p4)); vertical-align: middle; }
+.dimg:not(.ok):not(.fail):not(.nf):not(.empty) { animation: hwpulse 1.4s ease-in-out infinite; }
+.dimg img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; }
+.dimg.ok img { opacity: 1; }
+.dimg.ld img { object-position: 50% 0; }
+.dimg.fail img { display: none; }
+.dimg .dfb { display: none; position: absolute; inset: 0; align-items: center; justify-content: center; padding: 2px; text-align: center; overflow: hidden; overflow-wrap: anywhere; font: 600 10px/1.1 var(--font, var(--mono)); color: var(--text-2, var(--p2)); }
+.dimg.nf .dfb, .dimg.fail .dfb { display: flex; }
+.dimg.empty { background: transparent; border: 1px dashed var(--separator, var(--p4)); }
+.dimg.circ { border-radius: 50%; }
+.dimg.w { border: 2px solid var(--success, var(--p)); }
+.dimg.l { border: 2px solid var(--danger-text, var(--alert)); }
+.dota .dstrip { display: flex; gap: 12px; align-items: flex-start; }
+.dota .dstx { min-width: 0; flex: 1; display: grid; gap: 4px; align-content: start; }
+.dota .dres { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: center; padding: 16px; }
 .dota .dres .dbig { font-size: 56px; }
+.dota .dresx { display: grid; gap: 6px; min-width: 0; }
+.dota .drow { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 0; }
+.dsp { width: 64px; height: 36px; flex: none; }
+.dmid { display: flex; flex-direction: column; min-width: 0; flex: 1; gap: 2px; }
+.dmid b { font-weight: 600; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dmid span { font-size: 13px; color: var(--text-2, var(--p2)); font-variant-numeric: tabular-nums; }
+.dota .dbrow { display: flex; flex-wrap: wrap; gap: 8px 6px; }
+.dbi { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 46px; }
+.dbi small { min-height: 13px; font: 500 11px/1.2 var(--font, var(--mono)); color: var(--text-2, var(--p2)); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dbi.not { opacity: .4; }
+.dbi .dchk { display: none; position: absolute; top: -4px; right: -2px; width: 16px; height: 16px; color: var(--success, var(--p)); background: var(--bg, transparent); border-radius: 50%; }
+.dbi.got .dchk { display: block; }
+.dbi.got .dimg { box-shadow: 0 0 0 2px var(--success, var(--p)); }
+.dota .dinv { display: flex; align-items: center; gap: 12px; }
+.dota .dgrid { display: grid; grid-template-columns: repeat(3, 44px); gap: 4px; }
+.dota .dback { display: flex; gap: 4px; margin-top: 8px; opacity: .6; }
+.dnring { position: relative; width: 84px; height: 84px; flex: none; }
+.dnring svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.dnring .dimg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
 .hdota .dbig { font: 700 28px/1.05 var(--display); font-variant-numeric: tabular-nums; }
 .hdota .sub { white-space: normal; }
 input.num { min-height: 36px; }
@@ -1610,7 +1637,7 @@ function onMsg(m) {
     case "now": state.now = m.d; state.nowT = performance.now(); renderNow(); break;
     case "art": state.art = { [m.id]: "data:image/jpeg;base64," + m.jpg }; renderNow(); break;
     case "games": state.games = m.d; state.gamesT = performance.now(); renderGames(); break;
-    case "dota": dotaSet(m.d, m.auto_open); break;
+    case "dota": dotaSet(m.d, m.auto_open, m.img_key); break;
     case "gameart": state.gameart = { [m.id]: "data:image/jpeg;base64," + m.jpg }; renderGames(); break;
     case "event":
       if (m.kind === "pomo.done") { pomoDone(m); break; }
@@ -1889,10 +1916,14 @@ function renderGames() {
 // ---------------------------------------------------------------- Dota (ponte do DotaCopilot; contrato em docs/dota-bridge.md)
 // O Companion não calcula nada: mostra o que a ponte manda (campo null = item escondido). Entre uma atualização e
 // outra, relógio e tempos contam localmente (no máximo 3 s). A barra de cada tempo usa o maior valor visto no ciclo.
-const dota = { d: null, t: 0, auto: true, max: {}, prev: {} };
+// A tela é feita de SEÇÕES com assinatura: o HTML (e as <img>) de uma seção só é refeito quando o que ela mostra
+// muda; a cada segundo só mudam texto, anéis, barras e classes (dotaTick). Imagens: proxy do servidor
+// (/dota/img/..., chave k vinda da mensagem dota); sem id ou sem chave = só o nome em texto.
+const dota = { d: null, t: 0, auto: true, max: {}, prev: {}, k: "", layout: "", sig: {} };
 const DOTA_PH = { offline: "fechado", menu: "no menu", draft: "escolha de herói", pregame: "pré-jogo", game: "em partida", postgame: "fim de partida" };
-const DOTA_STAGE = [["start", "Inicial"], ["early", "Começo"], ["core", "Principal"], ["late", "Final"]];
+const DOTA_STAGE = [["start", "Início"], ["early", "Early"], ["core", "Core"], ["late", "Late"]];
 const DOTA_TIMERS = [["power_rune_in_s", "Runa de poder"], ["bounty_rune_in_s", "Runa de recompensa"], ["wisdom_rune_in_s", "Sabedoria"], ["neutral_next_in_s", "Próximo tier de neutros"]];
+const DOTA_IMG_MAX = 40;   // no máximo ~40 imagens por tela
 const nn = (v) => v !== null && v !== undefined;
 const dNum = (n) => Number(n).toLocaleString("pt-BR");
 const dPct = (x) => Math.round(x * 100) + "%";
@@ -1900,9 +1931,20 @@ const dAge = () => Math.min(3, (performance.now() - dota.t) / 1000);
 const dClock = (s) => (s < 0 ? "−" : "") + fmtTime(Math.abs(s));
 const dKda = (o) => (o && nn(o.k) && nn(o.d) && nn(o.a) ? `${o.k}/${o.d}/${o.a}` : "");
 const dWin = (w, yes, no, none) => `<span class="${w === true ? "dwin" : w === false ? "dloss" : ""}">${w === true ? yes : w === false ? no : none}</span>`;
-function dotaSet(d, auto) {
+const dId = (v) => Number.isInteger(v) && v > 0;
+const dResult = (w) => (w === true ? "w" : w === false ? "l" : "");
+// imagem com o tamanho reservado (o layout não pula), esqueleto até carregar e, se faltar id/chave ou falhar, o nome em texto
+function dImg(kind, id, variant, name, w, h, cls = "", noImg = false) {
+  const src = !noImg && dota.k && dId(id) ? `/dota/img/${kind}/${id}?${kind === "hero" ? `kind=${variant}&` : ""}k=${dota.k}` : "";
+  return `<span class="dimg ${src ? "" : "nf "}${cls}" style="width:${w}px;height:${h}px" title="${esc(name || "")}">${src ? `<img src="${src}" alt="" width="${w}" height="${h}" loading="lazy" decoding="async">` : ""}<b class="dfb">${esc(name || "")}</b></span>`;
+}
+document.addEventListener("load", (e) => { const p = e.target.parentNode; if (e.target.tagName === "IMG" && p?.classList?.contains("dimg")) p.classList.add("ok"); }, true);
+document.addEventListener("error", (e) => { const p = e.target.parentNode; if (e.target.tagName === "IMG" && p?.classList?.contains("dimg")) p.classList.add("fail"); }, true);
+
+function dotaSet(d, auto, key) {
   if (!d || typeof d !== "object") return;
   dota.d = d; dota.t = performance.now(); if (typeof auto === "boolean") dota.auto = auto;
+  if (typeof key === "string" && /^[0-9a-f]{24}$/.test(key)) dota.k = key;
   // abrir sozinho: uma vez por abertura do jogo (dota_started novo, vindo do games.py no PC), com auto_open no
   // config.json do PC E a chave em Ajustes deste aparelho; o último tratado fica no aparelho (recarregar não reabre)
   const started = d.companion?.dota_running ? d.companion.dota_started : null;
@@ -1927,101 +1969,193 @@ function dotaSet(d, auto) {
 async function dotaShow() {
   renderDota();
   if (!ws || ws.readyState !== 1) return;
-  try { const r = await send("dota.get"); dotaSet(r.d, r.auto_open); } catch {}
+  try { const r = await send("dota.get"); dotaSet(r.d, r.auto_open, r.img_key); } catch {}
 }
-function dotaTimer(label, v, key) {
-  if (!nn(v)) return "";
-  const left = Math.max(0, v - dAge()), max = dota.max[key] || 0, pct = max ? (1 - left / max) * 100 : 0;
-  return `<div class="dtimer${left <= 15 ? " soon" : ""}"><div class="row"><span>${esc(label)}</span><span>${left < 0.5 ? "agora" : fmtTime(left)}</span></div><div class="bar" role="progressbar" aria-label="${esc(label)}" aria-valuenow="${Math.round(pct)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct.toFixed(1)}%"></i></div></div>`;
-}
-function dotaLobby(l) {
-  if (!l) return "";
-  const mmr = l.mmr, td = l.today, st = l.streak, a = [];
-  if (mmr) a.push(`<div class="card"><h3><span>MMR</span><span>${mmr.estimated ? "estimado" : "informado"}</span></h3><div class="dbig">${dNum(mmr.value)}</div>${mmr.medal ? `<div class="sub">${esc(mmr.medal)}</div>` : ""}</div>`);
-  const streak = nn(st) && st !== 0 ? `<div class="sub">${dWin(st > 0, `${st} ${st === 1 ? "vitória seguida" : "vitórias seguidas"}`, `${-st} ${st === -1 ? "derrota seguida" : "derrotas seguidas"}`, "")}</div>` : "";
-  if (td || streak) a.push(`<div class="card"><h3><span>Hoje</span></h3>${td ? `<div class="dbig"><span class="dwin">${td.wins}V</span> – <span class="dloss">${td.losses}D</span></div>` : ""}${streak}</div>`);
-  const rec = (l.recent || []).slice(0, 5).map((m) => {
+
+// ---- seções: [nome, assinatura, função que devolve o HTML (ou "" = some)]
+const dSec = (name, sig, html) => [name, String(sig), html];
+function dotaLobbyCols(l) {
+  if (!l) return [];
+  const cols = [], first = [], st = l.streak;
+  if (l.mmr) first.push(dSec("mmr", JSON.stringify(l.mmr), () => `<div class="card"><h3><span>MMR</span><span>${l.mmr.estimated ? "estimado" : "informado"}</span></h3><div class="dbig">${dNum(l.mmr.value)}</div>${l.mmr.medal ? `<div class="sub">${esc(l.mmr.medal)}</div>` : ""}</div>`));
+  if (l.today || (nn(st) && st !== 0)) first.push(dSec("today", JSON.stringify([l.today, st]), () => {
+    const streak = nn(st) && st !== 0 ? `<div class="sub">${dWin(st > 0, `${st} ${st === 1 ? "vitória seguida" : "vitórias seguidas"}`, `${-st} ${st === -1 ? "derrota seguida" : "derrotas seguidas"}`, "")}</div>` : "";
+    return `<div class="card"><h3><span>Hoje</span></h3>${l.today ? `<div class="dbig"><span class="dwin">${l.today.wins}V</span> – <span class="dloss">${l.today.losses}D</span></div>` : ""}${streak}</div>`;
+  }));
+  if (first.length) cols.push({ c: "", s: first });
+  const recent = (l.recent || []).slice(0, 5), top = (l.top_heroes || []).slice(0, 5);
+  if (recent.length) cols.push({ c: "", s: [dSec("recent", JSON.stringify(recent) + dota.k, () => `<div class="card"><h3><span>Últimas partidas</span></h3>${recent.map((m) => {
+    const img = dId(m.hero_id) ? dImg("hero", m.hero_id, "portrait", m.hero, 64, 36, dResult(m.win)) : '<span class="dsp"></span>';
     const right = [nn(m.win) ? `<b>${dWin(m.win, "V", "D", "")}</b>` : "", dKda(m), nn(m.duration_s) ? humanDur(m.duration_s) : ""].filter(Boolean).join(" · ");
-    return `<div class="row"><span>${esc(m.hero || "")}</span><span>${right}</span></div>`;
-  }).join("");
-  const top = (l.top_heroes || []).slice(0, 5).map((h) => `<div class="row"><span>${esc(h.hero || "")}</span><span>${h.matches} partidas${nn(h.winrate) ? " · " + dPct(h.winrate) : ""}</span></div>`).join("");
-  return (a.length ? `<div class="dcol">${a.join("")}</div>` : "")
-    + (rec ? `<div class="dcol"><div class="card"><h3><span>Últimas partidas</span></h3>${rec}</div></div>` : "")
-    + (top ? `<div class="dcol"><div class="card"><h3><span>Mais jogados</span></h3>${top}</div></div>` : "");
+    return `<div class="drow">${img}<div class="dmid"><b>${esc(m.hero || "")}</b><span>${right}</span></div></div>`;
+  }).join("")}</div>`)] });
+  if (top.length) cols.push({ c: "", s: [dSec("top", JSON.stringify(top) + dota.k, () => `<div class="card"><h3><span>Mais jogados</span></h3>${top.map((m) => {
+    const img = dId(m.hero_id) ? dImg("hero", m.hero_id, "portrait", m.hero, 64, 36) : '<span class="dsp"></span>';
+    return `<div class="drow">${img}<div class="dmid"><b>${esc(m.hero || "")}</b><span>${m.matches} partidas${nn(m.winrate) ? " · " + dPct(m.winrate) : ""}</span></div></div>`;
+  }).join("")}</div>`)] });
+  return cols;
 }
-function dotaBuild(h, got) {
+// build por estágio: ícone + custo embaixo; na partida os já comprados ganham o check (dotaTick). limit = imagens permitidas
+function dotaBuild(h, game, limit) {
   const b = h?.build;
-  if (!b) return `<div class="card"><h3><span>Build</span></h3><div class="empty">Sem build salva para este herói</div></div>`;
+  if (!b) return `<div class="card"><h3><span>Build</span></h3><div class="empty">Sem build para este herói</div>${h?.position_source === "historico" ? '<div class="dnote">Buscando na STRATZ; pode levar alguns segundos</div>' : ""}</div>`;
   const src = h.position_source === "historico" ? `<div class="dnote">build da sua posição mais jogada${nn(h.position) ? ` (posição ${h.position})` : ""}</div>` : "";
-  const have = {}; for (const n of got || []) have[n] = (have[n] || 0) + 1;
+  let used = 0;
   const list = DOTA_STAGE.map(([st, label]) => {
     const items = (b.items || []).filter((i) => i.stage === st); if (!items.length) return "";
-    return `<div class="dstage">${label}</div>` + items.map((i) => {
-      const g = !!got && have[i.item] > 0; if (g) have[i.item]--;
-      return `<div class="ditem${g ? " got" : ""}"><span>${got ? ic("check-check") : ""}${esc(i.item)}</span>${nn(i.cost) ? `<small>${dNum(i.cost)}</small>` : ""}</div>`;
-    }).join("");
+    return `<div class="dstage">${label}</div><div class="dbrow">${items.map((i) => {
+      const img = dImg("item", i.item_id, "", i.item, 44, 32, "", used++ >= limit);
+      return `<div class="dbi" data-n="${esc(i.item)}">${img}${game ? ic("check-check", "dchk") : ""}<small>${nn(i.cost) ? dNum(i.cost) : ""}</small></div>`;
+    }).join("")}</div>`;
   }).join("");
   return `<div class="card"><h3><span>Build</span>${b.source ? `<span>${esc(b.source)}</span>` : ""}</h3>${src}${list}</div>`;
 }
+const dotaBuildSec = (h, game, limit) => dSec("build", JSON.stringify([h?.build, h?.position_source, h?.position, game, limit]) + dota.k, () => dotaBuild(h, game, limit));
 function dotaSkills(b) {
-  const s = b?.skills; if (!s || !s.length) return "";
-  return `<div class="card"><h3><span>Ordem de skills</span><span>nível</span></h3><div class="dskills">${s.map((k, i) => `<span>${esc(k)}<small>${i + 1}</small></span>`).join("")}</div></div>`;
+  const s = b?.skills; if (!s || !s.length) return null;
+  return dSec("skills", JSON.stringify(s), () => `<div class="card"><h3><span>Ordem de skills</span><span>nível</span></h3><div class="dskills">${s.map((k, i) => `<span>${esc(k)}<small>${i + 1}</small></span>`).join("")}</div></div>`);
 }
-function dotaMine(h) {
-  const m = h.mine; if (!m) return "";
-  const parts = [m.matches === 1 ? "1 partida" : `${m.matches} partidas`];
-  if (nn(m.winrate)) parts.push(`${dPct(m.winrate)} vitórias`);
-  if (nn(m.last_played)) parts.push(`última vez ${humanAgo(Date.now() / 1000 - m.last_played)}`);
-  return `<div class="sub wrap">Você com ${esc(h.hero || "este herói")}: ${parts.join(" · ")}</div>${m.avg_kda ? `<div class="dnote">KDA médio ${esc(m.avg_kda)}</div>` : ""}`;
+// inventário 0–5, mochila 6–8 (menor, 60%) e o item neutro (9) num círculo ao lado; item_id null = só o nome
+function dotaInventory(L) {
+  const det = Array.isArray(L.items_detail) ? L.items_detail.filter((x) => x && Number.isInteger(x.slot) && x.slot >= 0 && x.slot <= 9) : null;
+  const names = L.items || [];
+  if (!(det ? det.length : names.length)) return null;   // sem itens: nada a mostrar
+  return dSec("inv", JSON.stringify(det || names) + dota.k, () => {
+    if (!det) return `<div class="card"><h3><span>Itens</span></h3><div class="dnote">${names.map(esc).join(" · ")}</div></div>`;
+    const at = {}; for (const x of det) at[x.slot] = x;
+    const cell = (n, w, h, cls) => { const x = at[n]; return x ? dImg("item", x.item_id, "", x.item, w, h, cls) : `<span class="dimg empty ${cls}" style="width:${w}px;height:${h}px"></span>`; };
+    const slots = (from, to, w, h) => Array.from({ length: to - from }, (_, i) => cell(from + i, w, h, "")).join("");
+    return `<div class="card"><h3><span>Itens</span></h3><div class="dinv"><div class="dgrid">${slots(0, 6, 44, 32)}</div>${cell(9, 40, 40, "circ")}</div>
+      <div class="dback" aria-label="Mochila">${slots(6, 9, 32, 23)}</div></div>`;
+  });
 }
-function dotaHero(d) {
-  const h = d.hero, L = d.live;
-  const clock = nn(L?.clock_s) ? `<div class="row"><span>Relógio</span><span>${dClock(L.clock_s + dAge())}</span></div>` : "";
-  return `<div class="dcol"><div class="card"><h3><span>Herói</span><span>${DOTA_PH[d.phase]}</span></h3><div class="dname">${esc(h.hero || "Herói escolhido")}</div>${dotaMine(h)}${clock}</div>${dotaSkills(h.build)}</div>
-    <div class="dcol">${dotaBuild(h)}</div>`;
+function dotaNext(L) {
+  const n = L.next_item; if (!n) return null;
+  const ring = nn(n.cost) && n.cost > 0 && nn(n.missing_gold);
+  return dSec("next", JSON.stringify([n.item, n.item_id, ring]) + dota.k, () => {
+    const R = 44, C = (2 * Math.PI * R).toFixed(1);
+    const svg = ring ? `<svg viewBox="0 0 100 100" role="img" aria-label="Ouro para o próximo item" data-d="ring"><circle cx="50" cy="50" r="${R}" class="hring-t"/><circle cx="50" cy="50" r="${R}" class="hring-f" data-d="arc" style="stroke:var(--accent-fill, var(--p));stroke-dasharray:${C};stroke-dashoffset:${C}" transform="rotate(-90 50 50)"/></svg>` : "";
+    return `<div class="card"><h3><span>Próximo item</span></h3><div class="dnext"><div class="dnring" data-c="${C}">${svg}${dImg("item", n.item_id, "", n.item, 44, 32)}</div><div><div class="dname sm">${esc(n.item)}</div><div class="sub" data-d="nextsub"></div></div></div></div>`;
+  });
 }
-function dotaGame(d) {
-  const L = d.live, h = d.hero, t = L.timers || {};
-  const clock = nn(L.clock_s) ? `<div class="dclock" role="timer">${dClock(L.clock_s + dAge())}</div>` : "";
-  const day = nn(L.daytime) ? `<div class="sub">${L.daytime ? "Dia" : "Noite"}</div>` : "";
-  const timers = DOTA_TIMERS.map(([k, l]) => dotaTimer(l, t[k], k)).join("")
-    + (nn(t.neutral_tier) ? `<div class="row"><span>Neutros liberados</span><span>tier ${t.neutral_tier}</span></div>` : "");
-  const col1 = `<div class="dcol">${clock || day ? `<div class="card">${clock}${day}</div>` : ""}${timers ? `<div class="card"><h3><span>Tempos</span>${t.patch ? `<span class="dnote">patch ${esc(t.patch)}</span>` : ""}</h3>${timers}</div>` : ""}</div>`;
-  const kv = [["Ouro", nn(L.gold) ? dNum(L.gold) : null], ["GPM / XPM", nn(L.gpm) || nn(L.xpm) ? `${L.gpm ?? "–"} / ${L.xpm ?? "–"}` : null],
-    ["KDA", dKda(L) || null], ["LH / DN", nn(L.last_hits) || nn(L.denies) ? `${L.last_hits ?? "–"} / ${L.denies ?? "–"}` : null], ["Nível", L.level]]
-    .filter(([, v]) => nn(v)).map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("");
-  const n = L.next_item;
-  let next = "";
-  if (n) {
-    const miss = n.missing_gold, ring = nn(n.cost) && n.cost > 0 && nn(miss)
-      ? ringSvg(((n.cost - miss) / n.cost) * 100, "--accent-fill, var(--p)", miss > 0 ? dNum(miss) : "ok", miss > 0 ? "falta" : "", miss > 0 ? `Faltam ${miss} de ouro` : "Ouro suficiente") : "";
-    next = `<div class="card"><h3><span>Próximo item</span></h3><div class="dnext">${ring}<div><div class="dname sm">${esc(n.item)}</div>${nn(n.cost) ? `<div class="sub">custa ${dNum(n.cost)}${nn(miss) && miss > 0 ? ` · falta ${dNum(miss)} de ouro` : ""}</div>` : ""}</div></div></div>`;
+const DOTA_KV = [["gold", "Ouro"], ["gx", "GPM / XPM"], ["kda", "KDA"], ["lh", "LH / DN"], ["level", "Nível"]];
+function dotaKv(L) {
+  const has = { gold: nn(L.gold), gx: nn(L.gpm) || nn(L.xpm), kda: !!dKda(L), lh: nn(L.last_hits) || nn(L.denies), level: nn(L.level) };
+  const keys = DOTA_KV.filter(([k]) => has[k]);
+  if (!keys.length) return null;
+  return dSec("kv", keys.map(([k]) => k).join(), () => `<div class="card"><div class="dkv">${keys.map(([k, l]) => `<div><span>${l}</span><b data-d="kv-${k}"></b></div>`).join("")}</div></div>`);
+}
+function dotaTimers(t) {
+  const keys = DOTA_TIMERS.filter(([k]) => nn(t[k])), tier = nn(t.neutral_tier);
+  if (!keys.length && !tier) return null;
+  return dSec("timers", JSON.stringify([keys.map(([k]) => k), tier, t.patch]), () => `<div class="card"><h3><span>Tempos</span>${t.patch ? `<span class="dnote">patch ${esc(t.patch)}</span>` : ""}</h3>${keys.map(([k, l]) =>
+    `<div class="dtimer" data-t="${k}"><div class="row"><span>${esc(l)}</span><span data-d="tv-${k}"></span></div><div class="bar" role="progressbar" aria-label="${esc(l)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i data-d="tb-${k}" style="width:0"></i></div></div>`).join("")}${tier ? '<div class="row"><span>Neutros liberados</span><span data-d="tier"></span></div>' : ""}</div>`);
+}
+// faixa do herói: loadout (448×678) recortado pelo topo (rosto), sem esticar
+function dotaStrip(d, mode) {
+  const h = d.hero || {}, L = d.live, r = d.result || {};
+  const id = mode === "end" && nn(r.hero_id) ? r.hero_id : h.hero_id, name = h.hero || "";
+  const clock = nn(L?.clock_s), day = nn(L?.daytime);
+  const pic = (w, hh, cls) => (dId(id) || name ? dImg("hero", id, "loadout", name, w, hh, cls) : "");
+  return dSec("hero", JSON.stringify([mode, d.phase, id, name, clock, day, !!h.mine, h.mine?.avg_kda, r.win, dKda(r), mode]) + dota.k, () => {
+    if (mode === "end") return `<div class="card dres">${pic(132, 176, `ld ${dResult(r.win)}`)}<div class="dresx">
+      <div class="dbig">${dWin(r.win, "Vitória", "Derrota", "Partida encerrada")}</div>${dKda(r) ? `<div class="dname">${dKda(r)}</div>` : ""}${name ? `<div class="sub">${esc(name)}</div>` : ""}
+      <div class="dnote">Análise completa no DotaCopilot (no PC)</div></div></div>`;
+    const right = mode === "game"
+      ? `<div class="dname sm">${esc(name || "Herói escolhido")}</div>${clock ? '<div class="dclock" role="timer" data-d="clock"></div>' : ""}${day ? '<div class="sub" data-d="day"></div>' : ""}`
+      : `<div class="dname">${esc(name || "Herói escolhido")}</div>${h.mine ? '<div class="sub wrap" data-d="mine"></div>' : ""}${h.mine?.avg_kda ? '<div class="dnote" data-d="avgkda"></div>' : ""}${clock ? '<div class="row"><span>Relógio</span><span data-d="clock"></span></div>' : ""}`;
+    return `<div class="card"><h3><span>Herói</span><span>${DOTA_PH[d.phase]}</span></h3><div class="dstrip">${pic(72, 96, "ld")}<div class="dstx">${right}</div></div></div>`;
+  });
+}
+const dMsg = (sig, html) => ({ cls: "", cols: [{ c: "dfull", s: [dSec("msg", sig, () => html)] }] });
+function dotaPlan(d) {
+  if (!d) return dMsg("load", '<div class="card dmsg">Carregando…</div>');
+  const ph = d.phase, h = d.hero, L = d.live;
+  const some = (arr) => arr.filter(Boolean);
+  if (ph === "offline") {
+    const msg = dSec("msg", d.reason || "", () => `<div class="card dmsg" role="status">${d.reason ? `<span>Abra o DotaCopilot para ver a partida</span><small>${esc(d.reason)}</small>` : "<span>Dota fechado</span><small>Abra o Dota para ver a partida</small>"}</div>`);
+    return { cls: "c3", cols: [{ c: "dfull", s: [msg] }, ...dotaLobbyCols(d.lobby)] };
   }
-  const col2 = `<div class="dcol">${kv ? `<div class="card"><div class="dkv">${kv}</div></div>` : ""}${next}</div>`;
-  return col1 + col2 + (h ? `<div class="dcol">${dotaBuild(h, L.items || [])}</div>` : "");
-}
-function dotaEnd(d) {
-  const r = d.result || {};
-  return `<div class="dcol dfull"><div class="card dres">
-    <div class="dbig">${dWin(r.win, "Vitória", "Derrota", "Partida encerrada")}</div>
-    ${dKda(r) ? `<div class="dname">${dKda(r)}</div>` : ""}${d.hero?.hero ? `<div class="sub">${esc(d.hero.hero)}</div>` : ""}
-    <div class="dnote">Análise completa no DotaCopilot (no PC)</div></div></div>`;
+  if (ph === "menu") return { cls: "c3", cols: [{ c: "dfull", s: [dSec("head", "menu", () => '<h2 class="dhead" role="status">No menu do Dota</h2>')] }, ...dotaLobbyCols(d.lobby)] };
+  if (ph === "draft" || ph === "pregame") {
+    if (!h) return dMsg("pick", '<div class="card dmsg">Escolhendo o herói…</div>');
+    return { cls: "c2", cols: [{ c: "", s: some([dotaStrip(d, "pick"), dotaSkills(h.build)]) }, { c: "", s: [dotaBuildSec(h, false, DOTA_IMG_MAX - 1)] }] };
+  }
+  if (ph === "game") {
+    if (!L) return dMsg("run", '<div class="card dmsg">Partida em andamento</div>');
+    const cols = [{ c: "", s: some([dotaStrip(d, "game"), dotaTimers(L.timers || {})]) }, { c: "", s: some([dotaKv(L), dotaInventory(L), dotaNext(L)]) }];
+    if (h) cols.push({ c: "", s: [dotaBuildSec(h, true, DOTA_IMG_MAX - 12)] });   // 1 herói + até 10 do inventário + 1 próximo item
+    return { cls: "c3", cols };
+  }
+  if (ph === "postgame") return { cls: "", cols: [{ c: "dfull", s: [dotaStrip(d, "end")] }] };
+  return dMsg("unk", '<div class="card dmsg">Estado desconhecido</div>');
 }
 function renderDota() {
-  const d = dota.d;
-  let html, cls = "c3";
-  if (!d) { html = '<div class="card dmsg">Carregando…</div>'; cls = ""; }
-  else if (d.phase === "offline") {
-    // ponte fora do ar (reason) | ponte no ar + Dota fechado (lobby)
-    html = `<div class="dcol dfull"><div class="card dmsg" role="status">${d.reason ? `<span>Abra o DotaCopilot para ver a partida</span><small>${esc(d.reason)}</small>` : "<span>Dota fechado</span><small>Abra o Dota para ver a partida</small>"}</div></div>` + dotaLobby(d.lobby);
-  } else if (d.phase === "menu") html = '<div class="dcol dfull"><h2 class="dhead" role="status">No menu do Dota</h2></div>' + dotaLobby(d.lobby);
-  else if (d.phase === "draft" || d.phase === "pregame") { html = d.hero ? dotaHero(d) : '<div class="card dmsg">Escolhendo o herói…</div>'; cls = "c2"; }
-  else if (d.phase === "game") html = d.live ? dotaGame(d) : '<div class="card dmsg">Partida em andamento</div>';
-  else if (d.phase === "postgame") { html = dotaEnd(d); cls = ""; }
-  else { html = '<div class="card dmsg">Estado desconhecido</div>'; cls = ""; }
-  const root = $("dota"); root.className = "dota " + cls; setHtml(root, html);
+  const root = $("dota"); if (!root) return;
+  const plan = dotaPlan(dota.d);
+  const layout = [dota.k, plan.cls, plan.cols.map((c) => c.c + ":" + c.s.map((s) => s[0]).join()).join(";")].join("|");
+  if (layout !== dota.layout) {          // estrutura nova: refaz só as colunas vazias (as seções se enchem abaixo)
+    root.className = "dota " + plan.cls;
+    root.innerHTML = plan.cols.map((c) => `<div class="dcol ${c.c}">${c.s.map((s) => `<div class="dsec" data-sec="${s[0]}"></div>`).join("")}</div>`).join("");
+    dota.layout = layout; dota.sig = {};
+  }
+  for (const c of plan.cols) for (const [name, sig, html] of c.s) {
+    if (dota.sig[name] === sig) continue;
+    const el = root.querySelector(`[data-sec="${name}"]`);
+    if (el) { el.innerHTML = html(); dota.sig[name] = sig; }
+  }
+  dotaTick();
 }
-setInterval(() => { if (dota.d && (dota.d.phase === "game" || dota.d.phase === "pregame")) { if (vis("dota")) renderDota(); homeUpd("dota"); } }, 1000);
+// a cada segundo (e a cada mensagem): só texto, barras, anéis e classes; nenhuma <img> é recriada
+const dSet = (root, key, text) => { for (const el of root.querySelectorAll(`[data-d="${key}"]`)) setText(el, text); };
+function dotaTick() {
+  const d = dota.d, root = $("dota"); if (!d || !root) return;
+  const L = d.live, h = d.hero, age = dAge(), t = L?.timers || {};
+  if (nn(L?.clock_s)) dSet(root, "clock", dClock(L.clock_s + age));
+  if (nn(L?.daytime)) dSet(root, "day", L.daytime ? "Dia" : "Noite");
+  if (h?.mine) {
+    const m = h.mine, parts = [m.matches === 1 ? "1 partida" : `${m.matches} partidas`];
+    if (nn(m.winrate)) parts.push(`${dPct(m.winrate)} vitórias`);
+    if (nn(m.last_played)) parts.push(`última vez ${humanAgo(Date.now() / 1000 - m.last_played)}`);
+    dSet(root, "mine", `Você com ${h.hero || "este herói"}: ${parts.join(" · ")}`);
+    if (m.avg_kda) dSet(root, "avgkda", `KDA médio ${m.avg_kda}`);
+  }
+  if (L) {
+    const kv = { gold: nn(L.gold) ? dNum(L.gold) : "", gx: `${L.gpm ?? "–"} / ${L.xpm ?? "–"}`, kda: dKda(L), lh: `${L.last_hits ?? "–"} / ${L.denies ?? "–"}`, level: nn(L.level) ? String(L.level) : "" };
+    for (const [k] of DOTA_KV) dSet(root, `kv-${k}`, kv[k]);
+    for (const [k] of DOTA_TIMERS) {
+      const v = t[k]; if (!nn(v)) continue;
+      const left = Math.max(0, v - age), max = dota.max[k] || 0, pct = max ? (1 - left / max) * 100 : 0;
+      dSet(root, `tv-${k}`, left < 0.5 ? "agora" : fmtTime(left));
+      const row = root.querySelector(`.dtimer[data-t="${k}"]`);
+      if (row) {
+        row.classList.toggle("soon", left <= 15);
+        const bar = row.querySelector(".bar"), fill = row.querySelector("i");
+        if (bar) bar.setAttribute("aria-valuenow", String(Math.round(pct)));
+        if (fill) fill.style.width = pct.toFixed(1) + "%";
+      }
+    }
+    if (nn(t.neutral_tier)) dSet(root, "tier", `tier ${t.neutral_tier}`);
+    const n = L.next_item;
+    if (n) {
+      const miss = n.missing_gold, ok = nn(n.cost) && n.cost > 0 && nn(miss);
+      dSet(root, "nextsub", nn(n.cost) ? `custa ${dNum(n.cost)}${nn(miss) && miss > 0 ? ` · falta ${dNum(miss)} de ouro` : ""}` : "");
+      const arc = root.querySelector('[data-d="arc"]'), box = root.querySelector(".dnring");
+      if (arc && box && ok) {
+        const C = Number(box.dataset.c), pct = Math.max(0, Math.min(100, ((n.cost - miss) / n.cost) * 100));
+        arc.style.strokeDashoffset = (C * (1 - pct / 100)).toFixed(1);
+        arc.closest("svg").setAttribute("aria-label", miss > 0 ? `Faltam ${miss} de ouro` : "Ouro suficiente");
+      }
+    }
+  }
+  // build: na partida, o que já está no inventário ganha o check e o resto fica a 40%
+  const have = {}; for (const nm of d.phase === "game" ? L?.items || [] : []) have[nm] = (have[nm] || 0) + 1;
+  for (const el of root.querySelectorAll(".dbi")) {
+    const g = d.phase === "game" && have[el.dataset.n] > 0; if (g) have[el.dataset.n]--;
+    el.classList.toggle("got", g); el.classList.toggle("not", d.phase === "game" && !g);
+  }
+}
+setInterval(() => { if (dota.d && (dota.d.phase === "game" || dota.d.phase === "pregame")) { if (vis("dota")) dotaTick(); homeUpd("dota"); } }, 1000);
 
 // ---------------------------------------------------------------- Jogos: semana e biblioteca
 let libT = 0, libData = [];

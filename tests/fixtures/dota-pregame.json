@@ -103,6 +103,18 @@
      "cost": 2250
     },
     {
+     "stage": "core",
+     "item": "Black King Bar",
+     "item_id": 116,
+     "cost": 4050
+    },
+    {
+     "stage": "late",
+     "item": "Aghanim's Scepter",
+     "item_id": 108,
+     "cost": 4200
+    },
+    {
      "stage": "late",
      "item": "Coração de Tarrasque",
      "item_id": 114,
@@ -146,7 +158,8 @@
    "wisdom_rune_in_s": null,
    "neutral_tier": null,
    "neutral_next_in_s": 60
-  }
+  },
+  "items_detail": []
  },
  "result": null
 }

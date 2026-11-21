@@ -103,6 +103,18 @@
      "cost": 2250
     },
     {
+     "stage": "core",
+     "item": "Black King Bar",
+     "item_id": 116,
+     "cost": 4050
+    },
+    {
+     "stage": "late",
+     "item": "Aghanim's Scepter",
+     "item_id": 108,
+     "cost": 4200
+    },
+    {
      "stage": "late",
      "item": "Coração de Tarrasque",
      "item_id": 114,
@@ -128,6 +140,7 @@
   "k": 12,
   "d": 2,
   "a": 15,
-  "match_id": 1000000002
+  "match_id": 1000000002,
+  "hero_id": 74
  }
 }
