@@ -78,11 +78,10 @@ Você vai precisar de uns 10 minutos. Faça os passos na ordem.
   ele vai pedir o token de novo: escanear o QR code resolve.
 
 
-8. ATALHO NA ÁREA DE TRABALHO (opcional)
+8. ATALHO NA ÁREA DE TRABALHO
 ----------------------------------------
-- Abra o Menu Iniciar, procure "Companion PC", clique com o botão direito >
-  "Abrir local do arquivo".
-- Copie o atalho "Companion PC" que aparece e cole na Área de Trabalho.
+- O instalador já cria o atalho "Companion PC" na Área de Trabalho (e o atualiza a cada
+  instalação). Não precisa copiar nada à mão.
 
 
 SE ALGO DER ERRADO

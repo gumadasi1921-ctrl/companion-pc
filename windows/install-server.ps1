@@ -52,6 +52,8 @@ foreach ($dir in [Environment]::GetFolderPath("Startup"), [Environment]::GetFold
 New-Shortcut (Join-Path ([Environment]::GetFolderPath("Startup")) "Companion PC.lnk")
 # Menu Iniciar: abrir pelo menu mostra o painel (ou inicia o servidor se estiver parado)
 New-Shortcut (Join-Path ([Environment]::GetFolderPath("Programs")) "Companion PC.lnk")
+# Área de Trabalho (também quando ela está no OneDrive); se já existir, apenas atualiza
+New-Shortcut (Join-Path ([Environment]::GetFolderPath("Desktop")) "Companion PC.lnk")
 
 # Reinicia o servidor
 $old = Get-CimInstance Win32_Process |
