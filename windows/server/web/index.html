@@ -996,6 +996,53 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 :root[data-theme="modern"] .card { background: var(--surface); border-color: transparent; }
 :root[data-theme="modern"] .ta, :root[data-theme="modern"] select.sel, :root[data-theme="modern"] input.num { border-radius: var(--r-list); border-color: var(--separator); background: var(--surface-2); color: var(--text); font: 16px var(--font); }
 select.sel { min-height: 44px; }
+/* ---- Dota (ponte do DotaCopilot): celular deitado primeiro */
+.dota { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); align-content: start; }
+.dota > .dcol { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.dota > .dfull { grid-column: 1 / -1; }
+@media (orientation: landscape) and (min-width: 640px) {
+  .dota.c3 { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1.1fr); }
+  .dota.c2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); }
+}
+.dota .dmsg { display: flex; flex-direction: column; gap: 6px; padding: 18px 16px; font-size: 17px; }
+.dota .dmsg small { color: var(--text-2, var(--p2)); font-size: 14px; }
+.dota .dbig { font: 700 40px/1 var(--display); font-variant-numeric: tabular-nums; }
+.dota .dclock { font: 700 56px/1 var(--display); font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
+.dota .dname { font: 700 24px/1.15 var(--display); overflow-wrap: anywhere; }
+.dota .dname.sm { font-size: 19px; }
+.dota .dnote { color: var(--text-3, var(--p3)); font-size: 13px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+.dwin { color: var(--success, var(--p)); }
+.dloss { color: var(--danger-text, var(--alert)); }
+.dota .row b { font-weight: 600; }
+.dota .sub.wrap { white-space: normal; }
+.dota .dkv { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px 12px; }
+.dota .dkv > div { display: flex; flex-direction: column; min-width: 0; }
+.dota .dkv span { color: var(--text-2, var(--p2)); font-size: 12px; }
+.dota .dkv b { font: 600 20px/1.2 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dota .dtimer { padding: 5px 0; }
+.dota .dtimer .row { padding: 0; }
+.dota .dtimer .row span:last-child { font-variant-numeric: tabular-nums; }
+.dota .dtimer .bar { margin-top: 4px; height: 8px; }
+.dota .dtimer.soon .row span:last-child { color: var(--warning, var(--p)); font-weight: 600; }
+.dota .dstage { margin: 8px 0 2px; font: 600 11px/1.2 var(--font, var(--mono)); letter-spacing: .05em; text-transform: uppercase; color: var(--text-2, var(--p2)); }
+.dota .ditem { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 30px; font-size: 15px; }
+.dota .ditem > span:first-child { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dota .ditem small { color: var(--text-3, var(--p3)); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dota .ditem .hi { width: 16px; height: 16px; flex: none; }
+.dota .ditem.got > span:first-child { color: var(--success, var(--p)); }
+.dota .ditem:not(.got) .hi { visibility: hidden; }
+.dota .dskills { display: flex; flex-wrap: wrap; gap: 6px; }
+.dota .dskills span { display: inline-flex; flex-direction: column; align-items: center; min-width: 34px; padding: 4px 6px; border-radius: 10px; background: var(--surface-2, transparent); border: 1px solid var(--separator, var(--p4)); font: 700 15px/1.1 var(--display); text-transform: uppercase; }
+.dota .dskills small { font: 500 10px/1 var(--font, var(--mono)); color: var(--text-3, var(--p3)); }
+.dota .dnext { display: flex; align-items: center; gap: 12px; }
+.dota .dnext .hring { width: 84px; height: 84px; flex: none; }
+.dota .dnext .hring-x { font-size: 18px; }
+.dota .dnext .sub { white-space: normal; }
+.dota .dnext > div:last-child { min-width: 0; }
+.dota .dres { text-align: center; padding: 22px 16px; display: grid; gap: 8px; justify-items: center; }
+.dota .dres .dbig { font-size: 56px; }
+.hdota .dbig { font: 700 28px/1.05 var(--display); font-variant-numeric: tabular-nums; }
+.hdota .sub { white-space: normal; }
 input.num { min-height: 36px; }
 :root[data-theme="modern"] .lgame { background: var(--surface-2); border-color: var(--separator); }
 :root[data-theme="modern"] .lgame:active { background: var(--surface-3); color: var(--text); }
@@ -1073,6 +1120,7 @@ input.num { min-height: 36px; }
       <button class="mrow" data-view="dash"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-activity"/></svg><span>Sistema</span></button>
       <button class="mrow" data-view="media"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-headphones"/></svg><span>Rádio e mixer</span></button>
       <button class="mrow" data-view="games"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-gamepad-2"/></svg><span>Jogos</span></button>
+      <button class="mrow" data-view="dota"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-gamepad"/></svg><span>Dota</span></button>
       <button class="mrow" data-view="work"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-briefcase"/></svg><span>Trabalho</span></button>
       <button class="mrow" data-view="send"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-folder-open"/></svg><span>Arquivos</span></button>
       <button class="mrow" data-view="power"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-log-out"/></svg><span>Energia</span></button>
@@ -1124,6 +1172,9 @@ input.num { min-height: 36px; }
     <h2>Biblioteca</h2>
     <div class="lib" id="g-lib"><div class="empty">Carregando…</div></div>
   </section>
+
+  <!-- MAIS > Dota: estado da partida vindo da ponte do DotaCopilot (docs/dota-bridge.md) -->
+  <section class="tab" id="t-dota"><div class="dota" id="dota"><div class="card dmsg">Carregando…</div></div></section>
 
   <!-- STATUS > Trabalho (tempo no Photoshop, Premiere e After Effects) -->
   <section class="tab" id="t-work">
@@ -1356,6 +1407,7 @@ input.num { min-height: 36px; }
   <button class="nm" data-view="dash"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-activity"/></svg><span>Sistema</span></button>
   <button class="nm" data-view="media"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-headphones"/></svg><span>Rádio e mixer</span></button>
   <button class="nm" data-view="games"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-gamepad-2"/></svg><span>Jogos</span></button>
+  <button class="nm" data-view="dota"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-gamepad"/></svg><span>Dota</span></button>
   <button class="nm" data-view="work"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-briefcase"/></svg><span>Trabalho</span></button>
   <button class="nm" data-view="send"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-folder-open"/></svg><span>Arquivos</span></button>
   <button class="nm" data-view="power"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-log-out"/></svg><span>Energia</span></button>
@@ -1556,6 +1608,7 @@ function onMsg(m) {
     case "now": state.now = m.d; state.nowT = performance.now(); renderNow(); break;
     case "art": state.art = { [m.id]: "data:image/jpeg;base64," + m.jpg }; renderNow(); break;
     case "games": state.games = m.d; state.gamesT = performance.now(); renderGames(); break;
+    case "dota": dotaSet(m.d, m.auto_open); break;
     case "gameart": state.gameart = { [m.id]: "data:image/jpeg;base64," + m.jpg }; renderGames(); break;
     case "event":
       if (m.kind === "pomo.done") { pomoDone(m); break; }
@@ -1608,7 +1661,7 @@ const SECTIONS = {
   ctrl: [["mouse", "Mouse e teclado"], ["screen", "Tela do PC"]],
   deck: [["deck", "Botões"]],
   tasks: [["tasks", "Tarefas"]],
-  mais: [["more", "Mais"], ["dash", "Sistema"], ["media", "Tocando"], ["mix", "Mixer"], ["games", "Jogos"], ["work", "Trabalho"],
+  mais: [["more", "Mais"], ["dash", "Sistema"], ["media", "Tocando"], ["mix", "Mixer"], ["games", "Jogos"], ["dota", "Dota"], ["work", "Trabalho"],
     ["send", "Arquivos"], ["power", "Energia"], ["widgets", "Widgets do Início"], ["sys", "Ajustes"]],
 };
 const GROUPS = { ctrl: ["mouse", "screen"], radio: ["media", "mix"] };
@@ -1648,6 +1701,7 @@ function showView(name, temp) {
   if (vis("screen")) requestAnimationFrame(() => { layoutScreen(); screenLoop(); });
   if (vis("media") || vis("mix")) { mixT = 0; renderMixer(); pollMixer(); }
   if (vis("games")) loadGamesExtra();
+  if (vis("dota")) dotaShow();
   if (vis("work")) loadWork(true);
   if (vis("tasks")) loadTasks();
   if (vis("inicio")) homeShow();
@@ -1829,6 +1883,131 @@ function renderGames() {
   $("g-recent").innerHTML = r.length ? r.map((x) => `<div class="row"><span>${esc(x.name)}</span><span>${humanDur(x.dur)} · ${humanAgo(x.ago + since)}</span></div>`).join("")
     : '<div class="empty">Nenhuma sessão ainda</div>';
 }
+
+// ---------------------------------------------------------------- Dota (ponte do DotaCopilot; contrato em docs/dota-bridge.md)
+// O Companion não calcula nada: mostra o que a ponte manda (campo null = item escondido). Entre uma atualização e
+// outra, relógio e tempos contam localmente (no máximo 3 s). A barra de cada tempo usa o maior valor visto no ciclo.
+const dota = { d: null, t: 0, auto: true, max: {}, prev: {} };
+const DOTA_PH = { offline: "fechado", menu: "no menu", draft: "escolha de herói", pregame: "pré-jogo", game: "em partida", postgame: "fim de partida" };
+const DOTA_STAGE = [["start", "Inicial"], ["early", "Começo"], ["core", "Principal"], ["late", "Final"]];
+const DOTA_TIMERS = [["power_rune_in_s", "Runa de poder"], ["bounty_rune_in_s", "Runa de recompensa"], ["wisdom_rune_in_s", "Sabedoria"], ["neutral_next_in_s", "Próximo tier de neutros"]];
+const nn = (v) => v !== null && v !== undefined;
+const dNum = (n) => Number(n).toLocaleString("pt-BR");
+const dPct = (x) => Math.round(x * 100) + "%";
+const dAge = () => Math.min(3, (performance.now() - dota.t) / 1000);
+const dClock = (s) => (s < 0 ? "−" : "") + fmtTime(Math.abs(s));
+const dKda = (o) => (o && nn(o.k) && nn(o.d) && nn(o.a) ? `${o.k}/${o.d}/${o.a}` : "");
+const dWin = (w, yes, no, none) => `<span class="${w === true ? "dwin" : w === false ? "dloss" : ""}">${w === true ? yes : w === false ? no : none}</span>`;
+function dotaSet(d, auto) {
+  if (!d || typeof d !== "object") return;
+  dota.d = d; dota.t = performance.now(); if (typeof auto === "boolean") dota.auto = auto;
+  const t = d.live?.timers || {};
+  for (const [k] of DOTA_TIMERS) {
+    const v = t[k];
+    if (!nn(v)) { delete dota.max[k]; delete dota.prev[k]; continue; }
+    if (!(k in dota.max) || v > dota.prev[k]) dota.max[k] = v;   // subiu = ciclo novo
+    dota.prev[k] = v;
+  }
+  if (vis("dota")) renderDota();
+  homeUpd("dota");
+}
+async function dotaShow() {
+  renderDota();
+  if (!ws || ws.readyState !== 1) return;
+  try { const r = await send("dota.get"); dotaSet(r.d, r.auto_open); } catch {}
+}
+function dotaTimer(label, v, key) {
+  if (!nn(v)) return "";
+  const left = Math.max(0, v - dAge()), max = dota.max[key] || 0, pct = max ? (1 - left / max) * 100 : 0;
+  return `<div class="dtimer${left <= 15 ? " soon" : ""}"><div class="row"><span>${esc(label)}</span><span>${left < 0.5 ? "agora" : fmtTime(left)}</span></div><div class="bar" role="progressbar" aria-label="${esc(label)}" aria-valuenow="${Math.round(pct)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct.toFixed(1)}%"></i></div></div>`;
+}
+function dotaLobby(l) {
+  if (!l) return "";
+  const mmr = l.mmr, td = l.today, st = l.streak, a = [];
+  if (mmr) a.push(`<div class="card"><h3><span>MMR</span><span>${mmr.estimated ? "estimado" : "informado"}</span></h3><div class="dbig">${dNum(mmr.value)}</div>${mmr.medal ? `<div class="sub">${esc(mmr.medal)}</div>` : ""}</div>`);
+  const streak = nn(st) && st !== 0 ? `<div class="sub">${dWin(st > 0, `${st} ${st === 1 ? "vitória seguida" : "vitórias seguidas"}`, `${-st} ${st === -1 ? "derrota seguida" : "derrotas seguidas"}`, "")}</div>` : "";
+  if (td || streak) a.push(`<div class="card"><h3><span>Hoje</span></h3>${td ? `<div class="dbig"><span class="dwin">${td.wins}V</span> – <span class="dloss">${td.losses}D</span></div>` : ""}${streak}</div>`);
+  const rec = (l.recent || []).slice(0, 5).map((m) => {
+    const right = [nn(m.win) ? `<b>${dWin(m.win, "V", "D", "")}</b>` : "", dKda(m), nn(m.duration_s) ? humanDur(m.duration_s) : ""].filter(Boolean).join(" · ");
+    return `<div class="row"><span>${esc(m.hero || "")}</span><span>${right}</span></div>`;
+  }).join("");
+  const top = (l.top_heroes || []).slice(0, 5).map((h) => `<div class="row"><span>${esc(h.hero || "")}</span><span>${h.matches} partidas${nn(h.winrate) ? " · " + dPct(h.winrate) : ""}</span></div>`).join("");
+  return (a.length ? `<div class="dcol">${a.join("")}</div>` : "")
+    + (rec ? `<div class="dcol"><div class="card"><h3><span>Últimas partidas</span></h3>${rec}</div></div>` : "")
+    + (top ? `<div class="dcol"><div class="card"><h3><span>Mais jogados</span></h3>${top}</div></div>` : "");
+}
+function dotaBuild(h, got) {
+  const b = h?.build;
+  if (!b) return `<div class="card"><h3><span>Build</span></h3><div class="empty">Sem build salva para este herói</div></div>`;
+  const src = h.position_source === "historico" ? `<div class="dnote">build da sua posição mais jogada${nn(h.position) ? ` (posição ${h.position})` : ""}</div>` : "";
+  const have = {}; for (const n of got || []) have[n] = (have[n] || 0) + 1;
+  const list = DOTA_STAGE.map(([st, label]) => {
+    const items = (b.items || []).filter((i) => i.stage === st); if (!items.length) return "";
+    return `<div class="dstage">${label}</div>` + items.map((i) => {
+      const g = !!got && have[i.item] > 0; if (g) have[i.item]--;
+      return `<div class="ditem${g ? " got" : ""}"><span>${got ? ic("check-check") : ""}${esc(i.item)}</span>${nn(i.cost) ? `<small>${dNum(i.cost)}</small>` : ""}</div>`;
+    }).join("");
+  }).join("");
+  return `<div class="card"><h3><span>Build</span>${b.source ? `<span>${esc(b.source)}</span>` : ""}</h3>${src}${list}</div>`;
+}
+function dotaSkills(b) {
+  const s = b?.skills; if (!s || !s.length) return "";
+  return `<div class="card"><h3><span>Ordem de skills</span><span>nível</span></h3><div class="dskills">${s.map((k, i) => `<span>${esc(k)}<small>${i + 1}</small></span>`).join("")}</div></div>`;
+}
+function dotaMine(h) {
+  const m = h.mine; if (!m) return "";
+  const parts = [m.matches === 1 ? "1 partida" : `${m.matches} partidas`];
+  if (nn(m.winrate)) parts.push(`${dPct(m.winrate)} vitórias`);
+  if (nn(m.last_played)) parts.push(`última vez ${humanAgo(Date.now() / 1000 - m.last_played)}`);
+  return `<div class="sub wrap">Você com ${esc(h.hero || "este herói")}: ${parts.join(" · ")}</div>${m.avg_kda ? `<div class="dnote">KDA médio ${esc(m.avg_kda)}</div>` : ""}`;
+}
+function dotaHero(d) {
+  const h = d.hero, L = d.live;
+  const clock = nn(L?.clock_s) ? `<div class="row"><span>Relógio</span><span>${dClock(L.clock_s + dAge())}</span></div>` : "";
+  return `<div class="dcol"><div class="card"><h3><span>Herói</span><span>${DOTA_PH[d.phase]}</span></h3><div class="dname">${esc(h.hero || "Herói escolhido")}</div>${dotaMine(h)}${clock}</div>${dotaSkills(h.build)}</div>
+    <div class="dcol">${dotaBuild(h)}</div>`;
+}
+function dotaGame(d) {
+  const L = d.live, h = d.hero, t = L.timers || {};
+  const clock = nn(L.clock_s) ? `<div class="dclock" role="timer">${dClock(L.clock_s + dAge())}</div>` : "";
+  const day = nn(L.daytime) ? `<div class="sub">${L.daytime ? "Dia" : "Noite"}</div>` : "";
+  const timers = DOTA_TIMERS.map(([k, l]) => dotaTimer(l, t[k], k)).join("")
+    + (nn(t.neutral_tier) ? `<div class="row"><span>Neutros liberados</span><span>tier ${t.neutral_tier}</span></div>` : "");
+  const col1 = `<div class="dcol">${clock || day ? `<div class="card">${clock}${day}</div>` : ""}${timers ? `<div class="card"><h3><span>Tempos</span>${t.patch ? `<span class="dnote">patch ${esc(t.patch)}</span>` : ""}</h3>${timers}</div>` : ""}</div>`;
+  const kv = [["Ouro", nn(L.gold) ? dNum(L.gold) : null], ["GPM / XPM", nn(L.gpm) || nn(L.xpm) ? `${L.gpm ?? "–"} / ${L.xpm ?? "–"}` : null],
+    ["KDA", dKda(L) || null], ["LH / DN", nn(L.last_hits) || nn(L.denies) ? `${L.last_hits ?? "–"} / ${L.denies ?? "–"}` : null], ["Nível", L.level]]
+    .filter(([, v]) => nn(v)).map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("");
+  const n = L.next_item;
+  let next = "";
+  if (n) {
+    const miss = n.missing_gold, ring = nn(n.cost) && n.cost > 0 && nn(miss)
+      ? ringSvg(((n.cost - miss) / n.cost) * 100, "--accent-fill, var(--p)", miss > 0 ? dNum(miss) : "ok", miss > 0 ? "falta" : "", miss > 0 ? `Faltam ${miss} de ouro` : "Ouro suficiente") : "";
+    next = `<div class="card"><h3><span>Próximo item</span></h3><div class="dnext">${ring}<div><div class="dname sm">${esc(n.item)}</div>${nn(n.cost) ? `<div class="sub">custa ${dNum(n.cost)}${nn(miss) && miss > 0 ? ` · falta ${dNum(miss)} de ouro` : ""}</div>` : ""}</div></div></div>`;
+  }
+  const col2 = `<div class="dcol">${kv ? `<div class="card"><div class="dkv">${kv}</div></div>` : ""}${next}</div>`;
+  return col1 + col2 + (h ? `<div class="dcol">${dotaBuild(h, L.items || [])}</div>` : "");
+}
+function dotaEnd(d) {
+  const r = d.result || {};
+  return `<div class="dcol dfull"><div class="card dres">
+    <div class="dbig">${dWin(r.win, "Vitória", "Derrota", "Partida encerrada")}</div>
+    ${dKda(r) ? `<div class="dname">${dKda(r)}</div>` : ""}${d.hero?.hero ? `<div class="sub">${esc(d.hero.hero)}</div>` : ""}
+    <div class="dnote">Análise completa no DotaCopilot (no PC)</div></div></div>`;
+}
+function renderDota() {
+  const d = dota.d;
+  let html, cls = "c3";
+  if (!d) { html = '<div class="card dmsg">Carregando…</div>'; cls = ""; }
+  else if (d.phase === "offline") {
+    html = `<div class="dcol dfull"><div class="card dmsg" role="status">${d.reason ? `<span>${esc(d.reason)}</span><small>Abra o DotaCopilot para ver a partida</small>` : "<span>Abra o Dota para ver a partida</span><small>Sem dados do jogo há mais de 35 s</small>"}</div></div>` + dotaLobby(d.lobby);
+  } else if (d.phase === "menu") html = dotaLobby(d.lobby) || '<div class="card dmsg">No menu do Dota</div>';
+  else if (d.phase === "draft" || d.phase === "pregame") { html = d.hero ? dotaHero(d) : '<div class="card dmsg">Escolhendo o herói…</div>'; cls = "c2"; }
+  else if (d.phase === "game") html = d.live ? dotaGame(d) : '<div class="card dmsg">Partida em andamento</div>';
+  else if (d.phase === "postgame") { html = dotaEnd(d); cls = ""; }
+  else { html = '<div class="card dmsg">Estado desconhecido</div>'; cls = ""; }
+  const root = $("dota"); root.className = "dota " + cls; setHtml(root, html);
+}
+setInterval(() => { if (dota.d && (dota.d.phase === "game" || dota.d.phase === "pregame")) { if (vis("dota")) renderDota(); homeUpd("dota"); } }, 1000);
 
 // ---------------------------------------------------------------- Jogos: semana e biblioteca
 let libT = 0, libData = [];
@@ -2309,6 +2488,29 @@ Object.assign(HOME_W, {
     },
   },
 });
+Object.assign(HOME_W, {
+  dota: {
+    name: "Dota", icon: "gamepad",
+    html: () => `<div class="hw-t"><span>Dota</span><span data-k="ph"></span></div><div class="hdota" data-k="body"></div>`,
+    ready: () => !!dota.d,
+    upd(el) {
+      const d = dota.d, L = d.live, l = d.lobby;
+      setText(hk(el, "ph"), DOTA_PH[d.phase] || "");
+      let h;
+      if (d.phase === "game" && L) {
+        h = (nn(L.clock_s) ? `<div class="dbig">${dClock(L.clock_s + dAge())}</div>` : "") + (d.hero?.hero ? `<div class="sub">${esc(d.hero.hero)}${dKda(L) ? " · " + dKda(L) : ""}</div>` : "")
+          + (L.next_item ? `<div class="row"><span>${esc(L.next_item.item)}</span><span>${nn(L.next_item.missing_gold) && L.next_item.missing_gold > 0 ? "falta " + dNum(L.next_item.missing_gold) : ""}</span></div>` : "");
+      } else if (d.phase === "draft" || d.phase === "pregame") h = `<div class="dbig">${esc(d.hero?.hero || "Escolhendo…")}</div>`;
+      else if (d.phase === "postgame") h = `<div class="dbig">${dWin(d.result?.win, "Vitória", "Derrota", "Fim")}</div>${dKda(d.result) ? `<div class="sub">${dKda(d.result)}</div>` : ""}`;
+      else {
+        h = (l?.mmr ? `<div class="dbig">${dNum(l.mmr.value)}</div><div class="sub">${esc(l.mmr.medal || "")}${l.mmr.estimated ? " · estimado" : ""}</div>` : "")
+          + (l?.today ? `<div class="row"><span>Hoje</span><span>${l.today.wins}V – ${l.today.losses}D</span></div>` : "")
+          + (d.phase === "offline" ? `<div class="hw-na">${esc(d.reason || "Dota fechado")}</div>` : "");
+      }
+      setHtml(hk(el, "body"), h || '<div class="hw-na">Sem dados</div>');
+    },
+  },
+});
 const HOME_DEF = {
   phone: [{ id: "now", size: "S" }, { id: "tasks", size: "S" }, { id: "pcquick", size: "S" }],
   tablet: [["cpu", "L"], ["net"], ["mem"], ["now"], ["tasks"], ["work", "L"], ["procs"], ["games"], ["notif"], ["quick"]].map(([id, z]) => ({ id, size: z || "S" })),
@@ -2440,6 +2642,7 @@ $("home").addEventListener("click", (e) => {
   }
   const t = e.target.closest(".trow[data-id]"); if (t) return homeTaskToggle(t.dataset.id);
   if (e.target.closest('.hw[data-w="now"]')) { buzz(8); showView("media"); }   // fora dos botões: abre o Rádio
+  if (e.target.closest('.hw[data-w="dota"]')) { buzz(8); showView("dota"); }
 });
 $("home").addEventListener("keydown", (e) => { const t = e.target.closest(".trow[data-id]"); if (t && (e.key === " " || e.key === "Enter")) { e.preventDefault(); homeTaskToggle(t.dataset.id); } });
 // 1×/s e só com o Início visível (gráficos e medidores)
