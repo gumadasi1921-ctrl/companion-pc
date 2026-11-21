@@ -413,7 +413,9 @@ class Stats:
                 with p.oneshot():
                     cpu = p.cpu_percent(None) / self.cores
                     procs.append((cpu, p.memory_info().rss, p.cached_name))
-                if time.perf_counter() - t0 > 0.003 and pid in self.pcache and hasattr(p, "seen"):
+                # só descarta processos lentos E ociosos: com a CPU alta qualquer leitura passa de 3 ms
+                # e os processos pesados (os de "Mais pesados") eram descartados para sempre
+                if time.perf_counter() - t0 > 0.003 and cpu < 1 and pid in self.pcache and hasattr(p, "seen"):
                     self.slow.add(pid)
                 p.seen = True
             except psutil.Error:
