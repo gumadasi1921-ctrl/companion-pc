@@ -818,6 +818,28 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 @media (prefers-reduced-motion: reduce) { .hq button:active { transform: none; } }
 .toast.undo { display: flex; align-items: center; gap: 8px; padding: 2px 2px 2px 14px; }
 .toast.undo button { min-height: 44px; padding: 0 14px; font-weight: 700; color: var(--accent-text, var(--p)); }
+/* Tarefas: anel à esquerda (deitado) ou em cima (em pé); pendentes e "Feitas" à direita */
+.tk { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (orientation: landscape) { .tk { grid-template-columns: 200px minmax(0, 1fr); } }
+.tk-side { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; min-width: 0; }
+.tk-ring { position: relative; width: 140px; height: 140px; }
+.tk-ring .hring { width: 140px; height: 140px; }
+.tk-chk { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; fill: none; stroke: var(--success, var(--p)); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tk-msg { font-size: 22px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.tk-msg.ok { color: var(--success, var(--p)); }
+.tk-main { min-width: 0; }
+.tk-grp { display: flex; flex-direction: column; border: 1px solid var(--separator, var(--p4)); border-radius: var(--r-list, 2px); background: var(--surface, transparent); overflow: hidden; }
+.tk-grp .trow { min-height: 48px; padding: 6px 14px; margin: 0; }
+.tk-grp .trow:first-child { border-top: 0; }
+.tk-grp .trow .tbox { width: 24px; height: 24px; border-radius: 50%; }
+.tk-grp .trow.done .tbox { background: var(--success, var(--p2)); border-color: var(--success, var(--p2)); color: var(--on-accent, var(--bg)); }
+.tk-grp .trow.done .ttx { text-decoration: line-through; color: var(--text-3, var(--p3)); opacity: 1; }
+.tk-h { margin: 16px 4px 6px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--p2); }
+.tk-foot { margin: 14px 4px 4px; font-size: 13px; color: var(--text-3, var(--p3)); }
+.tk-empty { color: var(--text-3, var(--p3)); padding: 8px 4px; }
+.tk-sk { display: flex; flex-direction: column; gap: 10px; }
+.tk-sk i { display: block; height: 48px; border-radius: var(--r-sm, 2px); background: var(--surface-2, var(--p4)); animation: hwpulse 1.4s ease-in-out infinite; }
+.tk-sk i:first-child { width: 140px; height: 140px; border-radius: 50%; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -960,8 +982,10 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 
   <!-- TAREFAS: só ver e marcar (o resto é no painel do PC) -->
   <section class="tab" id="t-tasks">
-    <div class="card"><h3><span>Tarefas</span><span id="tk-count"></span></h3>
-      <div id="tk-list"><div class="empty">Carregando…</div></div></div>
+    <div class="home-head"><h2>Tarefas</h2></div>
+    <div class="tk" id="tk">
+      <div class="tk-sk"><i></i><i></i><i></i></div>
+    </div>
   </section>
 
   <!-- RÁDIO > Tocando -->
@@ -1741,17 +1765,31 @@ function tasksBadge(d) {
 }
 function renderTasks(d) {
   tasksData = d; homeUpd("tasks");
-  tasksBadge(d);
-  $("tk-count").textContent = d.total ? `${d.done} de ${d.total} feitas` : "";
-  $("tk-list").innerHTML = d.items.length
-    ? d.items.map((t) => `<div class="trow${t.done ? " done" : ""}" data-id="${t.id}"><span class="tbox">${t.done ? "✓" : ""}</span><span class="ttx">${esc(t.text)}</span></div>`).join("")
-    : '<div class="empty">Nenhuma tarefa. Adicione pelo painel do PC (aba Tarefas).</div>';
+  tasksBadge(d); tkView(d);
 }
-$("tk-list").onclick = async (e) => {
-  const r = e.target.closest(".trow"); if (!r) return;
-  buzz();
-  try { renderTasks(await send("tasks.toggle", { id: r.dataset.id })); } catch { loadTasks(); }
-};
+// tela Tarefas: anel 140px + pendentes + "Feitas". Toque = homeTaskToggle (otimista + Desfazer 4 s).
+let tkAll = null;
+function tkView(d) {
+  const items = d.items || [], total = items.length, done = items.filter((t) => t.done).length, pend = total - done;
+  const all = total > 0 && !pend;
+  if (all && tkAll === false && navigator.vibrate) try { navigator.vibrate(30); } catch {}
+  tkAll = all;
+  const row = (t) => `<div class="trow${t.done ? " done" : ""}" data-id="${t.id}" role="button" tabindex="0" aria-pressed="${t.done}"><span class="tbox">${t.done ? "✓" : ""}</span><span class="ttx">${esc(t.text)}</span></div>`;
+  const msg = !total ? "Nenhuma tarefa" : all ? "Tudo feito!" : pend === 1 ? "Só falta 1!" : `Faltam ${pend}`;
+  const ring = all
+    ? `<div class="tk-ring ok">${ringSvg(100, "--success, var(--p)", "", "", "Todas as tarefas feitas")}${ic("check-check", "tk-chk")}</div>`
+    : `<div class="tk-ring">${ringSvg(total ? (done / total) * 100 : 0, "--accent-fill, var(--p)", total ? `${done}/${total}` : "–", total ? "feitas" : "", total ? `${done} de ${total} tarefas feitas` : "Sem tarefas")}</div>`;
+  const pendList = items.filter((t) => !t.done), doneList = items.filter((t) => t.done);
+  setHtml($("tk"), `<div class="tk-side">${ring}<div class="tk-msg${all ? " ok" : ""}" role="status">${msg}</div></div>
+    <div class="tk-main">
+      ${pendList.length ? `<div class="tk-grp">${pendList.map(row).join("")}</div>` : ""}
+      ${doneList.length ? `<div class="tk-h">Feitas · ${doneList.length}</div><div class="tk-grp">${doneList.map(row).join("")}</div>` : ""}
+      ${total ? "" : '<div class="tk-empty">Nenhuma tarefa por aqui.</div>'}
+      <div class="tk-foot">Adicionar e editar: painel do PC</div>
+    </div>`);
+}
+$("tk").onclick = (e) => { const r = e.target.closest(".trow[data-id]"); if (r) homeTaskToggle(r.dataset.id); };
+$("tk").onkeydown = (e) => { const r = e.target.closest(".trow[data-id]"); if (r && (e.key === " " || e.key === "Enter")) { e.preventDefault(); homeTaskToggle(r.dataset.id); } };
 setInterval(loadTasks, 10000);   // também alimenta o selo da navegação
 
 // ---------------------------------------------------------------- Início (widgets)
@@ -2107,7 +2145,7 @@ function homeShow() { homeBuild(); loadTasks(); homeFetch(); }
 async function homeTaskToggle(id, undo) {
   const d = tasksData, t = d?.items.find((x) => x.id === id); if (!t) return;
   buzz();
-  const flip = (v) => { t.done = v; d.done = d.items.filter((x) => x.done).length; tasksBadge(d); homeUpd("tasks"); };
+  const flip = (v) => { t.done = v; d.done = d.items.filter((x) => x.done).length; tasksBadge(d); tkView(d); homeUpd("tasks"); };
   const was = t.done; flip(!was);                       // otimista
   try {
     const r = await send("tasks.toggle", { id }); renderTasks(r);
