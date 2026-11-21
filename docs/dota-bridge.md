@@ -8,10 +8,14 @@ partida de Dota. Não muda visual, overlay nem análise pós-partida.
   (`127.0.0.1`; recusa qualquer outro endereço). Porta `32123` (`config.rs`, `DEFAULT_GSI_PORT`).
 - **Resposta:** `200`, `application/json; charset=utf-8`, `Cache-Control: no-store`. Outros métodos
   na rota = `405`.
-- **Garantias:** nada é gravado (SQLite aberto com `SQLITE_OPEN_READ_ONLY`); nenhuma chamada à
-  internet na requisição (só estado em memória, SQLite e caches já gravados); token do GSI, Steam ID
-  e chaves de API nunca entram no JSON (o mapeamento só lê os campos listados abaixo).
-- **Código:** `apps/desktop/src-tauri/src/companion_bridge.rs` (testes no mesmo arquivo).
+- **Garantias:** a requisição nunca grava (SQLite aberto com `SQLITE_OPEN_READ_ONLY`) nem espera a
+  internet (só estado em memória, SQLite e caches já gravados); token do GSI, Steam ID e chaves de
+  API nunca entram no JSON nem no log (o mapeamento só lê os campos listados abaixo). Dois efeitos
+  acontecem **fora** da requisição, em tarefas separadas: a busca da build ausente e a extração de
+  imagem ausente (ver abaixo).
+- **Código:** `apps/desktop/src-tauri/src/companion_bridge.rs` (testes no mesmo arquivo e em
+  `gsi/receiver/mod.rs`).
+- **Mudanças:** só aditivas dentro de `v: 1` (campo novo = `null` quando sem dado).
 
 ## Contrato v1
 
@@ -49,13 +53,39 @@ Campos ausentes = `null`. Listas vazias quando não há dados.
     "clock_s": 400, "daytime": true, "gold": 900, "gpm": 410, "xpm": 520,
     "k": 3, "d": 1, "a": 7, "last_hits": 55, "denies": 4, "level": 9,
     "items": ["Tango", "Ramo de Ferro"],
-    "next_item": { "item": "Blink Dagger", "cost": 2250, "missing_gold": 1350 },
+    "items_detail": [                // mesmos itens, com id e slot
+      { "item": "Tango", "item_id": 44, "slot": 0 },
+      { "item": "Ramo de Ferro", "item_id": 16, "slot": 6 }
+    ],
+    "next_item": { "item": "Blink Dagger", "item_id": 1, "cost": 2250, "missing_gold": 1350 },
     "timers": { "patch": "7.41", "power_rune_in_s": 80, "bounty_rune_in_s": 80,
                 "wisdom_rune_in_s": 20, "neutral_tier": 1, "neutral_next_in_s": 500 }
   },
-  "result": { "win": true, "k": 12, "d": 2, "a": 15, "match_id": 8976846659 }
+  "result": { "hero_id": 74, "win": true, "k": 12, "d": 2, "a": 15, "match_id": 8976846659 }
 }
 ```
+
+## Imagens da ponte
+
+Mesmo servidor, somente `GET`. Servem as imagens que o DotaCopilot já tem em disco (extraídas do VPK do
+Dota); uma que ainda não existe é extraída em segundo plano e a rota responde `404` até lá.
+
+| Rota | Arquivo | Tamanho real |
+| --- | --- | --- |
+| `/companion/v1/img/hero/{hero_id}?kind=icon` | ícone do herói | 32×32 |
+| `/companion/v1/img/hero/{hero_id}?kind=portrait` (padrão sem `kind`) | retrato | 128×72 |
+| `/companion/v1/img/hero/{hero_id}?kind=loadout` | render vertical | 448×678 |
+| `/companion/v1/img/item/{item_id}` | ícone do item | 88×64 |
+
+`Content-Type: image/png`, `Cache-Control: max-age=86400`. `400` = id que não seja só dígitos ou `kind` fora
+da lista; `404` = id desconhecido ou imagem ainda não extraída.
+
+## Busca da build ausente
+
+Quando `hero.build` seria `null` por falta de cache para o herói + posição do histórico, a ponte busca a
+build na STRATZ **em segundo plano** (mesma função do overlay do DotaCopilot). A resposta em curso não
+espera (`build: null`); a build aparece nas leituras seguintes, em poucos segundos. No máximo 1 busca por
+herói + posição, sem repetir a mesma em 10 min (erro incluído).
 
 ## Fontes de cada bloco
 
@@ -70,7 +100,9 @@ Campos ausentes = `null`. Listas vazias quando não há dados.
 | `hero.build.items` | `stratz_build_cache` (herói + posição do histórico) + `stratz.item_catalog.v1` (nomes) + `stratz.match_constants.v4` (custo) | mesma agregação do overlay (`item_build/aggregate.rs`, `starting.rs`); `start` = itens iniciais (repetidos pela quantidade); `early`/`core`/`late` pelo minuto alvo 0–15 / 15–35 / 35+ (mesmas faixas da página do herói, `hero_page.rs`) |
 | `hero.build.skills` | `stratz.hero_guide_sequence.v2.<herói>.<posição>` (partida real, `item_build/sequence.rs`) + ordem das habilidades em `stratz.match_constants.v4` | só heróis com exatamente 4 habilidades aprendidas = Q, W, E, R na ordem do jogo; senão `null`. A fonte não guarda talentos, por isso só os níveis 1–9 (exatos) e nunca `"talento"` |
 | `live` | GSI (`map`, `player`, `hero`, `items`) | só em `pregame`/`game`; `items` = inventário + mochila (nome PT do catálogo, senão nome interno) |
-| `live.next_item` | build acima + itens carregados (inventário, mochila, estoque) | 1º item da build após os iniciais que você não carrega; `missing_gold` = custo − ouro (mín. 0) |
+| `live.items_detail` | GSI `items.slot0`–`slot8`, `neutral0` + `stratz.item_catalog.v1` | `slot` 0–5 = inventário, 6–8 = mochila, **9 = item neutro** (`neutral0`; confirmado pelo dono do projeto); estoque fora; `item_id` = `null` se o catálogo em cache não conhecer o item; slot vazio não aparece |
+| `live.next_item` | build acima + itens carregados (inventário, mochila, estoque) | 1º item da build após os iniciais que você não carrega; `missing_gold` = custo − ouro (mín. 0); `item_id` = id desse item na build |
+| `result.hero_id` | GSI `hero.id` | `null` se o payload não trouxer herói |
 | `live.timers` | ruleset `timer-rules/7.41/rules.json` | ver abaixo; todos `null` em Turbo (sem tempos de Turbo com fonte) |
 | `result` | GSI no `postgame` | `win` = `map.win_team` igual ao seu `player.team_name` |
 
@@ -128,3 +160,25 @@ Uma vez por abertura do jogo: quando chega um `dota_started` novo (o Dota abriu)
 tela Dota (já na fase menu) com o aviso "Dota aberto" e o botão "Voltar". O último `dota_started` tratado fica
 no aparelho (store `dotaSeen`), então recarregar o app não abre de novo.
 
+
+### Imagens no app: proxy do servidor (`windows/server/dota_img.py`)
+
+O celular nunca fala com a ponte: o servidor do Companion busca na ponte e guarda em disco.
+
+- **Rotas:** `GET /dota/img/hero/<id>?kind=icon|portrait|loadout&k=<chave>` e `GET /dota/img/item/<id>?k=<chave>`
+  (porta 8770, a mesma do app). Só ids numéricos (1–10 dígitos, > 0) e kinds da lista chegam à busca; nunca URL
+  nem caminho livre. `kind` ausente = `portrait`; em item o `kind` é ignorado.
+- **Autenticação:** o `<img>` não manda cabeçalho, então a URL leva `k` = `HMAC-SHA256(token do aparelho,
+  "dota-img-v1")[:24]` (hex). O servidor entrega `k` ao app já autenticado no campo `img_key` da mensagem
+  `{t:"dota", d, auto_open, img_key}` e da resposta de `dota.get`; o token nunca vai para a URL. Chave ausente, errada ou
+  repetida = `403`. (Os arquivos do app em si continuam abertos, como antes: o token só vale no WebSocket.)
+- **Busca:** `http://127.0.0.1:32123/companion/v1/img/...` (o endereço vem do mesmo `dota.bridge` do
+  `config.json`; só `127.0.0.1`/`localhost`), urllib sem proxy do sistema, timeout 2 s, na fila de disco do servidor.
+  Aceita só `image/png` (assinatura PNG, até 1 MB).
+- **Cache:** `%USERPROFILE%\companion-pc\server\dota-img\` (`hero-<id>-<kind>.png`, `item-<id>.png`), limite 50 MB:
+  passou, apaga as menos usadas recentemente. A instalação não toca nessa pasta.
+- **Respostas:** `200` `image/png` com `Cache-Control: max-age=604800`; `404` da ponte = `404` (nada é guardado: a
+  imagem pode ser extraída depois); ponte fora do ar, resposta inválida ou erro = `502` (e por 10 s nem tenta de novo);
+  id/kind inválido = `400`; caminho fora do formato = `404`; sem chave = `403`. Erros: `Cache-Control: no-store`.
+- **Log:** nada de imagem, id, nome de arquivo nem chave.
+- **Testes:** `py -3 tests/test_dota_img.py` (unidade com ponte falsa + cópia do servidor em outra porta).

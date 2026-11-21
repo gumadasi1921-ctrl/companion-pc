@@ -58,6 +58,7 @@ from websockets.http11 import Response
 from websockets.exceptions import ConnectionClosed
 
 import dota
+import dota_img
 import extras
 import games
 import pair
@@ -1398,6 +1399,8 @@ async def games_loop():
 
 
 DOTA = dota.DotaBridge(CFG.get("dota"))
+# proxy das imagens da ponte (/dota/img/...): cache em disco ao lado do servidor, chave de URL derivada do token
+IMG = dota_img.ImageProxy(Path(__file__).resolve().with_name("dota-img"), lambda: CFG["token"], lambda: DOTA.cfg.get("bridge"))
 
 
 def dota_open():
@@ -1413,7 +1416,7 @@ def dota_proc():
 
 
 def dota_msg(state):
-    return json.dumps({"t": "dota", "d": state, "auto_open": DOTA.auto_open}, ensure_ascii=False)
+    return json.dumps({"t": "dota", "d": state, "auto_open": DOTA.auto_open, "img_key": IMG.key()}, ensure_ascii=False)
 
 
 async def dota_send(state, only=None):
@@ -1428,7 +1431,7 @@ async def dota_send(state, only=None):
 async def dota_get():
     """Ação dota.get: estado atual (consulta a ponte agora, na fila de disco)."""
     state = await on_io(DOTA.poll, *dota_proc())
-    return {"d": state, "auto_open": DOTA.auto_open}
+    return {"d": state, "auto_open": DOTA.auto_open, "img_key": IMG.key()}
 
 
 async def dota_loop():
@@ -1540,11 +1543,20 @@ def serve_static(connection, request):
     return Response(200, "OK", headers, body)
 
 
+async def http_entry(connection, request):
+    """Entrada HTTP: imagens do Dota (proxy com cache, na fila de disco) ou os arquivos do app."""
+    if request.path.startswith("/dota/img/") and "websocket" not in request.headers.get("Upgrade", "").lower():
+        status, ctype, body, extra = await on_io(IMG.handle, request.path)
+        return Response(status, HTTPStatus(status).phrase,
+                        Headers([("Content-Type", ctype), ("Content-Length", str(len(body))), *extra.items()]), body)
+    return serve_static(connection, request)
+
+
 async def web_main():
     host, port = WEB["host"], int(os.environ.get("COMPANION_WEB_PORT", WEB["port"]))
     while True:
         try:
-            async with serve(web_handler, host, port, process_request=serve_static,
+            async with serve(web_handler, host, port, process_request=http_entry,
                              ping_interval=5, ping_timeout=10, max_size=4 * 2**20,
                              max_queue=64) as server:
                 NET["web"] = True
