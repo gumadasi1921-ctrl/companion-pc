@@ -62,6 +62,7 @@ import games
 import pair
 import pc_info
 import watchers
+import pomodoro
 import tasks
 import work
 
@@ -645,6 +646,7 @@ PANEL_OPS = {
     "config_save": lambda changes: io_call(config_save, changes),
     "config_get": lambda: io_call(config_get),
     "tasks_restore": lambda tid, text, done, pos: io_call(TASKS.restore, tid, text, done, pos),
+    "pomo_tip": lambda: pomo_tip(),
     "panel_url": lambda: f"http://127.0.0.1:{int(os.environ.get('COMPANION_WEB_PORT', WEB['port']))}/#panel={CFG['panel_token']}",
 }
 
@@ -729,7 +731,9 @@ PANEL_WS = {   # nome -> função(params dict); as de gravação rodam na fila d
     "config_get": lambda p: PANEL_OPS["config_get"](),
     "config_save": lambda p: PANEL_OPS["config_save"](_need(p, "changes", dict)),
 }
-PANEL_ASYNC = {"pick_folder": lambda p: asyncio.to_thread(pick_folder)}
+PANEL_ASYNC = {"pick_folder": lambda p: asyncio.to_thread(pick_folder),
+               **{f"pomo_{n}": (lambda p, n=n: pomo_run(n, p)) for n in
+                  ("get", "start", "pause", "resume", "skip", "reset", "config")}}
 
 
 async def panel_call(op, p):
@@ -844,6 +848,13 @@ ASYNC_ACTIONS = {
                                                p.get("q", 60), p.get("sid")),
     "screen.click": lambda p: screen_click(p),
     "mic.set": lambda p: pc_info.mic_set(p.get("muted", "toggle")),
+    "pomo.get": lambda p: pomo_run("get", p),
+    "pomo.start": lambda p: pomo_run("start", p),
+    "pomo.pause": lambda p: pomo_run("pause", p),
+    "pomo.resume": lambda p: pomo_run("resume", p),
+    "pomo.skip": lambda p: pomo_run("skip", p),
+    "pomo.reset": lambda p: pomo_run("reset", p),
+    "pomo.config": lambda p: pomo_run("config", p),
     "timer.start": lambda p: TIMER.start(p.get("action"), p.get("minutes")),
     "timer.cancel": lambda p: timer_cancel(),
     "games.library": lambda p: asyncio.to_thread(MON.library),
@@ -1021,7 +1032,7 @@ def welcome_payload():
         "features": {"media": pc_info.HAS_MEDIA, "volume": pc_info.HAS_VOLUME, "mixer": pc_info.HAS_VOLUME,
                      "screen": True, "clipboard": True, "files": True, "deck": True,
                      "mic": pc_info.HAS_VOLUME, "timer": True, "deck_auto": True, "macro": True,
-                     "library": True, "ping": True, "notif": True, "fps": True, "work": True},
+                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True},
     }
 
 
@@ -1039,6 +1050,7 @@ async def panel_session(ws, peer):
     """Conexão do modo painel (já autenticada). Fica fora de `clients`: não recebe o fluxo do celular."""
     panel_clients.add(ws)
     await ws.send(json.dumps({"t": "panel_ok", "version": VERSION}))
+    await pomo_send([json.dumps({"t": "pomo", "d": await on_io(POMO.get)})], only=ws)
     log.info("painel do PC aberto")
     try:
         async for raw in ws:
@@ -1114,6 +1126,7 @@ async def session(ws, peer, kind):
     sent_gameart[ws] = None
     await send_games(ws, MON.state)
     await push_now(only=ws)
+    await pomo_send([json.dumps({"t": "pomo", "d": await on_io(POMO.get)})], only=ws)
     log.info("conectado: %s (%s) tela %s", kind, peer, str(hello.get("screen", "?"))[:120])
     try:
         async for raw in ws:
@@ -1168,6 +1181,8 @@ QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "m
                  "screen.shot", "mixer.get", "deck.get", "deck.save",  # deck.save: textos/macros dos botões
                  "work.get", "work.week", "work.csv",  # nomes de cliente/job/arquivo
                  "tasks.get", "tasks.toggle",  # texto das tarefas
+                 "pomo.get", "pomo.start", "pomo.pause", "pomo.resume", "pomo.skip", "pomo.reset", "pomo.config",
+                 "pomo_get", "pomo_start", "pomo_pause", "pomo_resume", "pomo_skip", "pomo_reset", "pomo_config",
                  # modo painel (operações locais; mesmos motivos: texto de tarefas, clientes, pastas, código de pareamento)
                  "panel_status", "pair_new", "pair_state", "pick_folder", "tasks_get", "tasks_add", "tasks_edit",
                  "tasks_remove", "tasks_move", "tasks_toggle", "tasks_clear_done", "tasks_restore", "work_get",
@@ -1225,6 +1240,87 @@ async def stats_loop(stats: Stats):
 MON = games.GameMonitor(CFG, BASE)
 WORK = work.WorkTracker(BASE, CFG.get("idle_min", 5))
 TASKS = tasks.TaskList(BASE)
+POMO = pomodoro.Pomodoro(BASE)
+POMO_H = [None]     # único agendamento do fim da fase (call_later): nada de loop de 1 s
+NOTIFY = [None]     # f(titulo, texto): aviso do ícone da bandeja (definido por run_with_tray)
+POMO_OPS = {
+    "get": lambda p: POMO.get(),
+    "start": lambda p: POMO.start(p["task_id"]) if "task_id" in p else POMO.start(),
+    "pause": lambda p: POMO.pause(),
+    "resume": lambda p: POMO.resume(),
+    "skip": lambda p: POMO.skip(),
+    "reset": lambda p: POMO.reset(),
+    "config": lambda p: POMO.set_config({k: v for k, v in p.items() if not k.startswith("_")}),
+}
+_PHASE_TIP = {"focus": "Foco", "short": "Pausa", "long": "Pausa longa"}
+
+
+def pomo_tip():
+    """Texto do tooltip da bandeja enquanto roda ('Foco · 12:34'); '' se parado. Só leitura, sem disco."""
+    try:
+        st = POMO.get()
+        if not st["running"]:
+            return ""
+        r = int(st["remaining_s"] + 0.999)
+        return f"{_PHASE_TIP.get(st['phase'], 'Foco')} · {r // 60:02d}:{r % 60:02d}"
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+async def pomo_send(msgs, only=None):
+    targets = [only] if only else list(clients) + list(panel_clients)
+    for ws in targets:
+        try:
+            for m in msgs:
+                await ws.send(m)
+        except ConnectionClosed:
+            clients.discard(ws)
+            panel_clients.discard(ws)
+
+
+def pomo_reschedule():
+    """Roda no event loop, depois de qualquer mudança: refaz o único agendamento do fim da fase."""
+    if POMO_H[0]:
+        POMO_H[0].cancel()
+        POMO_H[0] = None
+    d = POMO.next_due()
+    if d is not None:
+        POMO_H[0] = asyncio.get_running_loop().call_later(
+            d + 0.05, lambda: asyncio.ensure_future(pomo_fire()))
+
+
+def _pomo_alert(text):
+    try:
+        import winsound
+        winsound.MessageBeep()
+    except Exception:  # noqa: BLE001
+        pass
+    if NOTIFY[0]:
+        try:
+            NOTIFY[0]("Pomodoro", text)
+        except Exception as e:  # noqa: BLE001
+            log.warning("aviso do pomodoro: %s", type(e).__name__)
+
+
+async def pomo_fire():
+    POMO_H[0] = None
+    ev = await on_io(POMO.tick)
+    state = await on_io(POMO.get)
+    pomo_reschedule()   # sem evento = ainda não venceu (relógio mudou): agenda de novo
+    msgs = [json.dumps({"t": "pomo", "d": state})]
+    if ev:
+        log.info("pomodoro: %s concluído", ev["finished"])
+        msgs.append(json.dumps({"t": "event", "kind": "pomo.done", **ev}))
+        await asyncio.to_thread(_pomo_alert, pomodoro.message(ev))
+    await pomo_send(msgs)
+
+
+async def pomo_run(name, p):
+    state = await on_io(POMO_OPS[name], p)
+    if name != "get":
+        pomo_reschedule()
+        await pomo_send([json.dumps({"t": "pomo", "d": state})])
+    return state
 
 
 async def work_loop():
@@ -1486,6 +1582,9 @@ LOOP = [None]  # event loop do servidor (o painel do PC agenda push_welcome nele
 async def main():
     LOOP[0] = asyncio.get_running_loop()
     log.info("Companion PC %s", VERSION)
+    if POMO.restored_expired:
+        log.info("pomodoro: a fase venceu com o servidor desligado (concluída sem aviso)")
+    pomo_reschedule()
     pc_info.MEDIA = pc_info.Media()
     n = await on_io(UPLOADS.clean_stale_parts)
     log.info("uploads: %d arquivo(s) .part de envios anteriores apagado(s)", n)
@@ -1541,7 +1640,9 @@ def run_with_tray():
         except Exception:  # noqa: BLE001
             log.exception("servidor parou")
     threading.Thread(target=server_thread, daemon=True, name="server").start()
-    tray.TrayApp(status, LOG_PATH, BASE, VERSION, stop_server, open_on_phone=adb_open_on_phone, ops=PANEL_OPS).run()
+    app = tray.TrayApp(status, LOG_PATH, BASE, VERSION, stop_server, open_on_phone=adb_open_on_phone, ops=PANEL_OPS)
+    NOTIFY[0] = app.notify
+    app.run()
 
 
 if __name__ == "__main__":

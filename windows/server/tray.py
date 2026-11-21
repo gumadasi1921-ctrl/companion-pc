@@ -207,6 +207,11 @@ class TrayApp:
         self.panel_open = True
         threading.Thread(target=self._panel_thread, daemon=True, name="panel").start()
 
+    def notify(self, title, text):
+        """Aviso do ícone da bandeja (balão do Windows)."""
+        if self.icon:
+            self.icon.notify(text[:250], title[:60])
+
     def open_folder(self, *_):
         os.startfile(self.base)
 
@@ -252,11 +257,14 @@ class TrayApp:
             try:
                 st = self.status_fn()
                 if self.icon:
-                    key = (st["state"], st["text"])
+                    tip = self.ops["pomo_tip"]() if self.ops and "pomo_tip" in self.ops else ""
+                    key = (st["state"], st["text"], tip)
                     if key != self._last_state:
+                        if not self._last_state or key[:2] != self._last_state[:2]:
+                            self.icon.icon = make_icon(COLORS[st["state"]])
                         self._last_state = key
-                        self.icon.icon = make_icon(COLORS[st["state"]])
-                        self.icon.title = f"Companion PC – {st['text']}"[:127]
+                        base = f"Companion PC – {st['text']}"
+                        self.icon.title = (f"{tip} · {base}" if tip else base)[:127]
             except Exception:  # noqa: BLE001
                 log.exception("tray status")
             time.sleep(1.5)
