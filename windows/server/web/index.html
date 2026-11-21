@@ -872,6 +872,12 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .bed-more > label { margin-top: 8px; }
 @media (prefers-reduced-motion: reduce) { .dbtn:active, .dbtn.hit { transform: none; } }
 @media (min-width: 1000px) and (min-height: 600px) and (orientation: landscape) { .dbtn { min-height: 104px; } .dbtn .isvg { width: 32px; height: 32px; } }
+/* Rádio, Mixer, Energia, Controle, Arquivos, Jogos, Trabalho e faixa de reconexão (docs/DESIGN.md §6–7) */
+.card h3 > span, .outrow span, .mxname { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
+#t-mouse .key, #t-mouse .mbtn { min-height: 44px; height: 44px; }
+.btn { min-height: 44px; }
+.banner { text-align: center; }
+:root[data-theme="modern"] .banner { background: var(--surface-2); color: var(--text-2); border-bottom: 1px solid var(--separator); font-weight: 600; min-height: 32px; display: flex; align-items: center; justify-content: center; }
 /* Rádio */
 .media { max-width: 560px; }
 .art { border-radius: var(--r-card, 2px); background: var(--surface-2, transparent) center / cover no-repeat; overflow: hidden; }
@@ -917,7 +923,6 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 :root[data-theme="modern"] .mxmute { border: 0; border-radius: 50%; background: var(--surface-2); }
 :root[data-theme="modern"] .mxrow.muted .mxmute { background: var(--danger-soft); color: var(--danger-text); }
 :root[data-theme="modern"] .mxic { border-radius: var(--r-sm); border: 0; background: var(--surface-2); font: 700 16px/1 var(--font); }
-.card h3 > span, .outrow span, .mxname { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
 /* Energia */
 #power { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 #power .tile { min-height: 64px; font-weight: 600; text-align: center; }
@@ -941,7 +946,6 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .scr-tools button { min-height: 44px; min-width: 44px; padding: 0 14px; }
 :root[data-theme="modern"] .scr { border-radius: var(--r-card); border-color: var(--separator); }
 :root[data-theme="modern"] .scr-tools button { border-radius: var(--r-pill); border-color: var(--separator); background: var(--surface-2); color: var(--text); font-weight: 600; }
-#t-mouse .key, #t-mouse .mbtn { min-height: 44px; height: 44px; }
 /* Arquivos, Jogos, Trabalho: mesmos cartões e rótulos */
 :root[data-theme="modern"] .card h3 { font: 600 12px/1.2 var(--font); letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); margin-bottom: 8px; }
 :root[data-theme="modern"] .card { background: var(--surface); border-color: transparent; }
@@ -951,7 +955,6 @@ input.num { min-height: 36px; }
 :root[data-theme="modern"] .lgame { background: var(--surface-2); border-color: var(--separator); }
 :root[data-theme="modern"] .lgame:active { background: var(--surface-3); color: var(--text); }
 :root[data-theme="modern"] .set { border-bottom-style: solid; border-bottom-color: var(--separator); }
-.btn { min-height: 44px; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -1517,7 +1520,7 @@ function setDot(cls, text) {
   $("dot").className = $("dot2").className = "dot " + cls;
   $("via").textContent = text || (["localhost", "127.0.0.1"].includes(location.hostname) ? "cabo USB" : "Wi-Fi");
   $("banner").classList.toggle("hidden", cls === "ok" || !welcome.host);
-  $("banner").textContent = "Sem conexão com o PC — tentando de novo…";
+  $("banner").textContent = "Reconectando…"; $("banner").setAttribute("role", "status");
 }
 
 function showLogin(msg) {
