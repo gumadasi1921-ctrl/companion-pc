@@ -918,6 +918,17 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 :root[data-theme="modern"] .mxrow.muted .mxmute { background: var(--danger-soft); color: var(--danger-text); }
 :root[data-theme="modern"] .mxic { border-radius: var(--r-sm); border: 0; background: var(--surface-2); font: 700 16px/1 var(--font); }
 .card h3 > span, .outrow span, .mxname { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
+/* Energia */
+#power { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+#power .tile { min-height: 64px; font-weight: 600; text-align: center; }
+:root[data-theme="modern"] #power .tile { background: var(--surface-2); border-color: var(--separator); }
+#power .tile.danger { color: var(--danger-text, var(--alert)); border-color: var(--danger-text, var(--alert)); }
+:root[data-theme="modern"] #power .tile.danger { background: var(--danger-soft); border-color: transparent; }
+.pwr-req { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; border-color: var(--danger-text, var(--alert)); }
+.pwr-req b { font-size: 18px; }
+.pwr-req .btn { min-height: 56px; margin-top: 8px; font-size: 18px; font-weight: 700; }
+.tmr-tiles { display: flex; flex-wrap: wrap; gap: 8px; }
+.tmr-tiles .chip2 { justify-content: center; min-width: 76px; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -1192,6 +1203,7 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
   <section class="tab" id="t-power">
     <h2>Energia</h2>
     <div class="tiles" id="power"></div>
+    <div class="card pwr-req hidden" id="pwr-req" role="status"><b id="pwr-req-t">Desligamento pedido</b><span class="sub">O PC mostra a contagem</span><button class="btn primary" id="pwr-req-cancel">Cancelar</button></div>
     <div id="tmr-sec">
       <h2>Timer</h2>
       <div class="card">
@@ -1199,7 +1211,7 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
           <div class="brow"><button class="btn danger" id="tmr-cancel">Cancelar timer</button></div></div>
         <div id="tmr-off">
           <div class="set"><label>Quando acabar</label><select id="tmr-act" class="sel"><option value="shutdown">Desligar</option><option value="sleep">Suspender</option><option value="monitor_off">Desligar monitor</option></select></div>
-          <div class="tiles tmr-tiles"><button class="tile" data-min="15">15 min</button><button class="tile" data-min="30">30 min</button><button class="tile" data-min="45">45 min</button><button class="tile" data-min="60">1 h</button><button class="tile" data-min="90">1 h 30</button><button class="tile" data-min="120">2 h</button></div>
+          <div class="tiles tmr-tiles"><button class="chip2" data-min="15">15 min</button><button class="chip2" data-min="30">30 min</button><button class="chip2" data-min="45">45 min</button><button class="chip2" data-min="60">1 h</button><button class="chip2" data-min="90">1 h 30</button><button class="chip2" data-min="120">2 h</button></div>
         </div>
       </div>
     </div>
@@ -2250,11 +2262,16 @@ setInterval(() => { if (vis("inicio") && !document.hidden) { homeUpd(); homeFetc
 // ---------------------------------------------------------------- Atalhos / Sistema
 function renderPower() {
   $("tmr-sec").classList.toggle("hidden", !welcome.power);
-  const items = [["lock", "Bloquear o PC", false]];
-  if (welcome.power) items.push(["monitor_off", "Desligar monitor", false], ["sleep", "Suspender", true],
-    ["restart", "Reiniciar", true], ["shutdown", "Desligar", true], ["cancel", "Cancelar desligamento", false]);
-  $("power").innerHTML = items.map(([a, l, c]) => `<button class="tile${c ? " warn" : ""}" data-power="${a}" data-label="${l}"${c ? ' data-confirm="1"' : ""}>${l}</button>`).join("");
+  // [ação, rótulo, pede confirmação, perigoso]
+  const items = [["lock", "Bloquear o PC", false, false]];
+  if (welcome.power) items.push(["monitor_off", "Desligar monitor", false, false], ["sleep", "Suspender", true, false],
+    ["restart", "Reiniciar", true, true], ["shutdown", "Desligar", true, true], ["cancel", "Cancelar desligamento", false, false]);
+  $("power").innerHTML = items.map(([a, l, c, d]) => `<button class="tile${d ? " danger" : ""}" data-power="${a}" data-label="${l}"${c ? ' data-confirm="1"' : ""}>${l}${d ? "…" : ""}</button>`).join("");
 }
+// o Windows mostra a contagem; o servidor não informa o tempo restante, então só avisamos que o pedido foi feito
+function pwrReq(label) { $("pwr-req-t").textContent = label === "Reiniciar" ? "Reinício pedido" : "Desligamento pedido"; $("pwr-req").classList.remove("hidden"); }
+const pwrCancel = (label) => { buzz(); return send("power", { action: "cancel" }).then(() => { toast(label, "ok"); $("pwr-req").classList.add("hidden"); }).catch((e) => { if (e.message !== "offline") toast(e.message, "bad"); }); };
+$("pwr-req-cancel").onclick = () => pwrCancel("Desligamento cancelado");
 let confirmFn = null;
 function confirmAsk(q, fn) { $("confirm-q").textContent = q; confirmFn = fn; $("confirm").classList.remove("hidden"); }
 $("confirm-no").onclick = () => { $("confirm").classList.add("hidden"); confirmFn = null; };
@@ -2266,6 +2283,8 @@ document.addEventListener("click", (e) => {
   const label = b.dataset.label || b.textContent.trim();
   let run;
   if (b.dataset.launch) run = () => act("app.launch", { id: b.dataset.launch }, "Abrindo " + label);
+  else if (b.dataset.power === "cancel") run = () => pwrCancel(label);
+  else if (b.dataset.power === "restart" || b.dataset.power === "shutdown") run = () => { buzz(); return send("power", { action: b.dataset.power }).then(() => { toast(label, "ok"); pwrReq(label); }).catch((e) => { if (e.message !== "offline") toast(e.message, "bad"); }); };
   else if (b.dataset.power) run = () => act("power", { action: b.dataset.power }, label);
   else if (b.dataset.act) run = () => act(b.dataset.act, {}, label);
   else run = () => act("key.press", { keys: b.dataset.key }, label);
