@@ -857,6 +857,19 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .dbtn .dl { font-size: 15px; font-weight: 600; line-height: 1.15; display: block; overflow: visible; overflow-wrap: anywhere; text-align: center; max-width: 100%; }
 .dbtn .dsc { font-size: 12px; font-weight: 600; line-height: 1.1; color: var(--text-3, var(--p3)); overflow-wrap: anywhere; text-align: center; max-width: 100%; }
 .dbtn:active, .dbtn.hit { transform: scale(.95); background: var(--surface-3, var(--p)); color: var(--text, var(--bg)); }
+#bed .fi, #bed select { min-height: 44px; }
+#bed .svgpick { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); max-height: 188px; }
+#bed .svgpick button { height: 44px; border-radius: var(--r-sm, 2px); }
+#bed .sw { width: 44px; height: 44px; border-radius: var(--r-pill, 2px); }
+#bed .colors { gap: 6px; }
+#bed .chk { min-height: 44px; }
+#bed .acts .btn { min-height: 44px; min-width: 44px; }
+.bed-more { margin: 4px 0 0; border-top: 1px solid var(--separator, var(--p4)); padding-top: 4px; }
+.bed-more > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-size: 15px; font-weight: 600; color: var(--accent-text, var(--p)); list-style: none; }
+.bed-more > summary::-webkit-details-marker { display: none; }
+.bed-more > summary::after { content: "▾"; margin-left: 8px; font-size: 12px; }
+.bed-more[open] > summary::after { content: "▴"; }
+.bed-more > label { margin-top: 8px; }
 @media (prefers-reduced-motion: reduce) { .dbtn:active, .dbtn.hit { transform: none; } }
 @media (min-width: 1000px) and (min-height: 600px) and (orientation: landscape) { .dbtn { min-height: 104px; } .dbtn .isvg { width: 32px; height: 32px; } }
 </style>
@@ -1231,19 +1244,21 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 <div class="overlay hidden" id="bed">
   <form class="dialog wide" id="bed-form">
     <h1 id="bed-title">Botão</h1>
-    <div class="frow"><label>Nome<input class="fi" id="bed-label" maxlength="40" placeholder="ex.: Gravar"></label><label>Ícone<input class="fi" id="bed-icon" maxlength="8" placeholder="REC"></label></div>
-    <small style="margin:-4px 0 10px">Ícone: até 8 letras ou símbolos simples. Vazio usa as iniciais do nome.</small>
     <label>O que faz<select id="bed-type"><option value="keys">Atalho de teclado</option><option value="text">Digitar um texto</option><option value="action">Ação pronta</option><option value="shortcut">Abrir programa</option><option value="macro">Sequência (macro)</option></select></label>
+    <label>Nome<input class="fi" id="bed-label" maxlength="40" placeholder="ex.: Gravar"></label>
     <label id="bed-v-keys">Teclas<input class="fi" id="bed-keys" placeholder="ctrl+shift+s" autocapitalize="off" autocorrect="off" spellcheck="false"><small>Junte com +: ctrl, shift, alt, win, a–z, 0–9, f1–f12, enter, esc, tab, space, up, down, left, right, home, end, delete, plus, minus, play_pause, vol_up…</small></label>
     <label id="bed-v-text">Texto<textarea class="ta" id="bed-text" rows="3"></textarea><small>Quebra de linha vira Enter no PC.</small></label>
     <label id="bed-v-action">Ação<select id="bed-action"></select></label>
-    <label id="bed-v-macro">Passos (um por linha)<textarea class="ta" id="bed-macro" rows="6" spellcheck="false" autocapitalize="off" placeholder="abrir vscode&#10;esperar 2s&#10;teclas ctrl+shift+p&#10;texto Terminal"></textarea>
-      <small>teclas ctrl+t &nbsp; texto olá &nbsp; esperar 500 (ms) ou esperar 2s &nbsp; abrir nome-do-programa &nbsp; acao media.next</small>
-      <small id="bed-macro-progs"></small></label>
     <label id="bed-v-shortcut">Programa<select id="bed-shortcut"></select><small>A lista vem dos "shortcuts" do config.json do PC.</small></label>
-    <label id="bed-svg-l">Desenho<small>Sem desenho, o botão mostra o texto do campo Ícone.</small></label><div class="svgpick" id="bed-svgs"></div>
-    <label>Cor da marca</label><div class="colors" id="bed-colors"></div>
-    <label class="chk"><input type="checkbox" id="bed-confirm"> Pedir confirmação antes</label>
+    <label id="bed-svg-l">Ícone</label><div class="svgpick" id="bed-svgs"></div>
+    <label>Cor</label><div class="colors" id="bed-colors"></div>
+    <details class="bed-more" id="bed-more"><summary>Mais opções</summary>
+      <label id="bed-v-macro">Passos da macro (um por linha)<textarea class="ta" id="bed-macro" rows="6" spellcheck="false" autocapitalize="off" placeholder="abrir vscode&#10;esperar 2s&#10;teclas ctrl+shift+p&#10;texto Terminal"></textarea>
+        <small>teclas ctrl+t &nbsp; texto olá &nbsp; esperar 500 (ms) ou esperar 2s &nbsp; abrir nome-do-programa &nbsp; acao media.next</small>
+        <small id="bed-macro-progs"></small></label>
+      <label>Texto do ícone<input class="fi" id="bed-icon" maxlength="8" placeholder="REC"><small>Até 8 letras ou símbolos. Aparece só se o botão não tiver ícone desenhado.</small></label>
+      <label class="chk"><input type="checkbox" id="bed-confirm"> Pedir confirmação antes</label>
+    </details>
     <div class="acts"><button type="button" class="btn danger" id="bed-del">Excluir</button><button type="button" class="btn" id="bed-left" aria-label="Mover para trás">&lt;</button><button type="button" class="btn" id="bed-right" aria-label="Mover para frente">&gt;</button><span style="flex:1"></span><button type="button" class="btn" id="bed-cancel">Cancelar</button><button class="btn primary">Salvar</button></div>
   </form>
 </div>
@@ -2447,9 +2462,10 @@ function editButton(i) {
   $("bed-confirm").checked = !!b.confirm; bedColor = b.color || ""; renderColors();
   bedSvg = b.svg || ""; renderSvgs();
   ["bed-del", "bed-left", "bed-right"].forEach((id) => $(id).classList.toggle("hidden", i < 0));
+  $("bed-more").open = b.type === "macro" || !!b.confirm;
   bedType(); $("bed").classList.remove("hidden");
 }
-function bedType() { const t = $("bed-type").value; for (const k of ["keys", "text", "action", "shortcut", "macro"]) $("bed-v-" + k).classList.toggle("hidden", k !== t); }
+function bedType() { const t = $("bed-type").value; if (t === "macro") $("bed-more").open = true; for (const k of ["keys", "text", "action", "shortcut", "macro"]) $("bed-v-" + k).classList.toggle("hidden", k !== t); }
 $("bed-type").onchange = bedType;
 function renderColors() {
   $("bed-colors").innerHTML = DECK_COLORS.map((c) => `<button type="button" class="sw${c === bedColor ? " on" : ""}" data-c="${c}" style="background:${c || "var(--bg)"}" aria-label="${c || "sem cor"}"></button>`).join("");
@@ -2459,7 +2475,7 @@ function renderSvgs() {
   $("bed-svg-l").classList.toggle("hidden", !svgNames.length);
   $("bed-svgs").classList.toggle("hidden", !svgNames.length);
   // bedSvg fica como veio mesmo se o arquivo de ícones não carregou: salvar não apaga o desenho do botão
-  $("bed-svgs").innerHTML = `<button type="button" class="txt${bedSvg ? "" : " on"}" data-s="" aria-label="Sem desenho (usar texto)">Aa</button>`
+  $("bed-svgs").innerHTML = `<button type="button" class="txt${bedSvg ? "" : " on"}" data-s="" aria-label="Ícone padrão do tipo">Aa</button>`
     + svgNames.map((n) => `<button type="button"${n === bedSvg ? ' class="on"' : ""} data-s="${esc(n)}" aria-label="${esc(n)}" title="${esc(n)}">${deckSvg({ svg: n })}</button>`).join("");
 }
 $("bed-svgs").onclick = (e) => { const x = e.target.closest("[data-s]"); if (x) { bedSvg = x.dataset.s; renderSvgs(); } };
