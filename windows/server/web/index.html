@@ -929,6 +929,19 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .pwr-req .btn { min-height: 56px; margin-top: 8px; font-size: 18px; font-weight: 700; }
 .tmr-tiles { display: flex; flex-wrap: wrap; gap: 8px; }
 .tmr-tiles .chip2 { justify-content: center; min-width: 76px; }
+/* Controle: teclas em pílulas (os gestos e eventos não mudam) */
+.key { height: 44px; min-width: 48px; }
+.mbtn { min-height: 44px; }
+:root[data-theme="modern"] .key, :root[data-theme="modern"] .mbtn { border-radius: var(--r-pill); border-color: var(--separator); background: var(--surface-2); font-weight: 600; }
+:root[data-theme="modern"] .key.mod.on, :root[data-theme="modern"] .key.kb.on, :root[data-theme="modern"] .mbtn.held { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--on-accent); }
+:root[data-theme="modern"] .key.kb { border-color: var(--accent-fill); }
+:root[data-theme="modern"] .pad { border-radius: var(--r-card); border-color: var(--separator); background: var(--surface); }
+:root[data-theme="modern"] .pad .hint { background: none; color: var(--text-3); }
+:root[data-theme="modern"] .pad .scrollbar { border-left-color: var(--separator); }
+.scr-tools button { min-height: 44px; min-width: 44px; padding: 0 14px; }
+:root[data-theme="modern"] .scr { border-radius: var(--r-card); border-color: var(--separator); }
+:root[data-theme="modern"] .scr-tools button { border-radius: var(--r-pill); border-color: var(--separator); background: var(--surface-2); color: var(--text); font-weight: 600; }
+#t-mouse .key, #t-mouse .mbtn { min-height: 44px; height: 44px; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
