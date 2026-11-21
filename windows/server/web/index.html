@@ -942,6 +942,16 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 :root[data-theme="modern"] .scr { border-radius: var(--r-card); border-color: var(--separator); }
 :root[data-theme="modern"] .scr-tools button { border-radius: var(--r-pill); border-color: var(--separator); background: var(--surface-2); color: var(--text); font-weight: 600; }
 #t-mouse .key, #t-mouse .mbtn { min-height: 44px; height: 44px; }
+/* Arquivos, Jogos, Trabalho: mesmos cartões e rótulos */
+:root[data-theme="modern"] .card h3 { font: 600 12px/1.2 var(--font); letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); margin-bottom: 8px; }
+:root[data-theme="modern"] .card { background: var(--surface); border-color: transparent; }
+:root[data-theme="modern"] .ta, :root[data-theme="modern"] select.sel, :root[data-theme="modern"] input.num { border-radius: var(--r-list); border-color: var(--separator); background: var(--surface-2); color: var(--text); font: 16px var(--font); }
+select.sel { min-height: 44px; }
+input.num { min-height: 36px; }
+:root[data-theme="modern"] .lgame { background: var(--surface-2); border-color: var(--separator); }
+:root[data-theme="modern"] .lgame:active { background: var(--surface-3); color: var(--text); }
+:root[data-theme="modern"] .set { border-bottom-style: solid; border-bottom-color: var(--separator); }
+.btn { min-height: 44px; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
