@@ -840,6 +840,25 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .tk-sk { display: flex; flex-direction: column; gap: 10px; }
 .tk-sk i { display: block; height: 48px; border-radius: var(--r-sm, 2px); background: var(--surface-2, var(--p4)); animation: hwpulse 1.4s ease-in-out infinite; }
 .tk-sk i:first-child { width: 140px; height: 140px; border-radius: 50%; }
+/* Botões (deck): pílulas, grade e botões com ícone */
+.deckbar { align-items: center; gap: 4px; }
+.chip2 { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 16px; border: 1px solid var(--separator, var(--p4)); border-radius: var(--r-pill, 2px); font-size: 15px; font-weight: 600; color: var(--p2); white-space: nowrap; }
+.chip2.on { background: var(--text, var(--p)); border-color: var(--text, var(--p)); color: var(--bg); text-shadow: none; }
+.chip2.add { background: none; border-style: dashed; color: var(--p2); }
+.pdot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--success, currentColor); }
+.deck-edit { flex: none; min-height: 44px; min-width: 44px; padding: 0 12px; border: 0; background: none; font-size: 15px; font-weight: 600; color: var(--accent-text, var(--p)); }
+.deckgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (orientation: landscape) { .deckgrid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+@media (min-width: 1000px) and (min-height: 600px) and (orientation: landscape) { .deckgrid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; } }
+.dbtn { min-height: 76px; padding: 10px 6px; gap: 4px; background: var(--surface-2, transparent); border-color: var(--separator, var(--p3)); transition: transform .12s; }
+:root[data-theme="modern"] .dbtn { box-shadow: none; }
+.dbtn .di { display: grid; place-items: center; font: 600 22px/1 var(--font, var(--display)); color: var(--ic, var(--accent-text, var(--p))); }
+.dbtn .isvg { width: 28px; height: 28px; stroke-width: 1.9; }
+.dbtn .dl { font-size: 15px; font-weight: 600; line-height: 1.15; display: block; overflow: visible; overflow-wrap: anywhere; text-align: center; max-width: 100%; }
+.dbtn .dsc { font-size: 12px; font-weight: 600; line-height: 1.1; color: var(--text-3, var(--p3)); overflow-wrap: anywhere; text-align: center; max-width: 100%; }
+.dbtn:active, .dbtn.hit { transform: scale(.95); background: var(--surface-3, var(--p)); color: var(--text, var(--bg)); }
+@media (prefers-reduced-motion: reduce) { .dbtn:active, .dbtn.hit { transform: none; } }
+@media (min-width: 1000px) and (min-height: 600px) and (orientation: landscape) { .dbtn { min-height: 104px; } .dbtn .isvg { width: 32px; height: 32px; } }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -1079,7 +1098,7 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 
   <!-- BOTÕES -->
   <section class="tab" id="t-deck">
-    <div class="deckbar"><div class="chips" id="deck-pages"></div><button class="btn sm" id="deck-edit">Editar</button></div>
+    <div class="deckbar"><div class="chips" id="deck-pages"></div><button class="deck-edit" id="deck-edit">Editar</button></div>
     <div class="deckgrid" id="deck-grid"><div class="empty">Carregando…</div></div>
     <div class="deck-editbar hidden" id="deck-editbar"><span>Toque num botão para editar. Toque na página atual para renomear.</span><button class="btn sm" id="deck-reset">Restaurar padrão</button></div>
   </section>
@@ -2336,7 +2355,7 @@ document.querySelectorAll(".keys .key[data-key]").forEach((b) => {
 })();
 
 // ---------------------------------------------------------------- Botões (deck)
-let deckData = null, deckEdit = false;
+let deckData = null, deckEdit = false, deckFocusPage = -1;
 prefs.deckPage = store.get("deckPage", 0);
 const DECK_COLORS = ["", "#58a6ff", "#50c878", "#f0b446", "#eb5757", "#aa82ff", "#5865f2", "#ff7ab6", "#3dd6d0"];
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -2349,6 +2368,12 @@ const deckIcon = (b) => (b.icon || "").replace(NO_EMOJI, "").trim()
 let svgNames = [];
 const SVG_NAME = /^[a-z0-9-]{1,40}$/;
 const deckSvg = (b) => (b.svg && svgNames.includes(b.svg) ? `<svg class="isvg" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-${b.svg}"/></svg>` : "");
+// botão sem desenho salvo: ícone padrão do tipo (nunca sem ícone); só cai na sigla de texto se o sprite não carregou
+const TYPE_ICON = { keys: "square-dashed", text: "type", action: "wand-sparkles", shortcut: "package", macro: "layers" };
+const deckGlyph = (b) => deckSvg(b) || deckSvg({ svg: TYPE_ICON[b.type] || "square-dashed" }) || esc(deckIcon(b));
+// atalho legível ("ctrl+shift+z" -> "Ctrl+Shift+Z") só para o tipo keys; o nome perde o "(atalho)" repetido no fim
+const deckKeys = (b) => (b.type === "keys" && b.value ? String(b.value).split("+").map((k) => (k.length === 1 ? k.toUpperCase() : k[0].toUpperCase() + k.slice(1))).join("+") : "");
+const deckName = (b) => { const m = /^(.*\S)\s*\(([^()]*)\)\s*$/.exec(b.label || ""); return m && b.type === "keys" && m[2].toLowerCase() === String(b.value).toLowerCase() ? m[1] : (b.label || ""); };
 fetch("icons/lucide.svg").then((r) => (r.ok ? r.text() : Promise.reject())).then((t) => {
   const doc = new DOMParser().parseFromString(t, "image/svg+xml"), root = doc.documentElement;
   if (root.nodeName !== "svg") return;
@@ -2368,11 +2393,11 @@ function pageButtons(pg) {
 function renderDeck() {
   const pages = deckPages(); if (!pages.length) return;
   prefs.deckPage = Math.max(0, Math.min(prefs.deckPage, pages.length - 1));
-  $("deck-pages").innerHTML = pages.map((pg, i) => `<button class="chip2${i === prefs.deckPage ? " on" : ""}" data-page="${i}">${esc(pg.name)}</button>`).join("")
+  $("deck-pages").innerHTML = pages.map((pg, i) => `<button class="chip2${i === prefs.deckPage ? " on" : ""}" data-page="${i}"${i === deckFocusPage ? ' aria-label="' + esc(pg.name) + ', aberta pelo programa em foco"' : ""}>${esc(pg.name)}${i === deckFocusPage ? '<i class="pdot" aria-hidden="true"></i>' : ""}</button>`).join("")
     + (deckEdit ? '<button class="chip2 add" data-page="new">+ Página</button>' : "");
   const pg = pages[prefs.deckPage], btns = pageButtons(pg);
-  let html = btns.map((b, i) => `<button class="dbtn${b.confirm ? " warn" : ""}" data-i="${i}"${b.color ? ` style="--c:${b.color}"` : ""}>
-    <span class="di">${deckSvg(b) || esc(deckIcon(b))}</span><span class="dl">${esc(b.label)}</span></button>`).join("");
+  let html = btns.map((b, i) => `<button class="dbtn${b.confirm ? " warn" : ""}" data-i="${i}"${b.color ? ` style="--c:${esc(b.color)};--ic:${esc(b.color)}"` : ""}>
+    <span class="di">${deckGlyph(b)}</span><span class="dl">${esc(deckName(b))}</span>${deckKeys(b) ? `<span class="dsc">${esc(deckKeys(b))}</span>` : ""}</button>`).join("");
   if (deckEdit && !pg.auto) html += '<button class="dbtn add" data-i="new"><span class="di">+</span><span class="dl">Novo botão</span></button>';
   if (deckEdit && pg.auto) html += '<div class="empty full">Esta página mostra os programas do config.json do PC — edite lá.</div>';
   if (!btns.length && !deckEdit) html = `<div class="empty full">${pg.auto ? "Nenhum programa no config.json do PC" : "Página vazia. Toque em Editar para adicionar botões."}</div>`;
@@ -2397,7 +2422,7 @@ $("deck-grid").onclick = (e) => {
   const pg = deckPages()[prefs.deckPage];
   if (deckEdit) { if (!pg.auto) editButton(el.dataset.i === "new" ? -1 : +el.dataset.i); return; }
   const i = +el.dataset.i, b = pageButtons(pg)[i];
-  el.classList.add("hit"); setTimeout(() => el.classList.remove("hit"), 160);
+  el.classList.add("hit"); setTimeout(() => el.classList.remove("hit"), 120);
   const run = () => (pg.auto ? act("app.launch", { id: b.value }, "Abrindo " + b.label)
     : act("deck.press", { page: prefs.deckPage, index: i }, b.type === "action" || b.type === "shortcut" ? b.label : null));
   b.confirm ? confirmAsk(b.label + "?", run) : run();
@@ -2517,11 +2542,12 @@ function deckFollow(s) {
   const key = (s.app || "") + (s.app_game ? "@" : "");
   if (key === lastApp) return;   // só troca quando o foco muda: escolher outra página na mão continua valendo
   lastApp = key;
-  if (!prefs.deckAuto || deckEdit || !deckData || !s.app) return;
   const pages = deckPages();
-  let i = pages.findIndex((p) => (p.apps || []).includes(s.app));
-  if (i < 0 && s.app_game) i = pages.findIndex((p) => (p.apps || []).includes("@jogo"));
-  if (i >= 0 && i !== prefs.deckPage) { prefs.deckPage = i; renderDeck(); }
+  let i = !s.app ? -1 : pages.findIndex((p) => (p.apps || []).includes(s.app));
+  if (i < 0 && s.app && s.app_game) i = pages.findIndex((p) => (p.apps || []).includes("@jogo"));
+  const dot = deckFocusPage !== i; deckFocusPage = i;
+  if (prefs.deckAuto && !deckEdit && s.app && i >= 0 && i !== prefs.deckPage) { prefs.deckPage = i; renderDeck(); }
+  else if (dot) renderDeck();
 }
 
 // ---------------------------------------------------------------- microfone do PC e timer de energia
