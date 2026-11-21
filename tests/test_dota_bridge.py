@@ -25,6 +25,11 @@ FIX = ROOT / "fixtures"
 PORT, BRIDGE_PORT = 8796, 8797
 TOKEN, PANEL = secrets.token_urlsafe(24), secrets.token_urlsafe(24)
 PHASES = ("offline", "menu", "draft", "pregame", "game", "postgame")
+def bare(d):
+    """O estado sem o bloco que o Companion acrescenta."""
+    return {k: v for k, v in d.items() if k != "companion"}
+
+
 FIXTURES = {p: json.loads((FIX / f"dota-{p}.json").read_text(encoding="utf-8")) for p in PHASES}
 fails = []
 
@@ -70,7 +75,8 @@ def unit():
     b = dota.DotaBridge({"bridge": "http://127.0.0.1:1/companion/v1/state"}, clock=lambda: now[0], opener=opener)
     check("consulta na primeira vez", b.due(False) and b.due(True))
     s = b.poll()
-    check("repassa o JSON da ponte", s == FIXTURES["menu"])
+    check("repassa o JSON da ponte", bare(s) == FIXTURES["menu"])
+    check("bloco companion sem o Dota aberto", s["companion"] == {"dota_running": False, "dota_started": None, "menu_from_process": False})
     check("timeout de 300 ms", check_timeout == [0.3])
     now[0] += 0.5
     check("Dota aberto: espera 1 s", not b.due(True))
@@ -89,6 +95,22 @@ def unit():
         check(f"resposta fora do contrato = offline ({bad[:20]!r})", b.poll()["phase"] == "offline")
     far = dota.DotaBridge({"bridge": "http://192.168.0.10:32123/companion/v1/state"}, opener=opener)
     check("só ponte local", far.poll()["phase"] == "offline")
+    # a regra derivada: processo aberto + ponte no ar com phase offline => menu (e só isso)
+    off = FIXTURES["offline"]
+    m = dota.with_process(off, True, True, 1795280000.7)
+    check("Dota aberto + ponte ok + offline = menu", m["phase"] == "menu" and m["lobby"] == off["lobby"]
+          and m["companion"] == {"dota_running": True, "dota_started": 1795280000, "menu_from_process": True})
+    check("Dota fechado + ponte ok = offline com o lobby", dota.with_process(off, True, False, None)["phase"] == "offline")
+    down = dota.with_process(dota.offline(), False, True, 1795280000)
+    check("ponte fora do ar continua offline com o motivo", down["phase"] == "offline" and down["reason"] == "DotaCopilot fechado"
+          and down["companion"]["dota_running"] is True and not down["companion"]["menu_from_process"])
+    for p in ("draft", "game", "postgame", "menu"):
+        r = dota.with_process(FIXTURES[p], True, True, 1)
+        check(f"fase {p} da ponte não muda com o Dota aberto", bare(r) == FIXTURES[p] and not r["companion"]["menu_from_process"])
+    check("a regra não altera o dict da ponte", "companion" not in off and off["phase"] == "offline")
+    answer["body"] = json.dumps(FIXTURES["offline"]).encode()
+    s = b.poll(True, 1795280000)
+    check("poll com o Dota aberto aplica a regra", s["phase"] == "menu" and s["companion"]["menu_from_process"])
     a, c = copy.deepcopy(FIXTURES["game"]), copy.deepcopy(FIXTURES["game"])
     c["updated_at"] += 5
     check("updated_at sozinho não conta como mudança", dota.same(a, c))
@@ -144,11 +166,14 @@ async def live(fake):
     welcome = next((x for x in seen if x.get("t") == "welcome"), {})
     check("welcome anuncia a tela Dota", welcome.get("features", {}).get("dota") is True)
     check("celular recebe o estado da ponte ao conectar", bool(m) and m["d"]["phase"] == "menu" and m["auto_open"] is True)
-    check("o estado é o JSON da ponte, sem mudanças", bool(m) and m["d"] == FIXTURES["menu"])
+    check("o estado é o JSON da ponte, sem mudanças", bool(m) and bare(m["d"]) == FIXTURES["menu"])
     for p in PHASES:
         CURRENT["d"] = FIXTURES[p]
         r = await req(phone, "dota.get")
-        check(f"dota.get com a ponte em {p}", bool(r) and r["ok"] and r["d"]["d"] == FIXTURES[p])
+        got = bare(r["d"]["d"]) if r and r["ok"] else None
+        if got and r["d"]["d"]["companion"]["menu_from_process"]:  # o Dota está aberto neste PC: a regra vale
+            got = {**got, "phase": "offline"}
+        check(f"dota.get com a ponte em {p}", got == FIXTURES[p], "(Dota aberto neste PC)" if r and r["d"]["d"]["companion"]["dota_running"] else "")
     CURRENT["d"] = FIXTURES["menu"]
     await req(phone, "dota.get")
     # só updated_at mudou: não reenvia

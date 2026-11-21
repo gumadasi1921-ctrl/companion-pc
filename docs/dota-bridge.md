@@ -95,3 +95,36 @@ O 7.42 saiu em 2026-11-18 e não foi conferido: todas as entradas têm `"conferi
 2. Com o Dota fechado:
    `curl http://127.0.0.1:32123/companion/v1/state` → `"phase":"offline"`, `lobby` preenchido.
 3. Com o Dota aberto no menu, o mesmo comando → `"phase":"menu"`.
+
+## Lado do Companion PC (este repositório)
+
+Cópia do contrato do DotaCopilot (fonte: `A:\Sistema dota\docs\companion-bridge.md`). O Companion só lê a
+ponte (`windows/server/dota.py`, config `"dota": {"bridge", "auto_open"}`) e repassa o JSON aos aparelhos na
+mensagem `{t: "dota", d, auto_open}`, sem calcular nada, com um bloco a mais em `d`:
+
+```jsonc
+"companion": { "dota_running": true, "dota_started": 1795280000, "menu_from_process": true }
+```
+
+### Única regra derivada: fase "menu" pelo processo do Dota
+
+No menu principal o Dota **não envia GSI** (confirmado em 2026-11-21: com o jogo aberto no menu, a ponte
+ficou em `offline`). Por isso, e só nesse caso:
+
+| Processo do Dota (games.py) | Ponte | `phase` da ponte | O app mostra |
+| --- | --- | --- | --- |
+| qualquer | fora do ar | — (`offline`, `reason` "DotaCopilot fechado") | "Abra o DotaCopilot para ver a partida" |
+| fechado | no ar | `offline` | tela offline com os blocos do lobby |
+| **aberto** | **no ar** | **`offline`** | **`phase` = `menu`** ("No menu do Dota" + blocos do lobby), `menu_from_process: true` |
+| qualquer | no ar | `menu`/`draft`/`pregame`/`game`/`postgame` | a fase da ponte, sem mudança |
+
+Fatos usados: o processo aberto (o `games.py` reconhece o Dota 2 pela Steam, appid 570) e a resposta
+`offline` da ponte, que está no ar. Nenhum outro campo é alterado ou criado (`with_process` em `dota.py`).
+
+### Abrir sozinho
+
+Uma vez por abertura do jogo: quando chega um `dota_started` novo (o Dota abriu), com `auto_open` no
+`config.json` do PC e a chave "Abrir a tela Dota ao iniciar o jogo" em Ajustes do aparelho, o app vai para a
+tela Dota (já na fase menu) com o aviso "Dota aberto" e o botão "Voltar". O último `dota_started` tratado fica
+no aparelho (store `dotaSeen`), então recarregar o app não abre de novo.
+

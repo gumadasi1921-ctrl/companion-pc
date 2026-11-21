@@ -1406,6 +1406,12 @@ def dota_open():
     return bool(cur) and (str(cur.get("appid")) == "570" or str(cur.get("name", "")).lower() == "dota 2")
 
 
+def dota_proc():
+    """(aberto, início da sessão em epoch s) do Dota segundo o games.py."""
+    cur = MON.current
+    return (dota_open(), cur.get("start") if cur and dota_open() else None)
+
+
 def dota_msg(state):
     return json.dumps({"t": "dota", "d": state, "auto_open": DOTA.auto_open}, ensure_ascii=False)
 
@@ -1421,7 +1427,7 @@ async def dota_send(state, only=None):
 
 async def dota_get():
     """Ação dota.get: estado atual (consulta a ponte agora, na fila de disco)."""
-    state = await on_io(DOTA.poll)
+    state = await on_io(DOTA.poll, *dota_proc())
     return {"d": state, "auto_open": DOTA.auto_open}
 
 
@@ -1434,7 +1440,7 @@ async def dota_loop():
             if not clients:
                 sent = None  # quem conectar recebe o estado no session()
             elif DOTA.due(dota_open()):
-                state = await on_io(DOTA.poll)
+                state = await on_io(DOTA.poll, *dota_proc())
                 if not dota.same(state, sent):
                     await dota_send(state)
                     sent = state

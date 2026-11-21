@@ -28,6 +28,22 @@ def offline(reason=REASON_DOWN):
             "result": None}
 
 
+def with_process(data, bridge_up, running, started):
+    """A única regra derivada do Companion (fatos: processo do Dota aberto, visto pelo games.py, + ponte no ar
+    respondendo "offline", porque o Dota não manda GSI no menu principal) => phase "menu". Nada mais muda.
+    O bloco "companion" diz de onde veio: dota_running/dota_started (abertura do jogo, para o app abrir a tela
+    uma vez por abertura) e menu_from_process (a fase menu veio desta regra)."""
+    out = dict(data)
+    menu = bool(bridge_up and running and data.get("phase") == "offline")
+    if menu:
+        out["phase"] = "menu"
+        out.pop("reason", None)
+    out["companion"] = {"dota_running": bool(running),
+                        "dota_started": int(started) if running and started else None,
+                        "menu_from_process": menu}
+    return out
+
+
 def same(a, b):
     """Mesmo estado para os aparelhos (updated_at muda a cada resposta e não conta)."""
     if a is None or b is None:
@@ -71,8 +87,9 @@ class DotaBridge:
             raise ValueError("não é o contrato v1")
         return data
 
-    def poll(self):
-        """Consulta a ponte e devolve o estado (sempre um dict do contrato)."""
+    def poll(self, running=False, started=None):
+        """Consulta a ponte e devolve o estado (o dict do contrato + o bloco "companion").
+        running/started: o Dota está aberto (games.py) e desde quando (epoch s)."""
         self.last_poll = self.clock()
         try:
             data = self._fetch()
@@ -83,5 +100,5 @@ class DotaBridge:
         if up != self.up:
             log.info("ponte do DotaCopilot %s", "ok" if up else "fora do ar")
             self.up = up
-        self.state = data
-        return data
+        self.state = with_process(data, up, running, started)
+        return self.state
