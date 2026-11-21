@@ -1,0 +1,133 @@
+{
+ "v": 1,
+ "updated_at": 1795279000,
+ "phase": "postgame",
+ "lobby": {
+  "mmr": {
+   "value": 3400,
+   "estimated": true,
+   "medal": "Lenda 3"
+  },
+  "today": {
+   "wins": 2,
+   "losses": 1
+  },
+  "streak": -1,
+  "recent": [
+   {
+    "match_id": 1000000001,
+    "hero_id": 74,
+    "hero": "Invoker",
+    "win": false,
+    "k": 4,
+    "d": 7,
+    "a": 9,
+    "duration_s": 2310,
+    "ended_at": 1795200000
+   },
+   {
+    "match_id": 1000000000,
+    "hero_id": 2,
+    "hero": "Axe",
+    "win": true,
+    "k": 9,
+    "d": 3,
+    "a": 14,
+    "duration_s": 1980,
+    "ended_at": 1795190000
+   },
+   {
+    "match_id": null,
+    "hero_id": null,
+    "hero": null,
+    "win": true,
+    "k": null,
+    "d": null,
+    "a": null,
+    "duration_s": null,
+    "ended_at": 1795180000
+   }
+  ],
+  "top_heroes": [
+   {
+    "hero_id": 74,
+    "hero": "Invoker",
+    "matches": 40,
+    "winrate": 0.55
+   },
+   {
+    "hero_id": 2,
+    "hero": "Axe",
+    "matches": 21,
+    "winrate": 0.476
+   }
+  ]
+ },
+ "hero": {
+  "hero_id": 74,
+  "hero": "Invoker",
+  "position": null,
+  "position_source": "historico",
+  "mine": {
+   "matches": 40,
+   "winrate": 0.55,
+   "last_played": 1795200000,
+   "avg_kda": "7.1/4.2/9.8"
+  },
+  "build": {
+   "source": "STRATZ",
+   "updated_at": 1792007800,
+   "items": [
+    {
+     "stage": "start",
+     "item": "Tango",
+     "item_id": 44,
+     "cost": 90
+    },
+    {
+     "stage": "start",
+     "item": "Ramo de Ferro",
+     "item_id": 16,
+     "cost": 50
+    },
+    {
+     "stage": "early",
+     "item": "Botas de Velocidade",
+     "item_id": 29,
+     "cost": 500
+    },
+    {
+     "stage": "core",
+     "item": "Blink Dagger",
+     "item_id": 1,
+     "cost": 2250
+    },
+    {
+     "stage": "late",
+     "item": "Coração de Tarrasque",
+     "item_id": 114,
+     "cost": null
+    }
+   ],
+   "skills": [
+    "q",
+    "w",
+    "q",
+    "e",
+    "q",
+    "r",
+    "q",
+    "w",
+    "w"
+   ]
+  }
+ },
+ "live": null,
+ "result": {
+  "win": true,
+  "k": 12,
+  "d": 2,
+  "a": 15,
+  "match_id": 1000000002
+ }
+}

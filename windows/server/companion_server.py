@@ -57,6 +57,7 @@ from websockets.datastructures import Headers
 from websockets.http11 import Response
 from websockets.exceptions import ConnectionClosed
 
+import dota
 import extras
 import games
 import pair
@@ -84,6 +85,8 @@ DEFAULT_CFG = {
     # atalhos globais no Discord (Configurações > Atalhos de teclado).
     "discord": {"mute_keys": "ctrl+shift+f9", "deafen_keys": "ctrl+shift+f10"},
     "games_ignore": games.DEFAULT_IGNORE,
+    # Ponte do DotaCopilot (mesmo PC, só leitura); auto_open = o app vai para a tela Dota ao abrir o jogo.
+    "dota": dict(dota.DEFAULT_CFG),
     "game_folders": [],
     "shortcuts": [
         {"id": "explorer", "name": "Explorador de Arquivos", "open": "explorer.exe"},
@@ -138,6 +141,15 @@ def load_config():
         tmp.write_text(json.dumps(raw, indent=2, ensure_ascii=False), encoding="utf-8")
         tmp.replace(CFG_PATH)
         log.info("panel_token novo gerado")
+    if not isinstance(cfg.get("dota"), dict) or cfg["dota"] is DEFAULT_CFG["dota"]:
+        # grava só esta chave (o resto do arquivo fica como está), para a opção aparecer no config.json
+        raw = json.loads(CFG_PATH.read_text(encoding="utf-8"))
+        if not isinstance(raw.get("dota"), dict):
+            raw["dota"] = dict(dota.DEFAULT_CFG)
+            tmp = CFG_PATH.with_name("config.json.tmp")
+            tmp.write_text(json.dumps(raw, indent=2, ensure_ascii=False), encoding="utf-8")
+            tmp.replace(CFG_PATH)
+        cfg["dota"] = raw["dota"]
     return cfg
 
 
@@ -861,6 +873,7 @@ ASYNC_ACTIONS = {
     "games.history": lambda p: asyncio.to_thread(MON.summary),
     "games.launch": lambda p: asyncio.to_thread(MON.launch, str(p.get("id"))),
     "notif.sub": lambda p: notif_sub(p),
+    "dota.get": lambda p: dota_get(),
 }
 
 
@@ -1032,7 +1045,8 @@ def welcome_payload():
         "features": {"media": pc_info.HAS_MEDIA, "volume": pc_info.HAS_VOLUME, "mixer": pc_info.HAS_VOLUME,
                      "screen": True, "clipboard": True, "files": True, "deck": True,
                      "mic": pc_info.HAS_VOLUME, "timer": True, "deck_auto": True, "macro": True,
-                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True},
+                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True,
+                     "dota": True},
     }
 
 
@@ -1127,6 +1141,8 @@ async def session(ws, peer, kind):
     await send_games(ws, MON.state)
     await push_now(only=ws)
     await pomo_send([json.dumps({"t": "pomo", "d": await on_io(POMO.get)})], only=ws)
+    if DOTA.state is not None:
+        await dota_send(DOTA.state, only=ws)
     log.info("conectado: %s (%s) tela %s", kind, peer, str(hello.get("screen", "?"))[:120])
     try:
         async for raw in ws:
@@ -1181,6 +1197,7 @@ QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "m
                  "screen.shot", "mixer.get", "deck.get", "deck.save",  # deck.save: textos/macros dos botões
                  "work.get", "work.week", "work.csv",  # nomes de cliente/job/arquivo
                  "tasks.get", "tasks.toggle",  # texto das tarefas
+                 "dota.get",  # consultada a cada abertura da tela Dota
                  "pomo.get", "pomo.start", "pomo.pause", "pomo.resume", "pomo.skip", "pomo.reset", "pomo.config",
                  "pomo_get", "pomo_start", "pomo_pause", "pomo_resume", "pomo_skip", "pomo_reset", "pomo_config",
                  # modo painel (operações locais; mesmos motivos: texto de tarefas, clientes, pastas, código de pareamento)
@@ -1378,6 +1395,52 @@ async def games_loop():
         except Exception:  # noqa: BLE001
             log.exception("games_loop")
         await asyncio.sleep(3)
+
+
+DOTA = dota.DotaBridge(CFG.get("dota"))
+
+
+def dota_open():
+    """O games.py viu o Dota 2 rodando (Steam appid 570)."""
+    cur = MON.current
+    return bool(cur) and (str(cur.get("appid")) == "570" or str(cur.get("name", "")).lower() == "dota 2")
+
+
+def dota_msg(state):
+    return json.dumps({"t": "dota", "d": state, "auto_open": DOTA.auto_open}, ensure_ascii=False)
+
+
+async def dota_send(state, only=None):
+    msg = dota_msg(state)
+    for ws in ([only] if only else list(clients)):
+        try:
+            await ws.send(msg)
+        except ConnectionClosed:
+            clients.discard(ws)
+
+
+async def dota_get():
+    """Ação dota.get: estado atual (consulta a ponte agora, na fila de disco)."""
+    state = await on_io(DOTA.poll)
+    return {"d": state, "auto_open": DOTA.auto_open}
+
+
+async def dota_loop():
+    """Consulta a ponte na fila de disco: 1×/s com o Dota aberto, a cada 10 s fechado, parado sem aparelho.
+    Os aparelhos só recebem quando o estado muda."""
+    sent = None
+    while True:
+        try:
+            if not clients:
+                sent = None  # quem conectar recebe o estado no session()
+            elif DOTA.due(dota_open()):
+                state = await on_io(DOTA.poll)
+                if not dota.same(state, sent):
+                    await dota_send(state)
+                    sent = state
+        except Exception:  # noqa: BLE001
+            log.exception("dota_loop")
+        await asyncio.sleep(0.5)
 
 
 async def now_loop():
@@ -1597,6 +1660,7 @@ async def main():
     asyncio.create_task(FPS.loop(fps_wanted))
     asyncio.create_task(now_loop())
     asyncio.create_task(games_loop())
+    asyncio.create_task(dota_loop())
     asyncio.create_task(work_loop())
     asyncio.create_task(adb_loop())
     asyncio.create_task(downloads_loop())
