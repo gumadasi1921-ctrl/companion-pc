@@ -30,6 +30,9 @@ window.pccTheme = (() => {
   if (mq) { const f = () => { if (cur.mode === "auto") { api.apply(); api.onScheme && api.onScheme(); } }; mq.addEventListener ? mq.addEventListener("change", f) : mq.addListener && mq.addListener(f); }
   api.apply(prefs); return api;
 })();
+/* Modo painel: janela do PC aberta com #panel=... (a tela do painel está no fim do arquivo; o app do celular não conecta). */
+window.PCC_PANEL = /[#&]panel=/.test(location.hash);
+if (window.PCC_PANEL) document.documentElement.classList.add("panel-mode");
 </script>
 <style>
 @font-face { font-family: "VT323"; src: url(fonts/vt323.woff2) format("woff2"); font-display: swap; }
@@ -3103,7 +3106,7 @@ $("sens").oninput = () => { prefs.sens = +$("sens").value; store.set("sens", pre
 document.addEventListener("pointerdown", () => applyWake(), { once: true });   // o vídeo só toca depois de um toque
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") { applyWake(); if (!ws) { retry = 0; connect(); } else if (vis("screen")) screenLoop(); }
+  if (document.visibilityState === "visible") { applyWake(); if (window.PCC_PANEL) return; if (!ws) { retry = 0; connect(); } else if (vis("screen")) screenLoop(); }
 });
 
 // ---------------------------------------------------------------- loop de tela
@@ -3147,7 +3150,444 @@ showView(prefs.tab == "apps" ? "deck" : prefs.tab);
 handleShared();
 renderPower();
 applyWake();
-connect();
+if (!window.PCC_PANEL) connect();
 </script>
+<!-- ============================ MODO PAINEL (janela do PC) ============================
+     Aberto por #panel=<panel_token> (Edge em modo app). Não usa o token do celular; fala com o servidor por
+     {t:"hello", panel} e {t:"pop"}; o servidor só aceita de loopback + panel_token. -->
+<div id="panel" hidden>
+  <aside class="pn-side">
+    <div class="pn-brand">Companion PC</div>
+    <nav class="pn-nav" id="pn-nav" aria-label="Painel do PC"></nav>
+    <div class="pn-ver" id="pn-ver"></div>
+  </aside>
+  <main class="pn-main" id="pn-main" tabindex="-1"></main>
+  <div id="pn-banner" class="pn-banner" hidden role="status"></div>
+  <div id="pn-toast" class="pn-toast" hidden role="status" aria-live="polite"></div>
+</div>
+<style id="panel-css">
+html.panel-mode body > :not(#panel):not(style):not(script) { display: none !important; }
+html.panel-mode, html.panel-mode body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); }
+#panel { position: fixed; inset: 0; display: flex; background: var(--bg); color: var(--text); font: 15px/1.4 var(--font); }
+#panel[hidden] { display: none; }
+#panel button, #panel input, #panel select { font: inherit; color: inherit; }
+#panel button { cursor: pointer; }
+#panel :focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+.pn-side { flex: none; width: 220px; background: var(--nav-bg); border-right: 1px solid var(--separator); padding: 20px 12px 14px; display: flex; flex-direction: column; gap: 14px; }
+.pn-brand { font-weight: 700; font-size: 17px; padding: 0 10px; }
+.pn-nav { display: flex; flex-direction: column; gap: 4px; }
+.pn-nav button { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--r-list); background: none; color: var(--text-2); text-align: left; font-size: 15px; font-weight: 600; }
+.pn-nav button:hover { background: var(--surface-2); }
+.pn-nav button.on { background: var(--accent-soft); color: var(--accent-text); }
+.pn-nav svg, .pn-ic { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.pn-nav .pn-badge { margin-left: auto; min-width: 20px; padding: 1px 6px; border-radius: 999px; background: var(--danger-fill); color: #fff; font-size: 12px; text-align: center; }
+.pn-ver { margin-top: auto; padding: 0 10px; color: var(--text-3); font-size: 12px; }
+.pn-main { flex: 1; min-width: 0; overflow-y: auto; padding: 28px 32px 40px; }
+.pn-main > section { max-width: 760px; }
+.pn-main h1 { margin: 0 0 4px; font: 700 30px/1.15 var(--font); letter-spacing: -.01em; }
+.pn-sub { margin: 0 0 20px; color: var(--text-2); }
+.pn-h { margin: 22px 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.pn-card { background: var(--surface); border-radius: var(--r-card); padding: 16px 18px; }
+.pn-card + .pn-card { margin-top: 12px; }
+.pn-row { display: flex; align-items: center; gap: 10px; }
+.pn-row.wrap { flex-wrap: wrap; }
+.pn-grow { flex: 1; min-width: 0; }
+.pn-dim { color: var(--text-2); } .pn-faint { color: var(--text-3); font-size: 13px; }
+.pn-warn { color: var(--warning); } .pn-bad { color: var(--danger-text); } .pn-good { color: var(--success); }
+.pn-btn { min-height: 44px; padding: 0 18px; border: 0; border-radius: var(--r-btn); background: var(--surface-2); font-weight: 600; white-space: nowrap; }
+.pn-btn:hover { background: var(--surface-3); }
+.pn-btn.primary { background: var(--accent-fill); color: var(--on-accent); }
+.pn-btn.primary:hover { filter: brightness(1.1); }
+.pn-btn.danger { color: var(--danger-text); }
+.pn-btn:disabled { opacity: .4; cursor: default; }
+.pn-btn.sq { min-width: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.pn-in { min-height: 44px; padding: 0 14px; border: 1px solid var(--separator); border-radius: var(--r-btn); background: var(--surface); width: 100%; box-sizing: border-box; }
+.pn-in.num { width: 90px; text-align: center; }
+.pn-list { background: var(--surface); border-radius: var(--r-list); overflow: hidden; }
+.pn-list > .pn-li { display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 6px 8px 6px 12px; }
+.pn-list > .pn-li + .pn-li { border-top: 1px solid var(--separator); }
+.pn-li.sel { background: var(--accent-soft); }
+.pn-empty { padding: 28px 16px; text-align: center; color: var(--text-2); }
+.pn-chk { flex: none; width: 44px; height: 44px; border: 0; background: none; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: var(--text-3); }
+.pn-chk.on { color: var(--success); }
+.pn-chk svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.pn-li.done .pn-txt { color: var(--text-3); text-decoration: line-through; }
+.pn-txt { flex: 1; min-width: 0; overflow-wrap: anywhere; padding: 6px 4px; }
+.pn-txt input { margin: 0; }
+.pn-ring { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.pn-bar { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; flex: 1; }
+.pn-bar > i { display: block; height: 100%; background: var(--accent-fill); transition: width .3s; }
+.pn-foot { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+.pn-seg { display: inline-flex; background: var(--surface-2); border-radius: var(--r-btn); padding: 3px; }
+.pn-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--text-3); margin-right: 8px; }
+.pn-dot.ok { background: var(--success); } .pn-dot.wait { background: var(--warning); } .pn-dot.off { background: var(--danger-text); }
+.pn-kv { display: grid; grid-template-columns: 150px 1fr; gap: 8px 12px; }
+.pn-kv dt { color: var(--text-2); } .pn-kv dd { margin: 0; overflow-wrap: anywhere; }
+.pn-qr { width: 200px; height: 200px; border-radius: 12px; background: #fff; flex: none; image-rendering: pixelated; }
+.pn-code { font: 700 40px/1 var(--font); letter-spacing: .12em; font-variant-numeric: tabular-nums; }
+.pn-sw { position: relative; flex: none; width: 52px; height: 32px; border: 0; border-radius: 999px; background: var(--surface-3); }
+.pn-sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff; transition: transform .15s; }
+.pn-sw[aria-checked="true"] { background: var(--accent-fill); } .pn-sw[aria-checked="true"]::after { transform: translateX(20px); }
+details.pn-d { border-top: 1px solid var(--separator); } details.pn-d:first-child { border-top: 0; }
+details.pn-d > summary { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 14px; cursor: pointer; list-style: none; }
+details.pn-d > summary::-webkit-details-marker { display: none; }
+details.pn-d > summary::before { content: "›"; color: var(--text-3); width: 10px; transition: transform .15s; }
+details.pn-d[open] > summary::before { transform: rotate(90deg); }
+.pn-d .pn-d { margin-left: 18px; }
+.pn-fl { display: flex; gap: 10px; min-height: 36px; align-items: center; padding: 2px 14px 2px 42px; color: var(--text-2); }
+.pn-t { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--text-2); }
+.pn-banner { position: fixed; left: 220px; right: 0; top: 0; padding: 10px 16px; background: var(--danger-soft); color: var(--danger-text); font-weight: 600; text-align: center; border-bottom: 1px solid var(--separator); z-index: 5; }
+.pn-banner[hidden], .pn-toast[hidden] { display: none; }
+.pn-toast { position: fixed; left: calc(50% + 110px); bottom: 24px; transform: translateX(-50%); z-index: 6; display: flex; align-items: center; gap: 4px; max-width: 80vw; padding: 2px 2px 2px 16px; border-radius: var(--r-btn); background: var(--surface-3); color: var(--text); box-shadow: 0 6px 24px #0006; }
+.pn-toast.bad { background: var(--danger-soft); color: var(--danger-text); border: 1px solid var(--danger-text); }
+.pn-toast button { min-height: 44px; padding: 0 14px; border: 0; background: none; font-weight: 700; color: var(--accent-text); }
+.pn-toast span { padding: 10px 0; }
+.pn-form { display: grid; grid-template-columns: 110px 1fr; gap: 10px 12px; align-items: center; margin-top: 12px; }
+@media (max-width: 720px) {
+  .pn-side { width: 72px; padding: 16px 8px; } .pn-brand, .pn-ver, .pn-nav button span { display: none; } .pn-nav button { justify-content: center; padding: 0; }
+  .pn-nav .pn-badge { position: absolute; margin: -22px 0 0 18px; } .pn-banner { left: 72px; } .pn-toast { left: calc(50% + 36px); }
+  .pn-main { padding: 20px 16px 32px; } .pn-kv { grid-template-columns: 1fr; gap: 2px; }
+}
+</style>
+<script>
+(() => {
+  "use strict";
+  if (!window.PCC_PANEL) return;
+  const $p = (id) => document.getElementById(id);
+  // ---- credencial: vem da URL (#panel=...), vai para sessionStorage (só desta janela) e some da barra de endereço
+  let TOK = "";
+  try {
+    const m = location.hash.match(/[#&]panel=([^&]+)/);
+    if (m) { TOK = decodeURIComponent(m[1]); try { sessionStorage.setItem("pcc.panel", TOK); } catch {} history.replaceState(null, "", location.pathname + location.search); }
+    else { try { TOK = sessionStorage.getItem("pcc.panel") || ""; } catch {} }
+  } catch {}
+  // visual: sempre o Moderno (o painel não existe no Fallout), com o modo e o destaque escolhidos no celular/PC
+  try { const pr = window.pccTheme.prefs; window.pccTheme.apply({ theme: "modern", variant: pr.variant, mode: pr.mode, accent: pr.accent }); } catch {}
+  document.title = "Companion PC — Painel";
+  $p("panel").hidden = false;
+
+  // ---- helpers
+  const h = (tag, props, ...kids) => {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(props || {})) {
+      if (v == null || v === false) continue;
+      if (k === "class") e.className = v; else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+      else if (k === "value") e.value = v; else e.setAttribute(k, v === true ? "" : v);
+    }
+    for (const c of kids.flat(2)) { if (c == null || c === false) continue; e.append(c.nodeType ? c : String(c)); }
+    return e;
+  };
+  const IC = {
+    status: '<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8M12 17v4"/>',
+    tasks: '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8M13 12h8M13 18h8"/>',
+    work: '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
+    phone: '<rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/>',
+    settings: '<path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/>',
+    up: '<path d="m18 15-6-6-6 6"/>', down: '<path d="m6 9 6 6 6-6"/>',
+    trash: '<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+    edit: '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+    circle: '<circle cx="12" cy="12" r="10"/>', check: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  };
+  const ic = (n, cls = "pn-ic") => { const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("class", cls); s.setAttribute("aria-hidden", "true"); s.innerHTML = IC[n]; return s; };
+  const fmtDur = (s) => { s = Math.floor(s || 0); if (s < 60) return s ? s + "s" : "0"; const hh = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return hh ? hh + "h" + String(m).padStart(2, "0") : m + " min"; };
+  const dm = (s) => s.slice(8, 10) + "/" + s.slice(5, 7);
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+
+  // ---- toast (com "Desfazer" no lugar de confirmação)
+  let toastT = 0;
+  function toast(msg, opt = {}) {
+    const t = $p("pn-toast"); t.replaceChildren(h("span", {}, msg));
+    t.className = "pn-toast" + (opt.bad ? " bad" : "");
+    if (opt.undo) t.append(h("button", { type: "button", onclick: () => { clearTimeout(toastT); t.hidden = true; opt.undo(); } }, "Desfazer"));
+    t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, opt.undo ? 7000 : 4000);
+  }
+
+  // ---- conexão com o servidor
+  let ws = null, seq = 0, ready = false, retry = 0, denied = false;
+  const pending = new Map();
+  const banner = (msg) => { const b = $p("pn-banner"); b.hidden = !msg; b.textContent = msg || ""; };
+  function connectPanel() {
+    if (!TOK) { denied = true; banner("Painel sem autorização. Abra pelo ícone da bandeja do Companion PC (Abrir painel)."); return; }
+    let sock;
+    try { sock = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host); } catch { setTimeout(connectPanel, 2000); return; }
+    ws = sock;
+    sock.onopen = () => sock.send(JSON.stringify({ t: "hello", panel: TOK }));
+    sock.onmessage = (ev) => {
+      let m; try { m = JSON.parse(ev.data); } catch { return; }
+      if (m.t === "panel_ok") { ready = true; retry = 0; banner(""); $p("pn-ver").textContent = "Servidor " + (m.version || ""); onReady(); }
+      else if (m.t === "res" && pending.has(m.id)) { const p = pending.get(m.id); pending.delete(m.id); clearTimeout(p.timer); m.ok ? p.ok(m.d) : p.err(new Error(m.e || "Não deu certo.")); }
+    };
+    sock.onclose = (ev) => {
+      if (ws !== sock) return;
+      ready = false; ws = null;
+      for (const p of pending.values()) { clearTimeout(p.timer); p.err(new Error("Sem conexão com o servidor.")); }
+      pending.clear();
+      if (ev.code === 4001) { denied = true; banner("Painel não autorizado. Feche esta janela e abra pelo ícone da bandeja do Companion PC."); return; }
+      banner("Sem conexão com o servidor do Companion PC. Tentando de novo…");
+      setTimeout(connectPanel, Math.min(5000, 1000 + 500 * retry++));
+    };
+  }
+  function call(op, p = {}, ms = 20000) {
+    return new Promise((ok, err) => {
+      if (!ws || !ready) { err(new Error("Sem conexão com o servidor.")); return; }
+      const id = ++seq, timer = setTimeout(() => { pending.delete(id); err(new Error("O servidor não respondeu.")); }, ms);
+      pending.set(id, { ok, err, timer });
+      ws.send(JSON.stringify({ t: "pop", id, a: op, p }));
+    });
+  }
+  const fail = (e) => toast(e.message || "Não deu certo.", { bad: true });
+
+  // ---- navegação
+  const SECS = [["status", "Status", "status"], ["tasks", "Tarefas", "tasks"], ["work", "Trabalho", "work"], ["phone", "Celular", "phone"], ["settings", "Ajustes", "settings"]];
+  let sec = "status", view = null, tickT = 0;
+  try { const s = sessionStorage.getItem("pcc.panel.sec"); if (SECS.some((x) => x[0] === s)) sec = s; } catch {}
+  const nav = $p("pn-nav");
+  SECS.forEach(([id, label, icon]) => nav.append(h("button", { type: "button", "data-sec": id, onclick: () => go(id) }, ic(icon), h("span", {}, label))));
+  function go(id) {
+    if (view && view.stop) view.stop();
+    sec = id; try { sessionStorage.setItem("pcc.panel.sec", id); } catch {}
+    nav.querySelectorAll("button").forEach((b) => { b.classList.toggle("on", b.dataset.sec === id); b.setAttribute("aria-current", b.dataset.sec === id ? "page" : "false"); });
+    const main = $p("pn-main"); main.replaceChildren(); main.scrollTop = 0;
+    view = VIEWS[id](main); if (ready && view.start) view.start();
+  }
+  function onReady() { if (!view) go(sec); else if (view.start) view.start(); badge(); }
+  async function badge() {
+    try {
+      const d = await call("tasks_get"), n = d.items.filter((i) => !i.done).length, b = nav.querySelector('[data-sec="tasks"]');
+      b.querySelector(".pn-badge")?.remove(); if (n) b.append(h("span", { class: "pn-badge", "aria-label": n + " pendentes" }, n));
+    } catch {}
+  }
+  const poll = (fn, ms) => { clearInterval(tickT); fn(); tickT = setInterval(() => { if (ready && document.visibilityState === "visible") fn(); }, ms); };
+  const stopPoll = () => clearInterval(tickT);
+
+  // ====================================================================== Status
+  function statusView(main) {
+    const dot = h("span", { class: "pn-dot" }), txt = h("b", {}, "…"), game = h("dd", {}, "—"), phone = h("dd", {}, "—"), host = h("dd", {}, "—"), tk = h("dd", {}, "—");
+    main.append(h("section", {}, h("h1", {}, "Status"), h("p", { class: "pn-sub" }, "Como está o Companion PC agora."),
+      h("div", { class: "pn-card" }, h("div", { class: "pn-row" }, dot, txt)),
+      h("div", { class: "pn-h" }, "Detalhes"),
+      h("div", { class: "pn-card" }, h("dl", { class: "pn-kv", style: "margin:0" }, h("dt", {}, "Jogo"), game, h("dt", {}, "Celular"), phone, h("dt", {}, "Tarefas"), tk, h("dt", {}, "Este PC"), host))));
+    const load = async () => {
+      try {
+        const s = await call("panel_status"); dot.className = "pn-dot " + s.state; txt.textContent = s.text;
+        game.textContent = s.game ? "Jogando: " + s.game : "Nenhum jogo detectado"; host.textContent = s.host + " · v" + s.version;
+        phone.textContent = !s.phone.web ? "App do celular desligado (a porta " + s.phone.port + " está em uso?)" : (s.phone.adb ? "Cabo USB conectado" : "Cabo: sem celular") + " · " + (s.phone.wifi ? "Wi-Fi ligado" : "Wi-Fi desativado");
+        const t = await call("tasks_get"); tk.textContent = t.total ? (t.total - t.done) + " pendentes de " + t.total : "Nenhuma tarefa";
+      } catch {}
+    };
+    return { start: () => poll(load, 2500), stop: stopPoll };
+  }
+
+  // ====================================================================== Tarefas
+  function tasksView(main) {
+    let data = { items: [], total: 0, done: 0 }, editing = null;
+    const input = h("input", { class: "pn-in", type: "text", maxlength: "200", placeholder: "Nova tarefa", "aria-label": "Nova tarefa", autocomplete: "off" });
+    const addBtn = h("button", { class: "pn-btn primary", type: "button" }, "Adicionar");
+    const prog = h("div", { class: "pn-ring" }), list = h("div"), foot = h("div", { class: "pn-foot" });
+    main.append(h("section", {}, h("h1", {}, "Tarefas"), h("p", { class: "pn-sub" }, "O celular só marca e desmarca. Aqui você adiciona, edita, ordena e remove."),
+      h("div", { class: "pn-row", style: "margin-bottom:16px" }, input, addBtn), prog, list, foot));
+    const set = (d) => { data = d; render(); badge(); };
+    const add = async () => {
+      const t = input.value; if (!t.trim()) { input.focus(); return; }
+      try { set(await call("tasks_add", { text: t })); input.value = ""; } catch (e) { fail(e); }
+      input.focus();
+    };
+    addBtn.onclick = add; input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); add(); } };
+    const run = async (op, p) => { try { set(await call(op, p)); } catch (e) { fail(e); load(); } };
+    const remove = async (it) => {
+      const pos = data.items.findIndex((x) => x.id === it.id), snap = { id: it.id, text: it.text, done: it.done, pos };
+      try { set(await call("tasks_remove", { id: it.id })); } catch (e) { fail(e); load(); return; }
+      toast("Tarefa removida", { undo: () => run("tasks_restore", snap) });
+    };
+    const clearDone = async () => {
+      const snaps = data.items.map((x, i) => ({ id: x.id, text: x.text, done: x.done, pos: i })).filter((x) => x.done);
+      if (!snaps.length) return;
+      try { set(await call("tasks_clear_done")); } catch (e) { fail(e); load(); return; }
+      toast(snaps.length === 1 ? "1 tarefa feita foi limpa" : snaps.length + " tarefas feitas foram limpas", {
+        undo: async () => { try { for (const s of snaps) set(await call("tasks_restore", s)); } catch (e) { fail(e); load(); } } });
+    };
+    const saveEdit = async (it, val) => {
+      editing = null;
+      if (val.trim() && val.trim() !== it.text) { try { set(await call("tasks_edit", { id: it.id, text: val })); } catch (e) { fail(e); render(); } } else render();
+    };
+    function render() {
+      const items = data.items, total = items.length, done = items.filter((i) => i.done).length, pend = total - done;
+      prog.replaceChildren(h("div", { class: "pn-bar", role: "progressbar", "aria-valuemin": 0, "aria-valuemax": total, "aria-valuenow": done }, h("i", { style: "width:" + (total ? done / total * 100 : 0) + "%" })),
+        h("span", { class: "pn-dim" }, !total ? "Sem tarefas" : pend ? (pend === 1 ? "Falta 1" : "Faltam " + pend) : "Tudo feito!"));
+      list.replaceChildren(!total ? h("div", { class: "pn-list" }, h("div", { class: "pn-empty" }, "Nenhuma tarefa. Escreva acima e aperte Enter.")) :
+        h("div", { class: "pn-list" }, items.map((it, i) => {
+          const canUp = i > 0 && items[i - 1].done === it.done, canDown = i < total - 1 && items[i + 1].done === it.done;
+          let body;
+          if (editing === it.id) {
+            body = h("input", { class: "pn-in", type: "text", maxlength: "200", value: it.text, "aria-label": "Editar tarefa" });
+            body.onkeydown = (e) => { if (e.key === "Enter") saveEdit(it, body.value); else if (e.key === "Escape") { editing = null; render(); } };
+            body.onblur = () => { if (editing === it.id) saveEdit(it, body.value); };
+            setTimeout(() => { body.focus(); body.select(); }, 0);
+          } else body = h("div", { class: "pn-txt", ondblclick: () => { editing = it.id; render(); } }, it.text);
+          return h("div", { class: "pn-li" + (it.done ? " done" : "") },
+            h("button", { class: "pn-chk" + (it.done ? " on" : ""), type: "button", role: "checkbox", "aria-checked": it.done, "aria-label": (it.done ? "Desmarcar: " : "Marcar como feita: ") + it.text, onclick: () => run("tasks_toggle", { id: it.id }) }, ic(it.done ? "check" : "circle", "")),
+            body,
+            h("button", { class: "pn-btn sq", type: "button", title: "Editar", "aria-label": "Editar", onclick: () => { editing = it.id; render(); } }, ic("edit")),
+            h("button", { class: "pn-btn sq", type: "button", title: "Subir", "aria-label": "Subir", disabled: !canUp, onclick: () => run("tasks_move", { id: it.id, delta: -1 }) }, ic("up")),
+            h("button", { class: "pn-btn sq", type: "button", title: "Descer", "aria-label": "Descer", disabled: !canDown, onclick: () => run("tasks_move", { id: it.id, delta: 1 }) }, ic("down")),
+            h("button", { class: "pn-btn sq danger", type: "button", title: "Remover", "aria-label": "Remover", onclick: () => remove(it) }, ic("trash")));
+        })));
+      foot.replaceChildren(h("button", { class: "pn-btn" + (done ? " danger" : ""), type: "button", disabled: !done, onclick: clearDone }, "Limpar feitas (" + done + ")"),
+        h("span", { class: "pn-faint" }, "Remover e limpar podem ser desfeitos."));
+    }
+    const load = async () => { try { set(await call("tasks_get")); } catch (e) { fail(e); } };
+    render();
+    return { start: () => { load(); input.focus(); }, stop() {} };
+  }
+
+  // ====================================================================== Trabalho
+  function workView(main) {
+    let data = null, week = null, off = 0, selRoot = null;
+    const roots = h("div"), idx = h("p", { class: "pn-faint" }), now = h("div", { class: "pn-card" }), rep = h("div"), tree = h("div");
+    main.append(h("section", {}, h("h1", {}, "Trabalho"), h("p", { class: "pn-sub" }, "Cliente e job saem dos nomes das pastas: Cliente\\Job\\arquivo."),
+      h("div", { class: "pn-h" }, "Pastas de clientes"), roots, idx, h("div", { class: "pn-h" }, "Agora"), now,
+      h("div", { class: "pn-h" }, "Relatório"), rep, tree));
+    const addRoot = async () => {
+      try { const f = await call("pick_folder", {}, 600000); if (f) { data = await call("work_add_root", { folder: f }); render(); loadWeek(); } } catch (e) { fail(e); }
+    };
+    const rmRoot = async (r) => {
+      try { data = await call("work_remove_root", { folder: r }); selRoot = null; render(); loadWeek(); } catch (e) { fail(e); return; }
+      toast("Pasta removida da lista. O tempo registrado continua no relatório.", { undo: async () => { try { data = await call("work_add_root", { folder: r }); render(); loadWeek(); } catch (e) { fail(e); } } });
+    };
+    const csv = async () => { try { const r = await call("work_csv", { offset: off }); const a = h("a", { href: r.url, download: r.name }); document.body.append(a); a.click(); a.remove(); toast("CSV: " + r.name); } catch (e) { fail(e); } };
+    function render() {
+      if (!data) return;
+      roots.replaceChildren(h("div", { class: "pn-list" }, data.roots.length ? data.roots.map((r) => h("div", { class: "pn-li" + (r === selRoot ? " sel" : "") },
+        h("div", { class: "pn-txt", style: "cursor:default", onclick: () => { selRoot = r; render(); } }, r),
+        h("button", { class: "pn-btn sq danger", type: "button", title: "Remover pasta", "aria-label": "Remover " + r, onclick: () => rmRoot(r) }, ic("trash"))))
+        : h("div", { class: "pn-empty" }, "Nenhuma pasta de clientes.")),
+        h("div", { class: "pn-foot" }, h("button", { class: "pn-btn primary", type: "button", onclick: addRoot }, "Adicionar pasta…")));
+      const ix = data.index || {};
+      idx.textContent = !data.roots.length ? "Sem pasta de clientes, todo o tempo fica como \"Não identificado\"." : "Photoshop: " + (ix.files || 0) + " imagens indexadas pelo nome" + (ix.truncated ? " (limite atingido)" : "");
+      const n = data.now || {};
+      now.replaceChildren(!n.app ? h("span", { class: "pn-dim" }, "Nenhum programa da Adobe em foco.") :
+        h("div", {}, h("b", {}, n.counting ? "Contando agora" : "Parado (ninguém mexendo no PC)"), h("div", { class: n.identified ? "" : "pn-warn" }, n.app + " · " + (n.identified ? n.client + " › " + n.job : n.client) + " · " + n.file)),
+        h("div", { class: "pn-faint", style: "margin-top:6px" }, "Hoje: " + fmtDur(data.today_s)));
+    }
+    function renderWeek() {
+      const w = week; if (!w) return;
+      rep.replaceChildren(h("div", { class: "pn-row wrap" },
+        h("button", { class: "pn-btn sq", type: "button", "aria-label": "Semana anterior", onclick: () => { if (off > -104) { off--; loadWeek(); } } }, "‹"),
+        h("b", { class: "pn-grow" }, (w.offset === 0 ? "Esta semana  " : "") + dm(w.start) + " a " + dm(w.end) + " · total " + fmtDur(w.total_s)),
+        h("button", { class: "pn-btn sq", type: "button", "aria-label": "Semana seguinte", disabled: w.offset >= 0, onclick: () => { if (off < 0) { off++; loadWeek(); } } }, "›"),
+        h("button", { class: "pn-btn", type: "button", onclick: csv }, "Exportar CSV")),
+        h("p", { class: "pn-faint" }, w.days.map((x) => x.d + " " + fmtDur(x.s)).join("   ")));
+      const open = new Set([...tree.querySelectorAll("details[open]")].map((d) => d.dataset.k));
+      tree.replaceChildren(h("div", { class: "pn-list" }, !w.clients.length ? h("div", { class: "pn-empty" }, "Nenhum tempo nesta semana") : w.clients.map((c) => {
+        const files = (fs, cls) => fs.map((f) => h("div", { class: "pn-fl " + cls }, h("span", {}, f.file), h("span", { class: "pn-faint" }, f.app), h("span", { class: "pn-t" }, fmtDur(f.s))));
+        const kids = c.unidentified ? c.jobs.flatMap((j) => files(j.files, "pn-warn")) :
+          c.jobs.map((j) => h("details", { class: "pn-d", "data-k": c.client + "\u0000" + j.job, open: open.has(c.client + "\u0000" + j.job) }, h("summary", {}, h("span", {}, j.job), h("span", { class: "pn-t" }, fmtDur(j.s))), files(j.files, "")));
+        return h("details", { class: "pn-d", "data-k": c.client, open: open.has(c.client) }, h("summary", { class: c.unidentified ? "pn-warn" : "" }, h("b", {}, c.client), h("span", { class: "pn-t" }, fmtDur(c.s))), kids);
+      })));
+    }
+    const loadWeek = async () => { try { week = await call("work_week", { offset: off }); renderWeek(); } catch (e) { fail(e); } };
+    const loadNow = async () => { try { data = await call("work_get"); render(); } catch {} };
+    return { start: () => { loadNow().then(loadWeek); poll(loadNow, 5000); }, stop: stopPoll };
+  }
+
+  // ====================================================================== Celular
+  function phoneView(main) {
+    const qrBox = h("div"), link = h("div", { class: "pn-dim" }), cable = h("div", { class: "pn-dim" }), codeBox = h("div"), newBtn = h("button", { class: "pn-btn primary", type: "button" }, "Novo código");
+    main.append(h("section", {}, h("h1", {}, "Celular"), h("p", { class: "pn-sub" }, "Conecte um aparelho novo: leia o QR code ou use o código de pareamento."),
+      h("div", { class: "pn-card" }, h("div", { class: "pn-row wrap", style: "align-items:flex-start;gap:20px" }, qrBox, h("div", { class: "pn-grow" }, link, h("div", { style: "height:8px" }), cable))),
+      h("div", { class: "pn-h" }, "Código de pareamento"),
+      h("div", { class: "pn-card" }, codeBox, h("div", { class: "pn-foot" }, newBtn, h("span", { class: "pn-faint" }, "O código vale 120 s, uma vez, e só enquanto este painel está aberto.")))));
+    let pair = null, got = 0, autoDone = false;
+    const drawCode = () => {
+      const st = pair, left = st && st.code ? Math.max(0, st.left - Math.round((Date.now() - got) / 1000)) : 0;
+      if (st && st.code && left > 0) codeBox.replaceChildren(h("div", { class: "pn-code", "aria-label": "Código " + st.code.split("").join(" ") }, st.code.slice(0, 3) + " " + st.code.slice(3)), h("div", { class: "pn-dim", style: "margin-top:6px" }, "Expira em " + Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0")));
+      else if (st && st.code) { pair = { code: null, dead: "vencido" }; drawCode(); }
+      else codeBox.replaceChildren(h("div", { class: "pn-warn" }, ({ tentativas: "Código invalidado por tentativas erradas. Gere outro.", vencido: "Código expirado. Gere outro.", usado: "Código usado. Gere outro para outro aparelho." })[st && st.dead] || "Sem código. Gere um."));
+    };
+    const newCode = async () => { try { pair = await call("pair_new"); got = Date.now(); drawCode(); } catch (e) { fail(e); } };
+    newBtn.onclick = newCode;
+    const load = async () => {
+      try {
+        const s = await call("panel_status"), p = s.phone;
+        pair = s.pair; got = Date.now();
+        if (!autoDone) { autoDone = true; if (!pair.code) { await newCode(); } }
+        qrBox.replaceChildren(...(p.qr ? [h("img", { class: "pn-qr", src: p.qr, alt: "QR code para abrir o app no celular" })] : []));
+        link.textContent = !p.web ? "App do celular desligado (a porta " + p.port + " está em uso?)" : p.wifi ? "Wi-Fi: aponte a câmera do celular para o QR code ou abra " + p.link + " e digite o token." : "Wi-Fi desativado (web.host = 127.0.0.1). Use o cabo.";
+        cable.textContent = p.adb ? "Cabo: celular conectado. Abra o app pelo ícone da bandeja (Abrir app no celular)." : "Cabo: ligue o celular com “Depuração USB” ativa e abra http://localhost:" + p.port;
+        cable.className = p.adb ? "pn-good" : "pn-dim";
+        drawCode();
+      } catch {}
+    };
+    const tick = () => drawCode();
+    let t2 = 0;
+    return { start: () => { poll(load, 4000); clearInterval(t2); t2 = setInterval(tick, 1000); }, stop() { stopPoll(); clearInterval(t2); } };
+  }
+
+  // ====================================================================== Ajustes
+  function settingsView(main) {
+    let orig = null, vals = null, net = null, editSc = null;
+    const body = h("div"), msg = h("span", { class: "pn-dim" });
+    main.append(h("section", {}, h("h1", {}, "Ajustes"), h("p", { class: "pn-sub" }, "Opções do servidor no PC."), body));
+    const KEYS = ["upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "idle_min", "notif_ignore", "shortcuts"];
+    const dirty = () => KEYS.filter((k) => JSON.stringify(vals[k]) !== JSON.stringify(orig[k]));
+    const pickDir = async (k) => { try { const f = await call("pick_folder", {}, 600000); if (f) { vals[k] = f; render(); } } catch (e) { fail(e); } };
+    const slug = (name) => { let b = name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 36) || "programa", id = b, n = 2; const ids = new Set(vals.shortcuts.map((s) => s.id)); while (ids.has(id)) id = b + "-" + n++; return id; };
+    const save = async () => {
+      const ch = {}; dirty().forEach((k) => { ch[k] = vals[k]; });
+      if (!Object.keys(ch).length) return;
+      try {
+        const r = await call("config_save", { changes: ch }); await load();
+        msg.textContent = r.restart ? "Salvo. Reinicie o servidor (ícone da bandeja → Reiniciar servidor) para usar as novas pastas." : "Salvo.";
+      } catch (e) { fail(e); }
+    };
+    const dirRow = (k, label) => h("div", { class: "pn-row", style: "margin-top:8px" }, h("div", { class: "pn-grow" }, h("div", {}, label), h("div", { class: "pn-faint" }, vals[k] || "")), h("button", { class: "pn-btn", type: "button", onclick: () => pickDir(k) }, "Escolher…"));
+    function scForm() {
+      const s = editSc, f = (key, label, ph) => [h("label", { for: "sc-" + key }, label), h("input", { id: "sc-" + key, class: "pn-in", type: "text", value: s.data[key] || "", placeholder: ph || "", oninput: (e) => { s.data[key] = e.target.value; } })];
+      return h("div", { class: "pn-card", style: "margin-top:12px" }, h("b", {}, s.index == null ? "Novo programa" : "Editar programa"),
+        h("div", { class: "pn-form" }, f("name", "Nome"), f("open", "Abre", "caminho do .exe, pasta ou link"), f("args", "Argumentos", "opcional")),
+        h("div", { class: "pn-foot" }, h("button", { class: "pn-btn primary", type: "button", onclick: () => {
+          const d = s.data, name = (d.name || "").trim(), open = (d.open || "").trim();
+          if (!name || !open) { toast("Preencha o nome e o que abrir.", { bad: true }); return; }
+          const c = s.index == null ? { id: slug(name) } : { ...vals.shortcuts[s.index] };
+          c.name = name; c.open = open; if ((d.args || "").trim()) c.args = d.args.trim(); else delete c.args;
+          if (s.index == null) vals.shortcuts.push(c); else vals.shortcuts[s.index] = c;
+          editSc = null; render();
+        } }, "Aplicar"), h("button", { class: "pn-btn", type: "button", onclick: () => { editSc = null; render(); } }, "Cancelar")));
+    }
+    function render() {
+      if (!vals) return;
+      const nIn = h("input", { class: "pn-in", type: "text", maxlength: "80", placeholder: "Nome do app", "aria-label": "App a ignorar" });
+      const addN = () => { const v = nIn.value.trim(); if (v && !vals.notif_ignore.includes(v)) { vals.notif_ignore.push(v); render(); } };
+      nIn.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); addN(); } };
+      const d = dirty();
+      body.replaceChildren(
+        h("div", { class: "pn-h" }, "Pastas"), h("div", { class: "pn-card" }, dirRow("upload_dir", "Arquivos enviados pelo celular"), dirRow("downloads_dir", "Pasta vigiada (download concluído)")),
+        h("div", { class: "pn-h" }, "Energia"), h("div", { class: "pn-card" },
+          h("div", { class: "pn-row" }, h("div", { class: "pn-grow", id: "lb-power" }, "Permitir desligar, reiniciar e suspender pelo celular"), h("button", { class: "pn-sw", type: "button", role: "switch", "aria-checked": !!vals.allow_power, "aria-labelledby": "lb-power", onclick: () => { vals.allow_power = !vals.allow_power; render(); } })),
+          h("div", { class: "pn-row", style: "margin-top:10px" }, h("label", { class: "pn-grow", for: "st-delay" }, "Atraso antes de desligar (segundos)"), h("input", { id: "st-delay", class: "pn-in num", type: "number", min: 0, max: 600, step: 5, value: vals.shutdown_delay_s, onchange: (e) => { const n = parseInt(e.target.value, 10); vals.shutdown_delay_s = Number.isFinite(n) ? n : orig.shutdown_delay_s; render(); } }))),
+        h("div", { class: "pn-h" }, "Trabalho"), h("div", { class: "pn-card" }, h("div", { class: "pn-row" }, h("label", { class: "pn-grow", for: "st-idle" }, "Parar de contar depois de (minutos parado)"), h("input", { id: "st-idle", class: "pn-in num", type: "number", min: 1, max: 30, value: vals.idle_min, onchange: (e) => { const n = parseInt(e.target.value, 10); vals.idle_min = Number.isFinite(n) ? n : orig.idle_min; render(); } }))),
+        h("div", { class: "pn-h" }, "Notificações ignoradas"), h("div", { class: "pn-list" }, vals.notif_ignore.length ? vals.notif_ignore.map((a, i) => h("div", { class: "pn-li" }, h("div", { class: "pn-txt" }, a), h("button", { class: "pn-btn sq danger", type: "button", "aria-label": "Remover " + a, onclick: () => { vals.notif_ignore.splice(i, 1); render(); } }, ic("trash")))) : h("div", { class: "pn-empty" }, "Nenhum app ignorado.")),
+        h("div", { class: "pn-row", style: "margin-top:8px" }, nIn, h("button", { class: "pn-btn", type: "button", onclick: addN }, "Adicionar")),
+        h("div", { class: "pn-h" }, "Programas da página “Programas”"), h("div", { class: "pn-list" }, vals.shortcuts.length ? vals.shortcuts.map((s, i) => h("div", { class: "pn-li" },
+          h("div", { class: "pn-txt" }, h("div", {}, s.name), h("div", { class: "pn-faint" }, (s.open || "") + (s.args ? "  " + s.args : ""))),
+          h("button", { class: "pn-btn sq", type: "button", "aria-label": "Editar " + s.name, onclick: () => { editSc = { index: i, data: { name: s.name, open: s.open, args: s.args || "" } }; render(); } }, ic("edit")),
+          h("button", { class: "pn-btn sq danger", type: "button", "aria-label": "Remover " + s.name, onclick: () => { vals.shortcuts.splice(i, 1); render(); } }, ic("trash")))) : h("div", { class: "pn-empty" }, "Nenhum programa.")),
+        editSc ? scForm() : h("div", { class: "pn-foot" }, h("button", { class: "pn-btn", type: "button", onclick: () => { editSc = { index: null, data: {} }; render(); } }, "Adicionar programa…")),
+        h("div", { class: "pn-h" }, "Rede (só leitura)"), h("div", { class: "pn-card pn-dim" }, "IP " + (net.ip || "?") + "  ·  porta " + net.port + "  ·  " + net.mode),
+        h("div", { class: "pn-foot", style: "margin-top:20px" }, h("button", { class: "pn-btn primary", type: "button", disabled: !d.length, onclick: save }, "Salvar alterações"),
+          h("button", { class: "pn-btn", type: "button", disabled: !d.length, onclick: () => { vals = clone(orig); editSc = null; msg.textContent = ""; render(); } }, "Desfazer"), d.length ? h("span", { class: "pn-warn" }, "Alterações não salvas") : msg));
+    }
+    const load = async () => {
+      try { const c = await call("config_get"); net = c.net; orig = {}; KEYS.forEach((k) => { orig[k] = clone(c[k]); }); vals = clone(orig); editSc = null; render(); } catch (e) { fail(e); }
+    };
+    return { start: load, stop() {} };
+  }
+
+  const VIEWS = { status: statusView, tasks: tasksView, work: workView, phone: phoneView, settings: settingsView };
+  go(sec);
+  connectPanel();
+})();
+</script>
+
 </body>
 </html>
