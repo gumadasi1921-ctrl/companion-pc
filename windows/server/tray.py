@@ -146,7 +146,61 @@ class TrayApp:
         self._last_state = None
 
     # -- ações --
+    PANEL_TITLE = "Companion PC — Painel"   # título da janela do modo painel (definido pelo index.html)
+
+    @staticmethod
+    def find_edge():
+        """Caminho do msedge.exe (registro e pastas padrão) ou None."""
+        cands = []
+        try:
+            import winreg
+            for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+                try:
+                    with winreg.OpenKey(hive, r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\msedge.exe") as k:
+                        cands.append(winreg.QueryValueEx(k, "")[0])
+                except OSError:
+                    pass
+        except ImportError:
+            pass
+        for env in ("ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA"):
+            if os.environ.get(env):
+                cands.append(os.path.join(os.environ[env], "Microsoft", "Edge", "Application", "msedge.exe"))
+        return next((c for c in cands if c and os.path.isfile(c)), None)
+
+    def _focus_web_panel(self):
+        """Já tem janela do modo painel aberta? Traz para a frente (True) em vez de abrir outra."""
+        user32 = ctypes.windll.user32
+        user32.FindWindowW.restype = wintypes.HWND
+        hwnd = user32.FindWindowW(None, self.PANEL_TITLE)
+        if not hwnd:
+            return False
+        user32.ShowWindow(wintypes.HWND(hwnd), 9)  # SW_RESTORE
+        user32.SetForegroundWindow(wintypes.HWND(hwnd))
+        return True
+
+    def open_web_panel(self):
+        """Modo painel: Edge em modo app apontando para o próprio servidor (o link leva o panel_token: nunca vai ao log).
+        True = aberto; False = sem Edge/erro, e o painel tkinter (reserva) faz o trabalho."""
+        try:
+            if not (self.ops and "panel_url" in self.ops):
+                return False
+            if self._focus_web_panel():
+                return True
+            edge = self.find_edge()
+            if not edge:
+                log.info("Edge não encontrado - abrindo o painel tkinter")
+                return False
+            subprocess.Popen([edge, f"--app={self.ops['panel_url']()}"], close_fds=True)
+            log.info("painel aberto no Edge (modo app)")
+            return True
+        except Exception as e:  # noqa: BLE001
+            log.warning("painel no Edge falhou (%s) - abrindo o painel tkinter", type(e).__name__)
+            return False
+
     def open_panel(self, *_):
+        if self.open_web_panel():
+            ack_panel()  # confirma para o atalho que pediu o painel
+            return
         if self.panel_open:
             self.panel_q.put("raise")
             return
