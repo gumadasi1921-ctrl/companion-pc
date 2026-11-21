@@ -1000,6 +1000,7 @@ select.sel { min-height: 44px; }
 .dota { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); align-content: start; }
 .dota > .dcol { display: grid; gap: 10px; align-content: start; min-width: 0; }
 .dota > .dfull { grid-column: 1 / -1; }
+.dota .dhead { margin: 0; }
 @media (orientation: landscape) and (min-width: 640px) {
   .dota.c3 { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1.1fr); }
   .dota.c2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); }
@@ -1901,13 +1902,17 @@ const dKda = (o) => (o && nn(o.k) && nn(o.d) && nn(o.a) ? `${o.k}/${o.d}/${o.a}`
 const dWin = (w, yes, no, none) => `<span class="${w === true ? "dwin" : w === false ? "dloss" : ""}">${w === true ? yes : w === false ? no : none}</span>`;
 function dotaSet(d, auto) {
   if (!d || typeof d !== "object") return;
-  const was = dota.d?.phase;
   dota.d = d; dota.t = performance.now(); if (typeof auto === "boolean") dota.auto = auto;
-  // abrir sozinho: o jogo saiu de offline (auto_open no config.json do PC E a chave em Ajustes deste aparelho)
-  if (was === "offline" && ["menu", "draft", "game"].includes(d.phase) && dota.auto && prefs.dotaOpen && !vis("dota")) {
-    const back = prefs.tab;
-    showView("dota", true);
-    undoToast("Dota aberto", () => showView(back), "Voltar");
+  // abrir sozinho: uma vez por abertura do jogo (dota_started novo, vindo do games.py no PC), com auto_open no
+  // config.json do PC E a chave em Ajustes deste aparelho; o último tratado fica no aparelho (recarregar não reabre)
+  const started = d.companion?.dota_running ? d.companion.dota_started : null;
+  if (started && started !== store.get("dotaSeen", null)) {
+    store.set("dotaSeen", started);
+    if (dota.auto && prefs.dotaOpen && !vis("dota")) {
+      const back = prefs.tab;
+      showView("dota", true);
+      undoToast("Dota aberto", () => showView(back), "Voltar");
+    }
   }
   const t = d.live?.timers || {};
   for (const [k] of DOTA_TIMERS) {
@@ -2007,8 +2012,9 @@ function renderDota() {
   let html, cls = "c3";
   if (!d) { html = '<div class="card dmsg">Carregando…</div>'; cls = ""; }
   else if (d.phase === "offline") {
-    html = `<div class="dcol dfull"><div class="card dmsg" role="status">${d.reason ? `<span>${esc(d.reason)}</span><small>Abra o DotaCopilot para ver a partida</small>` : "<span>Abra o Dota para ver a partida</span><small>Sem dados do jogo há mais de 35 s</small>"}</div></div>` + dotaLobby(d.lobby);
-  } else if (d.phase === "menu") html = dotaLobby(d.lobby) || '<div class="card dmsg">No menu do Dota</div>';
+    // ponte fora do ar (reason) | ponte no ar + Dota fechado (lobby)
+    html = `<div class="dcol dfull"><div class="card dmsg" role="status">${d.reason ? `<span>Abra o DotaCopilot para ver a partida</span><small>${esc(d.reason)}</small>` : "<span>Dota fechado</span><small>Abra o Dota para ver a partida</small>"}</div></div>` + dotaLobby(d.lobby);
+  } else if (d.phase === "menu") html = '<div class="dcol dfull"><h2 class="dhead" role="status">No menu do Dota</h2></div>' + dotaLobby(d.lobby);
   else if (d.phase === "draft" || d.phase === "pregame") { html = d.hero ? dotaHero(d) : '<div class="card dmsg">Escolhendo o herói…</div>'; cls = "c2"; }
   else if (d.phase === "game") html = d.live ? dotaGame(d) : '<div class="card dmsg">Partida em andamento</div>';
   else if (d.phase === "postgame") { html = dotaEnd(d); cls = ""; }
