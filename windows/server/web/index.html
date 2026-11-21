@@ -1380,6 +1380,7 @@ input.num { min-height: 36px; }
           <div class="set"><label>Quando ficar parado<small>Passa Sistema, Jogos, Tocando e o relógio, ou só o relógio</small></label><button class="btn sm" id="dock-now">Ver</button><select id="idle-mode" class="sel" aria-label="Quando ficar parado"><option value="cycle">Passar as telas</option><option value="clock">Só o relógio</option><option value="off">Nada</option></select></div>
           <div class="set"><label>Depois de</label><select id="dock-min" class="sel" aria-label="Depois de quanto tempo parado"><option value="1">1 min</option><option value="2">2 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
           <div class="set"><label>Botões seguem o programa<small>Troca a página de botões conforme o programa em foco no PC</small></label><button class="switch" id="sw-deckauto" aria-label="Botões seguem o programa"></button></div>
+          <div class="set"><label>Abrir a tela Dota ao iniciar o jogo<small>Quando o Dota abre no PC, o app vai para a tela Dota (dá para voltar)</small></label><button class="switch" id="sw-dotaopen" aria-label="Abrir a tela Dota ao iniciar o jogo"></button></div>
         </div>
         <h2>Este aparelho</h2>
         <div class="card">
@@ -1488,7 +1489,7 @@ const store = {
   if (tab) store.set("tab", tab[1]);
   if (m || tab) history.replaceState(null, "", location.pathname);
 })();
-const prefs = { snd: store.get("snd", true), wake: store.get("wake", true), vib: store.get("vib", true), sens: store.get("sens", 1.8), tab: store.get("tab", "inicio") };
+const prefs = { dotaOpen: store.get("dotaOpen", true), snd: store.get("snd", true), wake: store.get("wake", true), vib: store.get("vib", true), sens: store.get("sens", 1.8), tab: store.get("tab", "inicio") };
 
 // ---------------------------------------------------------------- formatação
 const fmtBytes = (n, rate) => {
@@ -1900,7 +1901,14 @@ const dKda = (o) => (o && nn(o.k) && nn(o.d) && nn(o.a) ? `${o.k}/${o.d}/${o.a}`
 const dWin = (w, yes, no, none) => `<span class="${w === true ? "dwin" : w === false ? "dloss" : ""}">${w === true ? yes : w === false ? no : none}</span>`;
 function dotaSet(d, auto) {
   if (!d || typeof d !== "object") return;
+  const was = dota.d?.phase;
   dota.d = d; dota.t = performance.now(); if (typeof auto === "boolean") dota.auto = auto;
+  // abrir sozinho: o jogo saiu de offline (auto_open no config.json do PC E a chave em Ajustes deste aparelho)
+  if (was === "offline" && ["menu", "draft", "game"].includes(d.phase) && dota.auto && prefs.dotaOpen && !vis("dota")) {
+    const back = prefs.tab;
+    showView("dota", true);
+    undoToast("Dota aberto", () => showView(back), "Voltar");
+  }
   const t = d.live?.timers || {};
   for (const [k] of DOTA_TIMERS) {
     const v = t[k];
@@ -2234,8 +2242,8 @@ setInterval(() => { if (pm.mode === "foco" && vis("tasks") && !document.hidden) 
 // ---------------------------------------------------------------- Início (widgets)
 // Cada widget é independente: html(dev) monta a estrutura uma vez; upd(el) só troca texto/atributos (nada de
 // innerHTML a cada segundo nos controles, para o toque não se perder). Layout salvo em store "home" (celular e tablet separados).
-function undoToast(msg, fn) {
-  const t = $("utoast"); $("ut-msg").textContent = msg; t.classList.remove("hidden");
+function undoToast(msg, fn, label = "Desfazer") {
+  const t = $("utoast"); $("ut-msg").textContent = msg; $("ut-btn").textContent = label; t.classList.remove("hidden");
   $("ut-btn").onclick = () => { clearTimeout(undoToast.t); t.classList.add("hidden"); fn(); };
   clearTimeout(undoToast.t); undoToast.t = setTimeout(() => t.classList.add("hidden"), 4000);
 }
@@ -3503,6 +3511,7 @@ $("ap-mode").onclick = (e) => { const b = e.target.closest("[data-mode]"); if (!
 $("ap-accent").onclick = (e) => { const b = e.target.closest("[data-accent]"); if (!b) return; buzz(8); prefs.accent = b.dataset.accent; store.set("accent", prefs.accent); applyTheme(); };
 bindSwitch("sw-crt", "crt", applyTheme);
 bindSwitch("sw-deckauto", "deckAuto", () => { lastApp = null; });
+bindSwitch("sw-dotaopen", "dotaOpen");
 bindSwitch("sw-snd", "snd", () => snd("ok"));
 bindSwitch("sw-pcnotif", "pcnotif", () => { if (ws && welcome.features?.notif) subNotif(); });
 applyTheme();
