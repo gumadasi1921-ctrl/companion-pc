@@ -872,6 +872,52 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .bed-more > label { margin-top: 8px; }
 @media (prefers-reduced-motion: reduce) { .dbtn:active, .dbtn.hit { transform: none; } }
 @media (min-width: 1000px) and (min-height: 600px) and (orientation: landscape) { .dbtn { min-height: 104px; } .dbtn .isvg { width: 32px; height: 32px; } }
+/* Rádio */
+.media { max-width: 560px; }
+.art { border-radius: var(--r-card, 2px); background: var(--surface-2, transparent) center / cover no-repeat; overflow: hidden; }
+:root[data-theme="modern"] .mtitle { font: 700 24px/1.2 var(--font); }
+.mprog .prog { height: 44px; }
+:root[data-theme="modern"] .prog .bar { height: 8px; border-radius: var(--r-pill); background: var(--surface-3); overflow: hidden; }
+:root[data-theme="modern"] .prog .bar > i { background: var(--accent-fill); transition: width .3s linear; }
+.ctrls { gap: 16px; }
+.cbtn { width: 48px; height: 48px; }
+.cbtn.main { width: 72px; height: 72px; }
+:root[data-theme="modern"] .cbtn { border-radius: 50%; border-color: transparent; background: var(--surface-2); }
+:root[data-theme="modern"] .cbtn.main { background: var(--accent-fill); color: var(--on-accent); }
+.vol { gap: 8px; }
+.vol button { width: 44px; height: 44px; }
+.vol input[type=range] { height: 44px; }
+:root[data-theme="modern"] input[type=range] { accent-color: var(--accent-fill); }
+:root[data-theme="modern"] input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: var(--surface-3); }
+:root[data-theme="modern"] input[type=range]::-webkit-slider-thumb { width: 24px; height: 24px; margin-top: -9px; border-radius: 50%; background: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, .4); }
+:root[data-theme="modern"] input[type=range]::-moz-range-track { height: 6px; border-radius: 3px; background: var(--surface-3); }
+:root[data-theme="modern"] input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: var(--text); }
+.outchip { min-height: 44px; }
+:root[data-theme="modern"] .outchip { border: 1px solid var(--separator); border-radius: var(--r-pill); background: var(--surface-2); padding: 0 16px; }
+@media (orientation: landscape) and (min-width: 640px) {
+  .media { max-width: none; grid-template-columns: minmax(0, 40%) minmax(0, 1fr); column-gap: 24px; row-gap: 10px; align-content: center; }
+  .media .art { grid-column: 1; grid-row: 1 / span 5; width: min(100%, 56vh); align-self: center; }
+  .media > :not(.art) { grid-column: 2; }
+}
+/* Mixer: lista agrupada */
+.mixer .card { padding: 6px 0; overflow: hidden; }
+.mixer .card h3 { padding: 8px 14px 6px; }
+:root[data-theme="modern"] .mixer .card { background: var(--surface); }
+.outrow { min-height: 48px; padding: 6px 14px; }
+:root[data-theme="modern"] .outrow { border-top: 1px solid var(--separator); border-radius: 0; font-size: 16px; }
+:root[data-theme="modern"] .outrow.on { border: 0; border-top: 1px solid var(--separator); background: var(--accent-soft); }
+:root[data-theme="modern"] .outrow i::before { content: ""; display: block; width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--text-3); }
+:root[data-theme="modern"] .outrow.on i::before { content: ""; border-color: var(--accent-fill); background: radial-gradient(var(--accent-fill) 45%, transparent 50%); }
+.mxrow { grid-template-columns: 36px minmax(0, 1fr) 48px 44px; padding: 6px 14px; }
+:root[data-theme="modern"] .mxrow { border-bottom: 1px solid var(--separator); }
+:root[data-theme="modern"] .mxrow:last-child { border-bottom: 0; }
+.mxmid input { height: 44px; }
+.mxmute { width: 44px; height: 44px; display: grid; place-items: center; }
+.mxmute .hi { width: 22px; height: 22px; }
+:root[data-theme="modern"] .mxmute { border: 0; border-radius: 50%; background: var(--surface-2); }
+:root[data-theme="modern"] .mxrow.muted .mxmute { background: var(--danger-soft); color: var(--danger-text); }
+:root[data-theme="modern"] .mxic { border-radius: var(--r-sm); border: 0; background: var(--surface-2); font: 700 16px/1 var(--font); }
+.card h3 > span, .outrow span, .mxname { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -1024,8 +1070,8 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
   <section class="tab" id="t-media">
     <div class="media">
       <div class="art" id="art"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg></div>
-      <div><div class="mtitle" id="m-title">Nada tocando</div><div class="martist" id="m-artist">Abra uma música ou vídeo no PC</div><div class="mapp" id="m-app"></div></div>
-      <div><div class="prog" id="prog"><div class="bar"><i id="prog-i"></i></div></div><div class="times"><span id="m-pos">0:00</span><span id="m-dur">0:00</span></div></div>
+      <div class="minfo"><div class="mtitle" id="m-title">Nada tocando</div><div class="martist" id="m-artist">Abra uma música ou vídeo no PC</div><div class="mapp" id="m-app"></div></div>
+      <div class="mprog"><div class="prog" id="prog"><div class="bar"><i id="prog-i"></i></div></div><div class="times"><span id="m-pos">0:00</span><span id="m-dur">0:00</span></div></div>
       <div class="ctrls">
         <button class="cbtn" id="b-prev" aria-label="Anterior"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
         <button class="cbtn main" id="b-play" aria-label="Tocar/pausar"><svg viewBox="0 0 24 24" fill="currentColor" id="play-ico"><path d="M8 5v14l11-7z"/></svg></button>
@@ -2694,7 +2740,7 @@ function renderMixer() {
     row.querySelector(".mxic").textContent = a.key === "_system" ? "#" : a.name.slice(0, 1).toUpperCase();
     row.querySelector(".mxname").textContent = a.name;
     if (mixDrag !== a.key) { row.querySelector("input").value = a.level; row.querySelector(".mxval").textContent = a.level + "%"; }
-    row.querySelector(".mxmute").textContent = a.muted ? "MUDO" : "SOM";
+    const mb = row.querySelector(".mxmute"); setHtml(mb, ic(a.muted ? "volume-x" : "volume-2")); mb.setAttribute("aria-label", (a.muted ? "Ativar o som de " : "Silenciar ") + a.name);
     row.classList.toggle("muted", a.muted);
     row.querySelector(".peak i").style.setProperty("--pk", Math.min(100, Math.sqrt(a.peak) * 100) + "%");
   }
