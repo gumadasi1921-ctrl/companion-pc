@@ -3372,6 +3372,16 @@ html.panel-mode, html.panel-mode body { margin: 0; height: 100%; overflow: hidde
 .pn-txt { flex: 1; min-width: 0; overflow-wrap: anywhere; padding: 6px 4px; }
 .pn-txt input { margin: 0; }
 .pn-ring { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.pn-pomo { margin-bottom: 16px; display: flex; flex-direction: column; gap: 12px; }
+.pn-pm-top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.pn-pm-t { font-size: 40px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; min-width: 110px; }
+.pn-pm-info { flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 2px; }
+.pn-pm-dots { display: inline-flex; gap: 6px; align-items: center; }
+.pn-pm-dots i { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--text-3); box-sizing: border-box; }
+.pn-pm-dots i.on { background: var(--accent-fill); border-color: var(--accent-fill); }
+.pn-pm-bar { height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.pn-pm-bar i { display: block; height: 100%; background: var(--accent-fill); }
+.pn-pm-bar.brk i { background: var(--success); }
 .pn-bar { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; flex: 1; }
 .pn-bar > i { display: block; height: 100%; background: var(--accent-fill); transition: width .3s; }
 .pn-foot { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
@@ -3459,6 +3469,13 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
     t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, opt.undo ? 7000 : 4000);
   }
 
+  // ---- Pomodoro: o estado vem do servidor (push); aqui só se conta a partir de ends_at
+  const PMN = { focus: "Foco", short: "Pausa curta", long: "Pausa longa", idle: "Pronto" };
+  const PM = { d: null, off: 0, sel: null, subs: new Set(),
+    set(d) { if (!d || !d.config) return; this.d = d; this.off = d.server_now - Date.now() / 1000; if (d.task_id) this.sel = d.task_id; this.subs.forEach((f) => f()); },
+    rem() { const d = this.d; return !d ? 0 : d.running ? Math.max(0, d.ends_at - (Date.now() / 1000 + this.off)) : d.remaining_s; } };
+  const pmClock = (s) => { s = Math.ceil(s - 0.001); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
+
   // ---- conexão com o servidor
   let ws = null, seq = 0, ready = false, retry = 0, denied = false;
   const pending = new Map();
@@ -3473,6 +3490,8 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
       let m; try { m = JSON.parse(ev.data); } catch { return; }
       if (m.t === "panel_ok") { ready = true; retry = 0; banner(""); $p("pn-ver").textContent = "Servidor " + (m.version || ""); onReady(); }
       else if (m.t === "res" && pending.has(m.id)) { const p = pending.get(m.id); pending.delete(m.id); clearTimeout(p.timer); m.ok ? p.ok(m.d) : p.err(new Error(m.e || "Não deu certo.")); }
+      else if (m.t === "pomo") PM.set(m.d);
+      else if (m.t === "event" && m.kind === "pomo.done") toast(m.finished === "focus" ? `Foco concluído! ${m.next === "long" ? "Pausa longa" : "Pausa"} de ${m.next_min} min` : "Pausa acabou, bora focar");
     };
     sock.onclose = (ev) => {
       if (ws !== sock) return;
@@ -3541,9 +3560,42 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
     const input = h("input", { class: "pn-in", type: "text", maxlength: "200", placeholder: "Nova tarefa", "aria-label": "Nova tarefa", autocomplete: "off" });
     const addBtn = h("button", { class: "pn-btn primary", type: "button" }, "Adicionar");
     const prog = h("div", { class: "pn-ring" }), list = h("div"), foot = h("div", { class: "pn-foot" });
+    const pcard = h("div", { class: "pn-card pn-pomo" });
+    let ptime = null, pbar = null, pTimer = 0;
     main.append(h("section", {}, h("h1", {}, "Tarefas"), h("p", { class: "pn-sub" }, "O celular só marca e desmarca. Aqui você adiciona, edita, ordena e remove."),
-      h("div", { class: "pn-row", style: "margin-bottom:16px" }, input, addBtn), prog, list, foot));
-    const set = (d) => { data = d; render(); badge(); };
+      pcard, h("div", { class: "pn-row", style: "margin-bottom:16px" }, input, addBtn), prog, list, foot));
+    // cartão do Pomodoro (mesmas ações do celular; o relógio é do servidor)
+    const pcall = async (op, p) => { try { PM.set(await call(op, p)); } catch (e) { fail(e); } };
+    function ptick() {
+      const d = PM.d; if (!d || !ptime) return;
+      const r = PM.rem(); ptime.textContent = pmClock(r);
+      if (pbar) pbar.firstChild.style.width = (d.total_s ? Math.max(0, Math.min(100, (1 - r / d.total_s) * 100)) : 0) + "%";
+    }
+    function prender() {
+      const d = PM.d;
+      if (!d) { ptime = pbar = null; pcard.replaceChildren(h("span", { class: "pn-dim" }, "Pomodoro: conectando…")); return; }
+      if (document.activeElement && pcard.contains(document.activeElement) && document.activeElement.tagName === "SELECT") { ptick(); return; }   // não fecha a lista aberta
+      const paused = !d.running && d.remaining_s < d.total_s - 0.5, n = d.config.long_every, filled = d.phase === "long" ? n : d.cycle;
+      const pend = data.items.filter((i) => !i.done);
+      if (PM.sel && data.items.length && !pend.some((i) => i.id === PM.sel)) PM.sel = null;
+      const sel = h("select", { class: "pn-in", "aria-label": "Focando em", onchange: () => { PM.sel = sel.value || null; if (PM.d && PM.d.running) pcall("pomo_start", { task_id: PM.sel }); } },
+        h("option", { value: "" }, "Sem tarefa"), pend.map((i) => h("option", { value: i.id }, i.text)));
+      sel.value = PM.sel || "";
+      ptime = h("div", { class: "pn-pm-t", role: "timer" }, pmClock(PM.rem()));
+      pbar = h("div", { class: "pn-pm-bar" + (d.phase === "short" || d.phase === "long" ? " brk" : ""), "aria-hidden": "true" }, h("i"));
+      pcard.replaceChildren(
+        h("div", { class: "pn-pm-top" }, ptime,
+          h("div", { class: "pn-pm-info" }, h("b", {}, "Pomodoro · " + PMN[d.phase]),
+            h("span", { class: "pn-pm-dots", role: "img", "aria-label": filled + " de " + n + " focos neste ciclo" }, Array.from({ length: n }, (_, i) => h("i", { class: i < filled ? "on" : "" }))),
+            h("span", { class: "pn-faint" }, "Hoje: " + d.today + " pomodoro" + (d.today === 1 ? "" : "s"))),
+          h("div", { class: "pn-row" },
+            h("button", { class: "pn-btn primary", type: "button", onclick: () => pcall(d.running ? "pomo_pause" : "pomo_start", d.running ? {} : { task_id: PM.sel || null }) }, d.running ? "Pausar" : paused ? "Continuar" : "Começar"),
+            h("button", { class: "pn-btn", type: "button", onclick: () => pcall("pomo_skip") }, "Pular"),
+            h("button", { class: "pn-btn", type: "button", onclick: () => pcall("pomo_reset") }, "Zerar"))),
+        pbar, h("label", { class: "pn-faint" }, "Focando em", sel));
+      ptick();
+    }
+    const set = (d) => { data = d; render(); badge(); prender(); };
     const add = async () => {
       const t = input.value; if (!t.trim()) { input.focus(); return; }
       try { set(await call("tasks_add", { text: t })); input.value = ""; } catch (e) { fail(e); }
@@ -3593,8 +3645,11 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
         h("span", { class: "pn-faint" }, "Remover e limpar podem ser desfeitos."));
     }
     const load = async () => { try { set(await call("tasks_get")); } catch (e) { fail(e); } };
-    render();
-    return { start: () => { load(); input.focus(); }, stop() {} };
+    render(); prender();
+    return {
+      start: () => { load(); input.focus(); PM.subs.add(prender); clearInterval(pTimer); pTimer = setInterval(() => { if (document.visibilityState === "visible") ptick(); }, 1000); prender(); },
+      stop() { PM.subs.delete(prender); clearInterval(pTimer); },
+    };
   }
 
   // ====================================================================== Trabalho
