@@ -128,6 +128,15 @@ def load_config():
         log.info("token novo gerado em %s", CFG_PATH)
     elif not CFG_PATH.exists():
         CFG_PATH.write_text(json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
+    if not isinstance(cfg.get("panel_token"), str) or len(cfg["panel_token"]) < 20:
+        # credencial só do painel do PC (janela local): grava só esta chave, o resto do arquivo fica como está
+        cfg["panel_token"] = secrets.token_urlsafe(24)
+        raw = json.loads(CFG_PATH.read_text(encoding="utf-8"))
+        raw["panel_token"] = cfg["panel_token"]
+        tmp = CFG_PATH.with_name("config.json.tmp")
+        tmp.write_text(json.dumps(raw, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(CFG_PATH)
+        log.info("panel_token novo gerado")
     return cfg
 
 
@@ -635,7 +644,100 @@ PANEL_OPS = {
     "tasks_clear_done": lambda: io_call(TASKS.clear_done),
     "config_save": lambda changes: io_call(config_save, changes),
     "config_get": lambda: io_call(config_get),
+    "tasks_restore": lambda tid, text, done, pos: io_call(TASKS.restore, tid, text, done, pos),
+    "panel_url": lambda: f"http://127.0.0.1:{int(os.environ.get('COMPANION_WEB_PORT', WEB['port']))}/#panel={CFG['panel_token']}",
 }
+
+# --------------------------------------------------------------------------
+# Modo painel (janela do Edge no PC): operações de gerenciamento pela WebSocket
+# Só aceitas de uma conexão que veio de loopback E mandou o panel_token no hello.
+# (o celular pelo cabo também chega por loopback: só o panel_token diferencia)
+# --------------------------------------------------------------------------
+LOOPBACK = ("127.0.0.1", "::1")
+panel_clients = set()
+_qr_cache = {}
+
+
+def panel_qr(url):
+    """QR do link do celular como data URI PNG (o link leva o token do celular: só vai ao painel autenticado)."""
+    if url not in _qr_cache:
+        _qr_cache.clear()
+        try:
+            import base64
+            import io
+            import qrcode
+            q = qrcode.QRCode(border=2, box_size=6)
+            q.add_data(url)
+            buf = io.BytesIO()
+            q.make_image(fill_color="black", back_color="white").get_image().save(buf, "PNG")
+            _qr_cache[url] = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+        except Exception:  # noqa: BLE001  (qrcode/PIL não instalado)
+            _qr_cache[url] = None
+    return _qr_cache[url]
+
+
+def panel_status():
+    st = status()
+    links = st["phone"].get("links") or {}
+    main = links.get("wifi") or links.get("cabo")
+    return {"state": st["state"], "text": st["text"], "game": st["game"], "version": VERSION,
+            "host": socket.gethostname(),
+            "phone": {"web": st["phone"]["web"], "adb": bool(st["phone"]["adb"]), "port": st["phone"]["port"],
+                      "wifi": "wifi" in links, "link": main.split("#")[0] if main else None,
+                      "qr": panel_qr(links["wifi"]) if "wifi" in links else None},
+            "pair": PAIR.state()}
+
+
+def pick_folder():
+    """Seletor de pasta nativo no PC (só a pedido do modo painel). Devolve o caminho ou None."""
+    import tkinter
+    from tkinter import filedialog
+    root = tkinter.Tk()
+    root.withdraw()
+    try:
+        root.attributes("-topmost", True)
+        d = filedialog.askdirectory(title="Escolher pasta", mustexist=True, parent=root)
+    finally:
+        root.destroy()
+    return os.path.normpath(d) if d else None
+
+
+def _need(p, key, typ):
+    v = p.get(key)
+    if not isinstance(v, typ) or (typ is int and isinstance(v, bool)):
+        raise ValueError(f"parâmetro inválido: {key}")
+    return v
+
+
+PANEL_WS = {   # nome -> função(params dict); as de gravação rodam na fila de disco como as do painel tkinter
+    "panel_status": lambda p: panel_status(),
+    "pair_new": lambda p: PAIR.new() and PAIR.state(),
+    "pair_state": lambda p: PAIR.state(),
+    "tasks_get": lambda p: PANEL_OPS["tasks_get"](),
+    "tasks_add": lambda p: PANEL_OPS["tasks_add"](_need(p, "text", str)),
+    "tasks_edit": lambda p: PANEL_OPS["tasks_edit"](_need(p, "id", str), _need(p, "text", str)),
+    "tasks_remove": lambda p: PANEL_OPS["tasks_remove"](_need(p, "id", str)),
+    "tasks_move": lambda p: PANEL_OPS["tasks_move"](_need(p, "id", str), _need(p, "delta", int)),
+    "tasks_toggle": lambda p: PANEL_OPS["tasks_toggle"](_need(p, "id", str)),
+    "tasks_clear_done": lambda p: PANEL_OPS["tasks_clear_done"](),
+    "tasks_restore": lambda p: PANEL_OPS["tasks_restore"](p.get("id"), p.get("text"), p.get("done"), p.get("pos")),
+    "work_get": lambda p: PANEL_OPS["work_get"](),
+    "work_week": lambda p: PANEL_OPS["work_week"](_need(p, "offset", int)),
+    "work_csv": lambda p: io_call(work_csv, _need(p, "offset", int)),
+    "work_add_root": lambda p: PANEL_OPS["work_add_root"](_need(p, "folder", str)),
+    "work_remove_root": lambda p: PANEL_OPS["work_remove_root"](_need(p, "folder", str)),
+    "config_get": lambda p: PANEL_OPS["config_get"](),
+    "config_save": lambda p: PANEL_OPS["config_save"](_need(p, "changes", dict)),
+}
+PANEL_ASYNC = {"pick_folder": lambda p: asyncio.to_thread(pick_folder)}
+
+
+async def panel_call(op, p):
+    if op in PANEL_ASYNC:
+        return await PANEL_ASYNC[op](p)
+    if op in PANEL_WS:
+        return await asyncio.to_thread(PANEL_WS[op], p)   # io_call espera a fila de disco: fora do event loop
+    raise ValueError(f"operação não permitida: {op}")
 
 # As ações de ACTIONS são síncronas e algumas demoram (pausas do teclado, área de
 # transferência, disco, abrir programa): rodam fora do event loop, cada grupo numa
@@ -933,11 +1035,62 @@ async def push_welcome():
             clients.discard(ws)
 
 
+async def panel_session(ws, peer):
+    """Conexão do modo painel (já autenticada). Fica fora de `clients`: não recebe o fluxo do celular."""
+    panel_clients.add(ws)
+    await ws.send(json.dumps({"t": "panel_ok", "version": VERSION}))
+    log.info("painel do PC aberto")
+    try:
+        async for raw in ws:
+            try:
+                msg = json.loads(raw)
+            except ValueError:
+                continue
+            if not isinstance(msg, dict) or msg.get("t") != "pop":
+                continue
+            op, rid = msg.get("a"), msg.get("id")
+            try:
+                p = msg.get("p") or {}
+                if not isinstance(p, dict):
+                    raise ValueError("parâmetros inválidos")
+                data = await panel_call(op, p)
+                res = {"t": "res", "id": rid, "ok": True, "d": data}
+                if op not in QUIET_ACTIONS:
+                    log.info("painel: %s", op)
+            except ConnectionClosed:
+                raise
+            except ValueError as e:   # validação (texto vazio, limite...): mensagem para a tela, sem dados
+                res = {"t": "res", "id": rid, "ok": False, "e": str(e)}
+            except Exception as e:  # noqa: BLE001
+                log.warning("painel %s: falhou (%s)", op, type(e).__name__)
+                res = {"t": "res", "id": rid, "ok": False, "e": f"Não deu certo ({type(e).__name__}). Veja o log."}
+            if rid is not None:
+                await ws.send(json.dumps(res, ensure_ascii=False))
+    except ConnectionClosed:
+        pass
+    finally:
+        panel_clients.discard(ws)
+        if not panel_clients:
+            PAIR.close()   # painel fechado: o código deixa de valer
+        log.info("painel do PC fechado")
+
+
 async def session(ws, peer, kind):
     try:
         hello = json.loads(await asyncio.wait_for(ws.recv(), 5))
     except Exception:
         await ws.close(4001, "hello")
+        return
+    if isinstance(hello, dict) and "panel" in hello:
+        # modo painel: loopback E panel_token certo. Qualquer outra coisa é recusada (o token nunca vai ao log)
+        raw_ip = ws.remote_address[0] if ws.remote_address else "?"
+        ok = (raw_ip in LOOPBACK and hello.get("t") == "hello"
+              and secrets.compare_digest(str(hello.get("panel", "")), CFG["panel_token"]))
+        if not ok:
+            log.warning("recusado: painel inválido de %s", peer)
+            await ws.close(4001, "painel")
+            return
+        await panel_session(ws, peer)
         return
     if isinstance(hello, dict) and hello.get("t") == "pair":
         # pareamento: o código certo entrega o token e a conexão segue como um hello normal
@@ -967,6 +1120,11 @@ async def session(ws, peer, kind):
             try:
                 msg = json.loads(raw)
             except ValueError:
+                continue
+            if msg.get("t") == "pop":  # gerenciamento: só o modo painel (panel_token + loopback)
+                log.warning("operação de painel recusada (conexão de %s sem panel_token)", peer)
+                if msg.get("id") is not None:
+                    await ws.send(json.dumps({"t": "res", "id": msg.get("id"), "ok": False, "e": "operação só do painel do PC"}))
                 continue
             if msg.get("t") != "req":
                 continue
@@ -1009,7 +1167,11 @@ sent_art: dict = {}
 QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "mouse.scroll", "key.text", "clip.set", "clip.get", "file.chunk",
                  "screen.shot", "mixer.get", "deck.get", "deck.save",  # deck.save: textos/macros dos botões
                  "work.get", "work.week", "work.csv",  # nomes de cliente/job/arquivo
-                 "tasks.get", "tasks.toggle"}  # texto das tarefas
+                 "tasks.get", "tasks.toggle",  # texto das tarefas
+                 # modo painel (operações locais; mesmos motivos: texto de tarefas, clientes, pastas, código de pareamento)
+                 "panel_status", "pair_new", "pair_state", "pick_folder", "tasks_get", "tasks_add", "tasks_edit",
+                 "tasks_remove", "tasks_move", "tasks_toggle", "tasks_clear_done", "tasks_restore", "work_get",
+                 "work_week", "work_csv", "work_add_root", "work_remove_root", "config_get", "config_save"}
 
 
 async def now_payload():

@@ -17,6 +17,9 @@ MAX_ITEMS = 300
 _CTRL = re.compile(r"[\x00-\x1f\x7f-\x9f  ]")
 
 
+_ID = re.compile(r"^[0-9a-f]{8}$")  # secrets.token_hex(4)
+
+
 def _clean(text):
     t = _CTRL.sub(" ", str(text if text is not None else "")).strip()
     t = re.sub(r" {2,}", " ", t)
@@ -83,6 +86,27 @@ class TaskList:
         while tid in ids:
             tid = secrets.token_hex(4)
         self.items.append({"id": tid, "text": t, "done": False, "done_at": None})
+        self._save()
+        return self.get()
+
+    def restore(self, tid, text, done, pos):
+        """Desfazer remoção: devolve a tarefa com o mesmo id, texto e estado, na posição `pos` da lista
+        como o get() a mostra (pendentes e depois feitas). Mesmas validações do add."""
+        if not isinstance(tid, str) or not _ID.match(tid):
+            raise ValueError("Tarefa inválida.")
+        t = _clean(text)
+        if not isinstance(done, bool):
+            raise ValueError("Tarefa inválida.")
+        if isinstance(pos, bool) or not isinstance(pos, int):
+            raise ValueError("Posição inválida.")
+        if len(self.items) >= MAX_ITEMS:
+            raise ValueError(f"Limite de {MAX_ITEMS} tarefas atingido. Remova ou limpe as feitas.")
+        if any(i["id"] == tid for i in self.items):
+            raise ValueError("Essa tarefa já está na lista.")
+        ordered = [i for i in self.items if not i["done"]] + [i for i in self.items if i["done"]]
+        ordered.insert(max(0, min(pos, len(ordered))),
+                       {"id": tid, "text": t, "done": done, "done_at": time.time() if done else None})
+        self.items = [i for i in ordered if not i["done"]] + [i for i in ordered if i["done"]]
         self._save()
         return self.get()
 
