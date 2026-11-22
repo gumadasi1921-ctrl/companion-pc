@@ -2002,7 +2002,7 @@ function dotaLobbyCols(l) {
 // build por estágio: ícone + custo embaixo; na partida os já comprados ganham o check (dotaTick). limit = imagens permitidas
 function dotaBuild(h, game, limit) {
   const b = h?.build;
-  if (!b) return `<div class="card"><h3><span>Build</span></h3><div class="empty">Sem build para este herói</div>${h?.position_source === "historico" ? '<div class="dnote">Buscando na STRATZ; pode levar alguns segundos</div>' : ""}</div>`;
+  if (!b) return `<div class="card"><h3><span>Build</span></h3><div class="empty">Sem build para este herói</div>${h?.position_source === "historico" ? '<div class="dnote">O DotaCopilot busca a build na STRATZ em segundo plano (precisa do token da STRATZ salvo nele)</div>' : ""}</div>`;
   const src = h.position_source === "historico" ? `<div class="dnote">build da sua posição mais jogada${nn(h.position) ? ` (posição ${h.position})` : ""}</div>` : "";
   let used = 0;
   const list = DOTA_STAGE.map(([st, label]) => {
