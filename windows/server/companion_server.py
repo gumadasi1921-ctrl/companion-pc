@@ -68,6 +68,7 @@ import pc_info
 import watchers
 import pomodoro
 import tasks
+import trello
 import weather
 import work
 
@@ -534,12 +535,45 @@ ACTIONS = {
     "work.week": lambda p: WORK.week(p.get("offset", 0)),
     "work.csv": lambda p: work_csv(p.get("offset", 0)),
     "work.month": lambda p: WORK.month(p.get("ym"), notes=False),   # celular: só os totais, sem notas
+    "trello.get": lambda p: trello_get(p),
+    "trello.open": lambda p: trello_open(p),
     # tarefas (tasks.py): o celular só vê e marca/desmarca
     "tasks.get": lambda p: TASKS.get(),
     "tasks.toggle": lambda p: TASKS.toggle(p["id"]),
     "export.link": lambda p: export_link(p),
     "export.reveal": lambda p: export_reveal(p),
 }
+
+
+def trello_get(p):
+    """Estado do Trello para o celular (ao abrir Tarefas busca de novo, no máximo 1x por minuto)."""
+    if p.get("refresh"):
+        TRELLO.refresh_manual()
+    return TRELLO.state()
+
+
+def trello_open(p):
+    """Abre o card no navegador do PC: só shortLink que está no cache dos meus cards (nunca URL livre)."""
+    short = p.get("short")
+    if not TRELLO.has_card(short):
+        raise ValueError("card desconhecido")
+    os.startfile("https://trello.com/c/" + short)
+    return {"ok": True}
+
+
+def trello_test(p):
+    """Botão "Testar" do painel: usa a key/token digitados ou, em branco, os salvos. Devolve só o nome do usuário."""
+    cur = CFG.get("trello") if isinstance(CFG.get("trello"), dict) else {}
+    key = trello.valid_cred(p["key"], "API key") if isinstance(p.get("key"), str) and p["key"].strip() else cur.get("key", "")
+    token = trello.valid_cred(p["token"], "token") if isinstance(p.get("token"), str) and p["token"].strip() else cur.get("token", "")
+    if not key or not token:
+        raise ValueError("Informe a API key e o token")
+    try:
+        return {"name": TRELLO.test(key, token)}
+    except trello.CredError:
+        raise ValueError("Credencial inválida (confira a key e o token de leitura)") from None
+    except trello.NetError:
+        raise ValueError("Não consegui falar com o Trello agora") from None
 
 
 def work_month_csv(ym):
@@ -557,7 +591,7 @@ def work_csv(offset):
 # config.json editado pelo painel do PC: um conjunto fechado de opções
 # --------------------------------------------------------------------------
 CONFIG_EDITABLE = {"upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "notif_ignore", "shortcuts",
-                   "idle_min", "export_watch", "misplaced_min", "backup_dir"}
+                   "idle_min", "export_watch", "misplaced_min", "backup_dir", "trello"}
 CONFIG_RESTART = {"upload_dir", "downloads_dir"}  # lidas só na abertura do servidor
 SHORTCUT_ID = re.compile(r"^[a-z0-9_-]{1,40}$")
 _CTRL = re.compile(r"[\x00-\x1f\x7f]")
@@ -611,6 +645,17 @@ def clean_config_value(key, v):
         return work.valid_idle_min(v)
     if key == "misplaced_min":
         return alerts.valid_misplaced_min(v)
+    if key == "trello":   # key/token em branco = mantém os já salvos; nunca voltam ao painel nem ao celular
+        if not isinstance(v, dict) or set(v) - {"key", "token", "on"} or not isinstance(v.get("on"), bool):
+            raise ValueError("Trello: formato inválido")
+        cur = CFG.get("trello") if isinstance(CFG.get("trello"), dict) else {}
+        out = {"on": v["on"]}
+        for k, label in (("key", "API key"), ("token", "token")):
+            new = v.get(k)
+            out[k] = trello.valid_cred(new, label) if isinstance(new, str) and new.strip() else cur.get(k, "")
+        if v["on"] and not (out["key"] and out["token"]):
+            raise ValueError("Informe a API key e o token para ligar o Trello")
+        return out
     if key == "backup_dir":   # "" = sem backup
         if v == "":
             return ""
@@ -646,6 +691,7 @@ def config_save(changes):
     with _cfg_lock:
         cur = json.loads(CFG_PATH.read_text(encoding="utf-8"))
         changed = sorted(k for k, v in clean.items() if cur.get(k) != v)
+        old_trello = dict(cur.get("trello") or {})
         if not changed:
             return {"changed": [], "restart": False}
         shutil.copy2(CFG_PATH, CFG_PATH.with_name("config.json.bak-" + time.strftime("%Y%m%d-%H%M%S")))
@@ -656,6 +702,8 @@ def config_save(changes):
         CFG.update({k: clean[k] for k in changed})
     if "idle_min" in changed:
         WORK.set_idle_min(clean["idle_min"])
+    if "trello" in changed and any(old_trello.get(k) != clean["trello"].get(k) for k in ("key", "token")):
+        TRELLO.reset()     # credencial nova: tenta de novo e esquece os dados da conta anterior
     if set(changed) & {"shortcuts", "allow_power"} and LOOP[0]:
         asyncio.run_coroutine_threadsafe(push_welcome(), LOOP[0])
     log.info("config.json: alterado pelo painel (%s)", ", ".join(changed))
@@ -668,7 +716,7 @@ def config_get():
     fallback = {"upload_dir": DEFAULT_CFG["upload_dir"], "downloads_dir": DEFAULT_CFG["downloads_dir"],
                 "allow_power": DEFAULT_CFG["allow_power"], "shutdown_delay_s": DEFAULT_CFG["shutdown_delay_s"],
                 "notif_ignore": [], "shortcuts": [], "idle_min": 5,
-                "export_watch": {"folders": [], "on": True}, "misplaced_min": alerts.DEFAULT_MISPLACED_MIN, "backup_dir": ""}
+                "export_watch": {"folders": [], "on": True}, "misplaced_min": alerts.DEFAULT_MISPLACED_MIN, "backup_dir": "", "trello": {}}
     out = {}
     for k in CONFIG_EDITABLE:
         v = CFG.get(k)
@@ -676,6 +724,7 @@ def config_get():
         out[k] = json.loads(json.dumps(v if ok else fallback[k]))
     out["idle_min"] = round(WORK.idle_s / 60)
     out["backup"] = BACKUP.status()
+    out["trello"] = TRELLO.status()    # só "tem key/token?" e o estado: as credenciais nunca saem do config.json
     out["net"] = {"ip": lan_ip(), "port": WEB["port"],
                   "mode": "só cabo (127.0.0.1)" if WEB["host"] in ("127.0.0.1", "localhost") else "rede local + cabo"}
     return out
@@ -812,6 +861,7 @@ PANEL_WS = {   # nome -> função(params dict); as de gravação rodam na fila d
     "config_get": lambda p: PANEL_OPS["config_get"](),
     "config_save": lambda p: PANEL_OPS["config_save"](_need(p, "changes", dict)),
     "backup_run": lambda p: PANEL_OPS["backup_run"](),
+    "trello_test": lambda p: trello_test(p),
     "open_focus": lambda p: os.startfile("ms-settings:quietmomentshome"),   # só abre a tela do Windows; o Foco é do usuário
 }
 PANEL_ASYNC = {"pick_folder": lambda p: asyncio.to_thread(pick_folder),
@@ -1142,7 +1192,7 @@ def welcome_payload():
         "features": {"media": pc_info.HAS_MEDIA, "volume": pc_info.HAS_VOLUME, "mixer": pc_info.HAS_VOLUME,
                      "screen": True, "clipboard": True, "files": True, "deck": True,
                      "mic": pc_info.HAS_VOLUME, "timer": True, "deck_auto": True, "macro": True,
-                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True,
+                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True, "trello": True,
                      "dota": True},
     }
 
@@ -1238,6 +1288,7 @@ async def session(ws, peer, kind):
     await send_games(ws, MON.state)
     await push_now(only=ws)
     await pomo_send([json.dumps({"t": "pomo", "d": await pomo_state()})], only=ws)
+    await trello_send(only=ws)
     if DOTA.state is not None:
         await dota_send(DOTA.state, only=ws)
     await weather_send(WEATHER.state(), only=ws)
@@ -1304,7 +1355,8 @@ QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "m
                  "panel_status", "pair_new", "pair_state", "pick_folder", "tasks_get", "tasks_add", "tasks_edit",
                  "tasks_remove", "tasks_move", "tasks_toggle", "tasks_clear_done", "tasks_restore", "work_get",
                  "work_week", "work_csv", "work_month", "work_month_csv", "work_note_set", "work_add_root", "work_remove_root", "work_assign_preview", "work_assign",
-                 "work_ignore", "work_rules_get", "work_rule_delete", "work_unignore", "config_get", "config_save", "open_focus", "backup_run"}
+                 "work_ignore", "work_rules_get", "work_rule_delete", "work_unignore", "config_get", "config_save", "open_focus", "backup_run", "trello_test",
+                 "trello.get", "trello.open"}
 
 
 async def now_payload():
@@ -1358,6 +1410,35 @@ async def stats_loop(stats: Stats):
 MON = games.GameMonitor(CFG, BASE)
 WORK = work.WorkTracker(BASE, CFG.get("idle_min", 5))
 BACKUP = backup.Backup(BASE)
+TRELLO = trello.Trello(BASE, lambda: CFG.get("trello"))
+_trello_sig = [None]
+
+
+async def trello_send(only=None, force=False):
+    """Empurra o estado aos celulares só quando muda."""
+    msg = json.dumps({"t": "trello", "d": TRELLO.state()}, ensure_ascii=False)
+    sig = hash(msg)
+    if not only and not force and sig == _trello_sig[0]:
+        return
+    if not only:
+        _trello_sig[0] = sig
+    for ws in ([only] if only else list(clients)):
+        try:
+            await ws.send(msg)
+        except ConnectionClosed:
+            clients.discard(ws)
+
+
+async def trello_loop():
+    """A cada 5 min, só com aparelho conectado (parado sem aparelho)."""
+    while True:
+        try:
+            if TRELLO.due(bool(clients)):
+                await on_io(TRELLO.refresh)
+            await trello_send()
+        except Exception as e:  # noqa: BLE001
+            log.warning("trello_loop: %s", type(e).__name__)
+        await asyncio.sleep(20)
 
 
 def do_backup():
@@ -1959,6 +2040,7 @@ async def main():
     asyncio.create_task(weather_loop())
     asyncio.create_task(work_loop())
     asyncio.create_task(backup_loop())
+    asyncio.create_task(trello_loop())
     asyncio.create_task(adb_loop())
     asyncio.create_task(downloads_loop())
     asyncio.create_task(web_watch())

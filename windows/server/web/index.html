@@ -4811,7 +4811,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
 
   // ====================================================================== Ajustes
   function settingsView(main) {
-    let orig = null, vals = null, net = null, editSc = null, bk = {};
+    let orig = null, vals = null, net = null, editSc = null, bk = {}, tr = {}, trForm = { key: "", token: "", on: false, msg: "" };
     const body = h("div"), msg = h("span", { class: "pn-dim" });
     main.append(h("section", {}, h("h1", {}, "Ajustes"), h("p", { class: "pn-sub" }, "Opções do servidor no PC."), body));
     const KEYS = ["upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "idle_min", "notif_ignore", "shortcuts", "export_watch", "misplaced_min", "backup_dir"];
@@ -4847,6 +4847,35 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
           editSc = null; render();
         } }, "Aplicar"), h("button", { class: "pn-btn", type: "button", onclick: () => { editSc = null; render(); } }, "Cancelar")));
     }
+    const trSave = async () => {
+      try {
+        const ch = { trello: { on: trForm.on, ...(trForm.key.trim() ? { key: trForm.key.trim() } : {}), ...(trForm.token.trim() ? { token: trForm.token.trim() } : {}) } };
+        await call("config_save", { changes: ch }); trForm.key = ""; trForm.token = ""; trForm.msg = "Salvo."; await load();
+      } catch (e) { trForm.msg = e.message; render(); }
+    };
+    const trTest = async () => {
+      try { const r = await call("trello_test", { key: trForm.key, token: trForm.token }, 25000); trForm.msg = "Conectado como " + r.name + "."; }
+      catch (e) { trForm.msg = e.message; }
+      render();
+    };
+    function trelloCard() {
+      const st = tr.state, at = tr.at ? new Date(tr.at * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
+      const line = !tr.has_key || !tr.has_token ? "Sem credenciais salvas." : !tr.on ? "Desligado."
+        : st === "bad_cred" ? "Credencial inválida: o Trello recusou. Salve a key e o token de novo."
+        : st === "net_error" ? "Sem conexão com o Trello" + (at ? " (mostrando a leitura das " + at + ")" : "") + "."
+        : st === "ok" ? "Funcionando · atualizado às " + at : "Aguardando a primeira leitura (só com o celular conectado).";
+      const field = (k, label, saved) => [h("label", { for: "tr-" + k }, label), h("input", { id: "tr-" + k, class: "pn-in", type: "password", autocomplete: "off", spellcheck: "false", maxlength: "200",
+        placeholder: saved ? "•••••••• (já salvo; deixe em branco para manter)" : "", value: trForm[k], oninput: (e) => { trForm[k] = e.target.value; } })];
+      return h("div", { class: "pn-card" },
+        h("div", { class: "pn-faint" }, "Mostra no celular os cards atribuídos a você. O Companion só LÊ (nunca cria nem altera nada no Trello) e guarda a chave só neste PC. Para gerar: abra trello.com/power-ups/admin, crie um Power-Up e gere a API key; depois use \"Gerar um token\" nessa mesma página e autorize só a leitura (read)."),
+        h("div", { class: "pn-form", style: "margin-top:8px" }, field("key", "API key", tr.has_key), field("token", "Token de leitura", tr.has_token)),
+        h("div", { class: "pn-row", style: "margin-top:10px" }, h("div", { class: "pn-grow", id: "lb-tr" }, "Ler meus cards do Trello"),
+          h("button", { class: "pn-sw", type: "button", role: "switch", "aria-checked": !!trForm.on, "aria-labelledby": "lb-tr", onclick: () => { trForm.on = !trForm.on; render(); } })),
+        h("div", { class: "pn-foot" }, h("button", { class: "pn-btn primary", type: "button", onclick: trSave }, "Salvar"),
+          h("button", { class: "pn-btn", type: "button", onclick: trTest }, "Testar"),
+          h("span", { class: "pn-faint", role: "status" }, trForm.msg)),
+        h("div", { class: "pn-faint", style: "margin-top:6px" }, line));
+    }
     function render() {
       if (!vals) return;
       const nIn = h("input", { class: "pn-in", type: "text", maxlength: "80", placeholder: "Nome do app", "aria-label": "App a ignorar" });
@@ -4874,6 +4903,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
             bk.ok ? "Último backup: " + new Date(bk.at * 1000).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) + " (" + bk.files + " arquivos)"
               : bk.ok === false ? "O último backup falhou (" + (bk.error || "erro") + "). Nova tentativa em até 1 h." : "Nenhum backup feito ainda."),
             h("button", { class: "pn-btn", type: "button", disabled: !orig.backup_dir || vals.backup_dir !== orig.backup_dir, onclick: async () => { try { bk = await call("backup_run", {}, 60000); render(); toast(bk.ok ? "Backup feito." : "O backup falhou.", { bad: !bk.ok }); } catch (e) { fail(e); } } }, "Fazer backup agora"))),
+        h("div", { class: "pn-h" }, "Trello (somente leitura)"), trelloCard(),
         h("div", { class: "pn-h" }, "Exportação concluída"), h("div", { class: "pn-card" },
           h("div", { class: "pn-row" }, h("div", { class: "pn-grow", id: "lb-exp" }, "Avisar quando um arquivo exportado ficar pronto"), h("button", { class: "pn-sw", type: "button", role: "switch", "aria-checked": !!vals.export_watch.on, "aria-labelledby": "lb-exp", onclick: () => { vals.export_watch.on = !vals.export_watch.on; render(); } })),
           h("div", { class: "pn-faint", style: "margin-top:6px" }, "Vídeos, imagens, PDF, áudio e ZIP novos nessas pastas (e subpastas até 2 níveis). O que já está lá não avisa.")),
@@ -4898,7 +4928,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
           h("button", { class: "pn-btn", type: "button", disabled: !d.length, onclick: () => { vals = clone(orig); editSc = null; msg.textContent = ""; render(); } }, "Desfazer"), d.length ? h("span", { class: "pn-warn" }, "Alterações não salvas") : msg));
     }
     const load = async () => {
-      try { const c = await call("config_get"); net = c.net; bk = c.backup || {}; orig = {}; KEYS.forEach((k) => { orig[k] = clone(c[k]); }); vals = clone(orig); editSc = null; render(); } catch (e) { fail(e); }
+      try { const c = await call("config_get"); net = c.net; bk = c.backup || {}; tr = c.trello || {}; trForm.on = !!tr.on; orig = {}; KEYS.forEach((k) => { orig[k] = clone(c[k]); }); vals = clone(orig); editSc = null; render(); } catch (e) { fail(e); }
     };
     return { start: load, stop() {} };
   }
