@@ -827,8 +827,22 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .hpq1 { grid-template-columns: minmax(0, 1fr); gap: 4px; text-align: left; } .hpq1 b { font-size: 20px; } .hpq b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 .z-L[data-w="cpu"] .hw-b, .z-L[data-w="net"] .hw-b, .z-L[data-w="work"] .hw-b { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); grid-template-areas: "t t" "c l"; gap: 4px 12px; align-content: start; }
 .z-L[data-w="games"] .hw-b { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "t" "c"; gap: 4px; align-content: start; }
-.z-L .hw-t { grid-area: t; } .z-L .hchartbox { grid-area: c; min-height: 56px; } .z-L .hlegs { grid-area: l; } .z-L [data-k="stack"], .z-L [data-k="top"] { display: none; }
-.z-G .hchart { max-height: 180px; } .z-G[data-w="cpu"] .hlegs, .z-G[data-w="net"] .hlegs { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; }
+.z-L .hscale { display: none; } .z-L .wxl2 .hscale { display: flex; } .z-L .hw-t { grid-area: t; } .z-L .hchartbox { grid-area: c; min-height: 56px; } .z-L .hlegs { grid-area: l; } .z-L [data-k="stack"], .z-L [data-k="top"] { display: none; }
+.z-A .hchart, .z-G .hchart { max-height: none; } .z-A .hchartbox, .z-G .hchartbox { min-height: 96px; }
+.hscale { display: flex; justify-content: space-between; font-size: 11px; color: var(--p3); font-variant-numeric: tabular-nums; } .hscale span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hproc { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; padding: 3px 0; font-size: 13px; min-width: 0; }
+.hproc > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .hproc > span:last-child { color: var(--p2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hproc .hbar { grid-column: 1 / -1; height: 4px; }
+.z-A .hnow.big { flex-direction: column; align-items: stretch; } .z-A .hnow.big .hart { width: 100%; height: auto; aspect-ratio: 1; max-height: 84px; }
+.z-G .hnow.big { gap: 16px; } .z-G .hnow.big .hart { width: 150px; height: 150px; }
+.z-G .hmem { gap: 20px; } .z-G .hringbox .hring { width: 120px; height: 120px; }
+.wxc2 { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.wxcurve { width: 100%; height: 100%; min-height: 56px; display: block; } .wxcurve .hline { stroke: var(--chart-up, var(--p2)); } .wxcurve .harea { fill: var(--chart-up, var(--p2)); }
+.wxcurve circle { fill: var(--chart-up, var(--p2)); }
+.wxl2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 12px; align-items: stretch; min-width: 0; } .wxl2 .wxcb { display: flex; flex-direction: column; gap: 2px; min-width: 0; } .wxl2 .wxcb > div:first-child { flex: 1; min-height: 56px; }
+.wxhrs { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); text-align: center; gap: 2px; font-size: 12px; color: var(--p2); } .wxhrs > div { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; } .wxhrs b { color: var(--p); font-variant-numeric: tabular-nums; } .wxhrs .wxi { width: 22px; height: 22px; }
+.wxdb { display: grid; grid-template-columns: 34px 22px 26px minmax(24px, 1fr) 26px; align-items: center; gap: 6px; min-height: 28px; font-size: 13px; } .wxdb .wxi { width: 20px; height: 20px; } .wxdb span { font-variant-numeric: tabular-nums; } .wxdb > span:first-child { font-weight: 600; } .wxdb > span:last-child { text-align: right; }
+.z-A .wxa2, .z-G .wxa2 { display: flex; flex-direction: column; gap: 6px; min-width: 0; } .z-G[data-w="cpu"] .hlegs, .z-G[data-w="net"] .hlegs { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; }
 .hmem { display: flex; gap: 12px; align-items: center; min-width: 0; } .hmem > [data-k="disks"] { flex: 1; min-width: 0; }
 .z-A .hmem { flex-direction: column; align-items: stretch; }
 .z-P .hringbox .hring { width: 72px; height: 72px; }
@@ -2566,7 +2580,7 @@ const HOME_W = {
       const ctl = `<div class="hctl"><button data-a="prev" aria-label="Anterior">${ic("skip-back")}</button>${play}<button data-a="next" aria-label="Próxima">${ic("skip-forward")}</button></div>`;
       if (z === "P") return `<div class="hnow">${art}<div class="hmeta"><div class="hti" data-k="title"></div></div>${play}</div>`;
       if (z === "L") return `<div class="hnow">${art}<div class="hmeta"><div class="hti" data-k="title"></div><div class="har" data-k="artist"></div>${prog}</div>${ctl}</div>`;
-      return `<div class="hw-t"><span>Tocando</span><span data-k="app"></span></div><div class="hnow">${art}<div class="hmeta"><div class="hti" data-k="title"></div><div class="har" data-k="artist"></div></div></div>${prog}${ctl}`;
+      return `<div class="hw-t"><span>Tocando</span><span data-k="app"></span></div><div class="hnow big">${art}<div class="hmeta"><div class="hti" data-k="title"></div><div class="har" data-k="artist"></div></div></div>${prog}${ctl}`;
     },
     ready: () => !!state.now,
     upd(el) {
@@ -2597,9 +2611,9 @@ const HOME_W = {
       const z = el.dataset.z, d = tasksData, items = d.items || [], total = d.total ?? items.length, done = d.done ?? items.filter((t) => t.done).length;
       const pend = items.filter((t) => !t.done), pct = total ? (done / total) * 100 : 0;
       setText(hk(el, "cnt"), total ? `${done} de ${total}` : "");
-      if (z === "P") setHtml(hk(el, "ring"), ringSvg(pct, "--accent-fill, var(--p)", total ? `${done}/${total}` : "–", "", total ? `${done} de ${total} tarefas feitas` : "Sem tarefas"));
+      if (z === "P") ringUpd(hk(el, "ring"), pct, "--accent-fill, var(--p)", total ? `${done}/${total}` : "–", "", total ? `${done} de ${total} tarefas feitas` : "Sem tarefas");
       else if (z === "L" || z === "G") {
-        setHtml(hk(el, "ring"), ringSvg(pct, "--accent-fill, var(--p)", total ? String(pend.length) : "–", total ? "faltam" : "", total ? `${pend.length} tarefas pendentes` : "Sem tarefas"));
+        ringUpd(hk(el, "ring"), pct, "--accent-fill, var(--p)", total ? String(pend.length) : "–", total ? "faltam" : "", total ? `${pend.length} tarefas pendentes` : "Sem tarefas");
         setText(hk(el, "lbl"), !total ? "" : !pend.length ? "Tudo feito!" : pend.length === 1 ? "Só falta 1!" : `Faltam ${pend.length}`);
       } else setBarW(hk(el, "bar"), pct, 101);
       if (z === "P") return;
@@ -2630,16 +2644,24 @@ const HOME_W = {
   },
 };
 // ---- gráficos em SVG desenhado aqui (sem biblioteca): usam o histórico de 60 s que renderStats já mantém (hist.*)
-function lineChart(series, max, label) {
-  const W = 240, H = 80, step = W / (HIST_N - 1), top = max || Math.max(1, ...series.flatMap((s) => s.data));
-  const grid = [25, 50, 75].map((p) => `<line x1="0" x2="${W}" y1="${H * p / 100}" y2="${H * p / 100}" class="hgrid"/>`).join("");
-  const paths = series.map(({ data, color, fill }) => {
-    if (data.length < 2) return "";
-    const x0 = W - (data.length - 1) * step;
-    const pts = data.map((v, i) => `${(x0 + i * step).toFixed(1)},${(H - 1.5 - (Math.min(v, top) / top) * (H - 4)).toFixed(1)}`).join(" ");
-    return (fill ? `<polygon points="${x0.toFixed(1)},${H} ${pts} ${W},${H}" class="harea" style="fill:var(${color})"/>` : "") + `<polyline points="${pts}" class="hline" style="stroke:var(${color})"/>`;
-  }).join("");
-  return `<svg class="hchart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${label}">${grid}${paths}</svg>`;
+const LC_W = 240, LC_H = 80;
+// gráfico de linhas: o SVG nasce uma vez; a cada tick só mudam os atributos points (sem histórico suficiente = só os pontos que existem)
+function lineUpd(box, series, max, label) {
+  const key = series.map((x) => x.color + (x.fill ? "f" : "")).join();
+  if (box._lk !== key) {
+    box._lk = key;
+    box.innerHTML = `<svg class="hchart" viewBox="0 0 ${LC_W} ${LC_H}" preserveAspectRatio="none" role="img" aria-label="${esc(label)}">${[25, 50, 75].map((p) => `<line x1="0" x2="${LC_W}" y1="${LC_H * p / 100}" y2="${LC_H * p / 100}" class="hgrid"/>`).join("")}${series.map((x) => `${x.fill ? `<polygon class="harea" style="fill:var(${x.color})"/>` : ""}<polyline class="hline" style="stroke:var(${x.color})"/>`).join("")}</svg>`;
+    box._ln = [...box.querySelectorAll("polyline")]; box._ar = [...box.querySelectorAll("polygon")];
+  }
+  const step = LC_W / (HIST_N - 1), top = max || Math.max(1, ...series.flatMap((x) => x.data));
+  let a = 0;
+  series.forEach((x, k) => {
+    const d = x.data, x0 = LC_W - (d.length - 1) * step;
+    const pts = d.length < 2 ? "" : d.map((v, i) => `${(x0 + i * step).toFixed(1)},${(LC_H - 1.5 - (Math.min(v, top) / top) * (LC_H - 4)).toFixed(1)}`).join(" ");
+    box._ln[k].setAttribute("points", pts);
+    if (x.fill) box._ar[a++].setAttribute("points", pts ? `${x0.toFixed(1)},${LC_H} ${pts} ${LC_W},${LC_H}` : "");
+  });
+  box.firstChild?.setAttribute("aria-label", label);
 }
 const shortDur = (s) => (s >= 3600 ? Math.round(s / 360) / 10 + "h" : s >= 60 ? Math.round(s / 60) + "m" : "");
 function barChart(vals, labels, hi, color, w, label, H = 100) {
@@ -2657,6 +2679,17 @@ function ringSvg(pct, color, txt, sub, label) {
     <circle cx="50" cy="50" r="${r}" class="hring-f" style="stroke:var(${color});stroke-dasharray:${C.toFixed(1)};stroke-dashoffset:${off.toFixed(1)}" transform="rotate(-90 50 50)"/>
     <text x="50" y="${sub ? 50 : 57}" class="hring-x">${esc(txt)}</text>${sub ? `<text x="50" y="68" class="hring-s">${esc(sub)}</text>` : ""}</svg>`;
 }
+// anel persistente: o SVG nasce uma vez; depois só mudam o arco e os textos
+function ringUpd(box, pct, color, txt, sub, label) {
+  const key = color + "|" + (sub ? 1 : 0);
+  if (box._rk !== key) {
+    box.innerHTML = ringSvg(pct, color, txt, sub, label); box._rk = key;
+    const sv = box.firstChild; box._rf = sv.querySelector(".hring-f"); box._rx = sv.querySelector(".hring-x"); box._rs = sv.querySelector(".hring-s"); return;
+  }
+  const C = 2 * Math.PI * 42;
+  box._rf.style.strokeDashoffset = (C * (1 - Math.max(0, Math.min(100, pct)) / 100)).toFixed(1);
+  setText(box._rx, txt); if (box._rs) setText(box._rs, sub); box.firstChild.setAttribute("aria-label", label);
+}
 const legend = (c, name, val) => `<span class="hleg"><i style="background:var(${c})"></i><b>${name}</b> ${val}</span>`;
 const NA = '<div class="hw-na">Indisponível neste PC</div>';
 const clientColor = (i) => `--chart-${(i % 5) + 1}`;
@@ -2668,13 +2701,13 @@ Object.assign(HOME_W, {
   cpu: {
     name: "CPU e GPU", icon: "gauge", sizes: "PALG", def: "A",
     html: (z) => z === "P" ? '<div class="hpq"><div data-m="cpu"><span>CPU</span><b data-k="cpu"></b></div><div data-m="gpu"><span>GPU</span><b data-k="gpu"></b></div></div>'
-      : `<div class="hw-t"><span>CPU e GPU</span><span>60 s</span></div><div class="hchartbox" data-k="chart"></div><div class="hlegs" data-k="legs"></div>`,
+      : `<div class="hw-t"><span>CPU e GPU</span><span>60 s</span></div><div class="hchartbox" data-k="chart"></div><div class="hscale"><span>−60 s</span><span>100%</span><span>agora</span></div><div class="hlegs" data-k="legs"></div>`,
     ready: () => !!state.stats,
     upd(el) {
       const s = state.stats, g = s.gpu, sen = s.sensors;
       if (el.dataset.z === "P") { pqUpd(el, s); return; }
       const series = [{ data: hist.cpu, color: "--chart-cpu", fill: true }]; if (g) series.push({ data: hist.gpu, color: "--chart-gpu", fill: true });
-      setHtml(hk(el, "chart"), lineChart(series, 100, "CPU e GPU nos últimos 60 segundos"));
+      lineUpd(hk(el, "chart"), series, 100, "CPU e GPU nos últimos 60 segundos");
       const cpuL = [Math.round(s.cpu) + "%", sen?.cpu_temp != null ? Math.round(sen.cpu_temp) + " °C" : "", s.cpu_mhz ? (s.cpu_mhz / 1000).toFixed(2) + " GHz" : ""].filter(Boolean).join(" · ");
       const gpuL = g ? [Math.round(g.util) + "%", Math.round(g.temp) + " °C", g.power != null ? Math.round(g.power) + " W" : "", g.fan != null ? `ventoinha ${Math.round(g.fan)}%` : ""].filter(Boolean).join(" · ") : "";
       const fans = (sen?.fans || []).slice(0, 2).map((f) => `${esc(f.name)} ${f.rpm} RPM`).join(" · ");
@@ -2687,26 +2720,27 @@ Object.assign(HOME_W, {
   net: {
     name: "Rede", icon: "arrow-right-left", sizes: "PALG", def: "A",
     html: (z) => z === "P" ? '<div class="hpq hpq1"><div><span>Baixando</span><b data-k="dn"></b></div><div><span>Enviando</span><b data-k="up"></b></div></div>'
-      : `<div class="hw-t"><span>Rede</span><span data-k="ping"></span></div><div class="hchartbox" data-k="chart"></div><div class="hlegs" data-k="legs"></div>`,
+      : `<div class="hw-t"><span>Rede</span><span data-k="ping"></span></div><div class="hchartbox" data-k="chart"></div><div class="hscale"><span>−60 s</span><span data-k="pk"></span><span>agora</span></div><div class="hlegs" data-k="legs"></div>`,
     ready: () => !!state.stats,
     upd(el) {
       const s = state.stats, top = Math.max(1e5, ...hist.down, ...hist.up), L = el.dataset.z === "L";
       if (el.dataset.z === "P") { setText(hk(el, "dn"), fmtBytes(s.net_down, true)); setText(hk(el, "up"), fmtBytes(s.net_up, true)); return; }
-      setHtml(hk(el, "chart"), lineChart([{ data: hist.down, color: "--chart-down", fill: true }, { data: hist.up, color: "--chart-up" }], top, "Rede nos últimos 60 segundos"));
+      lineUpd(hk(el, "chart"), [{ data: hist.down, color: "--chart-down", fill: true }, { data: hist.up, color: "--chart-up" }], top, "Rede nos últimos 60 segundos");
+      setText(hk(el, "pk"), "pico " + fmtBytes(top, true));
       setText(hk(el, "ping"), !s.ping ? "" : s.ping.ok ? s.ping.ms + " ms" : "sem internet");
       setHtml(hk(el, "legs"), `<div>${legend("--chart-down", "Baixando", fmtBytes(s.net_down, true))}</div><div>${legend("--chart-up", "Enviando", fmtBytes(s.net_up, true))}</div>${L ? "" : `<div class="hw-sub">pico ${fmtBytes(top, true)}</div>`}`);
     },
   },
   mem: {
-    name: "Memória e discos", icon: "layers", sizes: "PAL", def: "A",
+    name: "Memória e discos", icon: "layers", sizes: "PALG", def: "A",
     html: (z) => z === "P" ? '<div class="hringbox" data-k="ring"></div>'
       : `<div class="hw-t"><span>Memória</span><span data-k="txt"></span></div><div class="hmem"><div class="hringbox" data-k="ring"></div><div data-k="disks"></div></div>`,
     ready: () => !!state.stats,
     upd(el) {
       const s = state.stats, z = el.dataset.z;
       setText(hk(el, "txt"), `${fmtBytes(s.ram_used)} / ${fmtBytes(s.ram_total)}`);
-      setHtml(hk(el, "ring"), ringSvg(s.ram_pct, "--chart-mem", Math.round(s.ram_pct) + "%", z === "P" ? "" : "em uso", `Memória em uso: ${Math.round(s.ram_pct)}%`));
-      setHtml(hk(el, "disks"), (s.disks || []).slice(0, z === "L" ? 2 : 3).map((d) => `<div class="hmeter" title="${esc(fmtBytes(d.used))} / ${esc(fmtBytes(d.total))}"><span>${esc(d.name)}</span><div class="hbar${d.pct >= 90 ? " bad" : ""}"><i style="width:${Math.round(d.pct)}%"></i></div><b>${Math.round(d.pct)}%</b></div>`).join(""));
+      ringUpd(hk(el, "ring"), s.ram_pct, "--chart-mem", Math.round(s.ram_pct) + "%", z === "P" ? "" : "em uso", `Memória em uso: ${Math.round(s.ram_pct)}%`);
+      setHtml(hk(el, "disks"), (s.disks || []).slice(0, z === "L" ? 2 : z === "G" ? 4 : 3).map((d) => `<div class="hmeter" title="${esc(fmtBytes(d.used))} / ${esc(fmtBytes(d.total))}"><span>${esc(d.name)}</span><div class="hbar${d.pct >= 90 ? " bad" : ""}"><i style="width:${Math.round(d.pct)}%"></i></div><b>${Math.round(d.pct)}%</b></div>`).join(""));
     },
   },
   work: {
@@ -2746,7 +2780,12 @@ Object.assign(HOME_W, {
     name: "Mais pesados agora", icon: "list-video", sizes: "PALG", def: "A",
     html: (z) => `<div class="hw-t"><span>${z === "P" ? "Mais pesado" : "Mais pesados agora"}</span><span>CPU</span></div><div data-k="list"></div>`,
     ready: () => !!state.stats,
-    upd(el) { setHtml(hk(el, "list"), (state.stats.procs || []).slice(0, { P: 2, A: 5, L: 3, G: 8 }[el.dataset.z]).map((p) => `<div class="row"><span>${esc(p.name)}</span><span>${p.cpu.toFixed(1)}% · ${fmtBytes(p.mem)}</span></div>`).join("") || '<div class="hw-na">Sem dados</div>'); },
+    upd(el) {
+      const z = el.dataset.z, bars = z === "A" || z === "G";
+      setHtml(hk(el, "list"), (state.stats.procs || []).slice(0, { P: 2, A: 5, L: 3, G: 8 }[z]).map((p) => bars
+        ? `<div class="hproc"><span>${esc(p.name)}</span><span>${p.cpu.toFixed(1)}% · ${fmtBytes(p.mem)}</span><div class="hbar" style="--c:var(--chart-cpu)"><i style="width:${Math.max(2, Math.min(100, p.cpu))}%"></i></div></div>`
+        : `<div class="row"><span>${esc(p.name)}</span><span>${p.cpu.toFixed(1)}% · ${fmtBytes(p.mem)}</span></div>`).join("") || '<div class="hw-na">Sem dados</div>');
+    },
   },
   games: {
     name: "Jogos", icon: "gamepad-2", sizes: "PALG", def: "L",
@@ -2873,6 +2912,29 @@ function wxSet(d) {
   wx.d = d; homeUpd("weather"); if (vis("weather")) wxRender(); wxSetUpd();
 }
 // widget do Início (P ícone + temperatura; A e L com condição, mín/máx, chance de chuva e cidade); campo ausente = escondido
+const wxFin = (hs) => hs.filter((h) => Number.isFinite(h.temp));
+// curva de temperatura (só os pontos que existem; menos de 2 = sem gráfico) e a escala embaixo
+function wxCurve(hs, label, h) {
+  const f = wxFin(hs); if (f.length < 2) return "";
+  const lo = Math.min(...f.map((x) => x.temp)), hi = Math.max(...f.map((x) => x.temp)), sp = hi - lo || 1, W = 120, H = 40;
+  const pts = f.map((x, i) => `${((i / (f.length - 1)) * W).toFixed(1)},${(3 + (1 - (x.temp - lo) / sp) * (H - 6)).toFixed(1)}`).join(" ");
+  return `<div class="wxcb"><div style="${h ? `height:${h}px` : "flex:1;min-height:48px"}"><svg class="wxcurve" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${esc(label)}: de ${wxT(lo)} a ${wxT(hi)}"><polygon class="harea" points="0,${H} ${pts} ${W},${H}"/><polyline class="hline" points="${pts}"/></svg></div>`
+    + `<div class="hscale"><span>Agora</span><span>${wxT(lo)} – ${wxT(hi)}</span><span>${esc(wxHm(f[f.length - 1].t))}</span></div></div>`;
+}
+function wxHrs(hs, step) {
+  const it = hs.filter((_, i) => i % step === 0); if (!it.length) return "";
+  return `<div class="wxhrs" style="--n:${it.length}">${it.map((h) => `<div><span>${h === hs[0] ? "Agora" : esc(wxHm(h.t).slice(0, 2)) + "h"}</span>${wxIc(h.icon, "wxi") || '<i class="wxi"></i>'}<b>${wxT(h.temp)}</b></div>`).join("")}</div>`;
+}
+function wxDays(days, k) {
+  const ok = days.filter((x) => Number.isFinite(x.min) && Number.isFinite(x.max)); if (!ok.length) return "";
+  const lo = Math.min(...ok.map((x) => x.min)), hi = Math.max(...ok.map((x) => x.max)), sp = hi - lo || 1;
+  return days.slice(0, k).map((x, i) => {
+    const [yy, mm, dd] = String(x.d).split("-").map(Number), nm = i === 0 ? "Hoje" : WX_DAY[new Date(yy, mm - 1, dd).getDay()] || "";
+    const bar = Number.isFinite(x.min) && Number.isFinite(x.max) ? `<i style="left:${(((x.min - lo) / sp) * 100).toFixed(1)}%;width:${Math.max(4, ((x.max - x.min) / sp) * 100).toFixed(1)}%"></i>` : "";
+    return `<div class="wxdb"><span>${nm}</span>${wxIc(x.icon, "wxi") || '<i class="wxi"></i>'}<span>${wxT(x.min)}</span><div class="wxd-bar" aria-hidden="true">${bar}</div><span>${wxT(x.max)}</span></div>`;
+  }).join("");
+}
+// widget do Início: P ícone + temperatura; L números + curva das próximas 12 h; A e G com as 24 h (ícones) e a barra mín→máx dos próximos dias; campo ausente = escondido
 function wxWidgetHtml(z, d) {
   if (!d.place) return z === "P" ? `<div class="wxp" data-wx="go">${ic("cloud-sun")}<span>Escolher cidade</span></div>` : '<div class="hw-na" data-wx="go">Escolha sua cidade em Ajustes › Tempo</div>';
   const c = d.current, t0 = d.daily?.[0];
@@ -2882,12 +2944,14 @@ function wxWidgetHtml(z, d) {
   const rain = Number.isFinite(t0?.pop) ? `<div class="wxr">${ic("droplets")}<span>Chuva ${Math.round(t0.pop)}%</span></div>` : "";
   const old = d.stale && d.updated_at ? `<div class="wxr wxold">Desatualizado desde ${wxAt(d)}</div>` : "";
   const cond = c.text ? `<div class="wxc">${esc(c.text)}</div>` : "";
-  const big = `<div class="wxn">${wxIc(c.icon, "wxi big")}<b class="wxt">${wxT(c.temp)}</b></div>`;
-  return z === "L" ? `<div class="wxl">${big}<div class="wxm">${cond}${rng}${rain}${old}</div></div>` : `<div class="wxa">${big}${cond}${rng}${rain}${old}</div>`;
+  const big = `<div class="wxn">${wxIc(c.icon, "wxi big")}<b class="wxt">${wxT(c.temp)}</b></div>`, hs = d.hourly || [], days = d.daily || [];
+  if (z === "L") { const cv = wxCurve(hs.slice(0, 13), "Próximas 12 horas"); return `<div class="${cv ? "wxl2" : "wxl"}"><div class="wxm">${big}${cond}${rng}${old}</div>${cv}</div>`; }
+  if (z === "G") return `<div class="wxl2"><div class="wxa2">${big}${cond}${rng}${old}${wxDays(days, 4)}</div><div class="wxa2">${wxCurve(hs.slice(0, 24), "Próximas 24 horas", 70)}${wxHrs(hs.slice(0, 24), 4)}</div></div>`;
+  return `<div class="wxa2"><div class="wxn">${wxIc(c.icon, "wxi big")}<b class="wxt">${wxT(c.temp)}</b></div>${cond}${wxHrs(hs.slice(0, 24), 4)}${wxDays(days, 3)}${old}</div>`;
 }
 Object.assign(HOME_W, {
   weather: {
-    name: "Tempo", icon: "cloud-sun", sizes: "PAL", def: "A",
+    name: "Tempo", icon: "cloud-sun", sizes: "PALG", def: "A",
     html: (z) => (z === "P" ? '<div data-k="body"></div>' : '<div class="hw-t"><span>Tempo</span><span data-k="city"></span></div><div data-k="body"></div>'),
     ready: () => !!wx.d && !(wx.d.place && wx.d.pending && !wx.d.stale),   // cidade escolhida e primeira busca em andamento = esqueleto
     upd(el) {
