@@ -786,11 +786,61 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .htk-head { display: flex; align-items: center; gap: 12px; }
 .htk-head .hring { width: 64px; height: 64px; }
 .htk-head .htk-n { font-size: 17px; font-weight: 700; color: var(--p); }
-/* tablet (≥ 1000×600): grade de 4 colunas e 12 espaços; Grande = 2 colunas */
-.home.tablet { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-flow: row dense; }
-.home.tablet .hw.big { grid-column: span 2; }
+/* Início em páginas (docs/DESIGN.md §6): celular deitado 3×2, tablet 4×3 (deslizar na horizontal); em pé: lista rolável, P lado a lado */
+.home.port { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: row dense; }
+.home.port .hw { grid-column: span 2; }
+.home.port .hw.z-P { grid-column: span 1; min-height: 100px; }
+#t-inicio.paged.on { display: flex; flex-direction: column; overflow: hidden; }
+.home.pager { display: flex; flex: 1 1 auto; min-height: 0; gap: 0; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
+.home.pager::-webkit-scrollbar { display: none; }
+.hpage { flex: 0 0 100%; min-width: 0; display: grid; gap: 12px; grid-template-columns: repeat(var(--c), minmax(0, 1fr)); grid-template-rows: repeat(var(--r), minmax(0, 1fr)); scroll-snap-align: start; scroll-snap-stop: always; }
+.hpage .hw { min-height: 0; }
+.home-head { flex-wrap: wrap; row-gap: 8px; }
+.hdots { display: none; flex: 1; justify-content: center; min-width: 0; }
+.hdots:not(.hidden) { display: flex; }
+.hdots button { width: 44px; height: 44px; display: grid; place-items: center; }
+.hdots i { display: block; width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--p3); }
+.hdots button[aria-current] i { background: var(--accent-fill, var(--p)); border-color: var(--accent-fill, var(--p)); }
+.pm-strip { order: 5; flex: 1 0 100%; }
+#t-inicio.paged .pm-strip { order: 0; flex: 0 1 auto; margin: 0; min-height: 44px; padding: 0 0 0 12px; gap: 8px; }
+#t-inicio.paged .pms-t { font-size: 20px; }
+#t-inicio.paged .pm-strip .btn { min-width: 0; padding: 0 12px; }
+.hw { container-type: inline-size; }
+/* tamanhos: P 1×1 · A 1×2 · L 2×1 · G 2×2, cada um com o seu layout */
+.hw.z-P { padding: 10px; gap: 4px; justify-content: center; }
+.z-P .hw-b, .z-L .hw-b { justify-content: center; }
+.hplay { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--accent-fill, var(--p)); border: 1px solid var(--accent-fill, var(--p)); color: var(--on-accent, var(--bg)); text-shadow: none; }
+.hplay .hi { fill: currentColor; width: 22px; height: 22px; }
+.z-P .hnow { gap: 8px; } .z-P .hart { width: 44px; height: 44px; } .z-P .hart .hi { width: 22px; height: 22px; }
+.z-P .hti, .z-L .hti, .z-L .har { -webkit-line-clamp: 1; font-size: 14px; }
+.z-L .hnow { gap: 12px; } .z-L .hart { width: 64px; height: 64px; }
+.z-L .hmeta { display: flex; flex-direction: column; gap: 4px; justify-content: center; }
+.z-L .hctl { margin: 0; gap: 8px; flex: none; } .z-L .hctl button { width: 44px; height: 44px; } .z-L .hctl .hplay { width: 52px; height: 52px; }
+.z-G .hart { width: 120px; height: 120px; } .z-G .hti { font-size: 20px; }
+.htk-p { display: grid; place-items: center; } .htk-p .hring { width: 72px; height: 72px; }
+.htk-l { display: flex; align-items: center; gap: 12px; min-width: 0; } .htk-l .hring { width: 64px; height: 64px; } .htk-l .htk-list { flex: 1; min-width: 0; }
+.hpq { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: center; }
+.hpq > div { min-width: 0; } .hpq span { display: block; font-size: 12px; font-weight: 600; color: var(--p2); }
+.hpq b { font-size: 26px; font-variant-numeric: tabular-nums; }
+.z-G .hq, .z-L .hq { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.z-P .hq { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; } .z-P .hq button { min-height: 52px; }
+.hpq1 { grid-template-columns: minmax(0, 1fr); gap: 4px; text-align: left; } .hpq1 b { font-size: 20px; } .hpq b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.z-L[data-w="cpu"] .hw-b, .z-L[data-w="net"] .hw-b, .z-L[data-w="work"] .hw-b { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); grid-template-areas: "t t" "c l"; gap: 4px 12px; align-content: start; }
+.z-L[data-w="games"] .hw-b { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "t" "c"; gap: 4px; align-content: start; }
+.z-L .hw-t { grid-area: t; } .z-L .hchartbox { grid-area: c; min-height: 56px; } .z-L .hlegs { grid-area: l; } .z-L [data-k="stack"], .z-L [data-k="top"] { display: none; }
+.z-G .hchart { max-height: 180px; } .z-G[data-w="cpu"] .hlegs, .z-G[data-w="net"] .hlegs { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; }
+.hmem { display: flex; gap: 12px; align-items: center; min-width: 0; } .hmem > [data-k="disks"] { flex: 1; min-width: 0; }
+.z-A .hmem { flex-direction: column; align-items: stretch; }
+.z-P .hringbox .hring { width: 72px; height: 72px; }
+.z-P .hbig { flex-direction: column; align-items: flex-start; gap: 0; margin: 0; } .z-P .hbig b { font-size: 24px; }
+.z-L [data-k="body"] { display: flex; gap: 20px; flex-wrap: wrap; } .z-L .hbig { flex-direction: column; align-items: flex-start; gap: 0; margin: 0; }
+.z-L .row { padding: 1px 0; font-size: 13px; }
+.hpm-p { display: flex; flex-direction: column; align-items: center; gap: 6px; } .hpm-p .hpm-t { font-size: 28px; line-height: 1; } .hpm-p .btn { width: 100%; }
+@container (min-width: 190px) { .hpm-p { flex-direction: row; justify-content: space-between; } .hpm-p .btn { width: auto; } }
+.hpm-c { flex: 1; min-width: 0; display: flex; flex-direction: column; } .hpm-ph { font-size: 13px; color: var(--p2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.z-L .hpm { gap: 12px; } .z-L .hpm-r { width: 56px; height: 56px; } .z-L .hpm .btn { flex: none; }
+.z-G .hpm-r { width: 96px; height: 96px; } .z-G .hpm-t { font-size: 40px; }
 @media (min-width: 1000px) and (min-height: 600px) and (orientation: landscape) { :root[data-theme="modern"] .home-head h2 { font-size: 30px; } }
-@media (orientation: landscape) { .home.phone { grid-template-columns: repeat(var(--hn, 3), minmax(0, 1fr)); } }
 @media (orientation: landscape) and (max-height: 560px) {
   .home-head { margin: 0 0 6px; }
   :root[data-theme="modern"] .home-head h2 { font-size: 24px; }
@@ -810,7 +860,12 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .wd-rm { border-radius: 50% !important; background: var(--danger-fill, var(--alert)); color: var(--on-accent, var(--bg)); text-shadow: none; }
 .wd-nm { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; font-weight: 600; overflow-wrap: anywhere; }
 .wd-nm .hi { color: var(--accent-text, var(--p2)); flex: none; }
-.wd-sz { padding: 0 10px; border: 1px solid var(--p3); font-size: 13px; font-weight: 600; }
+.wd-row { flex-wrap: wrap; }
+.wd-nm { flex-wrap: wrap; row-gap: 0; } .wd-nm small { flex-basis: 100%; padding-left: 32px; font-weight: 500; color: var(--p3); font-size: 12px; }
+.wd-szr { flex: 1 0 100%; display: flex; gap: 6px; padding: 0 0 4px 46px; }
+.wd-szr button { min-width: 44px; min-height: 44px; border: 1px solid var(--p3); border-radius: var(--r-sm, 2px); font-weight: 700; }
+.wd-szr button[aria-pressed="true"] { background: var(--accent-soft, var(--p)); color: var(--accent-text, var(--bg)); border-color: var(--accent-fill, var(--p)); text-shadow: none; }
+.wd-leg { font-size: 12px; color: var(--p3); }
 .wd-empty { padding: 14px; color: var(--p3); }
 .wd-pills { display: flex; flex-wrap: wrap; gap: 8px; max-width: 640px; }
 .wd-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px 0 10px; border: 1px solid var(--p3); border-radius: var(--r-pill, 2px); font-size: 14px; font-weight: 600; }
@@ -1147,9 +1202,11 @@ input.num { min-height: 36px; }
 <main id="main">
   <!-- INÍCIO: widgets montados pelo JS a partir do layout salvo (store "home") -->
   <section class="tab" id="t-inicio">
-    <div class="home-head"><h2>Início</h2><button class="btn sm" id="home-edit">Editar</button></div>
-    <div class="pm-strip hidden" id="home-pm" role="button" tabindex="0" aria-label="Abrir o Foco em Tarefas"><span class="pms-ph" id="pms-ph"></span><span class="pms-t" id="pms-t" role="timer"></span><button class="btn" id="pms-b"></button></div>
-    <div class="home phone" id="home"></div>
+    <div class="home-head"><h2>Início</h2>
+      <div class="pm-strip hidden" id="home-pm" role="button" tabindex="0" aria-label="Abrir o Foco em Tarefas"><span class="pms-ph" id="pms-ph"></span><span class="pms-t" id="pms-t" role="timer"></span><button class="btn" id="pms-b"></button></div>
+      <div class="hdots hidden" id="home-dots" role="group" aria-label="Páginas do Início"></div>
+      <button class="btn sm" id="home-edit">Editar</button></div>
+    <div class="home port" id="home"></div>
   </section>
   <!-- MAIS: lista que leva às outras vistas -->
   <section class="tab" id="t-more">
@@ -2440,16 +2497,30 @@ function quickClick(q) {
   if (q === "mon") return act("power", { action: "monitor_off" }, "Monitor desligado");
 }
 
+// Tamanhos: P 1×1, A 1×2 (alto), L 2×1 (largo), G 2×2 (grande). Cada widget diz quais suporta (sizes), o tamanho ao adicionar (def)
+// e monta o HTML próprio de cada um em html(z); upd() só troca texto/atributos e tolera elementos que o tamanho não tem.
+const SZ = { P: [1, 1], A: [1, 2], L: [2, 1], G: [2, 2] };
+const SZ_NAME = { P: "Pequeno", A: "Alto", L: "Largo", G: "Grande" };
+const SZ_FALL = { P: "PALG", A: "ALPG", L: "LGAP", G: "GLAP" };   // se o tamanho salvo não existe para o widget: o mais parecido
+const HOME_GRID = { land: [3, 2], tablet: [4, 3] };               // colunas × linhas por página
+const HOME_PAGES = 3;
+// pequeno (1×1): CPU e GPU só em números
+function pqUpd(el, s) {
+  setText(hk(el, "cpu"), Math.round(s.cpu) + "%");
+  el.querySelector('[data-m="gpu"]').classList.toggle("hidden", !s.gpu); if (s.gpu) setText(hk(el, "gpu"), Math.round(s.gpu.util) + "%");
+}
 const meterHtml = (k, label) => `<div class="hmeter" data-m="${k}"><span>${label}</span><div class="hbar" data-k="${k}b"><i></i></div><b data-k="${k}"></b></div>`;
 const HOME_W = {
   now: {
-    name: "Tocando", icon: "headphones",
-    html: () => `<div class="hw-t"><span>Tocando</span><span data-k="app"></span></div>
-      <div class="hnow"><div class="hart" data-k="art">${ic("headphones")}</div><div class="hmeta"><div class="hti" data-k="title"></div><div class="har" data-k="artist"></div></div></div>
-      <div class="hbar" data-k="prog"><i></i></div>
-      <div class="hctl"><button data-a="prev" aria-label="Anterior">${ic("skip-back")}</button>
-        <button class="hplay" data-a="play" aria-label="Tocar ou pausar">${ic("play")}</button>
-        <button data-a="next" aria-label="Próxima">${ic("skip-forward")}</button></div>`,
+    name: "Tocando", icon: "headphones", sizes: "PALG", def: "A",
+    html(z) {
+      const art = `<div class="hart" data-k="art">${ic("headphones")}</div>`, prog = '<div class="hbar" data-k="prog"><i></i></div>';
+      const play = `<button class="hplay" data-a="play" aria-label="Tocar ou pausar">${ic("play")}</button>`;
+      const ctl = `<div class="hctl"><button data-a="prev" aria-label="Anterior">${ic("skip-back")}</button>${play}<button data-a="next" aria-label="Próxima">${ic("skip-forward")}</button></div>`;
+      if (z === "P") return `<div class="hnow">${art}<div class="hmeta"><div class="hti" data-k="title"></div></div>${play}</div>`;
+      if (z === "L") return `<div class="hnow">${art}<div class="hmeta"><div class="hti" data-k="title"></div><div class="har" data-k="artist"></div>${prog}</div>${ctl}</div>`;
+      return `<div class="hw-t"><span>Tocando</span><span data-k="app"></span></div><div class="hnow">${art}<div class="hmeta"><div class="hti" data-k="title"></div><div class="har" data-k="artist"></div></div></div>${prog}${ctl}`;
+    },
     ready: () => !!state.now,
     upd(el) {
       const m = state.now.media;
@@ -2458,35 +2529,49 @@ const HOME_W = {
       setText(hk(el, "app"), m?.app || "");
       const art = m?.art && state.art[m.art], a = hk(el, "art");
       a.style.backgroundImage = art ? `url(${art})` : ""; a.classList.toggle("has", !!art);
-      const dur = m?.dur || 0; setBarW(hk(el, "prog"), dur ? (mediaPos() / dur) * 100 : 0, 101);
+      const pr = hk(el, "prog"), dur = m?.dur || 0; if (pr) setBarW(pr, dur ? (mediaPos() / dur) * 100 : 0, 101);
       el.querySelector('[data-a="play"] use').setAttribute("href", m?.status === "playing" ? "#ic-pause" : "#ic-play");
-      el.querySelector('[data-a="prev"]').disabled = m ? !m.can_prev : false;
-      el.querySelector('[data-a="next"]').disabled = m ? !m.can_next : false;
+      const pv = el.querySelector('[data-a="prev"]'), nx = el.querySelector('[data-a="next"]');
+      if (pv) pv.disabled = m ? !m.can_prev : false;
+      if (nx) nx.disabled = m ? !m.can_next : false;
     },
   },
   tasks: {
-    name: "Tarefas", icon: "check-check",
-    html: (dev) => `<div class="hw-t"><span>Tarefas</span><span data-k="cnt"></span></div>${dev === "tablet" ? '<div class="htk-head"><div data-k="ring"></div><div class="htk-n" data-k="lbl"></div></div>' : '<div class="hbar" data-k="bar"><i></i></div>'}<div class="htk-list" data-k="list"></div>`,
+    name: "Tarefas", icon: "check-check", sizes: "PALG", def: "A",
+    html(z) {
+      if (z === "P") return '<div class="htk-p" data-k="ring"></div>';
+      if (z === "L") return '<div class="htk-l"><div data-k="ring"></div><div class="htk-list" data-k="list"></div></div>';
+      const head = '<div class="hw-t"><span>Tarefas</span><span data-k="cnt"></span></div>', list = '<div class="htk-list" data-k="list"></div>';
+      return z === "G" ? `${head}<div class="htk-head"><div data-k="ring"></div><div class="htk-n" data-k="lbl"></div></div>${list}`
+        : `${head}<div class="hbar" data-k="bar"><i></i></div>${list}`;
+    },
     ready: () => !!tasksData,
-    upd(el, dev) {
-      const d = tasksData, items = d.items || [], total = d.total ?? items.length, done = d.done ?? items.filter((t) => t.done).length;
+    upd(el) {
+      const z = el.dataset.z, d = tasksData, items = d.items || [], total = d.total ?? items.length, done = d.done ?? items.filter((t) => t.done).length;
+      const pend = items.filter((t) => !t.done), pct = total ? (done / total) * 100 : 0;
       setText(hk(el, "cnt"), total ? `${done} de ${total}` : "");
-      const pend = items.filter((t) => !t.done);
-      if (dev === "tablet") {
-        setHtml(hk(el, "ring"), ringSvg(total ? (done / total) * 100 : 0, "--accent-fill, var(--p)", total ? String(pend.length) : "–", total ? "faltam" : "", total ? `${pend.length} tarefas pendentes` : "Sem tarefas"));
+      if (z === "P") setHtml(hk(el, "ring"), ringSvg(pct, "--accent-fill, var(--p)", total ? `${done}/${total}` : "–", "", total ? `${done} de ${total} tarefas feitas` : "Sem tarefas"));
+      else if (z === "L" || z === "G") {
+        setHtml(hk(el, "ring"), ringSvg(pct, "--accent-fill, var(--p)", total ? String(pend.length) : "–", total ? "faltam" : "", total ? `${pend.length} tarefas pendentes` : "Sem tarefas"));
         setText(hk(el, "lbl"), !total ? "" : !pend.length ? "Tudo feito!" : pend.length === 1 ? "Só falta 1!" : `Faltam ${pend.length}`);
-      } else setBarW(hk(el, "bar"), total ? (done / total) * 100 : 0, 101);
+      } else setBarW(hk(el, "bar"), pct, 101);
+      if (z === "P") return;
+      const n = { A: 3, L: 2, G: 5 }[z];
       setHtml(hk(el, "list"), !total ? '<div class="hw-na">Nenhuma tarefa. Adicione pelo painel do PC.</div>'
         : !pend.length ? `<div class="htk-done">${ic("check-check")}Tudo feito!</div>`
-        : pend.slice(0, 3).map((t) => `<div class="trow" data-id="${esc(t.id)}" role="checkbox" aria-checked="false" tabindex="0"><span class="tbox"></span><span class="ttx">${esc(t.text)}</span></div>`).join(""));
+        : pend.slice(0, n).map((t) => `<div class="trow" data-id="${esc(t.id)}" role="checkbox" aria-checked="false" tabindex="0"><span class="tbox"></span><span class="ttx">${esc(t.text)}</span></div>`).join(""));
     },
   },
   pcquick: {
-    name: "PC e atalhos", icon: "activity",
-    html: () => `<div class="hw-t"><span>PC</span><span data-k="host"></span></div>${meterHtml("cpu", "CPU")}${meterHtml("gpu", "GPU")}${meterHtml("ram", "Mem.")}${quickHtml()}`,
+    name: "PC e atalhos", icon: "activity", sizes: "PAG", def: "A",
+    html(z) {
+      if (z === "P") return '<div class="hpq"><div data-m="cpu"><span>CPU</span><b data-k="cpu"></b></div><div data-m="gpu"><span>GPU</span><b data-k="gpu"></b></div></div>';
+      return `<div class="hw-t"><span>PC</span><span data-k="host"></span></div>${meterHtml("cpu", "CPU")}${meterHtml("gpu", "GPU")}${meterHtml("ram", "Mem.")}${quickHtml()}`;
+    },
     ready: () => !!state.stats,
     upd(el) {
       const s = state.stats, g = s.gpu;
+      if (el.dataset.z === "P") { pqUpd(el, s); return; }
       setText(hk(el, "host"), welcome.host || "");
       for (const [k, v, c] of [["cpu", s.cpu, "--chart-cpu"], ["gpu", g?.util, "--chart-gpu"], ["ram", s.ram_pct, "--chart-mem"]]) {
         const row = el.querySelector(`[data-m="${k}"]`); row.classList.toggle("hidden", k === "gpu" && !g);
@@ -2510,8 +2595,8 @@ function lineChart(series, max, label) {
   return `<svg class="hchart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${label}">${grid}${paths}</svg>`;
 }
 const shortDur = (s) => (s >= 3600 ? Math.round(s / 360) / 10 + "h" : s >= 60 ? Math.round(s / 60) + "m" : "");
-function barChart(vals, labels, hi, color, w, label) {
-  w = Math.max(120, Math.round(w || 200)); const H = 100, n = vals.length, gap = 6, bw = (w - gap * (n - 1)) / n, top = Math.max(3600, ...vals), ch = H - 14 - 16;
+function barChart(vals, labels, hi, color, w, label, H = 100) {
+  w = Math.max(120, Math.round(w || 200)); const n = vals.length, gap = 6, bw = (w - gap * (n - 1)) / n, top = Math.max(3600, ...vals), ch = H - 14 - 16;
   const bars = vals.map((v, i) => {
     const h = Math.max(v > 0 ? 2 : 0, (v / top) * ch), x = i * (bw + gap), y = 14 + ch - h;
     return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" class="hbarr" style="fill:var(${color});opacity:${i === hi ? 1 : .55}"/>
@@ -2534,128 +2619,143 @@ const homeData = { work: null, week: null, hist: null, t: { work: 0, hist: 0 }, 
 
 Object.assign(HOME_W, {
   cpu: {
-    name: "CPU e GPU", icon: "gauge",
-    html: () => `<div class="hw-t"><span>CPU e GPU</span><span>60 s</span></div><div class="hchartbox" data-k="chart"></div><div class="hlegs" data-k="legs"></div>`,
+    name: "CPU e GPU", icon: "gauge", sizes: "PALG", def: "A",
+    html: (z) => z === "P" ? '<div class="hpq"><div data-m="cpu"><span>CPU</span><b data-k="cpu"></b></div><div data-m="gpu"><span>GPU</span><b data-k="gpu"></b></div></div>'
+      : `<div class="hw-t"><span>CPU e GPU</span><span>60 s</span></div><div class="hchartbox" data-k="chart"></div><div class="hlegs" data-k="legs"></div>`,
     ready: () => !!state.stats,
     upd(el) {
       const s = state.stats, g = s.gpu, sen = s.sensors;
+      if (el.dataset.z === "P") { pqUpd(el, s); return; }
       const series = [{ data: hist.cpu, color: "--chart-cpu", fill: true }]; if (g) series.push({ data: hist.gpu, color: "--chart-gpu", fill: true });
       setHtml(hk(el, "chart"), lineChart(series, 100, "CPU e GPU nos últimos 60 segundos"));
       const cpuL = [Math.round(s.cpu) + "%", sen?.cpu_temp != null ? Math.round(sen.cpu_temp) + " °C" : "", s.cpu_mhz ? (s.cpu_mhz / 1000).toFixed(2) + " GHz" : ""].filter(Boolean).join(" · ");
       const gpuL = g ? [Math.round(g.util) + "%", Math.round(g.temp) + " °C", g.power != null ? Math.round(g.power) + " W" : "", g.fan != null ? `ventoinha ${Math.round(g.fan)}%` : ""].filter(Boolean).join(" · ") : "";
       const fans = (sen?.fans || []).slice(0, 2).map((f) => `${esc(f.name)} ${f.rpm} RPM`).join(" · ");
-      setHtml(hk(el, "legs"), `<div>${legend("--chart-cpu", "CPU", esc(cpuL))}</div>${fans ? `<div class="hw-sub">${fans}</div>` : ""}
-        ${g ? `<div>${legend("--chart-gpu", "GPU", esc(gpuL))}</div>` : '<div class="hw-sub">GPU: indisponível neste PC</div>'}
-        ${sen ? "" : '<div class="hw-sub">Temperatura e ventoinhas da CPU: indisponível neste PC</div>'}`);
+      const small = el.dataset.z === "L";   // largo: só CPU e GPU, uma linha cada
+      setHtml(hk(el, "legs"), `<div>${legend("--chart-cpu", "CPU", esc(small ? Math.round(s.cpu) + "%" : cpuL))}</div>${fans && !small ? `<div class="hw-sub">${fans}</div>` : ""}
+        ${g ? `<div>${legend("--chart-gpu", "GPU", esc(small ? Math.round(g.util) + "%" : gpuL))}</div>` : '<div class="hw-sub">GPU: indisponível neste PC</div>'}
+        ${sen || small ? "" : '<div class="hw-sub">Temperatura e ventoinhas da CPU: indisponível neste PC</div>'}`);
     },
   },
   net: {
-    name: "Rede", icon: "arrow-right-left",
-    html: () => `<div class="hw-t"><span>Rede</span><span data-k="ping"></span></div><div class="hchartbox" data-k="chart"></div><div class="hlegs" data-k="legs"></div>`,
+    name: "Rede", icon: "arrow-right-left", sizes: "PALG", def: "A",
+    html: (z) => z === "P" ? '<div class="hpq hpq1"><div><span>Baixando</span><b data-k="dn"></b></div><div><span>Enviando</span><b data-k="up"></b></div></div>'
+      : `<div class="hw-t"><span>Rede</span><span data-k="ping"></span></div><div class="hchartbox" data-k="chart"></div><div class="hlegs" data-k="legs"></div>`,
     ready: () => !!state.stats,
     upd(el) {
-      const s = state.stats, top = Math.max(1e5, ...hist.down, ...hist.up);
+      const s = state.stats, top = Math.max(1e5, ...hist.down, ...hist.up), L = el.dataset.z === "L";
+      if (el.dataset.z === "P") { setText(hk(el, "dn"), fmtBytes(s.net_down, true)); setText(hk(el, "up"), fmtBytes(s.net_up, true)); return; }
       setHtml(hk(el, "chart"), lineChart([{ data: hist.down, color: "--chart-down", fill: true }, { data: hist.up, color: "--chart-up" }], top, "Rede nos últimos 60 segundos"));
       setText(hk(el, "ping"), !s.ping ? "" : s.ping.ok ? s.ping.ms + " ms" : "sem internet");
-      setHtml(hk(el, "legs"), `<div>${legend("--chart-down", "Baixando", fmtBytes(s.net_down, true))}</div><div>${legend("--chart-up", "Enviando", fmtBytes(s.net_up, true))}</div><div class="hw-sub">pico ${fmtBytes(top, true)}</div>`);
+      setHtml(hk(el, "legs"), `<div>${legend("--chart-down", "Baixando", fmtBytes(s.net_down, true))}</div><div>${legend("--chart-up", "Enviando", fmtBytes(s.net_up, true))}</div>${L ? "" : `<div class="hw-sub">pico ${fmtBytes(top, true)}</div>`}`);
     },
   },
   mem: {
-    name: "Memória e discos", icon: "layers",
-    html: () => `<div class="hw-t"><span>Memória</span><span data-k="txt"></span></div><div class="hringbox" data-k="ring"></div><div data-k="disks"></div>`,
+    name: "Memória e discos", icon: "layers", sizes: "PAL", def: "A",
+    html: (z) => z === "P" ? '<div class="hringbox" data-k="ring"></div>'
+      : `<div class="hw-t"><span>Memória</span><span data-k="txt"></span></div><div class="hmem"><div class="hringbox" data-k="ring"></div><div data-k="disks"></div></div>`,
     ready: () => !!state.stats,
     upd(el) {
-      const s = state.stats;
+      const s = state.stats, z = el.dataset.z;
       setText(hk(el, "txt"), `${fmtBytes(s.ram_used)} / ${fmtBytes(s.ram_total)}`);
-      setHtml(hk(el, "ring"), ringSvg(s.ram_pct, "--chart-mem", Math.round(s.ram_pct) + "%", "em uso", `Memória em uso: ${Math.round(s.ram_pct)}%`));
-      setHtml(hk(el, "disks"), (s.disks || []).slice(0, 3).map((d) => `<div class="hmeter" title="${esc(fmtBytes(d.used))} / ${esc(fmtBytes(d.total))}"><span>${esc(d.name)}</span><div class="hbar${d.pct >= 90 ? " bad" : ""}"><i style="width:${Math.round(d.pct)}%"></i></div><b>${Math.round(d.pct)}%</b></div>`).join(""));
+      setHtml(hk(el, "ring"), ringSvg(s.ram_pct, "--chart-mem", Math.round(s.ram_pct) + "%", z === "P" ? "" : "em uso", `Memória em uso: ${Math.round(s.ram_pct)}%`));
+      setHtml(hk(el, "disks"), (s.disks || []).slice(0, z === "L" ? 2 : 3).map((d) => `<div class="hmeter" title="${esc(fmtBytes(d.used))} / ${esc(fmtBytes(d.total))}"><span>${esc(d.name)}</span><div class="hbar${d.pct >= 90 ? " bad" : ""}"><i style="width:${Math.round(d.pct)}%"></i></div><b>${Math.round(d.pct)}%</b></div>`).join(""));
     },
   },
   work: {
-    name: "Trabalho na semana", icon: "briefcase",
-    html: () => `<div class="hw-t"><span>Trabalho na semana</span><span data-k="tot"></span></div><div class="hchartbox" data-k="chart"></div><div data-k="stack"></div><div class="hlegs" data-k="legs"></div>`,
+    name: "Trabalho na semana", icon: "briefcase", sizes: "PALG", def: "L",
+    html: (z) => z === "P" ? '<div class="hbig"><span>Semana</span><b data-k="tot"></b></div>' : `<div class="hw-t"><span>Trabalho na semana</span><span data-k="tot"></span></div><div class="hchartbox" data-k="chart"></div><div data-k="stack"></div><div class="hlegs" data-k="legs"></div>`,
     ready: () => !welcome.features?.work || !!homeData.week,
     upd(el) {
-      if (!welcome.features?.work) { setHtml(hk(el, "chart"), NA); return; }
-      const w = homeData.week;
-      setText(hk(el, "tot"), w.total_s ? humanDur(w.total_s) : "");
+      if (!welcome.features?.work) { setHtml(hk(el, "chart"), NA); setText(hk(el, "tot"), "–"); return; }
+      const w = homeData.week, L = el.dataset.z === "L";
+      setText(hk(el, "tot"), w.total_s ? humanDur(w.total_s) : el.dataset.z === "P" ? "0 min" : "");
+      if (el.dataset.z === "P") return;
       if (!w.total_s) { setHtml(hk(el, "chart"), '<div class="hw-na">Nenhum tempo nesta semana</div>'); setHtml(hk(el, "stack"), ""); setHtml(hk(el, "legs"), ""); return; }
       const cw = hk(el, "chart").clientWidth;
-      setHtml(hk(el, "chart"), barChart(w.days.map((d) => d.s), w.days.map((d) => d.d), w.days.findIndex((d) => d.today), "--chart-cpu", cw, "Horas trabalhadas por dia nesta semana"));
+      setHtml(hk(el, "chart"), barChart(w.days.map((d) => d.s), w.days.map((d) => d.d), w.days.findIndex((d) => d.today), "--chart-cpu", cw, "Horas trabalhadas por dia nesta semana", L ? 72 : 100));
       // distribuição por cliente: o servidor só devolve o total semanal de cada um (não por dia), então é uma barra única
-      const cl = w.clients, top = cl.slice(0, 4), rest = cl.slice(4).reduce((a, c) => a + c.s, 0), tot = w.total_s || 1;
+      const cl = w.clients, nt = L ? 2 : 4, top = cl.slice(0, nt), rest = cl.slice(nt).reduce((a, c) => a + c.s, 0), tot = w.total_s || 1;
       let x = 0;
       const seg = [...top.map((c, i) => [c.s, clientColor(i)]), ...(rest ? [[rest, "--surface-3, var(--p4)"]] : [])];
-      setHtml(hk(el, "stack"), `<svg class="hstack" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="Distribuição por cliente">${seg.map(([s, c]) => { const wd = (s / tot) * 100, r = `<rect x="${x.toFixed(2)}" width="${wd.toFixed(2)}" height="10" style="fill:var(${c})"/>`; x += wd; return r; }).join("")}</svg>`);
-      setHtml(hk(el, "legs"), top.map((c, i) => `<span class="hleg"><i style="background:var(${clientColor(i)})"></i><b>${esc(c.client)}</b> ${humanDur(c.s)}</span>`).join("") + (rest ? `<span class="hleg"><i style="background:var(--surface-3, var(--p4))"></i><b>Outros</b> ${humanDur(rest)}</span>` : ""));
+      setHtml(hk(el, "stack"), L ? "" : `<svg class="hstack" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="Distribuição por cliente">${seg.map(([s, c]) => { const wd = (s / tot) * 100, r = `<rect x="${x.toFixed(2)}" width="${wd.toFixed(2)}" height="10" style="fill:var(${c})"/>`; x += wd; return r; }).join("")}</svg>`);
+      setHtml(hk(el, "legs"), top.map((c, i) => `<span class="hleg"><i style="background:var(${clientColor(i)})"></i><b>${esc(c.client)}</b> ${humanDur(c.s)}</span>`).join("") + (rest && !L ? `<span class="hleg"><i style="background:var(--surface-3, var(--p4))"></i><b>Outros</b> ${humanDur(rest)}</span>` : ""));
     },
   },
   today: {
-    name: "Hoje", icon: "history",
-    html: () => `<div class="hw-t"><span>Hoje</span><span data-k="date"></span></div><div data-k="body"></div>`,
+    name: "Hoje", icon: "history", sizes: "PAL", def: "A",
+    html: (z) => z === "P" ? '<div data-k="body"></div>' : `<div class="hw-t"><span>Hoje</span><span data-k="date"></span></div><div data-k="body"></div>`,
     ready: () => !!state.games || !!homeData.work || !welcome.features?.work,
     upd(el) {
-      const g = state.games, wk = homeData.work, rows = [];
+      const g = state.games, wk = homeData.work, z = el.dataset.z, rows = [], det = z === "A";
       setText(hk(el, "date"), state.stats?.date?.slice(0, 5) || "");
       if (welcome.features?.work && wk) rows.push(`<div class="hbig"><span>Trabalho</span><b>${humanDur(wk.today_s)}</b></div>` +
-        (wk.today || []).slice(0, 3).map((r) => `<div class="row"><span>${esc(r.client)}</span><span>${humanDur(r.s)}</span></div>`).join(""));
+        (det ? (wk.today || []).slice(0, 3).map((r) => `<div class="row"><span>${esc(r.client)}</span><span>${humanDur(r.s)}</span></div>`).join("") : ""));
       if (g) { const s = g.game ? g.game.today_s : g.today_s; rows.push(`<div class="hbig"><span>Jogando</span><b>${s ? humanDur(s + (performance.now() - state.gamesT) / 1000) : "0 min"}</b></div>`); }
-      setHtml(hk(el, "body"), rows.join("") || '<div class="hw-na">Nada contado hoje</div>');
+      setHtml(hk(el, "body"), (z === "P" ? rows.slice(0, 1) : rows).join("") || '<div class="hw-na">Nada contado hoje</div>');
     },
   },
   procs: {
-    name: "Mais pesados agora", icon: "list-video",
-    html: () => `<div class="hw-t"><span>Mais pesados agora</span><span>CPU</span></div><div data-k="list"></div>`,
+    name: "Mais pesados agora", icon: "list-video", sizes: "PALG", def: "A",
+    html: (z) => `<div class="hw-t"><span>${z === "P" ? "Mais pesado" : "Mais pesados agora"}</span><span>CPU</span></div><div data-k="list"></div>`,
     ready: () => !!state.stats,
-    upd(el) { setHtml(hk(el, "list"), (state.stats.procs || []).slice(0, 5).map((p) => `<div class="row"><span>${esc(p.name)}</span><span>${p.cpu.toFixed(1)}% · ${fmtBytes(p.mem)}</span></div>`).join("") || '<div class="hw-na">Sem dados</div>'); },
+    upd(el) { setHtml(hk(el, "list"), (state.stats.procs || []).slice(0, { P: 2, A: 5, L: 3, G: 8 }[el.dataset.z]).map((p) => `<div class="row"><span>${esc(p.name)}</span><span>${p.cpu.toFixed(1)}% · ${fmtBytes(p.mem)}</span></div>`).join("") || '<div class="hw-na">Sem dados</div>'); },
   },
   games: {
-    name: "Jogos", icon: "gamepad-2",
-    html: () => `<div class="hw-t"><span>Jogos na semana</span><span data-k="tot"></span></div><div class="hchartbox" data-k="chart"></div><div data-k="top"></div>`,
+    name: "Jogos", icon: "gamepad-2", sizes: "PALG", def: "L",
+    html: (z) => z === "P" ? '<div class="hbig"><span>Jogos na semana</span><b data-k="tot"></b></div>' : `<div class="hw-t"><span>Jogos na semana</span><span data-k="tot"></span></div><div class="hchartbox" data-k="chart"></div><div data-k="top"></div>`,
     ready: () => !welcome.features?.library || !!homeData.hist,
     upd(el) {
-      if (!welcome.features?.library) { setHtml(hk(el, "chart"), NA); return; }
-      const h = homeData.hist, now = state.games?.game;
-      setText(hk(el, "tot"), h.week_s ? humanDur(h.week_s) : "");
-      setHtml(hk(el, "chart"), barChart(h.days.map((d) => d.s), h.days.map((d) => d.d), h.days.length - 1, "--chart-gpu", hk(el, "chart").clientWidth, "Tempo de jogo por dia na última semana"));
-      setHtml(hk(el, "top"), (now ? `<div class="row"><span>Jogando agora</span><span>${esc(now.name)}</span></div>` : "") +
+      if (!welcome.features?.library) { setHtml(hk(el, "chart"), NA); setText(hk(el, "tot"), "–"); return; }
+      const h = homeData.hist, now = state.games?.game, L = el.dataset.z === "L";
+      setText(hk(el, "tot"), h.week_s ? humanDur(h.week_s) : el.dataset.z === "P" ? "0 min" : "");
+      if (el.dataset.z === "P") return;
+      setHtml(hk(el, "chart"), barChart(h.days.map((d) => d.s), h.days.map((d) => d.d), h.days.length - 1, "--chart-gpu", hk(el, "chart").clientWidth, "Tempo de jogo por dia na última semana", L ? 72 : 100));
+      setHtml(hk(el, "top"), L ? "" : (now ? `<div class="row"><span>Jogando agora</span><span>${esc(now.name)}</span></div>` : "") +
         (h.top.slice(0, 2).map((g) => `<div class="row"><span>${esc(g.name)}</span><span>${humanDur(g.s)}</span></div>`).join("") || (now ? "" : '<div class="hw-na">Nenhum jogo nos últimos 7 dias</div>')));
     },
   },
   notif: {
-    name: "Notificações", icon: "bookmark",
-    html: () => `<div class="hw-t"><span>Notificações</span></div><div data-k="list"></div>`,
+    name: "Notificações", icon: "bookmark", sizes: "PALG", def: "A",
+    html: (z) => `<div class="hw-t"><span>${z === "P" ? "Último aviso" : "Notificações"}</span></div><div data-k="list"></div>`,
     ready: () => !!welcome.host,
     upd(el) {
       let h;
       if (!welcome.features?.notif || state.notifAvail === false) h = NA;
       else if (!prefs.pcnotif) h = '<div class="hw-na">Desligadas em Ajustes</div>';
-      else h = homeNotif.slice(0, 3).map((n) => `<div class="hnt"><div class="hnt-a"><b>${esc(n.app)}</b><span>${esc(n.time)}</span></div><div class="hnt-b">${esc([n.title, n.body].filter(Boolean).join(" · "))}</div></div>`).join("")
+      else h = homeNotif.slice(0, { P: 1, L: 1, A: 3, G: 3 }[el.dataset.z]).map((n) => `<div class="hnt"><div class="hnt-a"><b>${esc(n.app)}</b><span>${esc(n.time)}</span></div><div class="hnt-b">${esc([n.title, n.body].filter(Boolean).join(" · "))}</div></div>`).join("")
         || '<div class="hw-na">Nenhum aviso desde que o app abriu</div>';
       setHtml(hk(el, "list"), h);
     },
   },
   quick: {
-    name: "Atalhos", icon: "layout-grid",
-    html: () => `<div class="hw-t"><span>Atalhos</span></div>${quickHtml()}`,
+    name: "Atalhos", icon: "layout-grid", sizes: "PAL", def: "A",
+    html: (z) => z === "P" ? quickHtml() : `<div class="hw-t"><span>Atalhos</span></div>${quickHtml()}`,
     ready: () => !!welcome.host,
     upd: (el) => quickUpd(el),
   },
 });
 Object.assign(HOME_W, {
   pomo: {
-    name: "Foco", icon: "circle-dot",
-    html: () => `<div class="hw-t"><span>Foco</span><span data-k="ph"></span></div>
-      <div class="hpm"><div class="hpm-r" data-k="ring"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="${PM_R}" class="hring-t"/>
-        <circle cx="50" cy="50" r="${PM_R}" class="hring-f" data-k="arc" style="stroke-dasharray:${PM_C.toFixed(1)}" transform="rotate(-90 50 50)"/></svg></div>
-        <div class="hpm-t" data-k="time" role="timer"></div></div>
-      <button class="btn primary" data-pm="go" data-k="btn"></button>`,
+    name: "Foco", icon: "circle-dot", sizes: "PALG", def: "A",
+    html(z) {
+      const btn = '<button class="btn primary" data-pm="go" data-k="btn"></button>';
+      const ring = `<div class="hpm-r" data-k="ring"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="${PM_R}" class="hring-t"/>
+        <circle cx="50" cy="50" r="${PM_R}" class="hring-f" data-k="arc" style="stroke-dasharray:${PM_C.toFixed(1)}" transform="rotate(-90 50 50)"/></svg></div>`;
+      if (z === "P") return `<div class="hpm-p"><div class="hpm-t" data-k="time" role="timer"></div>${btn}</div>`;
+      if (z === "L") return `<div class="hpm">${ring}<div class="hpm-c"><div class="hpm-ph" data-k="ph"></div><div class="hpm-t" data-k="time" role="timer"></div></div>${btn}</div>`;
+      const head = '<div class="hw-t"><span>Foco</span><span data-k="ph"></span></div>';
+      if (z === "G") return `${head}<div class="hpm">${ring}<div class="hpm-c"><div class="hpm-t" data-k="time" role="timer"></div><div class="hpm-ph" data-k="today"></div></div></div>${btn}`;
+      return `${head}<div class="hpm">${ring}<div class="hpm-t" data-k="time" role="timer"></div></div>${btn}`;
+    },
     ready: () => !!pm.d,
     upd(el) {
       const d = pm.d, rem = pmRem();
       setText(hk(el, "ph"), PM_PH[d.phase]); setText(hk(el, "time"), pmClock(rem)); setText(hk(el, "btn"), pmBtn(d));
-      hk(el, "ring").classList.toggle("brk", d.phase === "short" || d.phase === "long");
-      hk(el, "arc").style.strokeDashoffset = (PM_C * (d.total_s ? rem / d.total_s : 1)).toFixed(1);
+      setText(hk(el, "today"), d.today ? `Hoje: ${d.today} pomodoro${d.today === 1 ? "" : "s"}` : "Nenhum pomodoro hoje");
+      const ring = hk(el, "ring"), arc = hk(el, "arc");
+      if (ring) ring.classList.toggle("brk", d.phase === "short" || d.phase === "long");
+      if (arc) arc.style.strokeDashoffset = (PM_C * (d.total_s ? rem / d.total_s : 1)).toFixed(1);
     },
   },
 });
@@ -2694,11 +2794,18 @@ function dotaWidgetTick(b, d) {
 }
 Object.assign(HOME_W, {
   dota: {
-    name: "Dota", icon: "gamepad",
-    html: () => `<div class="hw-t"><span>Dota</span><span data-k="ph"></span></div><div class="hdota" data-k="body"></div>`,
+    name: "Dota", icon: "gamepad", sizes: "PAG", def: "A",
+    html: (z) => z === "P" ? '<div class="hbig"><span data-k="ph"></span><b data-k="big"></b></div>' : `<div class="hw-t"><span>Dota</span><span data-k="ph"></span></div><div class="hdota" data-k="body"></div>`,
     ready: () => !!dota.d,
     upd(el) {
-      const d = dota.d, p = dotaWidgetPlan(d), b = hk(el, "body");
+      const d = dota.d;
+      if (el.dataset.z === "P") {   // pequeno: só texto (a fase e o relógio ou o MMR); as imagens ficam nos outros tamanhos
+        const L = d.live, mmr = d.lobby?.mmr?.value;
+        setText(hk(el, "ph"), DOTA_PH[d.phase] || "Dota");
+        setText(hk(el, "big"), d.phase === "game" && L && nn(L.clock_s) ? dClock(L.clock_s + dAge()) : nn(mmr) ? dNum(mmr) : "");
+        return;
+      }
+      const p = dotaWidgetPlan(d), b = hk(el, "body");
       setText(hk(el, "ph"), DOTA_PH[d.phase] || "");
       if (b._sig !== p.sig) { b.innerHTML = p.html; b._sig = p.sig; }
       dotaWidgetTick(b, d);
@@ -2706,35 +2813,92 @@ Object.assign(HOME_W, {
   },
 });
 const HOME_DEF = {
-  phone: [{ id: "now", size: "S" }, { id: "tasks", size: "S" }, { id: "pcquick", size: "S" }],
-  tablet: [["cpu", "L"], ["net"], ["mem"], ["now"], ["tasks"], ["work", "L"], ["procs"], ["games"], ["notif"], ["quick"]].map(([id, z]) => ({ id, size: z || "S" })),
+  phone: [{ id: "now", size: "A" }, { id: "tasks", size: "A" }, { id: "pcquick", size: "A" }],
+  tablet: [["cpu", "L"], ["net", "L"], ["now", "G"], ["tasks", "A"], ["mem", "A"], ["work", "L"], ["games", "L"], ["procs", "L"], ["notif", "L"], ["quick", "L"]].map(([id, size]) => ({ id, size })),
 };
-const HOME_CAP = { phone: 3, tablet: 12 };
-const homeSpaces = (l) => l.reduce((a, w) => a + (w.size === "L" ? 2 : 1), 0);
+const szFix = (id, z) => { const ok = HOME_W[id].sizes; return ok.includes(z) ? z : [...SZ_FALL[SZ[z] ? z : HOME_W[id].def]].find((x) => ok.includes(x)); };
+const homeMode = () => (wideMQ.matches ? "tablet" : matchMedia("(orientation: landscape)").matches ? "land" : "port");
+const homeDev = () => (wideMQ.matches ? "tablet" : "phone");
+const homeGrid = (dev) => HOME_GRID[dev === "tablet" ? "tablet" : "land"];
 
+// Distribuição: cada widget, na ordem da lista, vai para o primeiro espaço livre (esquerda→direita, cima→baixo) da página 1;
+// se não cabe, tenta a 2 e a 3. O que não cabe em nenhuma volta em "sobra" (nunca acontece com layout válido).
+function homePack(list, cols, rows) {
+  const grids = [], at = {}, over = [];
+  for (const it of list) {
+    const [w, h] = SZ[it.size]; let placed = false;
+    for (let p = 0; p < HOME_PAGES && !placed; p++) {
+      const g = (grids[p] ||= Array.from({ length: rows }, () => Array(cols).fill(false)));
+      for (let r = 0; r + h <= rows && !placed; r++) for (let c = 0; c + w <= cols && !placed; c++) {
+        let free = true;
+        for (let y = r; y < r + h && free; y++) for (let x = c; x < c + w; x++) if (g[y][x]) { free = false; break; }
+        if (!free) continue;
+        for (let y = r; y < r + h; y++) for (let x = c; x < c + w; x++) g[y][x] = true;
+        at[it.id] = { page: p, c: c + 1, r: r + 1, w, h }; placed = true;
+      }
+    }
+    if (!placed) over.push(it.id);
+  }
+  const pages = Object.values(at).reduce((a, v) => Math.max(a, v.page + 1), 1);
+  return { at, over, pages };
+}
+const homeFits = (dev, list) => !homePack(list, ...homeGrid(dev)).over.length;
+
+// layout salvo (store "home"): v2 = {phone:[{id,size}], tablet:[…]}. v1 (antigo): celular = widgets altos ("A"); tablet: Grande → "G", Pequeno → "P".
 function homeLayout(dev) {
-  let raw = store.get("home", null); raw = raw && typeof raw === "object" && raw.v === 1 ? raw[dev] : null;
-  if (!Array.isArray(raw)) return HOME_DEF[dev];
+  const raw = store.get("home", null), arr = raw && typeof raw === "object" && (raw.v === 1 || raw.v === 2) ? raw[dev] : null;
+  if (!Array.isArray(arr)) return HOME_DEF[dev];
   const seen = new Set(), out = [];
-  for (const it of raw) {                       // item desconhecido, repetido ou torto: ignora
+  for (const it of arr) {                       // item desconhecido, repetido ou torto: ignora
     const id = it && typeof it === "object" ? it.id : null;
     if (typeof id !== "string" || !Object.hasOwn(HOME_W, id) || seen.has(id)) continue;
-    seen.add(id); out.push({ id, size: dev === "tablet" && it.size === "L" ? "L" : "S" });
+    const z = raw.v === 1 ? (dev === "tablet" ? (it.size === "L" ? "G" : "P") : "A") : SZ[it.size] ? it.size : HOME_W[id].def;
+    seen.add(id); out.push({ id, size: szFix(id, z) });
   }
-  if ((dev === "phone" ? out.length : homeSpaces(out)) > HOME_CAP[dev] || (raw.length && !out.length)) return HOME_DEF[dev];
+  if ((arr.length && !out.length) || !homeFits(dev, out)) return HOME_DEF[dev];
   return out;
 }
-const homeDev = () => (wideMQ.matches ? "tablet" : "phone");
-let homeList = [], homeCur = "phone";
+let homeList = [], homeCur = "phone", homePk = null;
+const homePg = () => { const o = store.get("homepg", {}); return o && typeof o === "object" ? o : {}; };
 function homeBuild() {
-  const root = $("home"), dev = homeCur = homeDev();
-  homeList = homeLayout(dev);
-  root.className = "home " + dev; root.style.setProperty("--hn", Math.max(1, homeList.length));
-  root.innerHTML = homeList.length ? homeList.map(({ id, size }) => `<div class="card hw${size === "L" ? " big" : ""} sk" data-w="${id}">
-    <div class="hw-sk" aria-hidden="true"><i></i><i></i><i></i></div><div class="hw-b">${HOME_W[id].html(dev)}</div></div>`).join("")
-    : '<div class="card hw"><div class="hw-na">Nenhum widget na tela.</div></div>';
+  const root = $("home"), mode = homeMode(), dev = (homeCur = homeDev()), cell = ({ id, size }, st = "") => `<div class="card hw z-${size} sk" data-w="${id}" data-z="${size}"${st ? ` style="${st}"` : ""}>
+    <div class="hw-sk" aria-hidden="true"><i></i><i></i><i></i></div><div class="hw-b">${HOME_W[id].html(size, dev)}</div></div>`;
+  homeList = homeLayout(dev); homePk = null;
+  const paged = mode !== "port" && homeList.length > 0;
+  $("t-inicio").classList.toggle("paged", paged);
+  if (!homeList.length) { root.className = "home port"; root.innerHTML = '<div class="card hw"><div class="hw-na">Nenhum widget na tela.</div></div>'; }
+  else if (!paged) { root.className = "home port"; root.innerHTML = homeList.map((w) => cell(w)).join(""); }
+  else {
+    const [C, R] = homeGrid(dev), pk = (homePk = homePack(homeList, C, R));
+    root.className = "home pager " + mode;
+    root.innerHTML = Array.from({ length: pk.pages }, (_, p) => `<div class="hpage" style="--c:${C};--r:${R}">${homeList.filter((w) => pk.at[w.id]?.page === p)
+      .map((w) => { const a = pk.at[w.id]; return cell(w, `grid-column:${a.c} / span ${a.w};grid-row:${a.r} / span ${a.h}`); }).join("")}</div>`).join("");
+    const want = Math.min(pk.pages - 1, Math.max(0, +homePg()[mode] || 0));
+    root.scrollLeft = want * root.clientWidth;
+    requestAnimationFrame(() => { root.scrollLeft = want * root.clientWidth; });
+  }
+  homeDots(paged && homePk.pages > 1 ? homePk.pages : 0, paged ? Math.min((homePk?.pages || 1) - 1, Math.max(0, +homePg()[mode] || 0)) : 0);
   homeUpd();
 }
+function homeDots(n, cur) {
+  const d = $("home-dots"); d.classList.toggle("hidden", !n);
+  d.innerHTML = Array.from({ length: n }, (_, i) => `<button data-pg="${i}" aria-label="Página ${i + 1} de ${n}"${i === cur ? ' aria-current="true"' : ""}><i></i></button>`).join("");
+}
+let homeScrollT = 0;
+$("home").addEventListener("scroll", () => {
+  if (!homePk) return;
+  clearTimeout(homeScrollT);
+  homeScrollT = setTimeout(() => {
+    const root = $("home"), i = Math.max(0, Math.min(homePk.pages - 1, Math.round(root.scrollLeft / Math.max(1, root.clientWidth))));
+    for (const b of $("home-dots").children) { if (+b.dataset.pg === i) b.setAttribute("aria-current", "true"); else b.removeAttribute("aria-current"); }
+    store.set("homepg", { ...homePg(), [homeMode()]: i });
+  }, 90);
+}, { passive: true });
+$("home-dots").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-pg]"); if (!b) return; buzz(8);
+  const root = $("home"); root.scrollTo({ left: +b.dataset.pg * root.clientWidth, behavior: REDUCED ? "auto" : "smooth" });
+});
+matchMedia("(orientation: landscape)").addEventListener("change", () => { if (vis("inicio")) homeBuild(); });
 function homeUpd(only) {
   if (!vis("inicio")) return;
   if (!only || only === "pomo") homeStrip();
@@ -2763,30 +2927,35 @@ async function homeFetch() {
   } finally { homeData.busy = false; }
 }
 
-// ---- Mais › Widgets do Início: lista ordenada, tamanho (tablet), pílulas "+", lotação, Desfazer e Restaurar
+// ---- Mais › Widgets do Início: lista ordenada, tamanho (seletor), página de cada um, pílulas "+", lotação, Desfazer e Restaurar
 const wd = { dev: "phone", list: [] };
 function homeSave(dev, list) {
-  const cur = { v: 1, phone: homeLayout("phone").map((w) => ({ ...w })), tablet: homeLayout("tablet").map((w) => ({ ...w })) };
+  const cur = { v: 2, phone: homeLayout("phone").map((w) => ({ ...w })), tablet: homeLayout("tablet").map((w) => ({ ...w })) };
   cur[dev] = list.map((w) => ({ id: w.id, size: w.size })); store.set("home", cur);
 }
-const wdUsed = () => (wd.dev === "phone" ? wd.list.length : homeSpaces(wd.list));
+const wdFits = (list) => homeFits(wd.dev, list);
+const wdAddSize = (id) => { const w = HOME_W[id], by = [...w.sizes].sort((a, b) => SZ[a][0] * SZ[a][1] - SZ[b][0] * SZ[b][1]); return [w.def, ...by.filter((z) => z !== w.def)].find((z) => wdFits([...wd.list, { id, size: z }])); };
 function wdShow() { wd.dev = homeDev(); wd.list = homeLayout(wd.dev).map((w) => ({ ...w })); wdRender(); }
 function wdCommit() { homeSave(wd.dev, wd.list); wdRender(); }
 function wdRender() {
-  const cap = HOME_CAP[wd.dev], used = wdUsed(), full = used >= cap, tab = wd.dev === "tablet";
+  const [C, R] = homeGrid(wd.dev), pk = homePack(wd.list, C, R), full = !wdFits([...wd.list, { id: "_novo", size: "P" }]);
   document.querySelectorAll("#wd-dev button").forEach((b) => { b.classList.toggle("on", b.dataset.dev === wd.dev); b.setAttribute("aria-pressed", b.dataset.dev === wd.dev); });
-  $("wd-info").innerHTML = `<div>${tab ? "Espaços" : "Colunas"}: ${used} de ${cap}</div><div class="hbar"><i style="width:${(used / cap) * 100}%"></i></div>` +
-    (full ? `<div class="wd-full">Lotado: remova ${tab ? "ou diminua " : ""}um widget para adicionar outro.</div>` : "");
+  $("wd-info").innerHTML = `<div>Páginas usadas: ${pk.pages} de ${HOME_PAGES} · ${C}×${R} espaços por página</div><div class="hbar"><i style="width:${(pk.pages / HOME_PAGES) * 100}%"></i></div>
+    <div class="wd-leg">P pequeno 1×1 · A alto 1×2 · L largo 2×1 · G grande 2×2</div>` +
+    (full ? '<div class="wd-full">Lotado: as 3 páginas estão cheias. Remova ou diminua um widget para adicionar outro.</div>' : "");
   $("wd-list").innerHTML = wd.list.length ? wd.list.map((w, i) => {
-    const c = HOME_W[w.id], L = w.size === "L";
+    const c = HOME_W[w.id], a = pk.at[w.id];
     return `<div class="wd-row" data-i="${i}"><button class="wd-rm" data-op="rm" aria-label="Remover ${esc(c.name)}">${ic("circle-minus")}</button>
-      <div class="wd-nm">${ic(c.icon)}<span>${esc(c.name)}</span></div>
-      ${tab ? `<button class="wd-sz" data-op="sz" aria-label="Tamanho de ${esc(c.name)}: ${L ? "Grande" : "Pequeno"}"${!L && full ? " disabled" : ""}>${L ? "Grande" : "Pequeno"}</button>` : ""}
+      <div class="wd-nm">${ic(c.icon)}<span class="wd-n">${esc(c.name)}</span><small>${a ? "Página " + (a.page + 1) : "Não cabe"}</small></div>
       <button data-op="up" aria-label="Subir ${esc(c.name)}"${i === 0 ? " disabled" : ""}>${ic("chevron-up")}</button>
-      <button data-op="dn" aria-label="Descer ${esc(c.name)}"${i === wd.list.length - 1 ? " disabled" : ""}>${ic("chevron-down")}</button></div>`;
+      <button data-op="dn" aria-label="Descer ${esc(c.name)}"${i === wd.list.length - 1 ? " disabled" : ""}>${ic("chevron-down")}</button>
+      <div class="wd-szr" role="group" aria-label="Tamanho de ${esc(c.name)}">${[...c.sizes].map((z) => {
+        const can = z === w.size || wdFits(wd.list.map((x, j) => (j === i ? { ...x, size: z } : x)));
+        return `<button data-op="sz" data-z="${z}" aria-pressed="${z === w.size}" aria-label="${SZ_NAME[z]} (${SZ[z][0]}×${SZ[z][1]})"${can ? "" : " disabled"}>${z}</button>`;
+      }).join("")}</div></div>`;
   }).join("") : '<div class="wd-empty">Nenhum widget na tela.</div>';
   const out = Object.keys(HOME_W).filter((id) => !wd.list.some((w) => w.id === id));
-  $("wd-pills").innerHTML = out.length ? out.map((id) => `<button class="wd-pill" data-add="${id}"${full ? " disabled" : ""}>${ic("circle-plus")}<span>${esc(HOME_W[id].name)}</span></button>`).join("") : '<div class="hw-na">Todos os widgets já estão na tela.</div>';
+  $("wd-pills").innerHTML = out.length ? out.map((id) => `<button class="wd-pill" data-add="${id}"${wdAddSize(id) ? "" : " disabled"}>${ic("circle-plus")}<span>${esc(HOME_W[id].name)}</span></button>`).join("") : '<div class="hw-na">Todos os widgets já estão na tela.</div>';
 }
 $("wd-dev").onclick = (e) => { const b = e.target.closest("[data-dev]"); if (!b) return; buzz(8); wd.dev = b.dataset.dev; wd.list = homeLayout(wd.dev).map((w) => ({ ...w })); wdRender(); };
 $("wd-list").onclick = (e) => {
@@ -2795,17 +2964,19 @@ $("wd-list").onclick = (e) => {
   if (b.dataset.op === "rm") {
     wd.list.splice(i, 1); wdCommit();
     undoToast(`${HOME_W[w.id].name} removido`, () => {
-      if (wd.list.some((x) => x.id === w.id) || wdUsed() + (w.size === "L" ? 2 : 1) > HOME_CAP[wd.dev]) return toast("Sem espaço para desfazer", "bad");
-      wd.list.splice(Math.min(i, wd.list.length), 0, w); wdCommit();
+      const nl = [...wd.list]; nl.splice(Math.min(i, nl.length), 0, w);
+      if (wd.list.some((x) => x.id === w.id) || !wdFits(nl)) return toast("Sem espaço para desfazer", "bad");
+      wd.list = nl; wdCommit();
     });
   } else if (b.dataset.op === "sz") {
-    if (w.size !== "L" && wdUsed() + 1 > HOME_CAP[wd.dev]) return;
-    w.size = w.size === "L" ? "S" : "L"; wdCommit();
+    if (b.dataset.z === w.size) return;
+    w.size = b.dataset.z; wdCommit();
   } else { const j = b.dataset.op === "up" ? i - 1 : i + 1; if (j >= 0 && j < wd.list.length) { [wd.list[i], wd.list[j]] = [wd.list[j], wd.list[i]]; wdCommit(); } }
 };
 $("wd-pills").onclick = (e) => {
-  const b = e.target.closest("[data-add]"); if (!b || b.disabled || wdUsed() + 1 > HOME_CAP[wd.dev]) return;
-  buzz(8); wd.list.push({ id: b.dataset.add, size: "S" }); wdCommit();
+  const b = e.target.closest("[data-add]"); if (!b || b.disabled) return;
+  const size = wdAddSize(b.dataset.add); if (!size) return;
+  buzz(8); wd.list.push({ id: b.dataset.add, size }); wdCommit();
 };
 $("wd-reset").onclick = () => {
   buzz(8); const prev = wd.list.map((w) => ({ ...w }));
