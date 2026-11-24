@@ -575,6 +575,7 @@ select.sel { flex: none; padding: 6px 8px; border: 1px solid var(--p3); backgrou
 .toprow .bar { margin: 2px 0 8px; height: 6px; }
 /* trabalho: job ativo, semana por job (toque abre os arquivos) */
 .wnow { white-space: normal; }
+.wdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: baseline; }
 .wunid { color: var(--unid); }  /* "Não identificado": âmbar de aviso (o do tema âmbar), como o amarelo do painel */
 .wjobrow { font-size: 14px; padding-left: 8px; }
 .wjob { cursor: pointer; }
@@ -2336,7 +2337,7 @@ function renderWork() {
   const d = workData; if (!d) return;
   const n = d.now, now = $("w-now");
   now.classList.toggle("wunid", !!n?.app && !n.identified);
-  now.textContent = !n?.app ? "Nenhum programa da Adobe em foco no PC"
+  now.textContent = !n?.app ? "Nenhum programa monitorado em foco no PC"
     : `${n.counting ? "Contando" : "Parado (ninguém mexendo no PC)"}: ${n.app} · ${n.identified ? `${n.client} › ${n.job}` : n.client} · ${n.file}`;
   $("w-today").textContent = humanDur(d.today_s);
   $("w-today-jobs").innerHTML = d.today.length ? d.today.map((r) => `<div class="row${r.unidentified ? " wunid" : ""}"><span>${esc(r.client)}</span><span>${humanDur(r.s)}</span></div>`).join("")
@@ -2351,7 +2352,8 @@ function renderWork() {
     <small>${x.s >= 3600 ? Math.round(x.s / 360) / 10 + "h" : x.s >= 60 ? Math.round(x.s / 60) + "m" : ""}</small>
     <i style="height:${Math.round((x.s / max) * 62)}px"></i>${x.d}</div>`).join("");
   const top = w.clients[0]?.s || 1;
-  const files = (fs) => fs.map((f) => `<div class="row wfile"><span>${esc(f.app)} · ${esc(f.file)}</span><span>${humanDur(f.s)}</span></div>`).join("");
+  const APPC = { Photoshop: "#31A8FF", Illustrator: "#FF9A00", Premiere: "#9999FF", "After Effects": "#CF96FD", CapCut: "#14C3B5" };
+  const files = (fs) => fs.map((f) => `<div class="row wfile"><span><i class="wdot" style="background:${APPC[f.app] || "var(--p3)"}"></i>${esc(f.app)} · ${esc(f.file)}</span><span>${humanDur(f.s)}</span></div>`).join("");
   $("w-week-jobs").innerHTML = w.clients.length ? w.clients.map((c, i) => `<div class="toprow wjob${c.unidentified ? " wunid" : ""}" data-i="${i}">
     <div class="row"><span>${esc(c.client)}</span><span>${humanDur(c.s)}</span></div><div class="bar"><i style="width:${(c.s / top) * 100}%"></i></div>
     ${workOpen.has(c.client) ? c.jobs.map((j) => (c.unidentified ? "" : `<div class="row wjobrow"><span>${esc(j.job)}</span><span>${humanDur(j.s)}</span></div>`) + files(j.files)).join("") : ""}</div>`).join("")
@@ -4194,6 +4196,25 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
 .pn-d .pn-d { margin-left: 18px; }
 .pn-fl { display: flex; gap: 10px; min-height: 36px; align-items: center; padding: 2px 14px 2px 42px; color: var(--text-2); }
 .pn-t { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--text-2); }
+.pn-app { display: inline-flex; align-items: center; gap: 6px; color: var(--text-3); font-size: 13px; white-space: nowrap; }
+.pn-app i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.pn-fl.pn-sel { padding: 0 8px 0 6px; gap: 8px; }
+.pn-fl.pn-sel .pn-chk { width: 44px; height: 44px; }
+.pn-fn { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.pn-selbar { position: sticky; bottom: 0; margin-top: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: var(--r-card); background: var(--surface-3); box-shadow: 0 -6px 18px rgba(0,0,0,.18); }
+.pn-selbar[hidden] { display: none; }
+.pn-rl { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 4px 8px 4px 14px; flex-wrap: wrap; }
+.pn-rl + .pn-rl { border-top: 1px solid var(--separator); }
+.pn-rl .pn-sm { font-size: 13px; color: var(--text-3); }
+.pn-dlg { border: 0; border-radius: var(--r-card); background: var(--surface); color: var(--text); padding: 22px; width: min(480px, 92vw); box-sizing: border-box; font: inherit; }
+.pn-dlg::backdrop { background: rgba(0, 0, 0, .55); }
+.pn-dlg h2 { margin: 0 0 4px; font-size: 20px; }
+.pn-dlg label { display: block; margin: 14px 0 4px; color: var(--text-2); font-size: 13px; }
+.pn-dlg .pn-in { background: var(--bg); color: var(--text); }
+.pn-dlg .pn-ck { display: flex; align-items: flex-start; gap: 10px; margin-top: 14px; color: var(--text); font-size: 15px; }
+.pn-dlg .pn-ck input { width: 20px; height: 20px; margin: 2px 0 0; flex: none; }
+.pn-dlg .pn-pv { margin-top: 14px; padding: 10px 12px; border-radius: var(--r-btn); background: var(--surface-2); }
+.pn-dlg .pn-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
 .pn-banner { position: fixed; left: 220px; right: 0; top: 0; padding: 10px 16px; background: var(--danger-soft); color: var(--danger-text); font-weight: 600; text-align: center; border-bottom: 1px solid var(--separator); z-index: 5; }
 .pn-banner[hidden], .pn-toast[hidden] { display: none; }
 .pn-toast { position: fixed; left: calc(50% + 110px); bottom: 24px; transform: translateX(-50%); z-index: 6; display: flex; align-items: center; gap: 4px; max-width: 80vw; padding: 2px 2px 2px 16px; border-radius: var(--r-btn); background: var(--surface-3); color: var(--text); box-shadow: 0 6px 24px #0006; }
@@ -4249,6 +4270,8 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
   const ic = (n, cls = "pn-ic") => { const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("class", cls); s.setAttribute("aria-hidden", "true"); s.innerHTML = IC[n]; return s; };
   const fmtDur = (s) => { s = Math.floor(s || 0); if (s < 60) return s ? s + "s" : "0"; const hh = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return hh ? hh + "h" + String(m).padStart(2, "0") : m + " min"; };
   const dm = (s) => s.slice(8, 10) + "/" + s.slice(5, 7);
+  const APPC = { Photoshop: "#31A8FF", Illustrator: "#FF9A00", Premiere: "#9999FF", "After Effects": "#CF96FD", CapCut: "#14C3B5" };
+  const appTag = (a) => h("span", { class: "pn-app" }, h("i", { style: "background:" + (APPC[a] || "var(--text-3)") }), a);
   const clone = (x) => JSON.parse(JSON.stringify(x));
 
   // ---- toast (com "Desfazer" no lugar de confirmação)
@@ -4445,11 +4468,13 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
 
   // ====================================================================== Trabalho
   function workView(main) {
-    let data = null, week = null, off = 0, selRoot = null;
-    const roots = h("div"), idx = h("p", { class: "pn-faint" }), now = h("div", { class: "pn-card" }), rep = h("div"), tree = h("div");
+    let data = null, week = null, off = 0, selRoot = null, rules = null;
+    const sel = new Map();   // "app\0arquivo" -> item de "Não identificado" marcado
+    const roots = h("div"), idx = h("p", { class: "pn-faint" }), now = h("div", { class: "pn-card" }), rep = h("div"), tree = h("div"),
+      rulesBox = h("div"), bar = h("div", { class: "pn-selbar", hidden: true });
     main.append(h("section", {}, h("h1", {}, "Trabalho"), h("p", { class: "pn-sub" }, "Cliente e job saem dos nomes das pastas: Cliente\\Job\\arquivo."),
       h("div", { class: "pn-h" }, "Pastas de clientes"), roots, idx, h("div", { class: "pn-h" }, "Agora"), now,
-      h("div", { class: "pn-h" }, "Relatório"), rep, tree));
+      h("div", { class: "pn-h" }, "Relatório"), rep, tree, rulesBox, bar));
     const addRoot = async () => {
       try { const f = await call("pick_folder", {}, 600000); if (f) { data = await call("work_add_root", { folder: f }); render(); loadWeek(); } } catch (e) { fail(e); }
     };
@@ -4468,7 +4493,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
       const ix = data.index || {};
       idx.textContent = !data.roots.length ? "Sem pasta de clientes, todo o tempo fica como \"Não identificado\"." : "Photoshop: " + (ix.files || 0) + " imagens indexadas pelo nome" + (ix.truncated ? " (limite atingido)" : "");
       const n = data.now || {};
-      now.replaceChildren(!n.app ? h("span", { class: "pn-dim" }, "Nenhum programa da Adobe em foco.") :
+      now.replaceChildren(!n.app ? h("span", { class: "pn-dim" }, "Nenhum programa monitorado em foco.") :
         h("div", {}, h("b", {}, n.counting ? "Contando agora" : "Parado (ninguém mexendo no PC)"), h("div", { class: n.identified ? "" : "pn-warn" }, n.app + " · " + (n.identified ? n.client + " › " + n.job : n.client) + " · " + n.file)),
         h("div", { class: "pn-faint", style: "margin-top:6px" }, "Hoje: " + fmtDur(data.today_s)));
     }
@@ -4482,15 +4507,123 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
         h("p", { class: "pn-faint" }, w.days.map((x) => x.d + " " + fmtDur(x.s)).join("   ")));
       const open = new Set([...tree.querySelectorAll("details[open]")].map((d) => d.dataset.k));
       tree.replaceChildren(h("div", { class: "pn-list" }, !w.clients.length ? h("div", { class: "pn-empty" }, "Nenhum tempo nesta semana") : w.clients.map((c) => {
-        const files = (fs, cls) => fs.map((f) => h("div", { class: "pn-fl " + cls }, h("span", {}, f.file), h("span", { class: "pn-faint" }, f.app), h("span", { class: "pn-t" }, fmtDur(f.s))));
-        const kids = c.unidentified ? c.jobs.flatMap((j) => files(j.files, "pn-warn")) :
+        const files = (fs, cls) => fs.map((f) => h("div", { class: "pn-fl " + cls }, h("span", {}, f.file), appTag(f.app), h("span", { class: "pn-t" }, fmtDur(f.s))));
+        const ufiles = (fs) => fs.map((f) => {
+          const k = selKey(f), on = sel.has(k);
+          return h("div", { class: "pn-fl pn-sel" },
+            h("button", { class: "pn-chk" + (on ? " on" : ""), type: "button", role: "checkbox", "aria-checked": on, "aria-label": "Selecionar " + f.file, onclick: () => { on ? sel.delete(k) : sel.set(k, f); renderWeek(); } }, ic(on ? "check" : "circle", "")),
+            h("span", { class: "pn-fn pn-warn" }, f.file), appTag(f.app), h("span", { class: "pn-t" }, fmtDur(f.s)),
+            h("button", { class: "pn-btn", type: "button", "aria-label": "Atribuir " + f.file, onclick: () => openAssign([f]) }, "Atribuir"));
+        });
+        const kids = c.unidentified ? c.jobs.flatMap((j) => ufiles(j.files)) :
           c.jobs.map((j) => h("details", { class: "pn-d", "data-k": c.client + "\u0000" + j.job, open: open.has(c.client + "\u0000" + j.job) }, h("summary", {}, h("span", {}, j.job), h("span", { class: "pn-t" }, fmtDur(j.s))), files(j.files, "")));
         return h("details", { class: "pn-d", "data-k": c.client, open: open.has(c.client) }, h("summary", { class: c.unidentified ? "pn-warn" : "" }, h("b", {}, c.client), h("span", { class: "pn-t" }, fmtDur(c.s))), kids);
       })));
+      drawBar();
     }
-    const loadWeek = async () => { try { week = await call("work_week", { offset: off }); renderWeek(); } catch (e) { fail(e); } };
+    const selKey = (f) => f.app + "\u0000" + f.file;
+    function drawBar() {
+      const n = sel.size;
+      bar.hidden = !n;
+      bar.replaceChildren(h("b", { class: "pn-grow" }, n + (n === 1 ? " selecionado" : " selecionados")),
+        h("button", { class: "pn-btn primary", type: "button", onclick: () => openAssign([...sel.values()]) }, "Atribuir"),
+        h("button", { class: "pn-btn", type: "button", onclick: () => doIgnore([...sel.values()]) }, "Não é trabalho"),
+        h("button", { class: "pn-btn", type: "button", onclick: () => { sel.clear(); renderWeek(); } }, "Limpar"));
+    }
+    const reloadAll = async () => { await loadWeek(); await loadRules(); loadNow(); };
+    async function doIgnore(items) {
+      try {
+        const r = await call("work_ignore", { items: items.map((f) => ({ file: f.file, app: f.app })), offset: off });
+        sel.clear(); await reloadAll();
+        toast(items.length === 1 ? "Marcado como não é trabalho." : items.length + " itens marcados como não é trabalho.",
+          { undo: async () => { try { await call("work_unignore", { ids: r.ids }); await reloadAll(); } catch (e) { fail(e); } } });
+      } catch (e) { fail(e); }
+    }
+    // ---- diálogo Atribuir
+    async function openAssign(items) {
+      let pv, cat;
+      try { [pv, rules] = await Promise.all([call("work_assign_preview", { items: items.map((f) => ({ file: f.file, app: f.app })), offset: off }), call("work_rules_get")]); cat = rules.catalog; }
+      catch (e) { fail(e); return; }
+      const NEW = "\u0001novo", NONE = "\u0001sem";
+      const allGen = pv.items.every((i) => i.generic), someGen = pv.items.some((i) => i.generic);
+      const clients = Object.keys(cat);
+      const cSel = h("select", { class: "pn-in", id: "as-client" }, clients.map((c) => h("option", { value: c }, c)), h("option", { value: NEW }, "Novo cliente…")),
+        cNew = h("input", { class: "pn-in", type: "text", maxlength: "60", placeholder: "Nome do novo cliente", "aria-label": "Nome do novo cliente", style: "margin-top:8px" }),
+        jSel = h("select", { class: "pn-in", id: "as-job" }), jNew = h("input", { class: "pn-in", type: "text", maxlength: "60", placeholder: "Nome do novo job", "aria-label": "Nome do novo job", style: "margin-top:8px" }),
+        rem = h("input", { type: "checkbox", id: "as-rem" }), pvBox = h("div", { class: "pn-pv" }), err = h("div", { class: "pn-bad", role: "alert" }),
+        ok = h("button", { class: "pn-btn primary", type: "button" }, "Atribuir");
+      rem.checked = !allGen; rem.disabled = allGen;
+      const dlg = h("dialog", { class: "pn-dlg", "aria-labelledby": "as-h" });
+      const cur = () => (cSel.value === NEW ? cNew.value : cSel.value).replace(/\s+/g, " ").trim();
+      const curJ = () => (jSel.value === NEW ? jNew.value : jSel.value === NONE ? "" : jSel.value).replace(/\s+/g, " ").trim();
+      const fillJobs = () => {
+        const js = cSel.value === NEW ? [] : (cat[cSel.value] || []);
+        jSel.replaceChildren(h("option", { value: NONE }, "sem job"), js.map((j) => h("option", { value: j }, j)), h("option", { value: NEW }, "Novo job…"));
+        jNew.hidden = true; cNew.hidden = cSel.value !== NEW;
+        if (cSel.value === NEW) { jSel.value = NEW; jNew.hidden = false; }
+      };
+      const upd = () => {
+        jNew.hidden = jSel.value !== NEW;
+        let w = 0, t = 0;
+        pv.items.forEach((i) => { w += i.week_s; t += rem.checked && !i.generic ? i.total_s : i.week_s; });
+        const dest = (cur() || "…") + " › " + (curJ() || "—");
+        pvBox.replaceChildren(h("b", {}, fmtDur(w) + " desta semana · " + fmtDur(t) + " no total"), " vão para ", h("b", {}, dest), ".");
+        ok.disabled = !cur();
+      };
+      fillJobs();
+      cSel.onchange = () => { fillJobs(); upd(); }; jSel.onchange = upd; rem.onchange = upd; cNew.oninput = upd; jNew.oninput = upd;
+      ok.onclick = async () => {
+        err.textContent = ""; ok.disabled = true;
+        try {
+          const r = await call("work_assign", { items: items.map((f) => ({ file: f.file, app: f.app })), client: cur(), job: curJ(), remember: rem.checked && !allGen, offset: off });
+          dlg.close(); dlg.remove(); sel.clear(); await reloadAll();
+          toast("Atribuído a " + r.client + " › " + r.job + (r.rules ? " (regra lembrada)" : ""), { undo: async () => { try { await call("work_rule_delete", { ids: r.ids }); await reloadAll(); } catch (e) { fail(e); } } });
+        } catch (e) { err.textContent = e.message; ok.disabled = false; }
+      };
+      dlg.append(h("h2", { id: "as-h" }, "Atribuir a cliente e job"),
+        h("div", { class: "pn-faint" }, items.length === 1 ? items[0].file + " · " + items[0].app : items.length + " itens selecionados"),
+        h("label", { for: "as-client" }, "Cliente"), cSel, cNew, h("label", { for: "as-job" }, "Job"), jSel, jNew,
+        h("label", { class: "pn-ck", for: "as-rem" }, rem, h("span", {}, "Lembrar para este arquivo",
+          h("div", { class: "pn-faint" }, allGen ? "Nomes genéricos (sem título, Untitled, CapCut sem projeto) não viram regra: vale só para esta semana."
+            : someGen ? "Os nomes genéricos da seleção valem só para esta semana; os outros ficam como regra (nome exato)."
+            : "Vale para este nome de arquivo exato, no tempo já contado e no novo. Dá para apagar em “Regras e ignorados”."))),
+        pvBox, err, h("div", { class: "pn-acts" }, h("button", { class: "pn-btn", type: "button", onclick: () => { dlg.close(); dlg.remove(); } }, "Cancelar"), ok));
+      dlg.addEventListener("close", () => dlg.remove());
+      $p("panel").append(dlg); upd(); dlg.showModal(); (clients.length ? cSel : cNew).focus();
+    }
+    // ---- Regras e ignorados
+    async function loadRules() { try { rules = await call("work_rules_get"); renderRules(); } catch (e) { fail(e); } }
+    const mondayOff = (from) => off + Math.round((Date.parse(from) - Date.parse(week.start)) / (7 * 864e5));
+    function renderRules() {
+      const r = rules; if (!r) return;
+      const open = rulesBox.querySelector("details") ? rulesBox.querySelector("details").open : false;
+      const n = r.rules.length + r.once.length + r.ignored.length;
+      const del = async (e) => {
+        try { await call("work_rule_delete", { ids: [e.id] }); await reloadAll(); } catch (er) { fail(er); return; }
+        toast("Regra apagada: o tempo voltou a “Não identificado”.", { undo: async () => {
+          try { await call("work_assign", { items: [{ file: e.file, app: e.app }], client: e.client, job: e.job === "—" ? "" : e.job, remember: e.kind === "rule", offset: e.from && week ? mondayOff(e.from) : 0 }); await reloadAll(); } catch (er) { fail(er); } } });
+      };
+      const un = async (e) => {
+        try { await call("work_unignore", { ids: [e.id] }); await reloadAll(); } catch (er) { fail(er); return; }
+        toast("Restaurado: o tempo voltou aos totais.", { undo: async () => { try { await call("work_ignore", { items: [{ file: e.file, app: e.app }], offset: e.from && week ? mondayOff(e.from) : 0 }); await reloadAll(); } catch (er) { fail(er); } } });
+      };
+      const t = (e) => h("span", { class: "pn-sm" }, "semana " + fmtDur(e.week_s) + " · total " + fmtDur(e.total_s));
+      const asg = (e) => h("div", { class: "pn-rl" }, h("span", { class: "pn-fn" }, e.file), appTag(e.app || "—"), h("span", {}, "→ " + e.client + " › " + e.job),
+        e.kind === "once" ? h("span", { class: "pn-sm" }, "só " + dm(e.from) + " a " + dm(e.to)) : null, h("span", { class: "pn-grow" }), t(e),
+        h("button", { class: "pn-btn sq danger", type: "button", title: "Apagar", "aria-label": "Apagar a regra de " + e.file, onclick: () => del(e) }, ic("trash")));
+      const ign = (e) => h("div", { class: "pn-rl" }, h("span", { class: "pn-fn" }, e.file), appTag(e.app || "—"),
+        e.from ? h("span", { class: "pn-sm" }, "só " + dm(e.from) + " a " + dm(e.to)) : null, h("span", { class: "pn-grow" }), t(e),
+        h("button", { class: "pn-btn", type: "button", "aria-label": "Restaurar " + e.file, onclick: () => un(e) }, "Restaurar"));
+      const d = h("details", { class: "pn-d", open }, h("summary", {}, h("b", {}, "Regras e ignorados"), h("span", { class: "pn-t" }, n ? String(n) : "nenhum")),
+        r.rules.length || r.once.length ? h("div", { class: "pn-faint", style: "padding:6px 14px" }, "Regras (nome de arquivo exato, sem diferenciar maiúsculas) e atribuições de uma semana") : null,
+        r.rules.map(asg), r.once.map(asg),
+        r.ignored.length ? h("div", { class: "pn-faint", style: "padding:10px 14px 6px" }, "Ignorados (“Não é trabalho”: fora dos totais e do CSV)") : null, r.ignored.map(ign),
+        !n ? h("div", { class: "pn-empty" }, "Nada por aqui. Marque itens de “Não identificado” acima.") : null);
+      rulesBox.replaceChildren(h("div", { class: "pn-h" }, "Regras manuais"), h("div", { class: "pn-list" }, d));
+    }
+    const loadWeek = async () => { try { const w = await call("work_week", { offset: off }); if (!week || week.offset !== w.offset) sel.clear(); week = w; renderWeek(); } catch (e) { fail(e); } };
     const loadNow = async () => { try { data = await call("work_get"); render(); } catch {} };
-    return { start: () => { loadNow().then(loadWeek); poll(loadNow, 5000); }, stop: stopPoll };
+    return { start: () => { loadNow().then(loadWeek).then(loadRules); poll(loadNow, 5000); }, stop: stopPoll };
   }
 
   // ====================================================================== Celular
