@@ -1411,11 +1411,26 @@ async def pomo_run(name, p):
     return state
 
 
+def _work_step():
+    return WORK.poll(), bool(WORK.roots)
+
+
+def _misplaced_min():
+    v = CFG.get("misplaced_min", alerts.DEFAULT_MISPLACED_MIN)
+    return v if v in alerts.MISPLACED_OPTIONS else alerts.DEFAULT_MISPLACED_MIN
+
+
 async def work_loop():
     """Tempo no Photoshop/Premiere/After: lê o foco a cada 2 s, na fila de disco (WORK não usa locks)."""
     while True:
         try:
-            await on_io(WORK.poll)
+            info, has_roots = await on_io(_work_step)
+            a = MISPLACED.observe(info, time.time(), has_roots, _misplaced_min())
+            if a:
+                log.info("aviso de arquivo fora do lugar")   # sem nomes
+                await phones_send({"t": "event", "kind": "alert", "sub": a["kind"], "title": a["title"],
+                                   "body": a["body"], "open": "work"})
+                await pc_balloon(a["title"], a["body"])
         except Exception as e:  # noqa: BLE001
             log.warning("work_loop: %s", type(e).__name__)  # sem a mensagem: pode ter nome de arquivo
         await asyncio.sleep(2)

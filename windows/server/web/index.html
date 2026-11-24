@@ -2707,7 +2707,7 @@ const legend = (c, name, val) => `<span class="hleg"><i style="background:var(${
 const NA = '<div class="hw-na">Indisponível neste PC</div>';
 const clientColor = (i) => `--chart-${(i % 5) + 1}`;
 const homeNotif = [];
-function homeNotifPush(m) { homeNotif.unshift({ app: m.app || "", title: m.title || "", body: m.body || "", time: new Date().toTimeString().slice(0, 5) }); homeNotif.length = Math.min(homeNotif.length, 3); homeUpd("notif"); }
+function homeNotifPush(m) { homeNotif.unshift({ app: m.app || "", title: m.title || "", body: m.body || "", go: m.go || "", time: new Date().toTimeString().slice(0, 5) }); homeNotif.length = Math.min(homeNotif.length, 3); homeUpd("notif"); }
 const homeData = { work: null, week: null, hist: null, t: { work: 0, hist: 0 }, busy: false };
 
 Object.assign(HOME_W, {
@@ -2822,7 +2822,7 @@ Object.assign(HOME_W, {
       let h;
       if (!welcome.features?.notif || state.notifAvail === false) h = NA;
       else if (!prefs.pcnotif) h = '<div class="hw-na">Desligadas em Ajustes</div>';
-      else h = homeNotif.slice(0, { P: 1, L: 1, A: 3, G: 3 }[el.dataset.z]).map((n) => `<div class="hnt"><div class="hnt-a"><b>${esc(n.app)}</b><span>${esc(n.time)}</span></div><div class="hnt-b">${esc([n.title, n.body].filter(Boolean).join(" · "))}</div></div>`).join("")
+      else h = homeNotif.slice(0, { P: 1, L: 1, A: 3, G: 3 }[el.dataset.z]).map((n) => `<div class="hnt"${n.go ? ` data-go="${esc(n.go)}" role="button" tabindex="0"` : ""}><div class="hnt-a"><b>${esc(n.app)}</b><span>${esc(n.time)}</span></div><div class="hnt-b">${esc([n.title, n.body].filter(Boolean).join(" · "))}</div></div>`).join("")
         || '<div class="hw-na">Nenhum aviso desde que o app abriu</div>';
       setHtml(hk(el, "list"), h);
     },
