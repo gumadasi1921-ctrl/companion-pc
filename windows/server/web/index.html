@@ -846,6 +846,41 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
   :root[data-theme="modern"] .home-head h2 { font-size: 24px; }
   .hw { padding: 10px; gap: 6px; }
 }
+/* Tempo (widget, tela Mais › Tempo e Ajustes › Tempo) */
+.wxi, .wx-facts .hi, .wxr .hi { display: block; width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.wxi.sm { width: 24px; height: 24px; } .wxi.md { width: 28px; height: 28px; } .wxi.big { width: 44px; height: 44px; } .wxi.huge { width: 72px; height: 72px; }
+.wxp { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 44px; min-width: 0; }
+.wxp b { font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; } .wxp .wxi, .wxp > .hi { width: 40px; height: 40px; }
+.wxp span { font-size: 13px; font-weight: 600; color: var(--p2); }
+.wxa { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.wxl { display: flex; align-items: center; gap: 16px; min-width: 0; } .wxm { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.wxn { display: flex; align-items: center; gap: 10px; } .wxt { font-size: 40px; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; }
+.wxc { font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.wxr { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--p2); min-width: 0; } .wxr .hi { width: 16px; height: 16px; } .wxr span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wxold { color: var(--warning, var(--p3)); }
+.hw[data-w="weather"] { cursor: pointer; }
+#t-weather > :not(.home-head) { max-width: 720px; }
+.wx-empty { padding: 18px; text-align: center; } .wx-empty p { margin: 0 0 12px; color: var(--p2); } .wx-empty .btn { min-height: 44px; }
+.wx-now { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px; text-align: center; }
+.wx-city { font-weight: 600; color: var(--p2); font-size: 14px; overflow-wrap: anywhere; }
+.wx-big { display: flex; align-items: center; gap: 14px; } .wx-big b { font-size: 72px; line-height: 1; font-weight: 300; font-variant-numeric: tabular-nums; }
+.wx-cond { font-size: 18px; font-weight: 600; } .wx-feels { color: var(--p2); }
+.wx-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; width: 100%; margin-top: 10px; text-align: left; }
+.wx-facts > div { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 32px; } .wx-facts .hi { width: 20px; height: 20px; }
+.wx-facts span { flex: 1; min-width: 0; color: var(--p2); font-size: 13px; } .wx-facts b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wx-hours { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0 8px; scroll-snap-type: x proximity; scrollbar-width: thin; }
+.wxh { flex: none; width: 64px; min-height: 116px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 4px; padding: 8px 0; border: 1px solid var(--separator, var(--p4)); border-radius: var(--r-list, 2px); background: var(--surface, transparent); scroll-snap-align: start; }
+.wxh span { font-size: 13px; color: var(--p2); } .wxh b { font-variant-numeric: tabular-nums; } .wxh small { font-size: 12px; min-height: 16px; color: var(--chart-down, var(--p2)); font-variant-numeric: tabular-nums; }
+.wx-days { padding: 2px 12px; }
+.wxd { display: grid; grid-template-columns: 44px 26px 38px 34px minmax(48px, 1fr) 34px; align-items: center; gap: 8px; min-height: 48px; border-top: 1px solid var(--separator, var(--p4)); }
+.wxd:first-child { border-top: 0; } .wxd-n { font-weight: 600; } .wxd-p { font-size: 12px; color: var(--chart-down, var(--p2)); } .wxd-t { text-align: right; font-variant-numeric: tabular-nums; }
+.wxd-bar { position: relative; height: 6px; border-radius: 3px; background: var(--surface-3, var(--p4)); } .wxd-bar i { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: var(--accent-fill, var(--p)); }
+.wx-foot { margin: 12px 0 4px; font-size: 13px; color: var(--p3); }
+.wx-form { display: flex; gap: 8px; padding: 8px 0; } .wx-form .fi { flex: 1; min-width: 0; min-height: 44px; } .wx-form .btn { min-height: 44px; }
+.wx-res { display: flex; flex-direction: column; }
+.wx-r { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; min-height: 52px; padding: 6px 4px; text-align: left; border-top: 1px solid var(--separator, var(--p4)); }
+.wx-r span { color: var(--p3); font-size: 13px; overflow-wrap: anywhere; }
+#wx-del { min-height: 44px; margin-top: 6px; }
 /* Mais › Widgets do Início */
 .wd-info { margin: 10px 0 4px; font-size: 14px; color: var(--p2); display: flex; flex-direction: column; gap: 6px; max-width: 640px; }
 .wd-info .hbar { margin: 0; }
@@ -1217,12 +1252,15 @@ input.num { min-height: 36px; }
       <button class="mrow" data-view="games"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-gamepad-2"/></svg><span>Jogos</span></button>
       <button class="mrow" data-view="dota"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-gamepad"/></svg><span>Dota</span></button>
       <button class="mrow" data-view="work"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-briefcase"/></svg><span>Trabalho</span></button>
+      <button class="mrow" data-view="weather"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-cloud-sun"/></svg><span>Tempo</span></button>
       <button class="mrow" data-view="send"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-folder-open"/></svg><span>Arquivos</span></button>
       <button class="mrow" data-view="power"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-log-out"/></svg><span>Energia</span></button>
       <button class="mrow" data-view="widgets"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-layout-grid"/></svg><span>Widgets do Início</span></button>
       <button class="mrow" data-view="sys"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-sliders-horizontal"/></svg><span>Ajustes</span></button>
     </div>
   </section>
+  <!-- MAIS > Tempo (previsão; renderizada pelo JS) -->
+  <section class="tab" id="t-weather"></section>
   <!-- MAIS > Widgets do Início (também pelo botão Editar do Início) -->
   <section class="tab" id="t-widgets">
     <div class="home-head"><h2>Widgets do Início</h2><button class="btn sm primary" id="wd-done">Concluído</button></div>
@@ -1452,6 +1490,12 @@ input.num { min-height: 36px; }
         </div>
       </div>
       <div>
+        <h2 id="wx-set-h">Tempo</h2>
+        <div class="card" id="wx-set">
+          <div class="set"><label>Cidade da previsão<small id="wx-cur">Nenhuma cidade escolhida</small></label><button class="btn sm hidden" id="wx-del">Remover</button></div>
+          <form class="wx-form" id="wx-form" role="search"><input class="fi" id="wx-q" type="search" maxlength="80" placeholder="Buscar cidade" aria-label="Buscar cidade" autocomplete="off" autocapitalize="words" spellcheck="false"><button class="btn" type="submit">Buscar</button></form>
+          <div class="wx-res" id="wx-res" role="list"></div>
+        </div>
         <h2>Aparência</h2>
         <div class="card" id="ap">
           <div class="thcards" id="ap-theme" role="group" aria-label="Tema">
@@ -1505,6 +1549,7 @@ input.num { min-height: 36px; }
   <button class="nm" data-view="games"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-gamepad-2"/></svg><span>Jogos</span></button>
   <button class="nm" data-view="dota"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-gamepad"/></svg><span>Dota</span></button>
   <button class="nm" data-view="work"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-briefcase"/></svg><span>Trabalho</span></button>
+  <button class="nm" data-view="weather"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-cloud-sun"/></svg><span>Tempo</span></button>
   <button class="nm" data-view="send"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-folder-open"/></svg><span>Arquivos</span></button>
   <button class="nm" data-view="power"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-log-out"/></svg><span>Energia</span></button>
   <button class="nm" data-view="widgets"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-layout-grid"/></svg><span>Widgets do Início</span></button>
@@ -1705,6 +1750,7 @@ function onMsg(m) {
     case "art": state.art = { [m.id]: "data:image/jpeg;base64," + m.jpg }; renderNow(); break;
     case "games": state.games = m.d; state.gamesT = performance.now(); renderGames(); break;
     case "dota": dotaSet(m.d, m.auto_open, m.img_key); break;
+    case "weather": wxSet(m.d); break;
     case "gameart": state.gameart = { [m.id]: "data:image/jpeg;base64," + m.jpg }; renderGames(); break;
     case "event":
       if (m.kind === "pomo.done") { pomoDone(m); break; }
@@ -1757,7 +1803,7 @@ const SECTIONS = {
   ctrl: [["mouse", "Mouse e teclado"], ["screen", "Tela do PC"]],
   deck: [["deck", "Botões"]],
   tasks: [["tasks", "Tarefas"]],
-  mais: [["more", "Mais"], ["dash", "Sistema"], ["media", "Tocando"], ["mix", "Mixer"], ["games", "Jogos"], ["dota", "Dota"], ["work", "Trabalho"],
+  mais: [["more", "Mais"], ["dash", "Sistema"], ["media", "Tocando"], ["mix", "Mixer"], ["games", "Jogos"], ["dota", "Dota"], ["work", "Trabalho"], ["weather", "Tempo"],
     ["send", "Arquivos"], ["power", "Energia"], ["widgets", "Widgets do Início"], ["sys", "Ajustes"]],
 };
 const GROUPS = { ctrl: ["mouse", "screen"], radio: ["media", "mix"] };
@@ -1799,6 +1845,7 @@ function showView(name, temp) {
   if (vis("games")) loadGamesExtra();
   if (vis("dota")) dotaShow();
   if (vis("work")) loadWork(true);
+  if (vis("weather")) wxShow();
   if (vis("tasks")) loadTasks();
   if (vis("inicio")) homeShow();
   if (vis("widgets")) wdShow();
@@ -2812,9 +2859,118 @@ Object.assign(HOME_W, {
     },
   },
 });
+// ---------------------------------------------------------------- Tempo: a previsão vem do servidor (Open-Meteo) só para a cidade que o usuário escolheu em Ajustes › Tempo
+const wx = { d: null, busy: false, res: [] };
+const wxT = (v) => (Number.isFinite(v) ? Math.round(v) + "°" : "–");
+const wxHm = (iso) => (typeof iso === "string" && iso.length >= 16 ? iso.slice(11, 16) : "");
+const wxPlace = (p) => [p?.name, p?.admin, p?.country].filter(Boolean).join(", ");
+const wxIc = (name, cls = "wxi") => (name ? ic(name, cls) : "");
+const wxData = () => (wx.d?.place && wx.d.current ? wx.d : null);
+const wxAt = (d) => (d?.updated_at ? new Date(d.updated_at * 1000).toTimeString().slice(0, 5) : "");
+const WX_DAY = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+function wxSet(d) {
+  if (!d || typeof d !== "object") return;
+  wx.d = d; homeUpd("weather"); if (vis("weather")) wxRender(); wxSetUpd();
+}
+// widget do Início (P ícone + temperatura; A e L com condição, mín/máx, chance de chuva e cidade); campo ausente = escondido
+function wxWidgetHtml(z, d) {
+  if (!d.place) return z === "P" ? `<div class="wxp" data-wx="go">${ic("cloud-sun")}<span>Escolher cidade</span></div>` : '<div class="hw-na" data-wx="go">Escolha sua cidade em Ajustes › Tempo</div>';
+  const c = d.current, t0 = d.daily?.[0];
+  if (!c) return z === "P" ? `<div class="wxp">${ic("cloud")}<b>–</b></div>` : '<div class="hw-na">Sem previsão agora (sem conexão com o serviço)</div>';
+  if (z === "P") return `<div class="wxp" title="${esc(c.text || "")}">${wxIc(c.icon)}<b>${wxT(c.temp)}</b></div>`;
+  const rng = t0 && (Number.isFinite(t0.min) || Number.isFinite(t0.max)) ? `<div class="wxr">mín ${wxT(t0.min)} · máx ${wxT(t0.max)}</div>` : "";
+  const rain = Number.isFinite(t0?.pop) ? `<div class="wxr">${ic("droplets")}<span>Chuva ${Math.round(t0.pop)}%</span></div>` : "";
+  const old = d.stale && d.updated_at ? `<div class="wxr wxold">Desatualizado desde ${wxAt(d)}</div>` : "";
+  const cond = c.text ? `<div class="wxc">${esc(c.text)}</div>` : "";
+  const big = `<div class="wxn">${wxIc(c.icon, "wxi big")}<b class="wxt">${wxT(c.temp)}</b></div>`;
+  return z === "L" ? `<div class="wxl">${big}<div class="wxm">${cond}${rng}${rain}${old}</div></div>` : `<div class="wxa">${big}${cond}${rng}${rain}${old}</div>`;
+}
+Object.assign(HOME_W, {
+  weather: {
+    name: "Tempo", icon: "cloud-sun", sizes: "PAL", def: "A",
+    html: (z) => (z === "P" ? '<div data-k="body"></div>' : '<div class="hw-t"><span>Tempo</span><span data-k="city"></span></div><div data-k="body"></div>'),
+    ready: () => !!wx.d && !(wx.d.place && wx.d.pending && !wx.d.stale),   // cidade escolhida e primeira busca em andamento = esqueleto
+    upd(el) {
+      setText(hk(el, "city"), wx.d.place?.name || "");
+      setHtml(hk(el, "body"), wxWidgetHtml(el.dataset.z, wx.d));
+    },
+  },
+});
+
+// tela Mais › Tempo
+function wxRender() {
+  const root = $("t-weather"), d = wx.d;
+  const head = '<div class="home-head"><h2>Tempo</h2><button class="btn sm" id="wx-ref">Atualizar</button></div>';
+  if (!d) { setHtml(root, head + '<div class="card"><div class="hw-sk" style="display:flex" aria-hidden="true"><i></i><i></i><i></i></div></div>'); return; }
+  if (!d.place) { setHtml(root, `${head}<div class="card wx-empty"><p>Nenhuma cidade escolhida.</p><button class="btn primary" data-wx="go">Escolher a cidade em Ajustes</button></div>`); return; }
+  const c = d.current;
+  if (!c) { setHtml(root, `${head}<div class="card wx-empty"><p>${d.stale ? "Sem previsão agora: o PC está sem conexão com o serviço." : "Buscando a previsão…"}</p></div>`); return; }
+  const days = d.daily || [], t0 = days[0], u = d.units || {};
+  const facts = [["droplets", "Umidade", Number.isFinite(c.humidity) ? Math.round(c.humidity) + "%" : ""], ["wind", "Vento", Number.isFinite(c.wind) ? Math.round(c.wind) + " " + (u.wind || "km/h") : ""],
+    ["sunrise", "Nascer do sol", wxHm(t0?.sunrise)], ["sunset", "Pôr do sol", wxHm(t0?.sunset)]].filter((f) => f[2]);
+  const now = `<div class="card wx-now"><div class="wx-city">${esc(wxPlace(d.place))}</div>
+    <div class="wx-big">${wxIc(c.icon, "wxi huge")}<b>${wxT(c.temp)}</b></div>
+    ${c.text ? `<div class="wx-cond">${esc(c.text)}</div>` : ""}
+    ${Number.isFinite(c.feels) ? `<div class="wx-feels">Sensação ${wxT(c.feels)}</div>` : ""}
+    ${facts.length ? `<div class="wx-facts">${facts.map(([i, l, v]) => `<div>${ic(i)}<span>${l}</span><b>${esc(v)}</b></div>`).join("")}</div>` : ""}</div>`;
+  const hrs = (d.hourly || []).length ? `<h3 class="wd-h">Próximas 24 horas</h3><div class="wx-hours" role="list" tabindex="0" aria-label="Próximas 24 horas">${d.hourly.map((h, i) => `<div class="wxh" role="listitem"><span>${i === 0 ? "Agora" : esc(wxHm(h.t).slice(0, 2)) + "h"}</span>${wxIc(h.icon, "wxi md") || '<i class="wxi md"></i>'}<b>${wxT(h.temp)}</b><small>${Number.isFinite(h.pop) && h.pop > 0 ? Math.round(h.pop) + "%" : ""}</small></div>`).join("")}</div>` : "";
+  const lo = Math.min(...days.map((x) => x.min).filter(Number.isFinite)), hi = Math.max(...days.map((x) => x.max).filter(Number.isFinite)), span = hi - lo || 1;
+  const wk = days.length ? `<h3 class="wd-h">Próximos ${days.length} dias</h3><div class="card wx-days">${days.map((x, i) => {
+    const [yy, mm, dd] = String(x.d).split("-").map(Number), nm = i === 0 ? "Hoje" : WX_DAY[new Date(yy, mm - 1, dd).getDay()] || "";
+    const bar = Number.isFinite(x.min) && Number.isFinite(x.max) ? `<i style="left:${(((x.min - lo) / span) * 100).toFixed(1)}%;width:${Math.max(4, ((x.max - x.min) / span) * 100).toFixed(1)}%"></i>` : "";
+    return `<div class="wxd"><span class="wxd-n">${nm}</span>${wxIc(x.icon, "wxi sm") || '<i class="wxi sm"></i>'}<small class="wxd-p">${Number.isFinite(x.pop) && x.pop > 0 ? Math.round(x.pop) + "%" : ""}</small>
+      <span class="wxd-t">${wxT(x.min)}</span><div class="wxd-bar" aria-hidden="true">${bar}</div><span class="wxd-t">${wxT(x.max)}</span></div>`;
+  }).join("")}</div>` : "";
+  const foot = `<div class="wx-foot">${d.stale ? `Desatualizado desde ${wxAt(d)}: sem conexão com o serviço de previsão.` : `Atualizado às ${wxAt(d)}`}</div>`;
+  setHtml(root, head + now + hrs + wk + foot);
+}
+async function wxRefresh() {
+  const b = $("wx-ref"); if (wx.busy) return; wx.busy = true; if (b) b.disabled = true;
+  try {
+    const r = await send("weather.refresh"); wxSet(r.d);
+    if (r.wait_s > 0) toast(`Já atualizou agora há pouco. Tente de novo em ${r.wait_s} s`, "ok"); else toast("Previsão atualizada", "ok");
+  } catch (e) { if (e.message !== "offline") toast(e.message, "bad"); }
+  finally { wx.busy = false; const nb = $("wx-ref"); if (nb) nb.disabled = false; }
+}
+function wxGoSettings() { buzz(8); showView("sys"); requestAnimationFrame(() => $("wx-set-h")?.scrollIntoView({ block: "start" })); }
+$("t-weather").addEventListener("click", (e) => { if (e.target.closest("#wx-ref")) { buzz(8); wxRefresh(); } else if (e.target.closest("[data-wx]")) wxGoSettings(); });
+function wxShow() {
+  wxRender();
+  if (ws && ws.readyState === 1) send("weather.get").then((r) => wxSet(r.d)).catch(() => {});
+}
+
+// Ajustes › Tempo: busca de cidade (nome, estado, país); a escolhida fica salva no servidor e vale para todos os aparelhos
+function wxSetUpd() {
+  const d = wx.d, cur = $("wx-cur"); if (!cur) return;
+  cur.textContent = d?.place ? wxPlace(d.place) : "Nenhuma cidade escolhida";
+  $("wx-del").classList.toggle("hidden", !d?.place);
+}
+function wxResults(list, msg) {
+  wx.res = list || [];
+  $("wx-res").innerHTML = msg ? `<div class="hw-na">${esc(msg)}</div>` : wx.res.map((r, i) => `<button class="wx-r" data-i="${i}"><b>${esc(r.name)}</b><span>${esc([r.admin, r.country].filter(Boolean).join(", "))}</span></button>`).join("");
+}
+$("wx-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const q = $("wx-q").value.trim(); if (q.length < 2) return toast("Digite o nome da cidade", "bad");
+  buzz(8); wxResults([], "Buscando…");
+  try { const r = await send("weather.search", { q }); wxResults(r.results, r.results.length ? "" : "Nenhuma cidade encontrada"); }
+  catch (err) { wxResults([], err.message === "offline" ? "Sem conexão com o PC" : err.message); }
+});
+$("wx-res").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-i]"), place = b && wx.res[+b.dataset.i]; if (!place) return;
+  buzz(8);
+  try { const r = await send("weather.set_place", { place }); wxSet(r.d); wxResults([]); $("wx-q").value = ""; toast("Cidade salva", "ok"); }
+  catch (err) { if (err.message !== "offline") toast(err.message, "bad"); }
+});
+$("wx-del").onclick = async () => {
+  buzz(8);
+  try { const r = await send("weather.set_place", { place: null }); wxSet(r.d); toast("Cidade removida", "ok"); }
+  catch (err) { if (err.message !== "offline") toast(err.message, "bad"); }
+};
+
 const HOME_DEF = {
-  phone: [{ id: "now", size: "A" }, { id: "tasks", size: "A" }, { id: "pcquick", size: "A" }],
-  tablet: [["cpu", "L"], ["net", "L"], ["now", "G"], ["tasks", "A"], ["mem", "A"], ["work", "L"], ["games", "L"], ["procs", "L"], ["notif", "L"], ["quick", "L"]].map(([id, size]) => ({ id, size })),
+  phone: [["now", "L"], ["weather", "P"], ["tasks", "L"], ["pcquick", "P"]].map(([id, size]) => ({ id, size })),
+  tablet: [["cpu", "L"], ["net", "L"], ["now", "G"], ["tasks", "A"], ["mem", "A"], ["work", "L"], ["games", "L"], ["procs", "L"], ["notif", "L"], ["quick", "L"], ["weather", "L"]].map(([id, size]) => ({ id, size })),
 };
 const szFix = (id, z) => { const ok = HOME_W[id].sizes; return ok.includes(z) ? z : [...SZ_FALL[SZ[z] ? z : HOME_W[id].def]].find((x) => ok.includes(x)); };
 const homeMode = () => (wideMQ.matches ? "tablet" : matchMedia("(orientation: landscape)").matches ? "land" : "port");
@@ -3009,6 +3165,7 @@ $("home").addEventListener("click", (e) => {
   const t = e.target.closest(".trow[data-id]"); if (t) return homeTaskToggle(t.dataset.id);
   if (e.target.closest('.hw[data-w="now"]')) { buzz(8); showView("media"); }   // fora dos botões: abre o Rádio
   if (e.target.closest('.hw[data-w="dota"]')) { buzz(8); showView("dota"); }
+  if (e.target.closest('.hw[data-w="weather"]')) { if (e.target.closest("[data-wx]") || !wxData()) return wxGoSettings(); buzz(8); showView("weather"); }
 });
 $("home").addEventListener("keydown", (e) => { const t = e.target.closest(".trow[data-id]"); if (t && (e.key === " " || e.key === "Enter")) { e.preventDefault(); homeTaskToggle(t.dataset.id); } });
 // 1×/s e só com o Início visível (gráficos e medidores)
