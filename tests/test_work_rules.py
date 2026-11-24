@@ -209,7 +209,22 @@ class Parse(unittest.TestCase):
 
     def test_capcut(self):
         self.assertEqual(work.parse_title("capcut.exe", "CapCut"), (work.CAPCUT_NO_PROJECT, None))
-        self.assertEqual(work.parse_title("capcut.exe", "Outra coisa"), (None, None))   # formato com projeto não confirmado
+        self.assertEqual(work.parse_title("capcut.exe", "Outra coisa"), (None, None))
+        self.assertEqual(work.parse_title("capcut.exe", "CapCutProjeto X (1)"), ("Projeto X (1)", None))
+        self.assertFalse(work.is_generic("Projeto X (1)"))
+
+    def test_capcut_draft_project(self):
+        def w(p):
+            return p.replace("/", chr(92))   # caminhos do Windows
+        d = "C:/Users/U/CapCut/User Data/com.lveditor.draft/"
+        self.assertEqual(work.draft_project([w(d + "Projeto X (1)/draft_content.json"), w(d + "Projeto X (1)/a/b.bin"), w("C:/outro.txt")]), "Projeto X (1)")
+        self.assertIsNone(work.draft_project([w(d + "A/x"), w(d + "B/y")]))   # duas pastas: não adivinha
+        self.assertIsNone(work.draft_project([w("C:/outro.txt"), w(d + "arquivo_solto.json")]))
+        self.assertIsNone(work.draft_project([]))
+        self.assertEqual(work.draft_project([d + "P/x"]), "P")
+        work._CAPCUT_CACHE.clear()
+        work._CAPCUT_CACHE[99] = (1000.0, "Em cache")
+        self.assertEqual(work.capcut_project(99, now=1005.0), "Em cache")   # <10 s: sem nova consulta
         self.assertTrue(work.is_generic(work.CAPCUT_NO_PROJECT))
         self.assertEqual(work.APPS["capcut.exe"], "CapCut")
         self.assertEqual(work.APPS["illustrator.exe"], "Illustrator")

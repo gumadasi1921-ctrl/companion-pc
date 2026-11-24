@@ -20,8 +20,9 @@ Formatos de título vistos neste PC (Windows 11, versões 2026):
                  (o caminho vem com os nomes de pasta traduzidos, como o Explorer mostra)
   After Effects: "Adobe After Effects 2026 - C:\\Users\\User\\Desktop\\...\\projeto.aep"
   Illustrator:   "arquivo.pdf @ 66,67 % (RGB/Visualizar)"       -> só o nome (.ai/.eps/.pdf/.svg); Illustrator.exe
-  CapCut:        "CapCut" (janela principal, sem projeto)      -> "CapCut · sem projeto"; CapCut.exe.
-                 O formato do título COM um projeto aberto não foi confirmado: nada é inferido (fica "sem título").
+  CapCut:        "CapCut" (a barra com o nome é desenhada pelo próprio app: o título do Windows nunca traz o projeto).
+                 Projeto = nome da única pasta de .../com.lveditor.draft/<pasta>/ entre os arquivos abertos do
+                 processo (draft_project/capcut_project); sem isso -> "CapCut · sem projeto". CapCut.exe.
 Nomes de arquivo, clientes e jobs não vão para o log.
 """
 import ctypes
@@ -40,6 +41,9 @@ log = logging.getLogger("companion")
 APPS = {"photoshop.exe": "Photoshop", "adobe premiere pro.exe": "Premiere", "afterfx.exe": "After Effects",
         "illustrator.exe": "Illustrator", "capcut.exe": "CapCut"}
 CAPCUT_NO_PROJECT = "CapCut · sem projeto"
+CAPCUT_SEP = chr(1)   # título interno "CapCut<SEP><projeto>" montado por foreground() (o do Windows só diz "CapCut")
+CAPCUT_DRAFT = re.compile(r"com\.lveditor\.draft[\\/]+([^\\/]+)[\\/]", re.I)
+CAPCUT_EVERY_S = 10
 AI_EXT = {".ai", ".eps", ".pdf", ".svg"}
 GENERIC_RX = re.compile(r"^(sem t[ií]tulo|untitled)(-\d+)?\*?$", re.I)
 MAX_RULES, NAME_MAX = 500, 60
@@ -69,7 +73,10 @@ def parse_title(exe, title):
     """(nome do arquivo ou None, caminho completo ou None). Nada além do que está no título."""
     title = (title or "").strip()
     if exe == "capcut.exe":
-        return (CAPCUT_NO_PROJECT, None) if title == "CapCut" else (None, None)
+        if title == "CapCut":
+            return CAPCUT_NO_PROJECT, None
+        proj = title[len("CapCut" + CAPCUT_SEP):] if title.startswith("CapCut" + CAPCUT_SEP) else ""
+        return (proj, None) if proj and not CTRL.search(proj) else (None, None)
     if exe == "illustrator.exe":
         if " @ " not in title:
             return None, None
@@ -100,6 +107,44 @@ def is_generic(f):
     """Nome que não identifica um arquivo ("sem título", "Untitled-3", vazio, CapCut sem projeto)."""
     f = (f or "").strip()
     return not f or f == UNTITLED or f == CAPCUT_NO_PROJECT or bool(GENERIC_RX.match(f))
+
+
+def draft_project(paths):
+    """Nome da pasta de projeto do CapCut (.../com.lveditor.draft/<pasta>/...) entre os arquivos abertos: só
+    se houver exatamente UMA pasta distinta; zero ou várias = None (nada de adivinhar)."""
+    names = set()
+    for p in paths:
+        m = CAPCUT_DRAFT.search(str(p))
+        if m and m.group(1) and not m.group(1).startswith(".") and len(m.group(1)) <= FOLDER_MAX:
+            names.add(m.group(1))
+    return names.pop() if len(names) == 1 else None
+
+
+_CAPCUT_CACHE = {}   # pid -> (hora, projeto)
+
+
+def capcut_project(pid, now=None):
+    """Projeto aberto no CapCut pelos arquivos abertos do processo e filhos (psutil); no máximo 1x/10 s por pid.
+    O título da janela do Windows não traz o nome (o CapCut desenha a própria barra)."""
+    now = time.time() if now is None else now
+    hit = _CAPCUT_CACHE.get(pid)
+    if hit and now - hit[0] < CAPCUT_EVERY_S:
+        return hit[1]
+    import psutil
+    paths = []
+    try:
+        root = psutil.Process(pid)
+        for pr in [root] + root.children(recursive=True):
+            try:
+                paths += [f.path for f in pr.open_files()]
+            except (psutil.Error, OSError):
+                continue
+    except (psutil.Error, OSError):
+        pass
+    proj = draft_project(paths)
+    _CAPCUT_CACHE.clear() if len(_CAPCUT_CACHE) > 20 else None
+    _CAPCUT_CACHE[pid] = (now, proj)
+    return proj
 
 
 def norm_path(p):
@@ -267,6 +312,12 @@ def foreground():
         return "", ""
     if exe not in APPS:
         return exe, ""
+    if exe == "capcut.exe":
+        try:
+            proj = capcut_project(pid.value)
+        except Exception:  # noqa: BLE001
+            proj = None
+        return exe, "CapCut" + (CAPCUT_SEP + proj if proj else "")
     buf = ctypes.create_unicode_buffer(1024)
     user32.GetWindowTextW(wintypes.HWND(hwnd), buf, 1024)
     title = buf.value
