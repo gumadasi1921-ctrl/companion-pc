@@ -66,6 +66,7 @@ import pc_info
 import watchers
 import pomodoro
 import tasks
+import weather
 import work
 
 VERSION = "1.6"
@@ -88,6 +89,8 @@ DEFAULT_CFG = {
     "games_ignore": games.DEFAULT_IGNORE,
     # Ponte do DotaCopilot (mesmo PC, só leitura); auto_open = o app vai para a tela Dota ao abrir o jogo.
     "dota": dict(dota.DEFAULT_CFG),
+    # Previsão (Open-Meteo): só a cidade que o usuário escolhe no app (place = {name, admin, country, lat, lon} ou null).
+    "weather": dict(weather.DEFAULT_CFG),
     "game_folders": [],
     "shortcuts": [
         {"id": "explorer", "name": "Explorador de Arquivos", "open": "explorer.exe"},
@@ -151,6 +154,15 @@ def load_config():
             tmp.write_text(json.dumps(raw, indent=2, ensure_ascii=False), encoding="utf-8")
             tmp.replace(CFG_PATH)
         cfg["dota"] = raw["dota"]
+    # previsão: completa com os padrões (cfg["weather"] é o mesmo dict que o Weather usa) e grava a chave se faltar
+    user_w = json.loads(CFG_PATH.read_text(encoding="utf-8")).get("weather")
+    cfg["weather"] = {**weather.DEFAULT_CFG, **(user_w if isinstance(user_w, dict) else {})}
+    if not isinstance(user_w, dict):
+        raw = json.loads(CFG_PATH.read_text(encoding="utf-8"))
+        raw["weather"] = dict(weather.DEFAULT_CFG)
+        tmp = CFG_PATH.with_name("config.json.tmp")
+        tmp.write_text(json.dumps(raw, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(CFG_PATH)
     return cfg
 
 
@@ -875,6 +887,10 @@ ASYNC_ACTIONS = {
     "games.launch": lambda p: asyncio.to_thread(MON.launch, str(p.get("id"))),
     "notif.sub": lambda p: notif_sub(p),
     "dota.get": lambda p: dota_get(),
+    "weather.get": lambda p: weather_get(),
+    "weather.search": lambda p: weather_search(p),
+    "weather.set_place": lambda p: weather_set_place(p),
+    "weather.refresh": lambda p: weather_refresh(),
 }
 
 
@@ -1144,6 +1160,7 @@ async def session(ws, peer, kind):
     await pomo_send([json.dumps({"t": "pomo", "d": await on_io(POMO.get)})], only=ws)
     if DOTA.state is not None:
         await dota_send(DOTA.state, only=ws)
+    await weather_send(WEATHER.state(), only=ws)
     log.info("conectado: %s (%s) tela %s", kind, peer, str(hello.get("screen", "?"))[:120])
     try:
         async for raw in ws:
@@ -1199,6 +1216,7 @@ QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "m
                  "work.get", "work.week", "work.csv",  # nomes de cliente/job/arquivo
                  "tasks.get", "tasks.toggle",  # texto das tarefas
                  "dota.get",  # consultada a cada abertura da tela Dota
+                 "weather.get", "weather.search", "weather.set_place", "weather.refresh",  # cidade escolhida / texto digitado
                  "pomo.get", "pomo.start", "pomo.pause", "pomo.resume", "pomo.skip", "pomo.reset", "pomo.config",
                  "pomo_get", "pomo_start", "pomo_pause", "pomo_resume", "pomo_skip", "pomo_reset", "pomo_config",
                  # modo painel (operações locais; mesmos motivos: texto de tarefas, clientes, pastas, código de pareamento)
@@ -1452,6 +1470,72 @@ async def dota_loop():
         await asyncio.sleep(0.5)
 
 
+WEATHER = weather.Weather(BASE, CFG["weather"])
+
+
+def weather_persist(place):
+    """Grava só weather.place no config.json (atômico, sem mexer no resto) e no CFG em memória (mesmo dict do Weather)."""
+    with _cfg_lock:
+        cur = json.loads(CFG_PATH.read_text(encoding="utf-8"))
+        w = cur.get("weather") if isinstance(cur.get("weather"), dict) else dict(weather.DEFAULT_CFG)
+        w["place"] = place
+        cur["weather"] = w
+        tmp = CFG_PATH.with_name("config.json.tmp")
+        tmp.write_text(json.dumps(cur, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(CFG_PATH)
+    CFG["weather"]["place"] = place
+
+
+async def weather_send(state, only=None):
+    msg = json.dumps({"t": "weather", "d": state}, ensure_ascii=False)
+    for ws in ([only] if only else list(clients)):
+        try:
+            await ws.send(msg)
+        except ConnectionClosed:
+            clients.discard(ws)
+
+
+async def weather_get():
+    return {"d": WEATHER.state()}
+
+
+async def weather_search(p):
+    return {"results": await on_io(WEATHER.search, p.get("q"))}
+
+
+async def weather_set_place(p):
+    """Escolhe a cidade (um resultado de weather.search): grava no config.json, busca a previsão na hora e avisa todos."""
+    place = weather.clean_place(p.get("place"))
+
+    def work():
+        weather_persist(place)
+        WEATHER.set_place(place)
+        WEATHER.refresh()
+        return WEATHER.state()
+    state = await on_io(work)
+    await weather_send(state)
+    return {"d": state}
+
+
+async def weather_refresh():
+    changed, wait = await on_io(WEATHER.refresh_manual)
+    state = WEATHER.state()
+    if changed:
+        await weather_send(state)
+    return {"d": state, "wait_s": wait}
+
+
+async def weather_loop():
+    """Atualiza a cada 30 min, só com cidade escolhida e aparelho conectado (parado sem aparelho)."""
+    while True:
+        try:
+            if WEATHER.due(bool(clients)) and await on_io(WEATHER.refresh):
+                await weather_send(WEATHER.state())
+        except Exception:  # noqa: BLE001
+            log.exception("weather_loop")
+        await asyncio.sleep(20)
+
+
 async def now_loop():
     while True:
         try:
@@ -1679,6 +1763,7 @@ async def main():
     asyncio.create_task(now_loop())
     asyncio.create_task(games_loop())
     asyncio.create_task(dota_loop())
+    asyncio.create_task(weather_loop())
     asyncio.create_task(work_loop())
     asyncio.create_task(adb_loop())
     asyncio.create_task(downloads_loop())
