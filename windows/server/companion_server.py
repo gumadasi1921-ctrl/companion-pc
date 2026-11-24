@@ -1436,6 +1436,11 @@ async def trello_loop():
             if TRELLO.due(bool(clients)):
                 await on_io(TRELLO.refresh)
             await trello_send()
+            if phone_connected() and TRELLO.enabled():
+                d = await on_io(TRELLO.digest)   # 1x por dia, a partir das 9h (Brasília), com o aparelho conectado
+                if d:
+                    log.info("aviso do Trello enviado")   # sem nomes de cards
+                    await phones_send({"t": "event", "kind": "trello.digest", **d})
         except Exception as e:  # noqa: BLE001
             log.warning("trello_loop: %s", type(e).__name__)
         await asyncio.sleep(20)

@@ -926,6 +926,20 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 @media (prefers-reduced-motion: reduce) { .hq button:active { transform: none; } }
 .toast.undo { display: flex; align-items: center; gap: 8px; padding: 2px 2px 2px 14px; }
 .toast.undo button { min-height: 44px; padding: 0 14px; font-weight: 700; color: var(--accent-text, var(--p)); }
+.trl-sec { display: grid; gap: 10px; align-content: start; margin-top: 14px; min-width: 0; }
+.trl-gh { font-size: 13px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--text-2, var(--p2)); margin: 8px 0 2px; } .trl-g.late .trl-gh { color: var(--alert, #f87168); }
+.trl-msg { padding: 8px 12px; border: 1px solid var(--p3); border-radius: 8px; font-size: 14px; color: var(--text-2, var(--p2)); }
+.trc { min-height: 44px; padding: 8px 0; border-top: 1px solid var(--p4); cursor: pointer; min-width: 0; } .trc:first-child { border-top: 0; }
+.trc-r { display: flex; gap: 10px; align-items: baseline; justify-content: space-between; } .trc-n { font-size: 15px; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.trc-d { flex: none; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--text-2, var(--p2)); } .trc-d.late, .htr-c small.late { color: var(--alert, #f87168); font-weight: 600; }
+.trc-m { font-size: 13px; color: var(--text-3, var(--p3)); overflow-wrap: anywhere; } .trc-t { font-size: 12px; color: var(--text-2, var(--p2)); margin-top: 2px; }
+.trc-l { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; } .trl { display: inline-block; min-width: 28px; min-height: 8px; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 16px; color: #1d2125; }
+.htr-p { display: flex; flex-direction: column; justify-content: center; height: 100%; min-width: 0; } .htr-p b, .htr-h b { font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; } .htr-p span, .htr-h span { font-size: 12px; color: var(--text-2, var(--p2)); }
+.htr-late .htr-h b, .htr-late.htr-p b, .htr-late .htr-p b { color: var(--alert, #f87168); }
+.htr-l { display: flex; align-items: center; gap: 12px; min-width: 0; } .htr-l .htr-h { flex: none; display: flex; flex-direction: column; } .htr-l .htr-list { flex: 1; min-width: 0; }
+.htr-h { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.htr-list { display: flex; flex-direction: column; min-width: 0; } .htr-c { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; padding: 3px 0; font-size: 14px; }
+.htr-c span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .htr-c small { flex: none; color: var(--text-2, var(--p2)); }
 .wm-up { color: var(--success, var(--p2)); } .wm-dn { color: var(--text-3, var(--p3)); }
 .toast.undo.two { flex-wrap: wrap; justify-content: flex-end; padding: 8px 4px 2px 14px; width: max-content; max-width: calc(100vw - var(--rail, 0px) - 40px); }
 .toast.undo.two #ut-msg { flex: 1 1 100%; overflow-wrap: anywhere; }
@@ -1359,6 +1373,7 @@ input.num { min-height: 36px; }
       <div class="tk-sk"><i></i><i></i><i></i></div>
     </div>
     <div class="pm hidden" id="pomo"></div>
+    <div class="trl-sec hidden" id="trello" aria-label="Trello"></div>
   </section>
 
   <!-- RÁDIO > Tocando -->
@@ -1510,6 +1525,7 @@ input.num { min-height: 36px; }
           <div class="set"><label>Download concluído<small>Arquivo novo na pasta Downloads do PC</small></label><button class="switch" id="al-download" aria-label="Download concluído"></button></div>
           <div class="set"><label>Exportação concluída<small>Arquivo pronto nas pastas de exportação escolhidas no painel do PC</small></label><button class="switch" id="al-export" aria-label="Exportação concluída"></button></div>
           <div class="set"><label>Arquivo fora do lugar<small>Muito tempo em arquivo sem salvar ou fora das pastas de clientes (tempo: painel do PC)</small></label><button class="switch" id="al-misplaced" aria-label="Arquivo fora do lugar"></button></div>
+          <div class="set"><label>Trello: cards de hoje<small>Às 9h, os atrasados e os que vencem hoje</small></label><button class="switch" id="al-trello" aria-label="Trello: cards de hoje"></button></div>
           <div class="set"><label>GPU quente<small>Acima de <input class="num" id="al-gpu-v" type="number" inputmode="numeric"> °C</small></label><button class="switch" id="al-gpu" aria-label="GPU quente"></button></div>
           <div class="set"><label>CPU quente<small>Acima de <input class="num" id="al-cpu-v" type="number" inputmode="numeric"> °C <span id="al-cpu-note">(precisa do LibreHardwareMonitor no PC)</span></small></label><button class="switch" id="al-cpu" aria-label="CPU quente"></button></div>
           <div class="set"><label>Internet caiu<small>O PC ficou sem conexão (e quando volta)</small></label><button class="switch" id="al-net" aria-label="Internet caiu"></button></div>
@@ -1781,6 +1797,7 @@ function onMsg(m) {
     case "games": state.games = m.d; state.gamesT = performance.now(); renderGames(); break;
     case "dota": dotaSet(m.d, m.auto_open, m.img_key); break;
     case "weather": wxSet(m.d); break;
+    case "trello": trelloSet(m.d); break;
     case "gameart": state.gameart = { [m.id]: "data:image/jpeg;base64," + m.jpg }; renderGames(); break;
     case "event":
       if (m.kind === "pomo.done") { pomoDone(m); break; }
@@ -1789,6 +1806,7 @@ function onMsg(m) {
       if (m.kind === "export" && prefs.alerts.export) exportNotice(m);
       if (m.kind === "alert" && prefs.alerts.misplaced) misplacedNotice(m);
       if (m.kind === "focus.summary") focusSummary(m);
+      if (m.kind === "trello.digest" && prefs.alerts.trello) trelloDigest(m);
       break;
   }
 }
@@ -2435,6 +2453,7 @@ setInterval(() => { if (vis("work")) { loadWork(); if (workMode === "month") loa
 async function loadTasks() {
   if (!ws || ws.readyState !== 1) return;
   try { renderTasks(await send("tasks.get")); } catch {}
+  if (vis("tasks") && welcome.features?.trello && Date.now() - trT > 60000) trelloLoad();   // ao abrir Tarefas: no máximo 1x por minuto
 }
 // selo da navegação: tarefas pendentes (dado do próprio tasks.get)
 function tasksBadge(d) {
@@ -2445,6 +2464,41 @@ function tasksBadge(d) {
 function renderTasks(d) {
   tasksData = d; homeUpd("tasks");
   tasksBadge(d); tkView(d); pomoTaskOpts();
+}
+// ---- Trello (somente leitura): meus cards por prazo; toque abre o card no navegador do PC (só shortLink do cache)
+let trData = null, trT = 0;
+const TR_GROUPS = [["overdue", "Atrasados"], ["today", "Hoje"], ["tomorrow", "Amanhã"], ["week", "Esta semana"], ["later", "Depois"], ["none", "Sem prazo"]];
+const TR_COL = { green: "#4bce97", yellow: "#e2b203", orange: "#faa53d", red: "#f87168", purple: "#9f8fef", blue: "#579dff", sky: "#6cc3e0", lime: "#94c748", pink: "#e774bb", black: "#8590a2" };
+function trelloSet(d) { if (!d || typeof d !== "object" || !d.groups) return; trData = d; trRender(); homeUpd("trello"); }
+async function trelloLoad() { trT = Date.now(); try { trelloSet(await send("trello.get", { refresh: true })); } catch { trT = 0; } }
+const trDue = (c) => (c.due ? c.due.slice(8) + "/" + c.due.slice(5, 7) + (c.time && c.time !== "00:00" ? " " + c.time : "") : "");
+const trSpent = (c) => (c.spent && (c.spent.total_s || c.spent.today_s) ? `<div class="trc-t">Tempo: hoje ${humanDur(c.spent.today_s)} · semana ${humanDur(c.spent.week_s)} · total ${humanDur(c.spent.total_s)}</div>` : "");
+function trCard(c, late) {
+  const lbl = (c.labels || []).map((l) => `<span class="trl" style="background:${TR_COL[(l.c || "").split("_")[0]] || "var(--text-3, var(--p3))"}">${esc(l.n)}</span>`).join("");
+  return `<div class="trc" data-short="${esc(c.short)}" role="button" tabindex="0"><div class="trc-r"><span class="trc-n">${esc(c.name)}</span>${c.due ? `<span class="trc-d${late ? " late" : ""}">${esc(trDue(c))}</span>` : ""}</div>
+    <div class="trc-m">${esc([c.board, c.list].filter(Boolean).join(" › "))}</div>${lbl ? `<div class="trc-l">${lbl}</div>` : ""}${trSpent(c)}</div>`;
+}
+function trRender() {
+  const el = $("trello"), d = trData;
+  const show = !!d && d.on && !(pm.mode === "foco");
+  el.classList.toggle("hidden", !show); if (!show) return;
+  const msg = d.state === "bad_cred" ? "Credencial do Trello inválida: refaça no painel do PC (Ajustes › Trello)."
+    : d.state === "net_error" ? `Sem conexão com o Trello${d.hhmm ? ` · mostrando a leitura das ${d.hhmm}` : ""}.`
+    : d.state === "waiting" ? "Carregando os cards…" : "";
+  const n = Object.values(d.counts).reduce((a, b) => a + b, 0);
+  setHtml(el, `<div class="tk-h">Trello${d.hhmm && d.state === "ok" ? ` · atualizado às ${esc(d.hhmm)}` : ""}</div>${msg ? `<div class="trl-msg" role="status">${esc(msg)}</div>` : ""}`
+    + TR_GROUPS.map(([k, name]) => (d.groups[k].length ? `<div class="trl-g${k === "overdue" ? " late" : ""}"><div class="trl-gh">${name} · ${d.groups[k].length}</div><div class="tk-grp">${d.groups[k].map((c) => trCard(c, k === "overdue")).join("")}</div></div>` : "")).join("")
+    + (!n && d.state === "ok" ? '<div class="tk-empty">Nenhum card atribuído a você.</div>' : "")
+    + (d.hidden_done ? `<div class="tk-foot">${d.hidden_done} com prazo concluído não aparece${d.hidden_done === 1 ? "" : "m"} aqui</div>` : ""));
+}
+$("trello").onclick = (e) => {
+  const r = e.target.closest(".trc[data-short]"); if (!r) return; buzz(8);
+  send("trello.open", { short: r.dataset.short }).then(() => toast("Aberto no navegador do PC", "ok")).catch((er) => toast(er.message, "bad"));
+};
+$("trello").onkeydown = (e) => { const r = e.target.closest(".trc[data-short]"); if (r && (e.key === " " || e.key === "Enter")) { e.preventDefault(); r.click(); } };
+function trelloDigest(m) {
+  homeNotifPush({ app: "Trello", title: m.title, body: m.body, go: "tasks" });
+  snd("note"); notify(m.title, m.body, "trello");
 }
 // tela Tarefas: anel 140px + pendentes + "Feitas". Toque = homeTaskToggle (otimista + Desfazer 4 s).
 let tkAll = null;
@@ -2574,6 +2628,7 @@ $("pomo").addEventListener("change", (e) => {
 });
 function pomoShowMode() {
   $("tk").classList.toggle("hidden", pm.mode === "foco"); $("pomo").classList.toggle("hidden", pm.mode !== "foco");
+  trRender();
   for (const b of $("tk-seg").children) { const on = b.dataset.tkm === pm.mode; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); }
   if (pm.mode === "foco") pomoRender();
 }
@@ -2684,6 +2739,28 @@ const HOME_W = {
       setHtml(hk(el, "list"), !total ? '<div class="hw-na">Nenhuma tarefa. Adicione pelo painel do PC.</div>'
         : !pend.length ? `<div class="htk-done">${ic("check-check")}Tudo feito!</div>`
         : pend.slice(0, n).map((t) => `<div class="trow" data-id="${esc(t.id)}" role="checkbox" aria-checked="false" tabindex="0"><span class="tbox"></span><span class="ttx">${esc(t.text)}</span></div>`).join(""));
+    },
+  },
+  trello: {
+    name: "Trello", icon: "layout-grid", sizes: "PLA", def: "A",
+    html(z) {
+      if (z === "P") return '<div class="htr-p"><b data-k="n">–</b><span data-k="l"></span></div>';
+      const head = '<div class="htr-h"><b data-k="n">–</b><span data-k="l"></span></div>';
+      return z === "L" ? `<div class="htr-l">${head}<div class="htr-list" data-k="list"></div></div>`
+        : `<div class="hw-t"><span>Trello</span><span data-k="cnt"></span></div>${head}<div class="htr-list" data-k="list"></div>`;
+    },
+    ready: () => !!trData,
+    upd(el) {
+      const d = trData, z = el.dataset.z, c = d.counts, late = c.overdue, today = c.today;
+      const off = !d.on ? "Desligado" : d.state === "bad_cred" ? "Credencial inválida" : d.state === "waiting" ? "Carregando…" : "";
+      setText(hk(el, "n"), off ? "–" : String(late || today));
+      setText(hk(el, "l"), off || (late ? (late === 1 ? "atrasado" : "atrasados") + (today ? ` · ${today} hoje` : "") : today ? "para hoje" : "em dia"));
+      el.classList.toggle("htr-late", !!late && !off);
+      setText(hk(el, "cnt"), off ? "" : `${late + today} em foco`);
+      if (z === "P") return;
+      const next = ["overdue", "today", "tomorrow", "week", "later", "none"].flatMap((k) => d.groups[k].map((x) => ({ ...x, late: k === "overdue" })));
+      setHtml(hk(el, "list"), off ? "" : next.slice(0, z === "L" ? 1 : 3).map((x) => `<div class="htr-c" data-short="${esc(x.short)}"><span>${esc(x.name)}</span><small class="${x.late ? "late" : ""}">${esc(trDue(x))}</small></div>`).join("")
+        || '<div class="hw-na">Nenhum card atribuído.</div>');
     },
   },
   pcquick: {
@@ -3292,6 +3369,7 @@ $("home").addEventListener("click", (e) => {
   const t = e.target.closest(".trow[data-id]"); if (t) return homeTaskToggle(t.dataset.id);
   if (e.target.closest('.hw[data-w="now"]')) { buzz(8); showView("media"); }   // fora dos botões: abre o Rádio
   if (e.target.closest('.hw[data-w="dota"]')) { buzz(8); showView("dota"); }
+  if (e.target.closest('.hw[data-w="trello"]')) { buzz(8); pm.mode = "list"; store.set("tkmode", "list"); pomoShowMode(); showView("tasks"); }
   if (e.target.closest('.hw[data-w="weather"]')) { if (e.target.closest("[data-wx]") || !wxData()) return wxGoSettings(); buzz(8); showView("weather"); }
 });
 $("home").addEventListener("keydown", (e) => { const t = e.target.closest(".trow[data-id]"); if (t && (e.key === " " || e.key === "Enter")) { e.preventDefault(); homeTaskToggle(t.dataset.id); } });
@@ -4007,10 +4085,10 @@ async function handleShared() {
 const waitConnected = () => new Promise((res) => { const chk = () => (welcome.host && ws && ws.readyState === 1 ? res() : setTimeout(chk, 300)); chk(); });
 
 // ---------------------------------------------------------------- Alertas
-prefs.alerts = Object.assign({ net: true, download: true, export: true, misplaced: true, gpu: false, gpuV: 85, cpu: false, cpuV: 90, ram: false, ramV: 90 }, store.get("alerts", {}));
+prefs.alerts = Object.assign({ net: true, download: true, export: true, misplaced: true, trello: true, gpu: false, gpuV: 85, cpu: false, cpuV: 90, ram: false, ramV: 90 }, store.get("alerts", {}));
 const alertOn = {};
 const saveAlerts = () => store.set("alerts", prefs.alerts);
-["net", "download", "export", "misplaced", "gpu", "cpu", "ram"].forEach((k) => {
+["net", "download", "export", "misplaced", "trello", "gpu", "cpu", "ram"].forEach((k) => {
   const sw = $("al-" + k); sw.classList.toggle("on", !!prefs.alerts[k]);
   sw.onclick = () => { prefs.alerts[k] = !prefs.alerts[k]; saveAlerts(); sw.classList.toggle("on", prefs.alerts[k]); buzz(8); if (prefs.alerts[k]) askNotify(false); };
   const inp = $(`al-${k}-v`);
