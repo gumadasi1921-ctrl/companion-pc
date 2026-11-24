@@ -1,4 +1,4 @@
-"""Tempo de trabalho no Photoshop, Premiere e After Effects, por cliente, job e arquivo.
+"""Tempo de trabalho no Photoshop, Illustrator, Premiere, After Effects e CapCut, por cliente, job e arquivo.
 
 Conta só com o app em foco e alguém mexendo no PC (último input há menos de idle_min).
 Sem nenhum lançamento manual: cadastram-se só as pastas-raiz de clientes (painel do PC).
@@ -7,7 +7,11 @@ Sem nenhum lançamento manual: cadastram-se só as pastas-raiz de clientes (pain
 Atribuição, nesta ordem e nada além:
   1) título com caminho completo (Premiere, After) dentro de uma raiz -> níveis da pasta;
   2) Photoshop (título só com o nome): o nome achado em EXATAMENTE UM lugar das raízes -> mesma regra;
-  3) qualquer outro caso -> "Não identificado" + nome do arquivo (ou "sem título").
+  3) regra manual do usuário (work_rules.json): nome do arquivo IGUAL (sem diferenciar maiúsc./minúsc.),
+     nunca "parecido"; nomes genéricos ("sem título", "Untitled-1") só aceitam atribuição pontual de um período;
+  4) qualquer outro caso -> "Não identificado" + nome do arquivo (ou "sem título").
+O tempo é gravado no histórico sempre com a atribuição de 1) e 2); as regras do item 3 (e "Não é trabalho") são
+aplicadas na LEITURA (get/week/csv): apagar a regra devolve o tempo a "Não identificado" e o total nunca muda.
 Janela em foco sem o arquivo no título (barra flutuante, diálogo): vale o título da janela principal do
 mesmo processo, se exatamente uma delas tem arquivo; senão "Não identificado".
 Formatos de título vistos neste PC (Windows 11, versões 2026):
@@ -15,6 +19,9 @@ Formatos de título vistos neste PC (Windows 11, versões 2026):
   Premiere:      "Adobe Premiere - C:\\Usuários\\User\\Área de Trabalho\\...\\projeto.prproj"
                  (o caminho vem com os nomes de pasta traduzidos, como o Explorer mostra)
   After Effects: "Adobe After Effects 2026 - C:\\Users\\User\\Desktop\\...\\projeto.aep"
+  Illustrator:   "arquivo.pdf @ 66,67 % (RGB/Visualizar)"       -> só o nome (.ai/.eps/.pdf/.svg); Illustrator.exe
+  CapCut:        "CapCut" (janela principal, sem projeto)      -> "CapCut · sem projeto"; CapCut.exe.
+                 O formato do título COM um projeto aberto não foi confirmado: nada é inferido (fica "sem título").
 Nomes de arquivo, clientes e jobs não vão para o log.
 """
 import ctypes
@@ -30,7 +37,12 @@ from pathlib import Path
 
 log = logging.getLogger("companion")
 
-APPS = {"photoshop.exe": "Photoshop", "adobe premiere pro.exe": "Premiere", "afterfx.exe": "After Effects"}
+APPS = {"photoshop.exe": "Photoshop", "adobe premiere pro.exe": "Premiere", "afterfx.exe": "After Effects",
+        "illustrator.exe": "Illustrator", "capcut.exe": "CapCut"}
+CAPCUT_NO_PROJECT = "CapCut · sem projeto"
+AI_EXT = {".ai", ".eps", ".pdf", ".svg"}
+GENERIC_RX = re.compile(r"^(sem t[ií]tulo|untitled)(-\d+)?\*?$", re.I)
+MAX_RULES, NAME_MAX = 500, 60
 UNIDENTIFIED = "Não identificado"
 NO_JOB = "—"           # job dos "Não identificado"
 UNTITLED = "sem título"
@@ -56,6 +68,17 @@ WEEKDAYS = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
 def parse_title(exe, title):
     """(nome do arquivo ou None, caminho completo ou None). Nada além do que está no título."""
     title = (title or "").strip()
+    if exe == "capcut.exe":
+        return (CAPCUT_NO_PROJECT, None) if title == "CapCut" else (None, None)
+    if exe == "illustrator.exe":
+        if " @ " not in title:
+            return None, None
+        v = title.split(" @ ", 1)[0].strip().rstrip("*").strip()  # "*" = alterações não salvas
+        if ntpath.splitext(v)[1].lower() not in AI_EXT:
+            return None, None
+        if ABS_PATH.match(v):
+            return (ntpath.basename(v) or None), v
+        return v, None
     if exe == "photoshop.exe":
         if " @ " not in title:
             return None, None
@@ -71,6 +94,12 @@ def parse_title(exe, title):
     if ABS_PATH.match(v):
         return (ntpath.basename(v) or None), v
     return v, None
+
+
+def is_generic(f):
+    """Nome que não identifica um arquivo ("sem título", "Untitled-3", vazio, CapCut sem projeto)."""
+    f = (f or "").strip()
+    return not f or f == UNTITLED or f == CAPCUT_NO_PROJECT or bool(GENERIC_RX.match(f))
 
 
 def norm_path(p):
@@ -333,6 +362,7 @@ class WorkTracker:
     def __init__(self, base: Path, idle_min=5):
         self.hist_path = base / "work-history.json"
         self.roots_path = base / "work-roots.json"
+        self.rules_path = base / "work_rules.json"
         try:
             self.idle_s = valid_idle_min(idle_min) * 60
         except ValueError:
@@ -354,6 +384,8 @@ class WorkTracker:
             self.roots = self._validate_roots((_load_json(self.roots_path, _ok_roots) or {}).get("roots", []))
         except ValueError as e:
             log.warning("work-roots.json: %s - ignorando", e)
+        self.rules, self.once, self.ignored = [], [], []   # regras manuais (ver "Regras manuais" abaixo)
+        self._load_rules()
         self.index, self.index_at, self.index_info = {}, 0.0, {"files": 0, "truncated": False}
         self.pending = []      # [(início, fim, chave)] depois do último input: conta só se vier outro input
         self.prev = None       # hora da leitura anterior
@@ -481,7 +513,11 @@ class WorkTracker:
             path = parse_title(exe, title)[1]
             if not ok and path:  # Premiere/After: guarda o caminho para "Reclassificar" achar o cliente depois
                 key += (CTRL.sub("", path),)
-            info = {"app": app, "file": f, "client": client, "job": job, "identified": ok, "counting": idle < self.idle_s}
+            man = None if ok else self._manual(f, app, date.fromtimestamp(now))
+            if man and man[0] == "assign":   # só a exibição: o histórico guarda "Não identificado" (regra lida na leitura)
+                client, job, ok = man[1], man[2], True
+            info = {"app": app, "file": f, "client": client, "job": job, "identified": ok, "counting": idle < self.idle_s,
+                    "ignored": bool(man and man[0] == "ignore")}
             prev = self.prev
             if prev is not None and 0 < now - prev <= GAP_S:
                 if li > prev:          # houve input dentro do intervalo: até ele, conta
@@ -567,9 +603,295 @@ class WorkTracker:
         return {"moved": moved, "s": int(moved_s), "total_before_s": round(before, 1), "total_after_s": round(after, 1),
                 "backup": bak.name}
 
+    # -- Regras manuais (work_rules.json) ------------------------------------------
+    # rules   [{id, file, app|None, client, job, created_at}]  vale sempre (nome de arquivo NÃO genérico)
+    # once    [{id, file, app, client, job, from, to, created_at}]  atribuição pontual de um período (qualquer nome)
+    # ignored [{id, file, app, created_at, from?, to?}]  "Não é trabalho"; nome genérico só com período
+    # Só casam com linhas "Não identificado" do histórico, por IGUALDADE do nome (casefold), nunca por parecido.
+    def _load_rules(self):
+        def ok(d):
+            return isinstance(d, dict) and all(isinstance(d.get(k, []), list) and all(isinstance(x, dict) for x in d.get(k, []))
+                                               for k in ("rules", "once", "ignored"))
+        p = self.rules_path
+        try:
+            d = json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
+            if d is not None and not ok(d):
+                raise ValueError("estrutura inesperada")
+        except (OSError, ValueError) as e:
+            bad = p.with_name(p.name + ".bad-" + datetime.now().strftime("%Y%m%d-%H%M%S"))
+            try:
+                p.replace(bad)
+            except OSError:
+                pass
+            log.warning("work_rules.json inválido (%s): guardado como %s, começando vazio", type(e).__name__, bad.name)
+            d = None
+        d = d or {}
+        self.rules, self.once, self.ignored = (list(d.get(k, [])) for k in ("rules", "once", "ignored"))
+        self._reindex_rules()
+
+    def _reindex_rules(self):
+        self._rule_idx = {}
+        for r in self.rules:
+            self._rule_idx[(str(r.get("file", "")).casefold(), (r.get("app") or "").casefold())] = r
+
+    def _save_rules(self):
+        _save_json(self.rules_path, {"version": 1, "rules": self.rules, "once": self.once, "ignored": self.ignored})
+        self._reindex_rules()
+
+    @staticmethod
+    def _in_period(e, d):
+        iso = d.isoformat() if isinstance(d, date) else str(d)
+        return (not e.get("from") or iso >= e["from"]) and (not e.get("to") or iso <= e["to"])
+
+    def _decide(self, f, app, d):
+        """(tipo, entrada) do que vale para o item (arquivo, app) no dia d: ignorar > pontual > regra; ou None."""
+        fk, ak = (f or "").casefold(), (app or "").casefold()
+        for e in self.ignored:
+            if str(e.get("file", "")).casefold() == fk and (not e.get("app") or e["app"].casefold() == ak) and self._in_period(e, d):
+                return "ignore", e
+        for e in self.once:
+            if str(e.get("file", "")).casefold() == fk and (e.get("app") or "").casefold() == ak and self._in_period(e, d):
+                return "assign", e
+        r = self._rule_idx.get((fk, ak)) or self._rule_idx.get((fk, ""))
+        if r and not is_generic(f):
+            return "assign", r
+        return None
+
+    def _manual(self, f, app, d):
+        """("ignore",) | ("assign", cliente, job) | None."""
+        m = self._decide(f, app, d)
+        if not m:
+            return None
+        return ("ignore",) if m[0] == "ignore" else ("assign", m[1]["client"], m[1]["job"])
+
+    @staticmethod
+    def _clean_name(v, what, optional=False):
+        v = re.sub(r"\s+", " ", str(v if v is not None else "")).strip()
+        if not v:
+            if optional:
+                return NO_JOB
+            raise ValueError(f"{what}: informe um nome")
+        if v == NO_JOB and optional:
+            return NO_JOB
+        if len(v) > NAME_MAX or CTRL.search(v):
+            raise ValueError(f"{what}: de 1 a {NAME_MAX} caracteres, sem caracteres de controle")
+        return v
+
+    def _canon(self, client, job):
+        """Se já existe cliente/job igual (sem diferenciar maiúsc./minúsc.), usa a grafia existente."""
+        if client.casefold() == UNIDENTIFIED.casefold():
+            raise ValueError("esse nome é reservado")
+        for c, jobs in self.catalog().items():
+            if c.casefold() == client.casefold():
+                client = c
+                for j in jobs:
+                    if j.casefold() == job.casefold():
+                        job = j
+                break
+        return client, job
+
+    def catalog(self):
+        """{cliente: [jobs]} dos que já existem: pastas das raízes (2 níveis), histórico e regras."""
+        cat = {}
+
+        def add(c, j=None):
+            if c and c != UNIDENTIFIED:
+                lst = cat.setdefault(c, [])
+                if j and j != NO_JOB and j not in lst:
+                    lst.append(j)
+        for root in self.roots:
+            try:
+                with os.scandir(real_path(root)) as it:
+                    for e in list(it)[:300]:
+                        if not e.is_dir(follow_symlinks=False):
+                            continue
+                        add(e.name)
+                        try:
+                            with os.scandir(e.path) as it2:
+                                for e2 in list(it2)[:300]:
+                                    isd = e2.is_dir(follow_symlinks=False)
+                                    add(e.name, e2.name if isd else ntpath.splitext(e2.name)[0])
+                        except OSError:
+                            pass
+            except OSError:
+                continue
+        for items in self.days.values():
+            for k in items:
+                parts = k.split("\t")
+                if len(parts) >= 2:
+                    add(parts[0], parts[1])
+        for e in self.rules + self.once:
+            add(e["client"], e["job"])
+        return {c: sorted(j, key=str.casefold) for c, j in sorted(cat.items(), key=lambda x: x[0].casefold())}
+
+    @staticmethod
+    def _items(items):
+        if not isinstance(items, list) or not 1 <= len(items) <= 200:
+            raise ValueError("escolha de 1 a 200 itens")
+        out = []
+        for it in items:
+            f, a = (it.get("file"), it.get("app")) if isinstance(it, dict) else (None, None)
+            if not isinstance(f, str) or not f or len(f) > FOLDER_MAX or CTRL.search(f) or a not in APPS.values():
+                raise ValueError("item inválido")
+            out.append((f, a))
+        return out
+
+    def _unident_sums(self, items, offset, today=None):
+        """{(arquivo casefold, app casefold): [segundos da semana, segundos no total]} só de linhas "Não identificado"
+        ainda sem regra, pontual ou ignorado."""
+        mon, sun = self._week_bounds(offset, today)
+        out = {(f.casefold(), a.casefold()): [0.0, 0.0] for f, a in items}
+        for ds, day in self.days.items():
+            try:
+                d = date.fromisoformat(ds)
+            except ValueError:
+                continue
+            for k, s in day.items():
+                parts = k.split("\t")
+                if len(parts) < 4 or parts[0] != UNIDENTIFIED:
+                    continue
+                w = (parts[3].casefold(), parts[2].casefold())
+                if w in out and not self._manual(parts[3], parts[2], d):
+                    out[w][1] += s
+                    if mon <= d <= sun:
+                        out[w][0] += s
+        return out
+
+    def assign_preview(self, items, offset=0, today=None):
+        """O que mudaria: por item, tempo da semana e no total, e se o nome é genérico (só pontual). Não grava."""
+        its = self._items(items)
+        sums = self._unident_sums(its, offset, today)
+        rows = []
+        for f, a in its:
+            w, t = sums[(f.casefold(), a.casefold())]
+            rows.append({"file": f, "app": a, "generic": is_generic(f), "week_s": int(w), "total_s": int(t)})
+        return {"items": rows, "week_s": sum(r["week_s"] for r in rows), "total_s": sum(r["total_s"] for r in rows)}
+
+    @staticmethod
+    def _new_id():
+        import secrets
+        return secrets.token_hex(4)
+
+    def assign(self, items, client, job="", remember=True, offset=0, today=None):
+        """Atribui os itens a cliente/job. Nome genérico (ou remember falso): só a semana mostrada (once).
+        Senão: regra para sempre (rules). Devolve os ids criados para o desfazer."""
+        its = self._items(items)
+        client = self._clean_name(client, "cliente")
+        job = self._clean_name(job, "job", optional=True)
+        client, job = self._canon(client, job)
+        mon, sun = self._week_bounds(offset, today)
+        sums = self._unident_sums(its, offset, today)
+        stamp = datetime.now().isoformat(timespec="seconds")
+        new_rules, new_once, seen = [], [], set()
+        for f, a in its:
+            if remember and not is_generic(f):
+                key = (f.casefold(), a.casefold())
+                if key in self._rule_idx or key in seen:
+                    raise ValueError("já existe uma regra para esse arquivo")
+                seen.add(key)
+                new_rules.append({"id": self._new_id(), "file": f, "app": a, "client": client, "job": job, "created_at": stamp})
+            else:
+                new_once.append({"id": self._new_id(), "file": f, "app": a, "client": client, "job": job,
+                                 "from": mon.isoformat(), "to": sun.isoformat(), "created_at": stamp})
+        if len(self.rules) + len(new_rules) > MAX_RULES or len(self.once) + len(new_once) > MAX_RULES:
+            raise ValueError("limite de regras atingido: apague alguma")
+        old = (list(self.rules), list(self.once))
+        self.rules += new_rules
+        self.once += new_once
+        try:
+            self._save_rules()
+        except OSError as e:
+            self.rules, self.once = old
+            self._reindex_rules()
+            raise ValueError("não consegui gravar as regras; nada foi mudado") from e
+        moved = [sums[(f.casefold(), a.casefold())] for f, a in its]
+        return {"ids": [e["id"] for e in new_rules + new_once], "rules": len(new_rules), "once": len(new_once),
+                "client": client, "job": job, "week_s": int(sum(m[0] for m in moved)),
+                "total_s": int(sum(m[1] for m in moved))}
+
+    def ignore(self, items, offset=0, today=None):
+        """"Não é trabalho": sai dos totais e do CSV, continua guardado. Nome genérico: só a semana mostrada."""
+        its = self._items(items)
+        mon, sun = self._week_bounds(offset, today)
+        stamp = datetime.now().isoformat(timespec="seconds")
+        new = []
+        for f, a in its:
+            e = {"id": self._new_id(), "file": f, "app": a, "created_at": stamp}
+            if is_generic(f):
+                e.update({"from": mon.isoformat(), "to": sun.isoformat()})
+            new.append(e)
+        if len(self.ignored) + len(new) > MAX_RULES:
+            raise ValueError("limite de ignorados atingido: restaure algum")
+        old = list(self.ignored)
+        self.ignored += new
+        try:
+            self._save_rules()
+        except OSError as e:
+            self.ignored = old
+            self._reindex_rules()
+            raise ValueError("não consegui gravar; nada foi mudado") from e
+        return {"ids": [e["id"] for e in new]}
+
+    def _remove(self, names, ids):
+        ids = [ids] if isinstance(ids, str) else ids
+        if not isinstance(ids, list) or not ids or not all(isinstance(i, str) for i in ids):
+            raise ValueError("id inválido")
+        old = {a: list(getattr(self, a)) for a in ("rules", "once", "ignored")}
+        n = 0
+        for a in names:
+            keep = [e for e in getattr(self, a) if e.get("id") not in ids]
+            n += len(getattr(self, a)) - len(keep)
+            setattr(self, a, keep)
+        if not n:
+            raise ValueError("não encontrado")
+        try:
+            self._save_rules()
+        except OSError as e:
+            for a, v in old.items():
+                setattr(self, a, v)
+            self._reindex_rules()
+            raise ValueError("não consegui gravar; nada foi mudado") from e
+        return {"removed": n}
+
+    def rule_delete(self, ids):
+        """Apaga regra ou atribuição pontual: o tempo volta a "Não identificado" (nada no histórico muda)."""
+        return self._remove(("rules", "once"), ids)
+
+    def unignore(self, ids):
+        return self._remove(("ignored",), ids)
+
+    def rules_get(self, today=None):
+        """Regras, pontuais e ignorados com o tempo que cada um move (semana atual e total) + catálogo de clientes/jobs."""
+        today = today or date.today()
+        mon, sun = self._week_bounds(0, today)
+        use = {}
+        for ds, day in self.days.items():
+            try:
+                d = date.fromisoformat(ds)
+            except ValueError:
+                continue
+            for k, s in day.items():
+                parts = k.split("\t")
+                if len(parts) >= 4 and parts[0] == UNIDENTIFIED:
+                    m = self._decide(parts[3], parts[2], d)
+                    if m:
+                        u = use.setdefault(m[1]["id"], [0.0, 0.0])
+                        u[1] += s
+                        if mon <= d <= sun:
+                            u[0] += s
+
+        def row(e, kind):
+            u = use.get(e["id"], [0, 0])
+            r = {k: v for k, v in e.items() if k != "created_at"}
+            r.update({"kind": kind, "generic": is_generic(e.get("file")), "week_s": int(u[0]), "total_s": int(u[1])})
+            return r
+        return {"rules": [row(e, "rule") for e in self.rules], "once": [row(e, "once") for e in self.once],
+                "ignored": [row(e, "ignored") for e in self.ignored], "catalog": self.catalog()}
+
     # -- resumos --------------------------------------------------------------
     def _rows(self, d0, d1):
-        """[(dia, cliente, job, app, arquivo, segundos)] de d0 a d1 (inclusive)."""
+        """[(dia, cliente, job, app, arquivo, segundos)] de d0 a d1 (inclusive), com as regras manuais aplicadas;
+        os ignorados ficam de fora (continuam no histórico)."""
         out = []
         for ds, items in self.days.items():
             try:
@@ -579,6 +901,12 @@ class WorkTracker:
             if d0 <= d <= d1:
                 for k, s in items.items():
                     client, job, app, f = (k.split("\t") + ["", "", "", ""])[:4]
+                    if client == UNIDENTIFIED:
+                        m = self._manual(f, app, d)
+                        if m and m[0] == "ignore":
+                            continue
+                        if m:
+                            client, job = m[1], m[2]
                     out.append((d, client, job, app, f, s))
         return out
 
@@ -625,7 +953,7 @@ class WorkTracker:
                           "today": mon + timedelta(days=i) == today} for i, v in enumerate(per_day)],
                 "clients": [{"client": cn, "s": int(c["s"]), "unidentified": cn == UNIDENTIFIED,
                              "jobs": [{"job": jn, "s": int(j["s"]),
-                                       "files": [{"app": a, "file": f, "s": int(s)} for (a, f), s in by_s(j["files"])]}
+                                       "files": [{"app": a, "file": f, "s": int(s), "generic": is_generic(f)} for (a, f), s in by_s(j["files"])]}
                                       for jn, j in by_s(c["jobs"])]}
                             for cn, c in by_s(tree)]}
 

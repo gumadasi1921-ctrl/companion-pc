@@ -661,6 +661,12 @@ PANEL_OPS = {
     "work_remove_root": lambda folder: io_call(WORK.remove_root, folder),
     "work_reclass_preview": lambda: io_call(WORK.reclass_preview, timeout=60),  # reindexa as raízes
     "work_reclass_apply": lambda: io_call(WORK.reclass_apply),
+    "work_assign_preview": lambda items, offset: io_call(WORK.assign_preview, items, offset),
+    "work_assign": lambda items, client, job, remember, offset: io_call(WORK.assign, items, client, job, remember, offset),
+    "work_ignore": lambda items, offset: io_call(WORK.ignore, items, offset),
+    "work_rules_get": lambda: io_call(WORK.rules_get),
+    "work_rule_delete": lambda ids: io_call(WORK.rule_delete, ids),
+    "work_unignore": lambda ids: io_call(WORK.unignore, ids),
     "tasks_get": lambda: io_call(TASKS.get),
     "tasks_add": lambda text: io_call(TASKS.add, text),
     "tasks_edit": lambda tid, text: io_call(TASKS.edit, tid, text),
@@ -753,6 +759,13 @@ PANEL_WS = {   # nome -> função(params dict); as de gravação rodam na fila d
     "work_csv": lambda p: io_call(work_csv, _need(p, "offset", int)),
     "work_add_root": lambda p: PANEL_OPS["work_add_root"](_need(p, "folder", str)),
     "work_remove_root": lambda p: PANEL_OPS["work_remove_root"](_need(p, "folder", str)),
+    "work_assign_preview": lambda p: PANEL_OPS["work_assign_preview"](_need(p, "items", list), _need(p, "offset", int)),
+    "work_assign": lambda p: PANEL_OPS["work_assign"](_need(p, "items", list), _need(p, "client", str), p.get("job") or "",
+                                                       p.get("remember") is not False, _need(p, "offset", int)),
+    "work_ignore": lambda p: PANEL_OPS["work_ignore"](_need(p, "items", list), _need(p, "offset", int)),
+    "work_rules_get": lambda p: PANEL_OPS["work_rules_get"](),
+    "work_rule_delete": lambda p: PANEL_OPS["work_rule_delete"](p.get("ids") if "ids" in p else _need(p, "id", str)),
+    "work_unignore": lambda p: PANEL_OPS["work_unignore"](p.get("ids") if "ids" in p else _need(p, "id", str)),
     "config_get": lambda p: PANEL_OPS["config_get"](),
     "config_save": lambda p: PANEL_OPS["config_save"](_need(p, "changes", dict)),
 }
@@ -1222,7 +1235,8 @@ QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "m
                  # modo painel (operações locais; mesmos motivos: texto de tarefas, clientes, pastas, código de pareamento)
                  "panel_status", "pair_new", "pair_state", "pick_folder", "tasks_get", "tasks_add", "tasks_edit",
                  "tasks_remove", "tasks_move", "tasks_toggle", "tasks_clear_done", "tasks_restore", "work_get",
-                 "work_week", "work_csv", "work_add_root", "work_remove_root", "config_get", "config_save"}
+                 "work_week", "work_csv", "work_add_root", "work_remove_root", "work_assign_preview", "work_assign",
+                 "work_ignore", "work_rules_get", "work_rule_delete", "work_unignore", "config_get", "config_save"}
 
 
 async def now_payload():

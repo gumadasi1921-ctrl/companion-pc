@@ -80,6 +80,13 @@ async def run():
     check("painel: texto vazio dá erro de validação", not r["ok"])
     r = await pop(pw, "config_get")
     check("painel: config_get sem token", r["ok"] and "token" not in json.dumps(r["d"]) and TOKEN not in json.dumps(r["d"]) and PANEL not in json.dumps(r["d"]))
+    r = await pop(pw, "work_assign", items=[{"file": "arquivo-secreto.psd", "app": "Photoshop"}], client="ClienteX", job="", remember=True, offset=0)
+    check("painel: work_assign funciona", r["ok"] and r["d"]["rules"] == 1, str(r.get("e", "")))
+    rid = r["d"]["ids"]
+    r = await pop(pw, "work_rules_get")
+    check("painel: work_rules_get lista a regra", r["ok"] and len(r["d"]["rules"]) == 1)
+    r = await pop(pw, "work_rule_delete", ids=rid)
+    check("painel: work_rule_delete apaga", r["ok"] and r["d"]["removed"] == 1)
     r = await pop(pw, "nao_existe")
     check("painel: operação fora da lista recusada", not r["ok"])
     base = await tasks_now()
@@ -97,7 +104,10 @@ async def run():
             r2 = m
     check("(a) tasks_add como ação do celular recusado", not r2["ok"])
     for op, p in (("config_save", {"changes": {"allow_power": False}}), ("pair_new", {}), ("work_add_root", {"folder": "C:\\"}),
-                  ("tasks_restore", {"id": "0123abcd", "text": "x", "done": False, "pos": 0}), ("pick_folder", {})):
+                  ("tasks_restore", {"id": "0123abcd", "text": "x", "done": False, "pos": 0}), ("pick_folder", {}),
+                  ("work_assign", {"items": [{"file": "arquivo-secreto.psd", "app": "Photoshop"}], "client": "ClienteX", "job": "", "remember": True, "offset": 0}),
+                  ("work_ignore", {"items": [{"file": "arquivo-secreto.psd", "app": "Photoshop"}], "offset": 0}),
+                  ("work_rules_get", {}), ("work_rule_delete", {"id": "abcd1234"}), ("work_unignore", {"id": "abcd1234"})):
         r = await pop(cw, op, **p)
         check(f"(a) {op} recusado", not r["ok"])
     await cw.close()
@@ -161,7 +171,7 @@ def main():
             return 2
         fails = asyncio.run(run())
         log = (srv / "companion-server.log").read_text(encoding="utf-8", errors="replace")
-        for secret, what in ((TOKEN, "token"), (PANEL, "panel_token"), ("tarefa de teste", "texto de tarefa"), ("invasor", "texto invasor")):
+        for secret, what in ((TOKEN, "token"), (PANEL, "panel_token"), ("tarefa de teste", "texto de tarefa"), ("invasor", "texto invasor"), ("arquivo-secreto", "nome de arquivo"), ("ClienteX", "nome de cliente")):
             ok = secret not in log
             print(("OK   " if ok else "FALHA"), f"log sem {what}")
             if not ok:
