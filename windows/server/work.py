@@ -64,6 +64,29 @@ TITLE_PATH = {"adobe premiere pro.exe": re.compile(r"^Adobe Premiere(?: Pro)?(?:
 ABS_PATH = re.compile(r"^(?:[A-Za-z]:\\|\\\\[^\\])")
 CTRL = re.compile(r"[\x00-\x1f\x7f]")
 WEEKDAYS = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
+NOTE_MAX = 500
+MONTH_RX = re.compile(r"^(20\d\d)-(0[1-9]|1[0-2])$")
+NOTE_CTRL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")   # tudo menos \n e \t
+
+
+def valid_month(ym, today=None):
+    """"AAAA-MM" (2000-2099); None = mês de hoje."""
+    if ym is None:
+        return (today or date.today()).strftime("%Y-%m")
+    if not isinstance(ym, str) or not MONTH_RX.match(ym):
+        raise ValueError("mês inválido")
+    return ym
+
+
+def month_bounds(ym):
+    y, m = int(ym[:4]), int(ym[5:])
+    first = date(y, m, 1)
+    return first, (date(y + (m == 12), m % 12 + 1, 1) - timedelta(days=1))
+
+
+def prev_month(ym):
+    y, m = int(ym[:4]), int(ym[5:])
+    return f"{y - (m == 1)}-{(m - 2) % 12 + 1:02d}"
 
 
 # --------------------------------------------------------------------------
@@ -414,6 +437,7 @@ class WorkTracker:
         self.hist_path = base / "work-history.json"
         self.roots_path = base / "work-roots.json"
         self.rules_path = base / "work_rules.json"
+        self.notes_path = base / "work-notes.json"
         try:
             self.idle_s = valid_idle_min(idle_min) * 60
         except ValueError:
@@ -435,6 +459,9 @@ class WorkTracker:
             self.roots = self._validate_roots((_load_json(self.roots_path, _ok_roots) or {}).get("roots", []))
         except ValueError as e:
             log.warning("work-roots.json: %s - ignorando", e)
+        nraw = _load_json(self.notes_path, lambda d: isinstance(d, dict) and isinstance(d.get("notes", {}), dict)
+                          and all(isinstance(k, str) and isinstance(v, str) for k, v in d.get("notes", {}).items()))
+        self.notes = dict((nraw or {}).get("notes", {}))   # {"AAAA-MM-DD": texto}, nunca vai ao log
         self.rules, self.once, self.ignored = [], [], []   # regras manuais (ver "Regras manuais" abaixo)
         self._load_rules()
         self.index, self.index_at, self.index_info = {}, 0.0, {"files": 0, "truncated": False}
@@ -1026,3 +1053,93 @@ class WorkTracker:
                                    f"{s / 60:.1f}".replace(".", ",")]))
         name = f"trabalho-{mon.isoformat()}_a_{sun.isoformat()}.csv"
         return name, ("\ufeff" + "\r\n".join(lines) + "\r\n").encode("utf-8")
+
+    # -- histórico mensal e notas do dia (só leitura do histórico; nada é apagado) -----------------
+    def _month_tree(self, ym):
+        first, last = month_bounds(ym)
+        per_day, tree = {}, {}
+        for d, client, job, _app, _f, s_ in self._rows(first, last):
+            per_day[d.isoformat()] = per_day.get(d.isoformat(), 0.0) + s_
+            c = tree.setdefault(client, {"s": 0.0, "jobs": {}})
+            c["s"] += s_
+            c["jobs"][job] = c["jobs"].get(job, 0.0) + s_
+        return first, last, per_day, tree
+
+    def month(self, ym=None, today=None, notes=True):
+        """Calendário e totais do mês (mesmas regras manuais/ignorados da semana) + comparação com o mês anterior."""
+        ym = valid_month(ym, today)
+        first, last, per_day, tree = self._month_tree(ym)
+        pym = prev_month(ym)
+        _f, _l, pdays, ptree = self._month_tree(pym) if pym >= "2000-01" else (None, None, {}, {})
+        today = today or date.today()
+        n = (last - first).days + 1
+        days = []
+        for i in range(n):
+            d = first + timedelta(days=i)
+            e = {"date": d.isoformat(), "wd": d.weekday(), "s": int(per_day.get(d.isoformat(), 0)), "today": d == today}
+            if notes and d.isoformat() in self.notes:
+                e["note"] = self.notes[d.isoformat()]
+            days.append(e)
+        clients = []
+        for cn, c in sorted(tree.items(), key=lambda kv: -kv[1]["s"]):
+            pc = ptree.get(cn, {"s": 0.0, "jobs": {}})
+            clients.append({"client": cn, "s": int(c["s"]), "prev_s": int(pc["s"]), "unidentified": cn == UNIDENTIFIED,
+                            "jobs": [{"job": jn, "s": int(js), "prev_s": int(pc["jobs"].get(jn, 0))}
+                                     for jn, js in sorted(c["jobs"].items(), key=lambda kv: -kv[1])]})
+        return {"month": ym, "start": first.isoformat(), "end": last.isoformat(), "prev": pym,
+                "total_s": int(sum(per_day.values())), "prev_total_s": int(sum(pdays.values())),
+                "days_worked": sum(1 for v in per_day.values() if v >= 60),
+                "has_prev": any(k.startswith(pym) for k in self.days), "days": days, "clients": clients}
+
+    @staticmethod
+    def _note_text(v):
+        if not isinstance(v, str):
+            raise ValueError("nota inválida")
+        v = NOTE_CTRL.sub("", v.replace("\r\n", "\n").replace("\r", "\n")).strip()
+        if len(v) > NOTE_MAX:
+            raise ValueError(f"a nota passa de {NOTE_MAX} caracteres")
+        return v
+
+    def note_set(self, day, text):
+        """Nota do dia (até 500 caracteres); vazia apaga. Grava work-notes.json de forma atômica."""
+        try:
+            d = date.fromisoformat(day)
+        except (TypeError, ValueError):
+            raise ValueError("dia inválido") from None
+        if not date(2000, 1, 1) <= d <= date(2099, 12, 31):
+            raise ValueError("dia inválido")
+        text = self._note_text(text)
+        new = dict(self.notes)
+        if text:
+            new[d.isoformat()] = text
+        else:
+            new.pop(d.isoformat(), None)
+        _save_json(self.notes_path, {"version": 1, "notes": new})
+        self.notes = new
+        return {"date": d.isoformat(), "note": text}
+
+    def csv_month(self, ym=None, today=None):
+        """(nome, bytes) do mês: data;cliente;job;app;arquivo;minutos;nota (a nota só na 1ª linha do dia; dia só com nota ganha uma linha)."""
+        ym = valid_month(ym, today)
+        first, last = month_bounds(ym)
+
+        def cell(v):
+            v = str(v)
+            if v[:1] in ("=", "+", "-", "@", "\t", "\r"):
+                v = "'" + v
+            if any(c in v for c in ';"\r\n'):
+                v = '"' + v.replace('"', '""') + '"'
+            return v
+
+        lines, noted = ["data;cliente;job;app;arquivo;minutos;nota"], set()
+        rows = sorted(self._rows(first, last))
+        for d, client, job, app, f, s_ in rows:
+            nota = "" if d in noted else self.notes.get(d.isoformat(), "")
+            noted.add(d)
+            lines.append(";".join([d.strftime("%d/%m/%Y"), cell(client), cell(job), cell(app), cell(f),
+                                   f"{s_ / 60:.1f}".replace(".", ","), cell(nota) if nota else ""]))
+        for ds, text in sorted(self.notes.items()):
+            d = date.fromisoformat(ds)
+            if first <= d <= last and d not in noted:
+                lines.append(";".join([d.strftime("%d/%m/%Y"), "", "", "", "", "0", cell(text)]))
+        return f"trabalho-{ym}.csv", ("\ufeff" + "\r\n".join(lines) + "\r\n").encode("utf-8")

@@ -926,6 +926,7 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 @media (prefers-reduced-motion: reduce) { .hq button:active { transform: none; } }
 .toast.undo { display: flex; align-items: center; gap: 8px; padding: 2px 2px 2px 14px; }
 .toast.undo button { min-height: 44px; padding: 0 14px; font-weight: 700; color: var(--accent-text, var(--p)); }
+.wm-up { color: var(--success, var(--p2)); } .wm-dn { color: var(--text-3, var(--p3)); }
 .toast.undo.two { flex-wrap: wrap; justify-content: flex-end; padding: 8px 4px 2px 14px; width: max-content; max-width: calc(100vw - var(--rail, 0px) - 40px); }
 .toast.undo.two #ut-msg { flex: 1 1 100%; overflow-wrap: anywhere; }
 .toast.undo.two button { white-space: nowrap; }
@@ -1335,11 +1336,18 @@ input.num { min-height: 36px; }
         <div class="card"><h3><span>Agora</span></h3><div class="sub wnow" id="w-now"></div></div>
         <div class="card"><h3><span>Hoje</span></h3><div class="gtime" id="w-today">–</div><div id="w-today-jobs"></div></div>
       </div>
-      <div class="card"><h3><span id="w-range">Esta semana</span><span id="w-total"></span></h3>
+      <div id="w-right" style="display:grid; gap:10px; align-content:start; min-width:0">
+      <div class="seg" id="w-seg" role="group" aria-label="Período"><button data-wm="week" aria-pressed="true">Semana</button><button data-wm="month" aria-pressed="false">Mês</button></div>
+      <div class="card hidden" id="w-mcard"><h3><span id="wm-range">Este mês</span><span id="wm-total"></span></h3>
+        <div class="brow" style="margin-top:0"><button class="btn sm" id="wm-prev">&lt; anterior</button><button class="btn sm" id="wm-next">próximo &gt;</button></div>
+        <div class="sub" id="wm-cmp"></div>
+        <div id="wm-clients" style="margin-top:10px"></div></div>
+      <div class="card" id="w-wcard"><h3><span id="w-range">Esta semana</span><span id="w-total"></span></h3>
         <div class="brow" style="margin-top:0"><button class="btn sm" id="w-prev">&lt; anterior</button><button class="btn sm" id="w-next">próxima &gt;</button></div>
         <div class="week" id="w-days"></div>
         <div id="w-week-jobs" style="margin-top:10px"></div>
         <div class="brow"><button class="btn sm" id="w-csv">Exportar CSV</button><span id="w-csv-link"></span></div></div>
+      </div>
     </div>
   </section>
 
@@ -2384,7 +2392,44 @@ $("w-csv").onclick = async () => {
     $("w-csv-link").innerHTML = `<a class="btn sm" href="${esc(r.url)}" download="${esc(r.name)}">Baixar ${esc(r.name)}</a>`;
   } catch (er) { toast(er.message, "bad"); }
 };
-setInterval(() => { if (vis("work")) loadWork(); }, 5000);
+// Mês (só leitura): totais por cliente e job, comparados com o mês anterior
+let workMode = store.get("wmode", "week"), wmYm = null, wmData = null;
+const wmName = (ym) => { const [y, m] = ym.split("-"); return new Date(+y, +m - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }); };
+const wmShift = (ym, d) => { const [y, m] = ym.split("-").map(Number), t = new Date(y, m - 1 + d, 1); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}`; };
+const wmNow = () => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}`; };
+function workModeShow() {
+  $("w-wcard").classList.toggle("hidden", workMode !== "week"); $("w-mcard").classList.toggle("hidden", workMode !== "month");
+  for (const b of $("w-seg").children) { const on = b.dataset.wm === workMode; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); }
+  if (workMode === "month") loadMonth();
+}
+async function loadMonth() {
+  if (!ws || ws.readyState !== 1 || !welcome.features?.work) return;
+  try { wmData = await send("work.month", { ym: wmYm || wmNow() }); wmYm = wmData.month; renderMonth(); } catch {}
+}
+const wmDelta = (cur, prev) => (prev > 0 ? ` <small class="${cur >= prev ? "wm-up" : "wm-dn"}">${cur >= prev ? "+" : "−"}${humanDur(Math.abs(cur - prev))}</small>` : "");
+function renderMonth() {
+  const m = wmData; if (!m) return;
+  $("wm-range").textContent = wmName(m.month);
+  $("wm-total").textContent = m.total_s ? humanDur(m.total_s) : "";
+  $("wm-next").disabled = m.month >= wmNow();
+  $("wm-prev").disabled = m.month <= "2020-01";
+  $("wm-cmp").textContent = m.total_s || m.prev_total_s
+    ? `${m.days_worked} dia${m.days_worked === 1 ? "" : "s"} com trabalho` + (m.prev_total_s ? ` · mês anterior (${wmName(m.prev)}): ${humanDur(m.prev_total_s)}` : "") : "";
+  const top = m.clients[0]?.s || 1;
+  $("wm-clients").innerHTML = m.clients.length ? m.clients.map((c, i) => `<div class="toprow wjob${c.unidentified ? " wunid" : ""}" data-i="${i}">
+    <div class="row"><span>${esc(c.client)}</span><span>${humanDur(c.s)}${wmDelta(c.s, c.prev_s)}</span></div><div class="bar"><i style="width:${(c.s / top) * 100}%"></i></div>
+    ${workOpen.has("m:" + c.client) && !c.unidentified ? c.jobs.map((j) => `<div class="row wjobrow"><span>${esc(j.job)}</span><span>${humanDur(j.s)}</span></div>`).join("") : ""}</div>`).join("")
+    : '<div class="empty">Nenhum tempo neste mês</div>';
+}
+$("wm-clients").onclick = (e) => {
+  const r = e.target.closest("[data-i]"); const name = r && wmData?.clients[+r.dataset.i]?.client; if (name == null) return;
+  const k = "m:" + name; workOpen.has(k) ? workOpen.delete(k) : workOpen.add(k); renderMonth();
+};
+$("wm-prev").onclick = () => { buzz(8); wmYm = wmShift(wmYm || wmNow(), -1); loadMonth(); };
+$("wm-next").onclick = () => { if ((wmYm || wmNow()) < wmNow()) { buzz(8); wmYm = wmShift(wmYm || wmNow(), 1); loadMonth(); } };
+$("w-seg").onclick = (e) => { const b = e.target.closest("[data-wm]"); if (!b) return; buzz(8); workMode = b.dataset.wm; store.set("wmode", workMode); workModeShow(); };
+workModeShow();
+setInterval(() => { if (vis("work")) { loadWork(); if (workMode === "month") loadMonth(); } }, 5000);
 
 // ---------------------------------------------------------------- Tarefas (só ver e marcar; o resto é no painel do PC)
 async function loadTasks() {
@@ -4242,6 +4287,14 @@ html.panel-mode, html.panel-mode body { margin: 0; height: 100%; overflow: hidde
 .pn-sw { position: relative; flex: none; width: 52px; height: 32px; border: 0; border-radius: 999px; background: var(--surface-3); }
 .pn-sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff; transition: transform .15s; }
 .pn-sw[aria-checked="true"] { background: var(--accent-fill); } .pn-sw[aria-checked="true"]::after { transform: translateX(20px); }
+.pn-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-top: 8px; }
+.pn-cw { text-align: center; font-size: 12px; color: var(--text-3); text-transform: uppercase; padding: 2px 0; }
+.pn-cd { position: relative; min-height: 48px; border: 0; border-radius: 8px; padding: 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  color: var(--text); background: color-mix(in srgb, var(--accent-fill) calc(var(--i, 0) * 60%), var(--surface-2)); }
+.pn-cd.empty { visibility: hidden; } .pn-cd .pn-cn { font-size: 11px; color: var(--text-2); } .pn-cd b { font-size: 13px; min-height: 16px; font-variant-numeric: tabular-nums; }
+.pn-cd.today { outline: 2px solid var(--accent-fill); outline-offset: -2px; } .pn-cd.sel { outline: 2px solid var(--text); outline-offset: -2px; }
+.pn-cd i.nt { position: absolute; top: 5px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--text); }
+.pn-note { width: 100%; box-sizing: border-box; margin-top: 8px; resize: vertical; min-height: 64px; font: inherit; }
 details.pn-d { border-top: 1px solid var(--separator); } details.pn-d:first-child { border-top: 0; }
 details.pn-d > summary { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 14px; cursor: pointer; list-style: none; }
 details.pn-d > summary::-webkit-details-marker { display: none; }
@@ -4526,10 +4579,52 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
     let data = null, week = null, off = 0, selRoot = null, rules = null;
     const sel = new Map();   // "app\0arquivo" -> item de "Não identificado" marcado
     const roots = h("div"), idx = h("p", { class: "pn-faint" }), now = h("div", { class: "pn-card" }), rep = h("div"), tree = h("div"),
-      rulesBox = h("div"), bar = h("div", { class: "pn-selbar", hidden: true });
+      rulesBox = h("div"), histBox = h("div"), bar = h("div", { class: "pn-selbar", hidden: true });
     main.append(h("section", {}, h("h1", {}, "Trabalho"), h("p", { class: "pn-sub" }, "Cliente e job saem dos nomes das pastas: Cliente\\Job\\arquivo."),
       h("div", { class: "pn-h" }, "Pastas de clientes"), roots, idx, h("div", { class: "pn-h" }, "Agora"), now,
-      h("div", { class: "pn-h" }, "Relatório"), rep, tree, rulesBox, bar));
+      h("div", { class: "pn-h" }, "Relatório"), rep, tree, h("div", { class: "pn-h" }, "Histórico"), histBox, rulesBox, bar));
+    // ---- Histórico mensal: calendário, totais por cliente/job, comparação com o mês anterior, nota do dia, CSV do mês
+    let hym = null, hdata = null, hday = null;
+    const mName = (ym) => { const [y, m] = ym.split("-"); return new Date(+y, +m - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }); };
+    const mShift = (ym, d) => { const [y, m] = ym.split("-").map(Number), t = new Date(y, m - 1 + d, 1); return t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0"); };
+    const mNow = () => { const t = new Date(); return t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0"); };
+    const hShort = (s) => (s >= 3600 ? Math.floor(s / 3600) + "h" + (Math.round((s % 3600) / 60) ? String(Math.round((s % 3600) / 60)).padStart(2, "0") : "") : s >= 60 ? Math.round(s / 60) + "m" : "");
+    const loadHist = async () => { try { hdata = await call("work_month", { ym: hym || undefined }); hym = hdata.month; if (!hday || !hday.startsWith(hym)) hday = null; renderHist(); } catch (e) { fail(e); } };
+    const csvMonth = async () => { try { const r = await call("work_month_csv", { ym: hym || undefined }); const a = h("a", { href: r.url, download: r.name }); document.body.append(a); a.click(); a.remove(); toast("CSV: " + r.name); } catch (e) { fail(e); } };
+    const saveNote = async (day, text) => { try { await call("work_note_set", { day, text }); await loadHist(); toast(text.trim() ? "Nota salva." : "Nota apagada."); } catch (e) { fail(e); } };
+    function renderHist() {
+      const m = hdata; if (!m) return;
+      const max = Math.max(3600, ...m.days.map((x) => x.s));
+      const lead = new Date(m.start + "T12:00:00").getDay() === 0 ? 6 : new Date(m.start + "T12:00:00").getDay() - 1;
+      const cells = [...Array(lead).fill(null), ...m.days];
+      const diff = m.prev_total_s ? m.total_s - m.prev_total_s : null;
+      const cal = h("div", { class: "pn-cal", role: "grid", "aria-label": "Horas por dia" }, ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"].map((w) => h("div", { class: "pn-cw", "aria-hidden": "true" }, w)),
+        cells.map((x) => !x ? h("div", { class: "pn-cd empty" }) : h("button", { class: "pn-cd" + (x.today ? " today" : "") + (x.date === hday ? " sel" : ""), type: "button", style: "--i:" + (x.s ? Math.max(0.12, x.s / max).toFixed(2) : 0),
+          title: x.date.slice(8) + "/" + x.date.slice(5, 7) + " · " + (x.s ? fmtDur(x.s) : "sem tempo"), "aria-label": "Dia " + +x.date.slice(8) + ": " + (x.s ? fmtDur(x.s) : "sem tempo") + (x.note ? ", com nota" : ""),
+          onclick: () => { hday = x.date === hday ? null : x.date; renderHist(); } }, h("span", { class: "pn-cn" }, String(+x.date.slice(8))), h("b", {}, hShort(x.s)), x.note ? h("i", { class: "nt" }) : null)));
+      const dayBox = (() => {
+        if (!hday) return null;
+        const x = m.days.find((d) => d.date === hday); if (!x) return null;
+        const ta = h("textarea", { class: "pn-in pn-note", maxlength: "500", rows: 3, placeholder: "Nota do dia (opcional, até 500 caracteres)", "aria-label": "Nota do dia " + hday.slice(8) + "/" + hday.slice(5, 7) }, x.note || "");
+        const cnt = h("span", { class: "pn-faint" }, (x.note || "").length + "/500");
+        ta.oninput = () => { cnt.textContent = ta.value.length + "/500"; };
+        return h("div", { class: "pn-card", style: "margin-top:10px" }, h("b", {}, hday.slice(8) + "/" + hday.slice(5, 7) + " · " + (x.s ? fmtDur(x.s) : "sem tempo")), ta,
+          h("div", { class: "pn-foot" }, h("button", { class: "pn-btn primary", type: "button", onclick: () => saveNote(hday, ta.value) }, "Salvar nota"),
+            x.note ? h("button", { class: "pn-btn", type: "button", onclick: () => saveNote(hday, "") }, "Apagar nota") : null, cnt));
+      })();
+      const delta = (c, p) => (p > 0 ? h("span", { class: "pn-sm" }, (c >= p ? "+" : "−") + fmtDur(Math.abs(c - p)) + " vs " + mName(m.prev).split(" ")[0]) : null);
+      const open = new Set([...histBox.querySelectorAll("details[open]")].map((d) => d.dataset.k));
+      histBox.replaceChildren(h("div", { class: "pn-card" }, h("div", { class: "pn-row wrap" },
+        h("button", { class: "pn-btn sq", type: "button", "aria-label": "Mês anterior", disabled: m.month <= "2020-01", onclick: () => { hym = mShift(m.month, -1); loadHist(); } }, "‹"),
+        h("b", { class: "pn-grow" }, mName(m.month) + " · total " + fmtDur(m.total_s)),
+        h("button", { class: "pn-btn sq", type: "button", "aria-label": "Mês seguinte", disabled: m.month >= mNow(), onclick: () => { hym = mShift(m.month, 1); loadHist(); } }, "›"),
+        h("button", { class: "pn-btn", type: "button", onclick: csvMonth }, "Exportar CSV do mês")),
+        h("p", { class: "pn-faint" }, m.days_worked + " dia" + (m.days_worked === 1 ? "" : "s") + " com trabalho" + (diff == null ? "" : " · " + (diff >= 0 ? "+" : "−") + fmtDur(Math.abs(diff)) + " em relação a " + mName(m.prev))),
+        cal, dayBox),
+        h("div", { class: "pn-list", style: "margin-top:10px" }, !m.clients.length ? h("div", { class: "pn-empty" }, "Nenhum tempo neste mês") : m.clients.map((c) =>
+          h("details", { class: "pn-d", "data-k": c.client, open: open.has(c.client) }, h("summary", { class: c.unidentified ? "pn-warn" : "" }, h("b", {}, c.client), delta(c.s, c.prev_s), h("span", { class: "pn-t" }, fmtDur(c.s))),
+            c.unidentified ? null : c.jobs.map((j) => h("div", { class: "pn-fl" }, h("span", {}, j.job), delta(j.s, j.prev_s), h("span", { class: "pn-t" }, fmtDur(j.s))))))));
+    }
     const addRoot = async () => {
       try { const f = await call("pick_folder", {}, 600000); if (f) { data = await call("work_add_root", { folder: f }); render(); loadWeek(); } } catch (e) { fail(e); }
     };
@@ -4678,7 +4773,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
     }
     const loadWeek = async () => { try { const w = await call("work_week", { offset: off }); if (!week || week.offset !== w.offset) sel.clear(); week = w; renderWeek(); } catch (e) { fail(e); } };
     const loadNow = async () => { try { data = await call("work_get"); render(); } catch {} };
-    return { start: () => { loadNow().then(loadWeek).then(loadRules); poll(loadNow, 5000); }, stop: stopPoll };
+    return { start: () => { loadNow().then(loadWeek).then(loadRules).then(loadHist); poll(loadNow, 5000); }, stop: stopPoll };
   }
 
   // ====================================================================== Celular

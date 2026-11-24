@@ -532,12 +532,18 @@ ACTIONS = {
     "work.get": lambda p: WORK.get(),
     "work.week": lambda p: WORK.week(p.get("offset", 0)),
     "work.csv": lambda p: work_csv(p.get("offset", 0)),
+    "work.month": lambda p: WORK.month(p.get("ym"), notes=False),   # celular: só os totais, sem notas
     # tarefas (tasks.py): o celular só vê e marca/desmarca
     "tasks.get": lambda p: TASKS.get(),
     "tasks.toggle": lambda p: TASKS.toggle(p["id"]),
     "export.link": lambda p: export_link(p),
     "export.reveal": lambda p: export_reveal(p),
 }
+
+
+def work_month_csv(ym):
+    name, data = WORK.csv_month(ym)
+    return {"name": name, "url": extras.dl_register(name, data=data, ctype="text/csv; charset=utf-8")}
 
 
 def work_csv(offset):
@@ -678,6 +684,9 @@ PANEL_OPS = {
     "work_get": lambda: io_call(WORK.get),
     "work_week": lambda offset: io_call(WORK.week, offset),
     "work_csv": lambda offset: io_call(WORK.csv, offset),
+    "work_month": lambda ym: io_call(WORK.month, ym),
+    "work_month_csv": lambda ym: io_call(work_month_csv, ym),
+    "work_note_set": lambda day, text: io_call(WORK.note_set, day, text),
     "work_add_root": lambda folder: io_call(WORK.add_root, folder),
     "work_remove_root": lambda folder: io_call(WORK.remove_root, folder),
     "work_reclass_preview": lambda: io_call(WORK.reclass_preview, timeout=60),  # reindexa as raízes
@@ -778,6 +787,9 @@ PANEL_WS = {   # nome -> função(params dict); as de gravação rodam na fila d
     "work_get": lambda p: PANEL_OPS["work_get"](),
     "work_week": lambda p: PANEL_OPS["work_week"](_need(p, "offset", int)),
     "work_csv": lambda p: io_call(work_csv, _need(p, "offset", int)),
+    "work_month": lambda p: PANEL_OPS["work_month"](p.get("ym")),
+    "work_month_csv": lambda p: PANEL_OPS["work_month_csv"](p.get("ym")),
+    "work_note_set": lambda p: PANEL_OPS["work_note_set"](_need(p, "day", str), _need(p, "text", str)),
     "work_add_root": lambda p: PANEL_OPS["work_add_root"](_need(p, "folder", str)),
     "work_remove_root": lambda p: PANEL_OPS["work_remove_root"](_need(p, "folder", str)),
     "work_assign_preview": lambda p: PANEL_OPS["work_assign_preview"](_need(p, "items", list), _need(p, "offset", int)),
@@ -1270,7 +1282,7 @@ sent_art: dict = {}
 # não vão para o log: repetitivas ou com conteúdo pessoal (texto digitado/copiado)
 QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "mouse.scroll", "key.text", "clip.set", "clip.get", "file.chunk",
                  "screen.shot", "mixer.get", "deck.get", "deck.save",  # deck.save: textos/macros dos botões
-                 "work.get", "work.week", "work.csv",  # nomes de cliente/job/arquivo
+                 "work.get", "work.week", "work.csv", "work.month",  # nomes de cliente/job/arquivo
                  "tasks.get", "tasks.toggle",  # texto das tarefas
                  "export.link", "export.reveal",  # nome de arquivo de cliente
                  "dota.get",  # consultada a cada abertura da tela Dota
@@ -1280,7 +1292,7 @@ QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "m
                  # modo painel (operações locais; mesmos motivos: texto de tarefas, clientes, pastas, código de pareamento)
                  "panel_status", "pair_new", "pair_state", "pick_folder", "tasks_get", "tasks_add", "tasks_edit",
                  "tasks_remove", "tasks_move", "tasks_toggle", "tasks_clear_done", "tasks_restore", "work_get",
-                 "work_week", "work_csv", "work_add_root", "work_remove_root", "work_assign_preview", "work_assign",
+                 "work_week", "work_csv", "work_month", "work_month_csv", "work_note_set", "work_add_root", "work_remove_root", "work_assign_preview", "work_assign",
                  "work_ignore", "work_rules_get", "work_rule_delete", "work_unignore", "config_get", "config_save", "open_focus"}
 
 
