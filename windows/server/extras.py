@@ -10,6 +10,7 @@ import logging
 import os
 import re
 import secrets
+import shutil
 import time
 from ctypes import wintypes
 from pathlib import Path
@@ -48,15 +49,43 @@ def _a(label, action, icon):
     return _b(label, "action", action, icon)
 
 
-def _b(label, type_, value, icon="", color="", confirm=False):
+def _b(label, type_, value, icon="", color="", confirm=False, svg=""):
     b = {"label": label, "type": type_, "value": value}
     if icon:
         b["icon"] = icon
+    if svg:
+        b["svg"] = svg
     if color:
         b["color"] = color
     if confirm:
         b["confirm"] = True
     return b
+
+
+# Páginas automáticas por programa. Só atalhos CONFIRMADOS na documentação oficial; o que não se confirmou fica de fora.
+# Illustrator: Adobe Help "Default keyboard shortcuts for Illustrator" (helpx.adobe.com, Windows, atualizada em 13/11/2026).
+# CapCut: a Central de Ajuda oficial não publica lista de atalhos -> nenhuma página (ver AUTO_PAGES).
+C_TOOL, C_EDIT, C_VIEW, C_FILE = "#58a6ff", "#50c878", "#aa82ff", "#f0b446"   # categorias: ferramentas, edição, vista, arquivo
+ILLUSTRATOR_PAGE = {"name": "Illustrator", "apps": ["illustrator.exe"], "buttons": [
+    _b("Seleção", "keys", "v", "V", C_TOOL, svg="mouse-pointer-2"),
+    _b("Seleção direta", "keys", "a", "A", C_TOOL, svg="move"),
+    _b("Caneta", "keys", "p", "P", C_TOOL, svg="pen-tool"),
+    _b("Texto", "keys", "t", "T", C_TOOL, svg="type"),
+    _b("Retângulo", "keys", "m", "M", C_TOOL, svg="square"),
+    _b("Elipse", "keys", "l", "L", C_TOOL, svg="circle-dot"),
+    _b("Desfazer", "keys", "ctrl+z", "UND", C_EDIT, svg="undo-2"),
+    _b("Refazer", "keys", "ctrl+shift+z", "RED", C_EDIT, svg="redo-2"),
+    _b("Agrupar", "keys", "ctrl+g", "GRP", C_EDIT, svg="group"),
+    _b("Desagrupar", "keys", "ctrl+shift+g", "UNG", C_EDIT, svg="layers"),
+    _b("Zoom +", "keys", "ctrl+plus", "Z+", C_VIEW, svg="zoom-in"),
+    _b("Zoom −", "keys", "ctrl+minus", "Z-", C_VIEW, svg="zoom-out"),
+    _b("Ver a 100%", "keys", "ctrl+1", "100", C_VIEW, svg="scan"),
+    _b("Salvar", "keys", "ctrl+s", "SAV", C_FILE, svg="save"),
+    _b("Exportar para telas", "keys", "ctrl+alt+e", "EXP", C_FILE, svg="file-output"),
+]}
+CAPCUT_PAGE = {"name": "CapCut", "apps": ["capcut.exe"], "buttons": []}   # vazia de propósito: sem fonte oficial, sem botões
+AUTO_PAGES = [ILLUSTRATOR_PAGE, CAPCUT_PAGE]   # só entram as que têm botões
+DECK_MIGRATION = "auto-pages-v1"
 
 
 DEFAULT_DECK = {"pages": [
@@ -154,6 +183,7 @@ DEFAULT_DECK = {"pages": [
         _k("Fechar conversa", "esc", "ESC"),
         _k("Enviar", "enter", "OK"),
     ]},
+    json.loads(json.dumps(ILLUSTRATOR_PAGE)),
     {"name": "Macros", "buttons": [
         _b("Modo trabalho", "macro", "abrir vscode\nesperar 2s\nabrir terminal\nesperar 1s\nabrir opera", "DEV"),
         _b("Modo jogo", "macro", "abrir discord\nesperar 3s\nabrir steam", "GAME"),
@@ -274,10 +304,39 @@ class Deck:
     def get(self):
         try:
             if self.path.exists():
-                return json.loads(self.path.read_text(encoding="utf-8"))
+                return self._migrate(json.loads(self.path.read_text(encoding="utf-8")))
         except (OSError, ValueError) as e:
             log.warning("deck.json inválido, usando o padrão: %s", e)
         return json.loads(json.dumps(DEFAULT_DECK))
+
+    def _migrate(self, data):
+        """Acrescenta as páginas automáticas (Illustrator...) UMA vez, só para o programa que ainda não tem página
+        ligada a ele. Nenhum botão existente muda. Backup deck.json.bak-<data-hora> antes de gravar. A marca em
+        deck.json impede que a página volte depois de o usuário apagá-la."""
+        if not isinstance(data, dict) or not isinstance(data.get("pages"), list) or DECK_MIGRATION in (data.get("migrated") or []):
+            return data
+        have = {a for pg in data["pages"] if isinstance(pg, dict) for a in _apps(pg)}
+        add = [pg for pg in AUTO_PAGES if pg["buttons"] and not set(pg["apps"]) & have]
+        out = dict(data)
+        out["migrated"] = list(data.get("migrated") or []) + [DECK_MIGRATION]
+        if add and len(data["pages"]) + len(add) <= 20:
+            out["pages"] = data["pages"] + [json.loads(json.dumps(pg)) for pg in add]
+        try:
+            shutil.copy2(self.path, self.path.with_name("deck.json.bak-" + time.strftime("%Y%m%d-%H%M%S")))
+            tmp = self.path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
+            tmp.replace(self.path)
+            if add:
+                log.info("deck.json: %d página(s) automática(s) acrescentada(s)", len(add))
+        except OSError as e:
+            log.warning("deck.json: não consegui gravar a migração (%s)", type(e).__name__)
+        return out
+
+    def _marks(self):
+        try:
+            return [m for m in json.loads(self.path.read_text(encoding="utf-8")).get("migrated", []) if isinstance(m, str)]
+        except (OSError, ValueError, AttributeError):
+            return []
 
     def save(self, deck, valid_combo, shortcuts=None):
         pages = deck.get("pages") if isinstance(deck, dict) else None
@@ -321,6 +380,8 @@ class Deck:
                 buttons.append(nb)
             clean.append({"name": name, "buttons": buttons, **({"apps": apps} if apps else {})})
         data = {"pages": clean}
+        marks = self._marks() or [DECK_MIGRATION]   # salvar pelo editor também conta como "já migrado"
+        data["migrated"] = marks
         tmp = self.path.with_suffix(".tmp")
         tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
         tmp.replace(self.path)
