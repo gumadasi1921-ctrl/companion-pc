@@ -926,6 +926,9 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 @media (prefers-reduced-motion: reduce) { .hq button:active { transform: none; } }
 .toast.undo { display: flex; align-items: center; gap: 8px; padding: 2px 2px 2px 14px; }
 .toast.undo button { min-height: 44px; padding: 0 14px; font-weight: 700; color: var(--accent-text, var(--p)); }
+.toast.undo.two { flex-wrap: wrap; justify-content: flex-end; padding: 8px 4px 2px 14px; width: max-content; max-width: calc(100vw - var(--rail, 0px) - 40px); }
+.toast.undo.two #ut-msg { flex: 1 1 100%; overflow-wrap: anywhere; }
+.toast.undo.two button { white-space: nowrap; }
 /* Tarefas: anel à esquerda (deitado) ou em cima (em pé); pendentes e "Feitas" à direita */
 .tk { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); align-items: start; }
 @media (orientation: landscape) { .tk { grid-template-columns: 200px minmax(0, 1fr); } }
@@ -1496,6 +1499,8 @@ input.num { min-height: 36px; }
         <h2>Alertas</h2>
         <div class="card">
           <div class="set"><label>Download concluído<small>Arquivo novo na pasta Downloads do PC</small></label><button class="switch" id="al-download" aria-label="Download concluído"></button></div>
+          <div class="set"><label>Exportação concluída<small>Arquivo pronto nas pastas de exportação escolhidas no painel do PC</small></label><button class="switch" id="al-export" aria-label="Exportação concluída"></button></div>
+          <div class="set"><label>Arquivo fora do lugar<small>Muito tempo em arquivo sem salvar ou fora das pastas de clientes (tempo: painel do PC)</small></label><button class="switch" id="al-misplaced" aria-label="Arquivo fora do lugar"></button></div>
           <div class="set"><label>GPU quente<small>Acima de <input class="num" id="al-gpu-v" type="number" inputmode="numeric"> °C</small></label><button class="switch" id="al-gpu" aria-label="GPU quente"></button></div>
           <div class="set"><label>CPU quente<small>Acima de <input class="num" id="al-cpu-v" type="number" inputmode="numeric"> °C <span id="al-cpu-note">(precisa do LibreHardwareMonitor no PC)</span></small></label><button class="switch" id="al-cpu" aria-label="CPU quente"></button></div>
           <div class="set"><label>Internet caiu<small>O PC ficou sem conexão (e quando volta)</small></label><button class="switch" id="al-net" aria-label="Internet caiu"></button></div>
@@ -1624,7 +1629,8 @@ input.num { min-height: 36px; }
 </div><div class="dk-hint">Toque para voltar</div></div>
 <div id="idle-catch" class="hidden"><div class="dk-hint">Toque para voltar</div></div>
 <div class="toast hidden" id="toast"></div>
-<div class="toast undo hidden" id="utoast" role="status"><span id="ut-msg"></span><button id="ut-btn">Desfazer</button></div>
+<div class="toast undo hidden" id="utoast" role="status"><span id="ut-msg"></span><button id="ut-btn">Desfazer</button><button id="ut-btn2" class="hidden"></button></div>
+<div class="overlay hidden" id="focus-list"><div class="dialog"><h1>Durante o foco</h1><div id="fl-body"></div><div class="acts"><button class="btn primary" id="fl-ok">Fechar</button></div></div></div>
 <textarea id="kbd" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
 
 <script>
@@ -1771,6 +1777,9 @@ function onMsg(m) {
       if (m.kind === "pomo.done") { pomoDone(m); break; }
       if (m.kind === "notif") { homeNotifPush(m); snd("note"); notify(`${m.app}: ${m.title}`, m.body, "pcn-" + m.app); break; }
       if (m.kind === "download" && prefs.alerts.download) notify("Download concluído", m.name + (m.size ? ` · ${fmtBytes(m.size)}` : ""), "dl");
+      if (m.kind === "export" && prefs.alerts.export) exportNotice(m);
+      if (m.kind === "alert" && prefs.alerts.misplaced) misplacedNotice(m);
+      if (m.kind === "focus.summary") focusSummary(m);
       break;
   }
 }
@@ -2525,10 +2534,12 @@ setInterval(() => { if (pm.mode === "foco" && vis("tasks") && !document.hidden) 
 // ---------------------------------------------------------------- Início (widgets)
 // Cada widget é independente: html(dev) monta a estrutura uma vez; upd(el) só troca texto/atributos (nada de
 // innerHTML a cada segundo nos controles, para o toque não se perder). Layout salvo em store "home" (celular e tablet separados).
-function undoToast(msg, fn, label = "Desfazer") {
-  const t = $("utoast"); $("ut-msg").textContent = msg; $("ut-btn").textContent = label; t.classList.remove("hidden");
+function undoToast(msg, fn, label = "Desfazer", alt = null, ms = 4000) {
+  const t = $("utoast"), b2 = $("ut-btn2"); $("ut-msg").textContent = msg; $("ut-btn").textContent = label; t.classList.remove("hidden");
   $("ut-btn").onclick = () => { clearTimeout(undoToast.t); t.classList.add("hidden"); fn(); };
-  clearTimeout(undoToast.t); undoToast.t = setTimeout(() => t.classList.add("hidden"), 4000);
+  t.classList.toggle("two", !!alt); b2.classList.toggle("hidden", !alt);   // segundo botão opcional: alt = [rótulo, função]
+  if (alt) { b2.textContent = alt[0]; b2.onclick = () => { clearTimeout(undoToast.t); t.classList.add("hidden"); alt[1](); }; }
+  clearTimeout(undoToast.t); undoToast.t = setTimeout(() => t.classList.add("hidden"), ms);
 }
 const ic = (n, cls = "hi") => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-${n}"/></svg>`;
 const setText = (el, t) => { if (el && el.textContent !== t) el.textContent = t; };
@@ -3946,14 +3957,49 @@ async function handleShared() {
 const waitConnected = () => new Promise((res) => { const chk = () => (welcome.host && ws && ws.readyState === 1 ? res() : setTimeout(chk, 300)); chk(); });
 
 // ---------------------------------------------------------------- Alertas
-prefs.alerts = Object.assign({ net: true, download: true, gpu: false, gpuV: 85, cpu: false, cpuV: 90, ram: false, ramV: 90 }, store.get("alerts", {}));
+prefs.alerts = Object.assign({ net: true, download: true, export: true, misplaced: true, gpu: false, gpuV: 85, cpu: false, cpuV: 90, ram: false, ramV: 90 }, store.get("alerts", {}));
 const alertOn = {};
 const saveAlerts = () => store.set("alerts", prefs.alerts);
-["net", "download", "gpu", "cpu", "ram"].forEach((k) => {
+["net", "download", "export", "misplaced", "gpu", "cpu", "ram"].forEach((k) => {
   const sw = $("al-" + k); sw.classList.toggle("on", !!prefs.alerts[k]);
   sw.onclick = () => { prefs.alerts[k] = !prefs.alerts[k]; saveAlerts(); sw.classList.toggle("on", prefs.alerts[k]); buzz(8); if (prefs.alerts[k]) askNotify(false); };
   const inp = $(`al-${k}-v`);
   if (inp) { inp.value = prefs.alerts[k + "V"]; inp.onchange = () => { const v = +inp.value; if (v > 0) { prefs.alerts[k + "V"] = v; saveAlerts(); } else inp.value = prefs.alerts[k + "V"]; }; }
+});
+// Exportação concluída: toast com "Mandar para o celular" (link /dl/ temporário) e "Abrir pasta no PC"
+function exportNotice(m) {
+  const title = `Exportado: ${m.name} (${m.size_txt || fmtBytes(m.size)})`;
+  homeNotifPush({ app: "Exportação", title, body: "" });
+  snd("note"); if (navigator.vibrate) try { navigator.vibrate([90, 60, 90]); } catch {}
+  if (document.hidden) return sysNotify("Exportado", `${m.name} (${m.size_txt || ""})`, "exp");
+  undoToast(title, () => send("export.link", { id: m.id }).then((r) => {
+    const a = document.createElement("a"); a.href = r.url; a.download = r.name; document.body.append(a); a.click(); a.remove(); toast("Baixando " + r.name, "ok");
+  }).catch((e) => toast(e.message, "bad")), "Mandar para o celular",
+  ["Abrir pasta no PC", () => send("export.reveal", { id: m.id }).catch((e) => toast(e.message, "bad"))], 10000);
+}
+// Arquivo fora do lugar: tocar no aviso abre a vista Trabalho
+function misplacedNotice(m) {
+  homeNotifPush({ app: m.title, title: m.body, body: "", go: "work" });
+  snd("note"); if (navigator.vibrate) try { navigator.vibrate([90, 60, 90]); } catch {}
+  if (document.hidden) return sysNotify(m.title, m.body, "misplaced");
+  undoToast(m.body, () => showView("work"), "Abrir Trabalho", null, 10000);
+}
+// Modo foco: resumo do que foi segurado durante o Foco
+let focusItems = [];
+function focusSummary(m) {
+  focusItems = m.items || [];
+  homeNotifPush({ app: "Modo foco", title: m.text, body: "", go: "focus-list" });
+  snd("note");
+  undoToast(m.text, showFocusList, "Ver lista", null, 8000);
+}
+function showFocusList() {
+  $("fl-body").innerHTML = focusItems.length ? focusItems.map((n) => `<div class="hnt"><div class="hnt-a"><b>${esc(n.app)}</b><span>${esc(n.time)}</span></div><div class="hnt-b">${esc([n.title, n.body].filter(Boolean).join(" · "))}</div></div>`).join("") : "<p>Nada para mostrar.</p>";
+  $("focus-list").classList.remove("hidden");
+}
+$("fl-ok").onclick = () => $("focus-list").classList.add("hidden");
+document.addEventListener("click", (e) => {
+  const g = e.target.closest?.(".hnt[data-go]"); if (!g) return;
+  if (g.dataset.go === "focus-list") showFocusList(); else showView(g.dataset.go);
 });
 function checkAlerts(s) {
   const chk = (k, val, label, unit) => {
@@ -3982,6 +4028,9 @@ function subNotif() {
 async function notify(title, body, tag) {
   toast(`${title}${body ? " · " + body : ""}`, "warn");
   if (navigator.vibrate) try { navigator.vibrate([90, 60, 90]); } catch {}
+  sysNotify(title, body, tag);
+}
+async function sysNotify(title, body, tag) {
   if (document.hidden && "Notification" in window && Notification.permission === "granted") {
     try {
       const reg = await navigator.serviceWorker?.getRegistration();
@@ -4664,7 +4713,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
     let orig = null, vals = null, net = null, editSc = null;
     const body = h("div"), msg = h("span", { class: "pn-dim" });
     main.append(h("section", {}, h("h1", {}, "Ajustes"), h("p", { class: "pn-sub" }, "Opções do servidor no PC."), body));
-    const KEYS = ["upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "idle_min", "notif_ignore", "shortcuts"];
+    const KEYS = ["upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "idle_min", "notif_ignore", "shortcuts", "export_watch", "misplaced_min"];
     const dirty = () => KEYS.filter((k) => JSON.stringify(vals[k]) !== JSON.stringify(orig[k]));
     const pickDir = async (k) => { try { const f = await call("pick_folder", {}, 600000); if (f) { vals[k] = f; render(); } } catch (e) { fail(e); } };
     const slug = (name) => { let b = name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 36) || "programa", id = b, n = 2; const ids = new Set(vals.shortcuts.map((s) => s.id)); while (ids.has(id)) id = b + "-" + n++; return id; };
@@ -4676,6 +4725,13 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
         msg.textContent = r.restart ? "Salvo. Reinicie o servidor (ícone da bandeja → Reiniciar servidor) para usar as novas pastas." : "Salvo.";
       } catch (e) { fail(e); }
     };
+    const pickExport = async () => {
+      try { const f = await call("pick_folder", {}, 600000); if (!f) return;
+        if (vals.export_watch.folders.length >= 10) { toast("No máximo 10 pastas.", { bad: true }); return; }
+        if (vals.export_watch.folders.some((x) => x.toLowerCase() === f.toLowerCase())) { toast("Essa pasta já está na lista.", { bad: true }); return; }
+        vals.export_watch.folders.push(f); render(); } catch (e) { fail(e); }
+    };
+    const pomoCfg = async (ch) => { try { PM.set(await call("pomo_config", ch)); render(); } catch (e) { fail(e); } };
     const dirRow = (k, label) => h("div", { class: "pn-row", style: "margin-top:8px" }, h("div", { class: "pn-grow" }, h("div", {}, label), h("div", { class: "pn-faint" }, vals[k] || "")), h("button", { class: "pn-btn", type: "button", onclick: () => pickDir(k) }, "Escolher…"));
     function scForm() {
       const s = editSc, f = (key, label, ph) => [h("label", { for: "sc-" + key }, label), h("input", { id: "sc-" + key, class: "pn-in", type: "text", value: s.data[key] || "", placeholder: ph || "", oninput: (e) => { s.data[key] = e.target.value; } })];
@@ -4696,12 +4752,29 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
       const addN = () => { const v = nIn.value.trim(); if (v && !vals.notif_ignore.includes(v)) { vals.notif_ignore.push(v); render(); } };
       nIn.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); addN(); } };
       const d = dirty();
+      const fIn = h("input", { class: "pn-in", type: "text", maxlength: "80", placeholder: "Nome do app (como aparece na notificação)", "aria-label": "App que sempre passa" });
+      const addF = () => { const v = fIn.value.trim(); if (v && PM.d) pomoCfg({ focus_except: [...(PM.d.config.focus_except || []), v] }); };
+      fIn.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); addF(); } };
       body.replaceChildren(
         h("div", { class: "pn-h" }, "Pastas"), h("div", { class: "pn-card" }, dirRow("upload_dir", "Arquivos enviados pelo celular"), dirRow("downloads_dir", "Pasta vigiada (download concluído)")),
         h("div", { class: "pn-h" }, "Energia"), h("div", { class: "pn-card" },
           h("div", { class: "pn-row" }, h("div", { class: "pn-grow", id: "lb-power" }, "Permitir desligar, reiniciar e suspender pelo celular"), h("button", { class: "pn-sw", type: "button", role: "switch", "aria-checked": !!vals.allow_power, "aria-labelledby": "lb-power", onclick: () => { vals.allow_power = !vals.allow_power; render(); } })),
           h("div", { class: "pn-row", style: "margin-top:10px" }, h("label", { class: "pn-grow", for: "st-delay" }, "Atraso antes de desligar (segundos)"), h("input", { id: "st-delay", class: "pn-in num", type: "number", min: 0, max: 600, step: 5, value: vals.shutdown_delay_s, onchange: (e) => { const n = parseInt(e.target.value, 10); vals.shutdown_delay_s = Number.isFinite(n) ? n : orig.shutdown_delay_s; render(); } }))),
-        h("div", { class: "pn-h" }, "Trabalho"), h("div", { class: "pn-card" }, h("div", { class: "pn-row" }, h("label", { class: "pn-grow", for: "st-idle" }, "Parar de contar depois de (minutos parado)"), h("input", { id: "st-idle", class: "pn-in num", type: "number", min: 1, max: 30, value: vals.idle_min, onchange: (e) => { const n = parseInt(e.target.value, 10); vals.idle_min = Number.isFinite(n) ? n : orig.idle_min; render(); } }))),
+        h("div", { class: "pn-h" }, "Trabalho"), h("div", { class: "pn-card" }, h("div", { class: "pn-row" }, h("label", { class: "pn-grow", for: "st-idle" }, "Parar de contar depois de (minutos parado)"), h("input", { id: "st-idle", class: "pn-in num", type: "number", min: 1, max: 30, value: vals.idle_min, onchange: (e) => { const n = parseInt(e.target.value, 10); vals.idle_min = Number.isFinite(n) ? n : orig.idle_min; render(); } })),
+          h("div", { class: "pn-row", style: "margin-top:10px" }, h("label", { class: "pn-grow", for: "st-mis" }, "Avisar arquivo sem salvar ou fora das pastas de clientes depois de"),
+            h("select", { id: "st-mis", class: "pn-in", onchange: (e) => { vals.misplaced_min = parseInt(e.target.value, 10); render(); } }, [[0, "Desligado"], [5, "5 min"], [10, "10 min"], [20, "20 min"]].map(([v, t]) => h("option", { value: v, selected: vals.misplaced_min === v }, t))))),
+        h("div", { class: "pn-h" }, "Exportação concluída"), h("div", { class: "pn-card" },
+          h("div", { class: "pn-row" }, h("div", { class: "pn-grow", id: "lb-exp" }, "Avisar quando um arquivo exportado ficar pronto"), h("button", { class: "pn-sw", type: "button", role: "switch", "aria-checked": !!vals.export_watch.on, "aria-labelledby": "lb-exp", onclick: () => { vals.export_watch.on = !vals.export_watch.on; render(); } })),
+          h("div", { class: "pn-faint", style: "margin-top:6px" }, "Vídeos, imagens, PDF, áudio e ZIP novos nessas pastas (e subpastas até 2 níveis). O que já está lá não avisa.")),
+        h("div", { class: "pn-list" }, vals.export_watch.folders.length ? vals.export_watch.folders.map((f, i) => h("div", { class: "pn-li" }, h("div", { class: "pn-txt" }, f), h("button", { class: "pn-btn sq danger", type: "button", "aria-label": "Remover " + f, onclick: () => { vals.export_watch.folders.splice(i, 1); render(); } }, ic("trash")))) : h("div", { class: "pn-empty" }, "Nenhuma pasta de exportação.")),
+        h("div", { class: "pn-foot" }, h("button", { class: "pn-btn", type: "button", disabled: vals.export_watch.folders.length >= 10, onclick: pickExport }, "Adicionar pasta…")),
+        h("div", { class: "pn-h" }, "Modo foco do Pomodoro"), h("div", { class: "pn-card" },
+          PM.d ? [h("div", { class: "pn-row" }, h("div", { class: "pn-grow", id: "lb-fm" }, "Segurar as notificações do PC repassadas ao celular durante o Foco"), h("button", { class: "pn-sw", type: "button", role: "switch", "aria-checked": !!PM.d.config.focus_mode, "aria-labelledby": "lb-fm", onclick: () => pomoCfg({ focus_mode: !PM.d.config.focus_mode }) })),
+            h("div", { class: "pn-faint", style: "margin-top:6px" }, "Na pausa chega um resumo. Apps que sempre passam:")] : h("div", { class: "pn-dim" }, "Conectando…"),
+          PM.d ? h("div", {}, (PM.d.config.focus_except || []).map((a, i) => h("div", { class: "pn-li" }, h("div", { class: "pn-txt" }, a), h("button", { class: "pn-btn sq danger", type: "button", "aria-label": "Remover " + a, onclick: () => pomoCfg({ focus_except: PM.d.config.focus_except.filter((_, j) => j !== i) }) }, ic("trash")))),
+            h("div", { class: "pn-row", style: "margin-top:8px" }, fIn, h("button", { class: "pn-btn", type: "button", onclick: addF }, "Adicionar"))) : null,
+          h("div", { class: "pn-faint", style: "margin-top:10px" }, "O Windows não deixa o Companion ligar o “Foco” (Não perturbe) por programa: só pela API restrita da Microsoft. Use o botão para ligá-lo à mão."),
+          h("div", { class: "pn-foot" }, h("button", { class: "pn-btn", type: "button", onclick: () => call("open_focus").catch(fail) }, "Abrir Foco do Windows"))),
         h("div", { class: "pn-h" }, "Notificações ignoradas"), h("div", { class: "pn-list" }, vals.notif_ignore.length ? vals.notif_ignore.map((a, i) => h("div", { class: "pn-li" }, h("div", { class: "pn-txt" }, a), h("button", { class: "pn-btn sq danger", type: "button", "aria-label": "Remover " + a, onclick: () => { vals.notif_ignore.splice(i, 1); render(); } }, ic("trash")))) : h("div", { class: "pn-empty" }, "Nenhum app ignorado.")),
         h("div", { class: "pn-row", style: "margin-top:8px" }, nIn, h("button", { class: "pn-btn", type: "button", onclick: addN }, "Adicionar")),
         h("div", { class: "pn-h" }, "Programas da página “Programas”"), h("div", { class: "pn-list" }, vals.shortcuts.length ? vals.shortcuts.map((s, i) => h("div", { class: "pn-li" },

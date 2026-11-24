@@ -57,6 +57,7 @@ from websockets.datastructures import Headers
 from websockets.http11 import Response
 from websockets.exceptions import ConnectionClosed
 
+import alerts
 import dota
 import dota_img
 import extras
@@ -534,6 +535,8 @@ ACTIONS = {
     # tarefas (tasks.py): o celular só vê e marca/desmarca
     "tasks.get": lambda p: TASKS.get(),
     "tasks.toggle": lambda p: TASKS.toggle(p["id"]),
+    "export.link": lambda p: export_link(p),
+    "export.reveal": lambda p: export_reveal(p),
 }
 
 
@@ -547,7 +550,7 @@ def work_csv(offset):
 # config.json editado pelo painel do PC: um conjunto fechado de opções
 # --------------------------------------------------------------------------
 CONFIG_EDITABLE = {"upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "notif_ignore", "shortcuts",
-                   "idle_min"}
+                   "idle_min", "export_watch", "misplaced_min"}
 CONFIG_RESTART = {"upload_dir", "downloads_dir"}  # lidas só na abertura do servidor
 SHORTCUT_ID = re.compile(r"^[a-z0-9_-]{1,40}$")
 _CTRL = re.compile(r"[\x00-\x1f\x7f]")
@@ -599,6 +602,23 @@ def clean_config_value(key, v):
         return out
     if key == "idle_min":
         return work.valid_idle_min(v)
+    if key == "misplaced_min":
+        return alerts.valid_misplaced_min(v)
+    if key == "export_watch":
+        if not isinstance(v, dict) or set(v) - {"folders", "on"} or not isinstance(v.get("on"), bool):
+            raise ValueError("exportação: formato inválido")
+        fl = v.get("folders")
+        if not isinstance(fl, list) or len(fl) > extras.EXPORT_MAX_FOLDERS:
+            raise ValueError(f"no máximo {extras.EXPORT_MAX_FOLDERS} pastas de exportação")
+        out = []
+        for f in fl:
+            f = _text(f, "caminho da pasta", 260)
+            if not re.match(r"^[A-Za-z]:\\", f):
+                raise ValueError("a pasta precisa ser um caminho completo")
+            if f.casefold() in {o.casefold() for o in out}:
+                raise ValueError("essa pasta já está na lista")
+            out.append(f)
+        return {"folders": out, "on": v["on"]}
     raise ValueError(f"opção não editável: {key}")
 
 
@@ -633,7 +653,8 @@ def config_get():
     # opção ausente no config.json (ou null / tipo errado): a tela mostra o padrão em vez de quebrar
     fallback = {"upload_dir": DEFAULT_CFG["upload_dir"], "downloads_dir": DEFAULT_CFG["downloads_dir"],
                 "allow_power": DEFAULT_CFG["allow_power"], "shutdown_delay_s": DEFAULT_CFG["shutdown_delay_s"],
-                "notif_ignore": [], "shortcuts": [], "idle_min": 5}
+                "notif_ignore": [], "shortcuts": [], "idle_min": 5,
+                "export_watch": {"folders": [], "on": True}, "misplaced_min": alerts.DEFAULT_MISPLACED_MIN}
     out = {}
     for k in CONFIG_EDITABLE:
         v = CFG.get(k)
@@ -811,7 +832,23 @@ async def call_action(action, params):
 
 DECK = extras.Deck(BASE)
 UPLOADS = extras.Uploads(CFG.get("upload_dir") or DEFAULT_CFG["upload_dir"])
-DOWNLOADS = extras.DownloadWatcher(CFG.get("downloads_dir") or DEFAULT_CFG["downloads_dir"])
+DOWNLOADS = extras.FolderWatcher(lambda: [CFG.get("downloads_dir") or DEFAULT_CFG["downloads_dir"]])
+
+
+def export_folders():
+    """Pastas de exportação do config.json (só com "on"); a pasta Downloads fica de fora (já tem o seu aviso)."""
+    ew = CFG.get("export_watch")
+    if not isinstance(ew, dict) or not ew.get("on", True) or not isinstance(ew.get("folders"), list):
+        return []
+    dl = os.path.normcase(os.path.normpath(os.path.expandvars(CFG.get("downloads_dir") or DEFAULT_CFG["downloads_dir"])))
+    return [f for f in ew["folders"] if isinstance(f, str) and os.path.normcase(os.path.normpath(os.path.expandvars(f))) != dl]
+
+
+EXPORTS = extras.FolderWatcher(export_folders, exts=extras.EXPORT_EXT, depth=extras.EXPORT_DEPTH,
+                               stable_s=extras.EXPORT_STABLE_S, check_open=True)
+EXPORTS_RECENT: dict = {}   # id -> caminho (só memória, últimos 20): o celular pede o link pelo id, nunca manda caminho
+FOCUS = alerts.FocusHold()
+MISPLACED = alerts.Misplaced()
 
 
 def shortcut_map():
@@ -1228,6 +1265,7 @@ QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "m
                  "screen.shot", "mixer.get", "deck.get", "deck.save",  # deck.save: textos/macros dos botões
                  "work.get", "work.week", "work.csv",  # nomes de cliente/job/arquivo
                  "tasks.get", "tasks.toggle",  # texto das tarefas
+                 "export.link", "export.reveal",  # nome de arquivo de cliente
                  "dota.get",  # consultada a cada abertura da tela Dota
                  "weather.get", "weather.search", "weather.set_place", "weather.refresh",  # cidade escolhida / texto digitado
                  "pomo.get", "pomo.start", "pomo.pause", "pomo.resume", "pomo.skip", "pomo.reset", "pomo.config",
@@ -1395,6 +1433,61 @@ async def send_games(ws, state):
         clients.discard(ws)
 
 
+async def phones_send(obj):
+    msg = json.dumps(obj, ensure_ascii=False)
+    for ws in [w for w in list(clients) if client_kind.get(w) == "celular"]:
+        try:
+            await ws.send(msg)
+        except ConnectionClosed:
+            pass
+
+
+async def pc_balloon(title, text):
+    if NOTIFY[0]:
+        try:
+            await asyncio.to_thread(NOTIFY[0], title, text)
+        except Exception as e:  # noqa: BLE001
+            log.warning("aviso da bandeja: %s", type(e).__name__)
+
+
+def _size_txt(n):
+    for u in ("B", "KB", "MB", "GB"):
+        if n < 1024 or u == "GB":
+            return f"{n:.0f} {u}" if u == "B" else f"{n:.1f} {u}"
+        n /= 1024
+
+
+async def export_done(f):
+    eid = secrets.token_urlsafe(6)
+    EXPORTS_RECENT[eid] = f["path"]
+    while len(EXPORTS_RECENT) > 20:
+        del EXPORTS_RECENT[next(iter(EXPORTS_RECENT))]
+    await phones_send({"t": "event", "kind": "export", "id": eid, "name": f["name"], "size": f["size"],
+                       "size_txt": _size_txt(f["size"])})
+    await pc_balloon("Exportado", f"{f['name']} ({_size_txt(f['size'])})")
+
+
+def export_path(p):
+    path = EXPORTS_RECENT.get(str(p.get("id", "")))
+    if not path or not os.path.isfile(path):
+        raise ValueError("esse arquivo não está mais disponível")
+    return path
+
+
+def export_link(p):
+    path = export_path(p)
+    if os.path.getsize(path) > extras.DL_MAX:
+        raise ValueError("grande demais para mandar por aqui (limite 300 MB)")
+    name = os.path.basename(path)
+    return {"name": name, "url": extras.dl_register(name, path=path)}
+
+
+def export_reveal(p):
+    path = export_path(p)
+    subprocess.Popen(["explorer", "/select,", os.path.normpath(path)])   # nada da pasta é lido ou alterado
+    return {"ok": True}
+
+
 async def downloads_loop():
     """Avisa os celulares quando aparece um arquivo novo (completo) em Downloads."""
     last_sweep = time.monotonic()
@@ -1402,12 +1495,10 @@ async def downloads_loop():
         try:
             for f in await asyncio.to_thread(DOWNLOADS.poll):
                 log.info("download concluído: %s", f["name"])
-                msg = json.dumps({"t": "event", "kind": "download", **f}, ensure_ascii=False)
-                for ws in [w for w in list(clients) if client_kind.get(w) == "celular"]:
-                    try:
-                        await ws.send(msg)
-                    except ConnectionClosed:
-                        pass
+                await phones_send({"t": "event", "kind": "download", "name": f["name"], "size": f["size"]})
+            for f in await asyncio.to_thread(EXPORTS.poll):
+                log.info("exportação concluída")   # sem o nome: é arquivo de cliente
+                await export_done(f)
         except Exception:  # noqa: BLE001
             log.exception("downloads_loop")
         if time.monotonic() - last_sweep >= 60:  # envios do celular abandonados

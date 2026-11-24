@@ -654,45 +654,102 @@ def screen_point(mon, x, y):
 
 
 # --------------------------------------------------------------------------
-# Downloads concluídos (pasta Downloads)
+# Arquivos novos e prontos em pastas vigiadas (Downloads e pastas de exportação): um só mecanismo
 # --------------------------------------------------------------------------
-TEMP_EXT = {".crdownload", ".part", ".partial", ".tmp", ".opdownload", ".download", ".!ut", ".aria2"}
+TEMP_EXT = {".crdownload", ".part", ".partial", ".tmp", ".temp", ".opdownload", ".download", ".!ut", ".aria2"}
+EXPORT_EXT = {".mp4", ".mov", ".m4v", ".mxf", ".gif", ".png", ".jpg", ".jpeg", ".webp", ".pdf", ".wav", ".mp3", ".aac", ".zip"}
+EXPORT_MAX_FOLDERS, EXPORT_DEPTH, SCAN_MAX_ENTRIES, EXPORT_STABLE_S = 10, 2, 5000, 5.0
 
 
-class DownloadWatcher:
-    def __init__(self, folder):
-        self.folder = Path(os.path.expandvars(folder))
-        self.known = None
-        self.pending = {}  # nome -> tamanho na última olhada (esperando ficar estável)
+def is_temp_name(name):
+    """Temporários: extensão de download/temporário, nome começando com ~ ou ., ou render temporário (.tmp./.temp. no nome)."""
+    n = name.lower()
+    return n.startswith(("~", ".")) or Path(n).suffix in TEMP_EXT or ".tmp." in n or ".temp." in n
 
-    def _scan(self):
-        out = {}
-        try:
-            with os.scandir(self.folder) as it:
-                for e in it:
-                    if e.is_file() and not e.name.startswith(".") and Path(e.name).suffix.lower() not in TEMP_EXT:
-                        out[e.name] = e.stat().st_size
-        except OSError:
-            pass
-        return out
+
+def _openable(path):
+    """Abre sem bloqueio: nenhum programa segura o arquivo com acesso exclusivo (abre para anexar e fecha; não grava nada)."""
+    try:
+        with open(path, "ab"):
+            return True
+    except OSError:
+        return False
+
+
+class FolderWatcher:
+    """folders: função que devolve as pastas (relida a cada poll). Pronto = mesmo tamanho (>0) por pelo menos
+    stable_s segundos e, com check_open, abrindo sem bloqueio. O que já existia quando a pasta passou a ser vigiada
+    nunca é avisado. Varredura: até `depth` níveis de subpastas e `max_entries` entradas no total por poll."""
+
+    def __init__(self, folders, exts=None, depth=0, max_entries=SCAN_MAX_ENTRIES, stable_s=0.0, check_open=False,
+                 max_folders=EXPORT_MAX_FOLDERS, clock=time.monotonic):
+        self.folders, self.exts, self.depth, self.max_entries = folders, exts, depth, max_entries
+        self.stable_s, self.check_open, self.max_folders, self.clock = stable_s, check_open, max_folders, clock
+        self.known = {}    # pasta -> {caminho: tamanho} (existe só depois da primeira varredura da pasta)
+        self.pending = {}  # caminho -> (tamanho, desde quando)
+        self.truncated = False
+
+    def _scan(self, folder, budget):
+        out, trunc, stack = {}, False, [(folder, 0)]
+        while stack and not trunc:
+            d, lvl = stack.pop()
+            try:
+                with os.scandir(d) as it:
+                    for e in it:
+                        budget[0] -= 1
+                        if budget[0] < 0:
+                            trunc = True
+                            break
+                        try:
+                            if e.is_dir(follow_symlinks=False):
+                                if lvl < self.depth:
+                                    stack.append((e.path, lvl + 1))
+                            elif (e.is_file() and not is_temp_name(e.name)
+                                  and (not self.exts or Path(e.name).suffix.lower() in self.exts)):
+                                out[e.path] = e.stat().st_size
+                        except OSError:
+                            continue
+            except OSError:
+                pass
+        return out, trunc
 
     def poll(self):
-        """Lista de arquivos que acabaram de chegar (tamanho estável)."""
-        now = self._scan()
-        if self.known is None:
-            self.known = now
-            return []
-        done = []
-        for name, size in now.items():
-            if name in self.known:
+        """Arquivos que acabaram de ficar prontos: [{"name", "size", "path"}]."""
+        now, done = self.clock(), []
+        folders = []
+        for f in list(self.folders())[:self.max_folders]:
+            f = os.path.normpath(os.path.expandvars(str(f)))
+            if f not in folders:
+                folders.append(f)
+        for f in [k for k in self.known if k not in folders]:   # pasta tirada da lista: esquece (ao voltar, é "nova" de novo)
+            del self.known[f]
+        budget, self.truncated = [self.max_entries], False
+        live = set()
+        for f in folders:
+            out, trunc = self._scan(f, budget)
+            self.truncated = self.truncated or trunc
+            live.update(out)
+            kn = self.known.get(f)
+            if kn is None:
+                self.known[f] = out
                 continue
-            if self.pending.get(name) == size and size > 0:
-                done.append({"name": name, "size": size})
-                self.known[name] = size
-                self.pending.pop(name, None)
-            else:
-                self.pending[name] = size
-        for name in list(self.known):
-            if name not in now:
-                del self.known[name]
+            for path, size in out.items():
+                if path in kn:
+                    continue
+                p = self.pending.get(path)
+                if p and p[0] == size and size > 0 and now - p[1] >= self.stable_s:
+                    if self.check_open and not _openable(path):
+                        continue
+                    done.append({"name": os.path.basename(path), "size": size, "path": path})
+                    for k in self.known.values():   # pastas que se sobrepõem não avisam duas vezes
+                        k[path] = size
+                    kn[path] = size
+                    self.pending.pop(path, None)
+                elif not p or p[0] != size:
+                    self.pending[path] = (size, now)
+            if not trunc:
+                for path in [k for k in kn if k not in out]:
+                    del kn[path]
+        for path in [k for k in self.pending if k not in live]:
+            del self.pending[path]
         return done
