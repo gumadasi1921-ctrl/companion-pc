@@ -145,7 +145,7 @@ class Trello:
         c = self.get_cfg() or {}
         cred = self._cred()
         state = "off" if not c.get("on") or not cred else "bad_cred" if self.blocked else "net_error" if self.error else "ok" if self.at else "waiting"
-        return {"on": bool(c.get("on")), "has_key": bool(c.get("key")), "has_token": bool(c.get("token")),
+        return {"on": bool(c.get("on")), "has_key": bool(c.get("key")), "has_secret": bool(c.get("token")),
                 "state": state, "at": self.at or None, "user": self.user}
 
     # -- leitura --------------------------------------------------------------

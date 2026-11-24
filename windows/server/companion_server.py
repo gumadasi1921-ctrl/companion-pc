@@ -545,11 +545,23 @@ ACTIONS = {
 }
 
 
+def trello_state():
+    """Na fila de disco (o histórico de trabalho só é lido ali): estado do Trello + tempo dos jobs ligados aos cards."""
+    return TRELLO.state(times=WORK.link_times())
+
+
+def work_link_set(client, job, card, _name=""):
+    """Liga o job ao card; o nome do card vem do cache do Trello (nunca do painel), e o card precisa estar nele."""
+    if not TRELLO.has_card(card):
+        raise ValueError("esse card não está entre os seus cards do Trello")
+    return WORK.link_set(client, job, card, TRELLO.card_name(card))
+
+
 def trello_get(p):
     """Estado do Trello para o celular (ao abrir Tarefas busca de novo, no máximo 1x por minuto)."""
     if p.get("refresh"):
         TRELLO.refresh_manual()
-    return TRELLO.state()
+    return trello_state()
 
 
 def trello_open(p):
@@ -745,6 +757,11 @@ PANEL_OPS = {
     "work_month": lambda ym: io_call(WORK.month, ym),
     "work_month_csv": lambda ym: io_call(work_month_csv, ym),
     "work_note_set": lambda day, text: io_call(WORK.note_set, day, text),
+    "work_links_get": lambda: io_call(WORK.links_get),
+    "work_link_set": lambda client, job, card, name: io_call(work_link_set, client, job, card, name),
+    "work_link_delete": lambda ids: io_call(WORK.link_delete, ids),
+    "work_link_restore": lambda entries: io_call(WORK.link_restore, entries),
+    "trello_cards": lambda: io_call(lambda: {"cards": TRELLO.all_cards(), "status": TRELLO.status()}),
     "work_add_root": lambda folder: io_call(WORK.add_root, folder),
     "work_remove_root": lambda folder: io_call(WORK.remove_root, folder),
     "work_reclass_preview": lambda: io_call(WORK.reclass_preview, timeout=60),  # reindexa as raízes
@@ -849,6 +866,11 @@ PANEL_WS = {   # nome -> função(params dict); as de gravação rodam na fila d
     "work_month": lambda p: PANEL_OPS["work_month"](p.get("ym")),
     "work_month_csv": lambda p: PANEL_OPS["work_month_csv"](p.get("ym")),
     "work_note_set": lambda p: PANEL_OPS["work_note_set"](_need(p, "day", str), _need(p, "text", str)),
+    "work_links_get": lambda p: PANEL_OPS["work_links_get"](),
+    "work_link_set": lambda p: PANEL_OPS["work_link_set"](_need(p, "client", str), p.get("job") or "", _need(p, "card", str), ""),
+    "work_link_delete": lambda p: PANEL_OPS["work_link_delete"](p.get("ids") if "ids" in p else _need(p, "id", str)),
+    "work_link_restore": lambda p: PANEL_OPS["work_link_restore"](_need(p, "entries", list)),
+    "trello_cards": lambda p: PANEL_OPS["trello_cards"](),
     "work_add_root": lambda p: PANEL_OPS["work_add_root"](_need(p, "folder", str)),
     "work_remove_root": lambda p: PANEL_OPS["work_remove_root"](_need(p, "folder", str)),
     "work_assign_preview": lambda p: PANEL_OPS["work_assign_preview"](_need(p, "items", list), _need(p, "offset", int)),
@@ -1356,7 +1378,7 @@ QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "m
                  "tasks_remove", "tasks_move", "tasks_toggle", "tasks_clear_done", "tasks_restore", "work_get",
                  "work_week", "work_csv", "work_month", "work_month_csv", "work_note_set", "work_add_root", "work_remove_root", "work_assign_preview", "work_assign",
                  "work_ignore", "work_rules_get", "work_rule_delete", "work_unignore", "config_get", "config_save", "open_focus", "backup_run", "trello_test",
-                 "trello.get", "trello.open"}
+                 "trello.get", "trello.open", "work_links_get", "work_link_set", "work_link_delete", "work_link_restore", "trello_cards"}
 
 
 async def now_payload():
@@ -1416,7 +1438,7 @@ _trello_sig = [None]
 
 async def trello_send(only=None, force=False):
     """Empurra o estado aos celulares só quando muda."""
-    msg = json.dumps({"t": "trello", "d": TRELLO.state()}, ensure_ascii=False)
+    msg = json.dumps({"t": "trello", "d": await on_io(trello_state)}, ensure_ascii=False)
     sig = hash(msg)
     if not only and not force and sig == _trello_sig[0]:
         return

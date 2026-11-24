@@ -681,6 +681,90 @@ class WorkTracker:
         return {"moved": moved, "s": int(moved_s), "total_before_s": round(before, 1), "total_after_s": round(after, 1),
                 "backup": bak.name}
 
+    # -- Ligações job ↔ card do Trello (em work_rules.json, "links") ---------------------------------
+    # links [{id, client, job, card (shortLink), card_name, created_at}]  1 card por job e 1 job por card.
+    # Só guardam a ligação; o tempo é sempre lido do histórico (hoje, semana, total), então apagar a ligação não muda nada.
+    @staticmethod
+    def _link_ok(x):
+        return (isinstance(x, dict) and isinstance(x.get("id"), str) and isinstance(x.get("client"), str) and x["client"]
+                and isinstance(x.get("job"), str) and isinstance(x.get("card"), str) and re.fullmatch(r"[A-Za-z0-9]{8}", x["card"])
+                and isinstance(x.get("card_name", ""), str))
+
+    @staticmethod
+    def _jkey(client, job):
+        return (client.casefold(), (job or NO_JOB).casefold())
+
+    def link_set(self, client, job, card, card_name=""):
+        """Liga o job ao card (troca a ligação anterior do job e a do card). Devolve {"link", "replaced"} para o desfazer."""
+        if not isinstance(card, str) or not re.fullmatch(r"[A-Za-z0-9]{8}", card):
+            raise ValueError("card inválido")
+        client = self._clean_name(client, "cliente")
+        job = self._clean_name(job, "job", optional=True) or NO_JOB
+        client, job = self._canon(client, job)
+        name = CTRL.sub("", str(card_name or ""))[:200]
+        key = self._jkey(client, job)
+        replaced = [x for x in self.links if self._jkey(x["client"], x["job"]) == key or x["card"] == card]
+        keep = [x for x in self.links if x not in replaced]
+        if len(keep) >= MAX_RULES:
+            raise ValueError("limite de ligações atingido")
+        entry = {"id": self._new_id(), "client": client, "job": job, "card": card, "card_name": name,
+                 "created_at": datetime.now().isoformat(timespec="seconds")}
+        old = self.links
+        self.links = keep + [entry]
+        try:
+            self._save_rules()
+        except OSError:
+            self.links = old
+            raise ValueError("não consegui gravar a ligação") from None
+        return {"link": entry, "replaced": replaced}
+
+    def link_delete(self, ids):
+        ids = {ids} if isinstance(ids, str) else set(ids or [])
+        gone = [x for x in self.links if x["id"] in ids]
+        if gone:
+            old = self.links
+            self.links = [x for x in self.links if x["id"] not in ids]
+            try:
+                self._save_rules()
+            except OSError:
+                self.links = old
+                raise ValueError("não consegui gravar") from None
+        return {"removed": gone}
+
+    def link_restore(self, entries):
+        """Desfazer: devolve ligações apagadas/trocadas (mesmos ids), sem duplicar job nem card."""
+        if not isinstance(entries, list) or len(entries) > 20:
+            raise ValueError("nada para restaurar")
+        add = [x for x in entries if self._link_ok(x)]
+        for x in add:
+            self.links = [y for y in self.links if y["id"] != x["id"] and y["card"] != x["card"] and self._jkey(y["client"], y["job"]) != self._jkey(x["client"], x["job"])]
+            self.links.append({k: x[k] for k in ("id", "client", "job", "card", "card_name", "created_at") if k in x})
+        self._save_rules()
+        return {"restored": len(add)}
+
+    def link_times(self, today=None):
+        """{shortLink: {today_s, week_s, total_s}} dos jobs ligados, numa passada só pelo histórico (regras/ignorados valem)."""
+        if not self.links:
+            return {}
+        today = today or date.today()
+        mon = today - timedelta(days=today.weekday())
+        by_job = {self._jkey(x["client"], x["job"]): x["card"] for x in self.links}
+        out = {x["card"]: {"today_s": 0.0, "week_s": 0.0, "total_s": 0.0} for x in self.links}
+        for d, client, job, _a, _f, s_ in self._rows(date(2000, 1, 1), today):
+            card = by_job.get(self._jkey(client, job))
+            if card:
+                t = out[card]
+                t["total_s"] += s_
+                if d >= mon:
+                    t["week_s"] += s_
+                if d == today:
+                    t["today_s"] += s_
+        return {c: {k: int(v) for k, v in t.items()} for c, t in out.items()}
+
+    def links_get(self, today=None):
+        times = self.link_times(today)
+        return [{**x, **times.get(x["card"], {"today_s": 0, "week_s": 0, "total_s": 0})} for x in self.links]
+
     # -- Regras manuais (work_rules.json) ------------------------------------------
     # rules   [{id, file, app|None, client, job, created_at}]  vale sempre (nome de arquivo NÃO genérico)
     # once    [{id, file, app, client, job, from, to, created_at}]  atribuição pontual de um período (qualquer nome)
@@ -689,7 +773,7 @@ class WorkTracker:
     def _load_rules(self):
         def ok(d):
             return isinstance(d, dict) and all(isinstance(d.get(k, []), list) and all(isinstance(x, dict) for x in d.get(k, []))
-                                               for k in ("rules", "once", "ignored"))
+                                               for k in ("rules", "once", "ignored", "links"))
         p = self.rules_path
         try:
             d = json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
@@ -705,6 +789,7 @@ class WorkTracker:
             d = None
         d = d or {}
         self.rules, self.once, self.ignored = (list(d.get(k, [])) for k in ("rules", "once", "ignored"))
+        self.links = [x for x in d.get("links", []) if self._link_ok(x)]   # ligações job ↔ card do Trello
         self._reindex_rules()
 
     def _reindex_rules(self):
@@ -713,7 +798,7 @@ class WorkTracker:
             self._rule_idx[(str(r.get("file", "")).casefold(), (r.get("app") or "").casefold())] = r
 
     def _save_rules(self):
-        _save_json(self.rules_path, {"version": 1, "rules": self.rules, "once": self.once, "ignored": self.ignored})
+        _save_json(self.rules_path, {"version": 1, "rules": self.rules, "once": self.once, "ignored": self.ignored, "links": self.links})
         self._reindex_rules()
 
     @staticmethod

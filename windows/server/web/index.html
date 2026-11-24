@@ -4372,6 +4372,9 @@ html.panel-mode, html.panel-mode body { margin: 0; height: 100%; overflow: hidde
 .pn-cd.empty { visibility: hidden; } .pn-cd .pn-cn { font-size: 11px; color: var(--text-2); } .pn-cd b { font-size: 13px; min-height: 16px; font-variant-numeric: tabular-nums; }
 .pn-cd.today { outline: 2px solid var(--accent-fill); outline-offset: -2px; } .pn-cd.sel { outline: 2px solid var(--text); outline-offset: -2px; }
 .pn-cd i.nt { position: absolute; top: 5px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--text); }
+.pn-pickl { max-height: 240px; overflow-y: auto; margin-top: 8px; border-radius: 8px; background: var(--bg); display: flex; flex-direction: column; }
+.pn-pk { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 48px; padding: 6px 12px; border: 0; background: transparent; color: var(--text); text-align: left; border-top: 1px solid var(--separator); }
+.pn-pk:first-child { border-top: 0; } .pn-pk.on { background: var(--surface-3); box-shadow: inset 3px 0 0 var(--accent-fill); }
 .pn-note { width: 100%; box-sizing: border-box; margin-top: 8px; resize: vertical; min-height: 64px; font: inherit; }
 details.pn-d { border-top: 1px solid var(--separator); } details.pn-d:first-child { border-top: 0; }
 details.pn-d > summary { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 14px; cursor: pointer; list-style: none; }
@@ -4657,10 +4660,71 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
     let data = null, week = null, off = 0, selRoot = null, rules = null;
     const sel = new Map();   // "app\0arquivo" -> item de "Não identificado" marcado
     const roots = h("div"), idx = h("p", { class: "pn-faint" }), now = h("div", { class: "pn-card" }), rep = h("div"), tree = h("div"),
-      rulesBox = h("div"), histBox = h("div"), bar = h("div", { class: "pn-selbar", hidden: true });
+      rulesBox = h("div"), histBox = h("div"), linksBox = h("div"), bar = h("div", { class: "pn-selbar", hidden: true });
     main.append(h("section", {}, h("h1", {}, "Trabalho"), h("p", { class: "pn-sub" }, "Cliente e job saem dos nomes das pastas: Cliente\\Job\\arquivo."),
       h("div", { class: "pn-h" }, "Pastas de clientes"), roots, idx, h("div", { class: "pn-h" }, "Agora"), now,
-      h("div", { class: "pn-h" }, "Relatório"), rep, tree, h("div", { class: "pn-h" }, "Histórico"), histBox, rulesBox, bar));
+      h("div", { class: "pn-h" }, "Relatório"), rep, tree, h("div", { class: "pn-h" }, "Histórico"), histBox, h("div", { class: "pn-h" }, "Cards do Trello"), linksBox, rulesBox, bar));
+    // ---- Tempo por card do Trello: liga um cliente/job a um dos meus cards; o tempo vem do histórico (hoje, semana, total)
+    let links = [], tcards = null, tstat = null;
+    const loadLinks = async () => {
+      try { [links, tcards] = await Promise.all([call("work_links_get"), call("trello_cards")]); tstat = tcards.status; tcards = tcards.cards; renderLinks(); } catch (e) { fail(e); }
+    };
+    const unlink = async (l) => {
+      try {
+        const r = await call("work_link_delete", { id: l.id }); await loadLinks();
+        toast("Ligação desfeita. O tempo continua no histórico.", { undo: async () => { try { await call("work_link_restore", { entries: r.removed }); await loadLinks(); } catch (e) { fail(e); } } });
+      } catch (e) { fail(e); }
+    };
+    function renderLinks() {
+      const name = (l) => (tcards && (tcards.find((c) => c.short === l.card) || {}).name) || l.card_name || l.card;
+      const times = (l) => "hoje " + fmtDur(l.today_s) + " · semana " + fmtDur(l.week_s) + " · total " + fmtDur(l.total_s);
+      const on = tstat && tstat.on && tstat.state !== "off";
+      linksBox.replaceChildren(h("div", { class: "pn-list" }, links.length ? links.map((l) => h("div", { class: "pn-li" },
+        h("div", { class: "pn-txt", style: "cursor:default" }, h("div", {}, name(l)), h("div", { class: "pn-faint" }, l.client + " › " + l.job + " · " + times(l))),
+        h("button", { class: "pn-btn", type: "button", "aria-label": "Desligar " + name(l), onclick: () => unlink(l) }, "Desligar")))
+        : h("div", { class: "pn-empty" }, on ? "Nenhum cliente/job ligado a um card." : "Ligue o Trello em Ajustes para poder ligar cards.")),
+        h("div", { class: "pn-foot" }, h("button", { class: "pn-btn", type: "button", disabled: !on || !(tcards && tcards.length), onclick: openLink }, "Ligar ao card do Trello…"),
+          tstat && tstat.state === "bad_cred" ? h("span", { class: "pn-warn" }, "Credencial do Trello inválida") : null));
+    }
+    async function openLink() {
+      let cat;
+      try { const r = await call("work_rules_get"); cat = r.catalog; } catch (e) { fail(e); return; }
+      const NONE = "\u0001sem", clients = Object.keys(cat);
+      if (!clients.length) { toast("Ainda não há clientes para ligar.", { bad: true }); return; }
+      let pick = null;
+      const cSel = h("select", { class: "pn-in", id: "lk-client" }, clients.map((c) => h("option", { value: c }, c))), jSel = h("select", { class: "pn-in", id: "lk-job" }),
+        q = h("input", { class: "pn-in", type: "search", maxlength: "60", placeholder: "Buscar card, quadro ou lista", "aria-label": "Buscar card" }),
+        box = h("div", { class: "pn-pickl", role: "listbox", "aria-label": "Meus cards" }), err = h("div", { class: "pn-bad", role: "alert" }), note = h("div", { class: "pn-faint" }),
+        ok = h("button", { class: "pn-btn primary", type: "button", disabled: true }, "Ligar"), dlg = h("dialog", { class: "pn-dlg", "aria-labelledby": "lk-h" });
+      const curJ = () => (jSel.value === NONE ? "" : jSel.value);
+      const fillJobs = () => { jSel.replaceChildren(h("option", { value: NONE }, "sem job"), ...(cat[cSel.value] || []).map((j) => h("option", { value: j }, j))); };
+      const upd = () => {
+        const dup = links.filter((l) => l.card === pick || (l.client.toLowerCase() === cSel.value.toLowerCase() && l.job.toLowerCase() === (curJ() || "—").toLowerCase()));
+        note.textContent = dup.length ? "Vai trocar a ligação atual: " + dup.map((l) => l.client + " › " + l.job).join(", ") + "." : "";
+        ok.disabled = !pick;
+      };
+      const drawCards = () => {
+        const f = q.value.trim().toLowerCase();
+        const list = tcards.filter((c) => !f || (c.name + " " + c.board + " " + c.list).toLowerCase().includes(f)).slice(0, 80);
+        box.replaceChildren(...(list.length ? list.map((c) => h("button", { class: "pn-pk" + (c.short === pick ? " on" : ""), type: "button", role: "option", "aria-selected": c.short === pick,
+          onclick: () => { pick = c.short; drawCards(); upd(); } }, h("b", {}, c.name), h("span", { class: "pn-faint" }, [c.board, c.list].filter(Boolean).join(" › ")))) : [h("div", { class: "pn-empty" }, "Nenhum card encontrado.")]));
+      };
+      fillJobs(); drawCards();
+      cSel.onchange = () => { fillJobs(); upd(); }; jSel.onchange = upd; q.oninput = drawCards;
+      ok.onclick = async () => {
+        err.textContent = ""; ok.disabled = true;
+        try {
+          const r = await call("work_link_set", { client: cSel.value, job: curJ(), card: pick });
+          dlg.close(); dlg.remove(); await loadLinks();
+          toast("Ligado: " + r.link.client + " › " + r.link.job, { undo: async () => { try { await call("work_link_delete", { id: r.link.id }); if (r.replaced.length) await call("work_link_restore", { entries: r.replaced }); await loadLinks(); } catch (e) { fail(e); } } });
+        } catch (e) { err.textContent = e.message; ok.disabled = false; }
+      };
+      dlg.append(h("h2", { id: "lk-h" }, "Ligar ao card do Trello"), h("div", { class: "pn-faint" }, "Um job tem 1 card e um card tem 1 job. O card mostra o tempo do job no celular e aqui."),
+        h("label", { for: "lk-client" }, "Cliente"), cSel, h("label", { for: "lk-job" }, "Job"), jSel, h("label", {}, "Card"), q, box, note, err,
+        h("div", { class: "pn-acts" }, h("button", { class: "pn-btn", type: "button", onclick: () => { dlg.close(); dlg.remove(); } }, "Cancelar"), ok));
+      dlg.addEventListener("close", () => dlg.remove());
+      $p("panel").append(dlg); upd(); dlg.showModal(); q.focus();
+    }
     // ---- Histórico mensal: calendário, totais por cliente/job, comparação com o mês anterior, nota do dia, CSV do mês
     let hym = null, hdata = null, hday = null;
     const mName = (ym) => { const [y, m] = ym.split("-"); return new Date(+y, +m - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }); };
@@ -4786,7 +4850,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
       const curJ = () => (jSel.value === NEW ? jNew.value : jSel.value === NONE ? "" : jSel.value).replace(/\s+/g, " ").trim();
       const fillJobs = () => {
         const js = cSel.value === NEW ? [] : (cat[cSel.value] || []);
-        jSel.replaceChildren(h("option", { value: NONE }, "sem job"), js.map((j) => h("option", { value: j }, j)), h("option", { value: NEW }, "Novo job…"));
+        jSel.replaceChildren(h("option", { value: NONE }, "sem job"), ...js.map((j) => h("option", { value: j }, j)), h("option", { value: NEW }, "Novo job…"));
         jNew.hidden = true; cNew.hidden = cSel.value !== NEW;
         if (cSel.value === NEW) { jSel.value = NEW; jNew.hidden = false; }
       };
@@ -4851,7 +4915,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
     }
     const loadWeek = async () => { try { const w = await call("work_week", { offset: off }); if (!week || week.offset !== w.offset) sel.clear(); week = w; renderWeek(); } catch (e) { fail(e); } };
     const loadNow = async () => { try { data = await call("work_get"); render(); } catch {} };
-    return { start: () => { loadNow().then(loadWeek).then(loadRules).then(loadHist); poll(loadNow, 5000); }, stop: stopPoll };
+    return { start: () => { loadNow().then(loadWeek).then(loadRules).then(loadHist).then(loadLinks); poll(loadNow, 5000); }, stop: stopPoll };
   }
 
   // ====================================================================== Celular
@@ -4938,7 +5002,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
     };
     function trelloCard() {
       const st = tr.state, at = tr.at ? new Date(tr.at * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
-      const line = !tr.has_key || !tr.has_token ? "Sem credenciais salvas." : !tr.on ? "Desligado."
+      const line = !tr.has_key || !tr.has_secret ? "Sem credenciais salvas." : !tr.on ? "Desligado."
         : st === "bad_cred" ? "Credencial inválida: o Trello recusou. Salve a key e o token de novo."
         : st === "net_error" ? "Sem conexão com o Trello" + (at ? " (mostrando a leitura das " + at + ")" : "") + "."
         : st === "ok" ? "Funcionando · atualizado às " + at : "Aguardando a primeira leitura (só com o celular conectado).";
@@ -4946,7 +5010,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
         placeholder: saved ? "•••••••• (já salvo; deixe em branco para manter)" : "", value: trForm[k], oninput: (e) => { trForm[k] = e.target.value; } })];
       return h("div", { class: "pn-card" },
         h("div", { class: "pn-faint" }, "Mostra no celular os cards atribuídos a você. O Companion só LÊ (nunca cria nem altera nada no Trello) e guarda a chave só neste PC. Para gerar: abra trello.com/power-ups/admin, crie um Power-Up e gere a API key; depois use \"Gerar um token\" nessa mesma página e autorize só a leitura (read)."),
-        h("div", { class: "pn-form", style: "margin-top:8px" }, field("key", "API key", tr.has_key), field("token", "Token de leitura", tr.has_token)),
+        h("div", { class: "pn-form", style: "margin-top:8px" }, field("key", "API key", tr.has_key), field("token", "Token de leitura", tr.has_secret)),
         h("div", { class: "pn-row", style: "margin-top:10px" }, h("div", { class: "pn-grow", id: "lb-tr" }, "Ler meus cards do Trello"),
           h("button", { class: "pn-sw", type: "button", role: "switch", "aria-checked": !!trForm.on, "aria-labelledby": "lb-tr", onclick: () => { trForm.on = !trForm.on; render(); } })),
         h("div", { class: "pn-foot" }, h("button", { class: "pn-btn primary", type: "button", onclick: trSave }, "Salvar"),
