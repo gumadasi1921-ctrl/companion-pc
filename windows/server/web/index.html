@@ -976,6 +976,7 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .pm-step output { min-width: 56px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
 .pm-strip { display: flex; align-items: center; gap: 12px; min-height: 52px; margin: 0 0 10px; padding: 4px 4px 4px 14px; border: 1px solid var(--p3); border-radius: var(--r-card, var(--r-list, 2px)); background: var(--surface, transparent); cursor: pointer; }
 .pm-strip.hidden { display: none; }
+.pm-strip { max-width: 100%; box-sizing: border-box; }
 .pms-ph { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--p2); }
 .pms-t { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
 .pm-strip .btn { min-height: 44px; min-width: 96px; }
@@ -2443,11 +2444,12 @@ function pomoSet(d) {
   pomoRender(); homeUpd("pomo"); homeStrip();
 }
 // faixa do Início: Foco rodando ou pausado e o widget "pomo" fora do layout (com o widget na tela não duplica)
+const pmHeld = (d) => (d?.focus?.on ? `Modo foco: ${d.focus.held} ${d.focus.held === 1 ? "notificação segurada" : "notificações seguradas"}` : "");
 function homeStrip() {
   const el = $("home-pm"), d = pm.d;
   const on = !!d && d.phase !== "idle" && vis("inicio") && !homeList.some((w) => w.id === "pomo");
   el.classList.toggle("hidden", !on); if (!on) return;
-  setText($("pms-ph"), PM_PH[d.phase]); setText($("pms-t"), pmClock(pmRem())); setText($("pms-b"), pmBtn(d));
+  setText($("pms-ph"), PM_PH[d.phase] + (pmHeld(d) ? " · " + pmHeld(d) : "")); setText($("pms-t"), pmClock(pmRem())); setText($("pms-b"), pmBtn(d));
 }
 $("home-pm").addEventListener("click", (e) => {
   buzz(8);
@@ -2491,7 +2493,8 @@ function pomoRender() {
     <button data-pm="step" data-k="${k}" data-d="${step}" aria-label="Aumentar: ${lab}"${v >= hi ? " disabled" : ""}>+</button></div></div>`;
   const cfg = pm.cfg ? `<div class="tk-grp">${stp("focus_min", "Foco", c.focus_min, 5, 90, 5, " min")}${stp("short_min", "Pausa curta", c.short_min, 1, 60, 1, " min")}
     ${stp("long_min", "Pausa longa", c.long_min, 1, 60, 1, " min")}${stp("long_every", "Pausa longa a cada", c.long_every, 2, 8, 1, " focos")}
-    <div class="pm-set"><span>Começar a próxima fase sozinho</span><button class="switch${c.auto_next ? " on" : ""}" data-pm="auto" role="switch" aria-checked="${c.auto_next}" aria-label="Começar a próxima fase sozinho"></button></div></div>` : "";
+    <div class="pm-set"><span>Começar a próxima fase sozinho</span><button class="switch${c.auto_next ? " on" : ""}" data-pm="auto" role="switch" aria-checked="${c.auto_next}" aria-label="Começar a próxima fase sozinho"></button></div>
+    <div class="pm-set"><span>Modo foco (segura as notificações do PC)</span><button class="switch${c.focus_mode ? " on" : ""}" data-pm="fmode" role="switch" aria-checked="${!!c.focus_mode}" aria-label="Modo foco"></button></div></div>` : "";
   root.innerHTML = `<div class="pm-side">
       <div class="pm-ring${d.phase === "focus" || d.phase === "idle" ? "" : " brk"}"><svg viewBox="0 0 100 100" role="img" aria-label="Progresso da fase"><circle cx="50" cy="50" r="${PM_R}" class="hring-t"/>
         <circle cx="50" cy="50" r="${PM_R}" class="hring-f" data-k="arc" style="stroke-dasharray:${PM_C.toFixed(1)};stroke-dashoffset:${PM_C.toFixed(1)}" transform="rotate(-90 50 50)"/></svg>
@@ -2501,6 +2504,7 @@ function pomoRender() {
       <div class="pm-btns"><button class="btn primary pm-go" data-pm="go">${pmBtn(d)}</button>
         <button class="btn" data-pm="skip">Pular</button><button class="btn" data-pm="reset">Zerar</button></div>
       <label class="pm-task">Focando em<select id="pm-task"></select></label>
+      ${pmHeld(d) ? `<div class="pm-today" id="pm-held">${pmHeld(d)}</div>` : ""}
       <div class="pm-today">Hoje: <b>${d.today}</b> pomodoro${d.today === 1 ? "" : "s"} · semana: <b>${d.week}</b></div>
       <button class="pm-cfgb" data-pm="cfg" aria-expanded="${pm.cfg}">${pm.cfg ? "Fechar ajustes" : "Ajustes do Pomodoro"}</button>${cfg}</div>`;
   pm.sig = null; pomoTaskOpts(); pomoTick();
@@ -2514,6 +2518,7 @@ $("pomo").addEventListener("click", (e) => {
     case "reset": return pomoCall("pomo.reset");
     case "cfg": pm.cfg = !pm.cfg; return pomoRender();
     case "auto": return pomoCall("pomo.config", { auto_next: !pm.d.config.auto_next });
+    case "fmode": return pomoCall("pomo.config", { focus_mode: !pm.d.config.focus_mode });
     case "step": return pomoCall("pomo.config", { [b.dataset.k]: pm.d.config[b.dataset.k] + +b.dataset.d });
   }
 });
@@ -4450,7 +4455,8 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
         h("div", { class: "pn-pm-top" }, ptime,
           h("div", { class: "pn-pm-info" }, h("b", {}, "Pomodoro · " + PMN[d.phase]),
             h("span", { class: "pn-pm-dots", role: "img", "aria-label": filled + " de " + n + " focos neste ciclo" }, Array.from({ length: n }, (_, i) => h("i", { class: i < filled ? "on" : "" }))),
-            h("span", { class: "pn-faint" }, "Hoje: " + d.today + " pomodoro" + (d.today === 1 ? "" : "s"))),
+            h("span", { class: "pn-faint" }, "Hoje: " + d.today + " pomodoro" + (d.today === 1 ? "" : "s")),
+            d.focus && d.focus.on ? h("span", { class: "pn-faint" }, "Modo foco: " + d.focus.held + (d.focus.held === 1 ? " notificação segurada" : " notificações seguradas")) : null),
           h("div", { class: "pn-row" },
             h("button", { class: "pn-btn primary", type: "button", onclick: () => pcall(d.running ? "pomo_pause" : "pomo_start", d.running ? {} : { task_id: PM.sel || null }) }, d.running ? "Pausar" : paused ? "Continuar" : "Começar"),
             h("button", { class: "pn-btn", type: "button", onclick: () => pcall("pomo_skip") }, "Pular"),

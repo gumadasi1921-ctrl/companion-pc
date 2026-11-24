@@ -789,6 +789,7 @@ PANEL_WS = {   # nome -> função(params dict); as de gravação rodam na fila d
     "work_unignore": lambda p: PANEL_OPS["work_unignore"](p.get("ids") if "ids" in p else _need(p, "id", str)),
     "config_get": lambda p: PANEL_OPS["config_get"](),
     "config_save": lambda p: PANEL_OPS["config_save"](_need(p, "changes", dict)),
+    "open_focus": lambda p: os.startfile("ms-settings:quietmomentshome"),   # só abre a tela do Windows; o Foco é do usuário
 }
 PANEL_ASYNC = {"pick_folder": lambda p: asyncio.to_thread(pick_folder),
                **{f"pomo_{n}": (lambda p, n=n: pomo_run(n, p)) for n in
@@ -1068,6 +1069,12 @@ def notif_sub(p):
 
 
 async def push_notif(n):
+    st = await pomo_state()
+    if FOCUS.should_hold(n.get("app"), st["config"].get("focus_except")):
+        FOCUS.hold(n)    # segura: nada vai ao celular (nem toast, nem som, nem vibração) até o foco acabar
+        st["focus"]["held"] = FOCUS.n
+        await pomo_send([json.dumps({"t": "pomo", "d": st})])
+        return
     msg = json.dumps({"t": "event", "kind": "notif", **n}, ensure_ascii=False)
     for ws in list(notif_subs):
         try:
@@ -1131,7 +1138,7 @@ async def panel_session(ws, peer):
     """Conexão do modo painel (já autenticada). Fica fora de `clients`: não recebe o fluxo do celular."""
     panel_clients.add(ws)
     await ws.send(json.dumps({"t": "panel_ok", "version": VERSION}))
-    await pomo_send([json.dumps({"t": "pomo", "d": await on_io(POMO.get)})], only=ws)
+    await pomo_send([json.dumps({"t": "pomo", "d": await pomo_state()})], only=ws)
     log.info("painel do PC aberto")
     try:
         async for raw in ws:
@@ -1207,7 +1214,7 @@ async def session(ws, peer, kind):
     sent_gameart[ws] = None
     await send_games(ws, MON.state)
     await push_now(only=ws)
-    await pomo_send([json.dumps({"t": "pomo", "d": await on_io(POMO.get)})], only=ws)
+    await pomo_send([json.dumps({"t": "pomo", "d": await pomo_state()})], only=ws)
     if DOTA.state is not None:
         await dota_send(DOTA.state, only=ws)
     await weather_send(WEATHER.state(), only=ws)
@@ -1274,7 +1281,7 @@ QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "m
                  "panel_status", "pair_new", "pair_state", "pick_folder", "tasks_get", "tasks_add", "tasks_edit",
                  "tasks_remove", "tasks_move", "tasks_toggle", "tasks_clear_done", "tasks_restore", "work_get",
                  "work_week", "work_csv", "work_add_root", "work_remove_root", "work_assign_preview", "work_assign",
-                 "work_ignore", "work_rules_get", "work_rule_delete", "work_unignore", "config_get", "config_save"}
+                 "work_ignore", "work_rules_get", "work_rule_delete", "work_unignore", "config_get", "config_save", "open_focus"}
 
 
 async def now_payload():
@@ -1355,6 +1362,29 @@ def pomo_tip():
         return ""
 
 
+async def pomo_state(state=None):
+    """Estado do Pomodoro + modo foco: liga/desliga o modo foco conforme a fase e entrega o resumo quando acaba."""
+    if state is None:
+        state = await on_io(POMO.get)
+    cfg = state["config"]
+    summary = FOCUS.set_active(cfg.get("focus_mode", True) and state["phase"] == "focus" and state["running"])
+    state["focus"] = {"on": FOCUS.active, "held": FOCUS.n}
+    if summary:
+        await focus_deliver(summary)
+    return state
+
+
+async def focus_deliver(summary):
+    log.info("modo foco: resumo entregue")   # sem apps nem textos
+    msg = json.dumps({"t": "event", "kind": "focus.summary", **summary}, ensure_ascii=False)
+    for ws in list(notif_subs):
+        try:
+            await ws.send(msg)
+        except ConnectionClosed:
+            notif_subs.discard(ws)
+    await pc_balloon("Modo foco", summary["text"])
+
+
 async def pomo_send(msgs, only=None):
     targets = [only] if only else list(clients) + list(panel_clients)
     for ws in targets:
@@ -1393,7 +1423,7 @@ def _pomo_alert(text):
 async def pomo_fire():
     POMO_H[0] = None
     ev = await on_io(POMO.tick)
-    state = await on_io(POMO.get)
+    state = await pomo_state()
     pomo_reschedule()   # sem evento = ainda não venceu (relógio mudou): agenda de novo
     msgs = [json.dumps({"t": "pomo", "d": state})]
     if ev:
@@ -1404,7 +1434,7 @@ async def pomo_fire():
 
 
 async def pomo_run(name, p):
-    state = await on_io(POMO_OPS[name], p)
+    state = await pomo_state(await on_io(POMO_OPS[name], p))
     if name != "get":
         pomo_reschedule()
         await pomo_send([json.dumps({"t": "pomo", "d": state})])
@@ -1869,6 +1899,7 @@ async def main():
     log.info("Companion PC %s", VERSION)
     if POMO.restored_expired:
         log.info("pomodoro: a fase venceu com o servidor desligado (concluída sem aviso)")
+    await pomo_state()   # modo foco já ligado se o servidor reabriu no meio de um Foco
     pomo_reschedule()
     pc_info.MEDIA = pc_info.Media()
     n = await on_io(UPLOADS.clean_stale_parts)
