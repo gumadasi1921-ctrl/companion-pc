@@ -4811,10 +4811,10 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
 
   // ====================================================================== Ajustes
   function settingsView(main) {
-    let orig = null, vals = null, net = null, editSc = null;
+    let orig = null, vals = null, net = null, editSc = null, bk = {};
     const body = h("div"), msg = h("span", { class: "pn-dim" });
     main.append(h("section", {}, h("h1", {}, "Ajustes"), h("p", { class: "pn-sub" }, "Opções do servidor no PC."), body));
-    const KEYS = ["upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "idle_min", "notif_ignore", "shortcuts", "export_watch", "misplaced_min"];
+    const KEYS = ["upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "idle_min", "notif_ignore", "shortcuts", "export_watch", "misplaced_min", "backup_dir"];
     const dirty = () => KEYS.filter((k) => JSON.stringify(vals[k]) !== JSON.stringify(orig[k]));
     const pickDir = async (k) => { try { const f = await call("pick_folder", {}, 600000); if (f) { vals[k] = f; render(); } } catch (e) { fail(e); } };
     const slug = (name) => { let b = name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 36) || "programa", id = b, n = 2; const ids = new Set(vals.shortcuts.map((s) => s.id)); while (ids.has(id)) id = b + "-" + n++; return id; };
@@ -4864,6 +4864,16 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
         h("div", { class: "pn-h" }, "Trabalho"), h("div", { class: "pn-card" }, h("div", { class: "pn-row" }, h("label", { class: "pn-grow", for: "st-idle" }, "Parar de contar depois de (minutos parado)"), h("input", { id: "st-idle", class: "pn-in num", type: "number", min: 1, max: 30, value: vals.idle_min, onchange: (e) => { const n = parseInt(e.target.value, 10); vals.idle_min = Number.isFinite(n) ? n : orig.idle_min; render(); } })),
           h("div", { class: "pn-row", style: "margin-top:10px" }, h("label", { class: "pn-grow", for: "st-mis" }, "Avisar arquivo sem salvar ou fora das pastas de clientes depois de"),
             h("select", { id: "st-mis", class: "pn-in", onchange: (e) => { vals.misplaced_min = parseInt(e.target.value, 10); render(); } }, [[0, "Desligado"], [5, "5 min"], [10, "10 min"], [20, "20 min"]].map(([v, t]) => h("option", { value: v, selected: vals.misplaced_min === v }, t))))),
+        h("div", { class: "pn-h" }, "Backup"), h("div", { class: "pn-card" },
+          h("div", { class: "pn-faint" }, "Uma vez por dia e ao fechar o servidor: histórico, regras, notas, tarefas, Pomodoro e botões vão para <pasta>\\Companion-backup\\AAAA-MM-DD. Ficam os últimos 30 dias."),
+          vals.backup_dir !== orig.backup_dir ? h("div", { class: "pn-warn", style: "margin-top:6px" }, "Salve as alterações para usar a nova pasta.") : null,
+          h("div", { class: "pn-row", style: "margin-top:8px" }, h("div", { class: "pn-grow" }, h("div", {}, "Pasta de backup"), h("div", { class: "pn-faint" }, vals.backup_dir || "Nenhuma pasta escolhida (sem backup)")),
+            h("button", { class: "pn-btn", type: "button", onclick: () => pickDir("backup_dir") }, "Escolher…"),
+            vals.backup_dir ? h("button", { class: "pn-btn", type: "button", onclick: () => { vals.backup_dir = ""; render(); } }, "Desligar") : null),
+          h("div", { class: "pn-row", style: "margin-top:10px" }, h("div", { class: "pn-grow " + (bk.ok === false ? "pn-warn" : "pn-dim"), role: "status" },
+            bk.ok ? "Último backup: " + new Date(bk.at * 1000).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) + " (" + bk.files + " arquivos)"
+              : bk.ok === false ? "O último backup falhou (" + (bk.error || "erro") + "). Nova tentativa em até 1 h." : "Nenhum backup feito ainda."),
+            h("button", { class: "pn-btn", type: "button", disabled: !orig.backup_dir || vals.backup_dir !== orig.backup_dir, onclick: async () => { try { bk = await call("backup_run", {}, 60000); render(); toast(bk.ok ? "Backup feito." : "O backup falhou.", { bad: !bk.ok }); } catch (e) { fail(e); } } }, "Fazer backup agora"))),
         h("div", { class: "pn-h" }, "Exportação concluída"), h("div", { class: "pn-card" },
           h("div", { class: "pn-row" }, h("div", { class: "pn-grow", id: "lb-exp" }, "Avisar quando um arquivo exportado ficar pronto"), h("button", { class: "pn-sw", type: "button", role: "switch", "aria-checked": !!vals.export_watch.on, "aria-labelledby": "lb-exp", onclick: () => { vals.export_watch.on = !vals.export_watch.on; render(); } })),
           h("div", { class: "pn-faint", style: "margin-top:6px" }, "Vídeos, imagens, PDF, áudio e ZIP novos nessas pastas (e subpastas até 2 níveis). O que já está lá não avisa.")),
@@ -4888,7 +4898,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
           h("button", { class: "pn-btn", type: "button", disabled: !d.length, onclick: () => { vals = clone(orig); editSc = null; msg.textContent = ""; render(); } }, "Desfazer"), d.length ? h("span", { class: "pn-warn" }, "Alterações não salvas") : msg));
     }
     const load = async () => {
-      try { const c = await call("config_get"); net = c.net; orig = {}; KEYS.forEach((k) => { orig[k] = clone(c[k]); }); vals = clone(orig); editSc = null; render(); } catch (e) { fail(e); }
+      try { const c = await call("config_get"); net = c.net; bk = c.backup || {}; orig = {}; KEYS.forEach((k) => { orig[k] = clone(c[k]); }); vals = clone(orig); editSc = null; render(); } catch (e) { fail(e); }
     };
     return { start: load, stop() {} };
   }

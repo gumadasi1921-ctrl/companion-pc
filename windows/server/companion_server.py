@@ -58,6 +58,7 @@ from websockets.http11 import Response
 from websockets.exceptions import ConnectionClosed
 
 import alerts
+import backup
 import dota
 import dota_img
 import extras
@@ -556,7 +557,7 @@ def work_csv(offset):
 # config.json editado pelo painel do PC: um conjunto fechado de opções
 # --------------------------------------------------------------------------
 CONFIG_EDITABLE = {"upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "notif_ignore", "shortcuts",
-                   "idle_min", "export_watch", "misplaced_min"}
+                   "idle_min", "export_watch", "misplaced_min", "backup_dir"}
 CONFIG_RESTART = {"upload_dir", "downloads_dir"}  # lidas só na abertura do servidor
 SHORTCUT_ID = re.compile(r"^[a-z0-9_-]{1,40}$")
 _CTRL = re.compile(r"[\x00-\x1f\x7f]")
@@ -610,6 +611,13 @@ def clean_config_value(key, v):
         return work.valid_idle_min(v)
     if key == "misplaced_min":
         return alerts.valid_misplaced_min(v)
+    if key == "backup_dir":   # "" = sem backup
+        if v == "":
+            return ""
+        v = _text(v, "caminho da pasta", 260)
+        if not re.match(r"^[A-Za-z]:\\", v):
+            raise ValueError("a pasta precisa ser um caminho completo")
+        return v
     if key == "export_watch":
         if not isinstance(v, dict) or set(v) - {"folders", "on"} or not isinstance(v.get("on"), bool):
             raise ValueError("exportação: formato inválido")
@@ -660,13 +668,14 @@ def config_get():
     fallback = {"upload_dir": DEFAULT_CFG["upload_dir"], "downloads_dir": DEFAULT_CFG["downloads_dir"],
                 "allow_power": DEFAULT_CFG["allow_power"], "shutdown_delay_s": DEFAULT_CFG["shutdown_delay_s"],
                 "notif_ignore": [], "shortcuts": [], "idle_min": 5,
-                "export_watch": {"folders": [], "on": True}, "misplaced_min": alerts.DEFAULT_MISPLACED_MIN}
+                "export_watch": {"folders": [], "on": True}, "misplaced_min": alerts.DEFAULT_MISPLACED_MIN, "backup_dir": ""}
     out = {}
     for k in CONFIG_EDITABLE:
         v = CFG.get(k)
         ok = isinstance(v, type(fallback[k])) and not (isinstance(v, bool) and not isinstance(fallback[k], bool))
         out[k] = json.loads(json.dumps(v if ok else fallback[k]))
     out["idle_min"] = round(WORK.idle_s / 60)
+    out["backup"] = BACKUP.status()
     out["net"] = {"ip": lan_ip(), "port": WEB["port"],
                   "mode": "só cabo (127.0.0.1)" if WEB["host"] in ("127.0.0.1", "localhost") else "rede local + cabo"}
     return out
@@ -706,6 +715,7 @@ PANEL_OPS = {
     "tasks_clear_done": lambda: io_call(TASKS.clear_done),
     "config_save": lambda changes: io_call(config_save, changes),
     "config_get": lambda: io_call(config_get),
+    "backup_run": lambda: io_call(do_backup, timeout=60),
     "tasks_restore": lambda tid, text, done, pos: io_call(TASKS.restore, tid, text, done, pos),
     "pomo_tip": lambda: pomo_tip(),
     "panel_url": lambda: f"http://127.0.0.1:{int(os.environ.get('COMPANION_WEB_PORT', WEB['port']))}/#panel={CFG['panel_token']}",
@@ -801,6 +811,7 @@ PANEL_WS = {   # nome -> função(params dict); as de gravação rodam na fila d
     "work_unignore": lambda p: PANEL_OPS["work_unignore"](p.get("ids") if "ids" in p else _need(p, "id", str)),
     "config_get": lambda p: PANEL_OPS["config_get"](),
     "config_save": lambda p: PANEL_OPS["config_save"](_need(p, "changes", dict)),
+    "backup_run": lambda p: PANEL_OPS["backup_run"](),
     "open_focus": lambda p: os.startfile("ms-settings:quietmomentshome"),   # só abre a tela do Windows; o Foco é do usuário
 }
 PANEL_ASYNC = {"pick_folder": lambda p: asyncio.to_thread(pick_folder),
@@ -1293,7 +1304,7 @@ QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "m
                  "panel_status", "pair_new", "pair_state", "pick_folder", "tasks_get", "tasks_add", "tasks_edit",
                  "tasks_remove", "tasks_move", "tasks_toggle", "tasks_clear_done", "tasks_restore", "work_get",
                  "work_week", "work_csv", "work_month", "work_month_csv", "work_note_set", "work_add_root", "work_remove_root", "work_assign_preview", "work_assign",
-                 "work_ignore", "work_rules_get", "work_rule_delete", "work_unignore", "config_get", "config_save", "open_focus"}
+                 "work_ignore", "work_rules_get", "work_rule_delete", "work_unignore", "config_get", "config_save", "open_focus", "backup_run"}
 
 
 async def now_payload():
@@ -1346,6 +1357,25 @@ async def stats_loop(stats: Stats):
 
 MON = games.GameMonitor(CFG, BASE)
 WORK = work.WorkTracker(BASE, CFG.get("idle_min", 5))
+BACKUP = backup.Backup(BASE)
+
+
+def do_backup():
+    """Na fila de disco: grava o histórico pendente e copia os dados pessoais para a pasta escolhida (nunca levanta erro)."""
+    WORK.save()
+    return BACKUP.run(CFG.get("backup_dir") or "")
+
+
+async def backup_loop():
+    await asyncio.sleep(30)
+    while True:
+        try:
+            if BACKUP.due(CFG.get("backup_dir") or ""):
+                st = await on_io(do_backup)
+                log.info("backup diário: %s", "ok" if st.get("ok") else "falhou")
+        except Exception as e:  # noqa: BLE001
+            log.warning("backup_loop: %s", type(e).__name__)
+        await asyncio.sleep(600)
 TASKS = tasks.TaskList(BASE)
 POMO = pomodoro.Pomodoro(BASE)
 POMO_H = [None]     # único agendamento do fim da fase (call_later): nada de loop de 1 s
@@ -1928,6 +1958,7 @@ async def main():
     asyncio.create_task(dota_loop())
     asyncio.create_task(weather_loop())
     asyncio.create_task(work_loop())
+    asyncio.create_task(backup_loop())
     asyncio.create_task(adb_loop())
     asyncio.create_task(downloads_loop())
     asyncio.create_task(web_watch())
@@ -1940,6 +1971,11 @@ def stop_server():
         IO_POOL.submit(WORK.save).result(timeout=3)
     except Exception:  # noqa: BLE001
         pass
+    if CFG.get("backup_dir"):   # backup ao fechar o servidor (erro nunca trava o fechamento)
+        try:
+            IO_POOL.submit(do_backup).result(timeout=8)
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def run_with_tray():
