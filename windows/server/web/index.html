@@ -866,6 +866,11 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .pm-step button:disabled { opacity: .35; }
 .pm-set .switch { min-height: 44px; }
 .pm-step output { min-width: 56px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
+.pm-strip { display: flex; align-items: center; gap: 12px; min-height: 52px; margin: 0 0 10px; padding: 4px 4px 4px 14px; border: 1px solid var(--p3); border-radius: var(--r-card, var(--r-list, 2px)); background: var(--surface, transparent); cursor: pointer; }
+.pm-strip.hidden { display: none; }
+.pms-ph { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--p2); }
+.pms-t { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+.pm-strip .btn { min-height: 44px; min-width: 96px; }
 .hpm { display: flex; align-items: center; gap: 12px; }
 .hpm-r { width: 64px; height: 64px; flex: none; }
 .hpm-r svg { width: 100%; height: 100%; display: block; }
@@ -1143,6 +1148,7 @@ input.num { min-height: 36px; }
   <!-- INÍCIO: widgets montados pelo JS a partir do layout salvo (store "home") -->
   <section class="tab" id="t-inicio">
     <div class="home-head"><h2>Início</h2><button class="btn sm" id="home-edit">Editar</button></div>
+    <div class="pm-strip hidden" id="home-pm" role="button" tabindex="0" aria-label="Abrir o Foco em Tarefas"><span class="pms-ph" id="pms-ph"></span><span class="pms-t" id="pms-t" role="timer"></span><button class="btn" id="pms-b"></button></div>
     <div class="home phone" id="home"></div>
   </section>
   <!-- MAIS: lista que leva às outras vistas -->
@@ -2305,8 +2311,21 @@ function pomoSet(d) {
   if (!d || typeof d !== "object" || !d.config) return;
   pm.d = d; pm.off = d.server_now - Date.now() / 1000;
   if (d.task_id) pm.sel = d.task_id;
-  pomoRender(); homeUpd("pomo");
+  pomoRender(); homeUpd("pomo"); homeStrip();
 }
+// faixa do Início: Foco rodando ou pausado e o widget "pomo" fora do layout (com o widget na tela não duplica)
+function homeStrip() {
+  const el = $("home-pm"), d = pm.d;
+  const on = !!d && d.phase !== "idle" && vis("inicio") && !homeList.some((w) => w.id === "pomo");
+  el.classList.toggle("hidden", !on); if (!on) return;
+  setText($("pms-ph"), PM_PH[d.phase]); setText($("pms-t"), pmClock(pmRem())); setText($("pms-b"), pmBtn(d));
+}
+$("home-pm").addEventListener("click", (e) => {
+  buzz(8);
+  if (e.target.closest("#pms-b")) return pomoToggle();
+  pm.mode = "foco"; store.set("tkmode", "foco"); pomoShowMode(); showView("tasks");
+});
+$("home-pm").addEventListener("keydown", (e) => { if (e.target.id === "home-pm" && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); $("home-pm").click(); } });
 function pomoCall(a, p) { return send(a, p).then(pomoSet).catch((e) => { if (e.message !== "offline") toast(e.message, "bad"); }); }
 function pomoToggle() { const d = pm.d; if (!d) return; pomoCall(d.running ? "pomo.pause" : "pomo.start", d.running ? {} : { task_id: pm.sel || null }); }
 function pomoDone(m) {
@@ -2718,6 +2737,7 @@ function homeBuild() {
 }
 function homeUpd(only) {
   if (!vis("inicio")) return;
+  if (!only || only === "pomo") homeStrip();
   for (const el of $("home").querySelectorAll(".hw[data-w]")) {
     const id = el.dataset.w; if (only && only !== id) continue;
     const w = HOME_W[id], ok = w.ready();
