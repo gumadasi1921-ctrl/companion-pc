@@ -21,7 +21,8 @@ py -3 -m pip install --user --disable-pip-version-check -q --no-warn-script-loca
     websockets psutil pillow pycaw comtypes pystray qrcode `
     winrt-runtime winrt-Windows.Media.Control winrt-Windows.Foundation `
     winrt-Windows.Foundation.Collections winrt-Windows.Storage.Streams `
-    winrt-Windows.UI.Notifications winrt-Windows.UI.Notifications.Management winrt-Windows.ApplicationModel
+    winrt-Windows.UI.Notifications winrt-Windows.UI.Notifications.Management winrt-Windows.ApplicationModel `
+    tzdata python-dateutil
 
 # pythonw = sem janela de console
 $pyw = (py -3 -c "import sys, pathlib; print(pathlib.Path(sys.executable).with_name('pythonw.exe'))").Trim()

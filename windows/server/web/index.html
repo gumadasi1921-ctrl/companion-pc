@@ -1361,6 +1361,7 @@ header .hchip::after { content: ""; position: absolute; inset: -10px -8px; }
   #t-inicio.paged .hdots:not(.hidden) { flex: 0 0 auto; flex-direction: column; align-items: center; }
   #t-inicio.paged .home-head .btn { min-width: 0; padding: 0 4px; }
   #t-inicio.paged .pm-strip { flex-direction: column; justify-content: center; gap: 2px; padding: 6px 2px; min-height: 0; text-align: center; }
+  #t-inicio.paged #home-ag #ags-ph { display: none; } #t-inicio.paged #home-ag .ag-short { display: block; }
   #t-inicio.paged .pms-ph { font-size: 11px; } #t-inicio.paged .pms-t { font-size: 17px; } #t-inicio.paged .pm-strip .btn { width: 100%; padding: 0 2px; }
   #t-inicio.paged > .home { flex: 1 1 0; min-width: 0; }
 }
@@ -1646,6 +1647,12 @@ header .host { display: none; }
 .hpm-bt { display: flex; gap: 8px; align-items: center; min-width: 0; } .hpm-bt .btn.primary { flex: 1 1 auto; min-height: 44px; min-width: 0; } .hw .hpm-bt .btn.pm-skip { flex: none; width: 44px; min-height: 44px; padding: 0; display: grid; place-items: center; }
 .pm-skip svg { width: 20px; height: 20px; } .pm-skip:disabled { opacity: .4; } .hpm-p .hpm-bt, .hpm-g .hpm-bt { width: 100%; } .z-L .hpm .hpm-bt { flex: none; }
 .hw .trow[data-id] { min-height: 44px; }
+
+/* Agenda: widget "Próxima reunião" e faixa no Início */
+.ag-main { display: flex; flex-direction: column; } .ag-main b { font-size: 30px; line-height: 1.05; font-variant-numeric: tabular-nums; } .ag-main span { color: var(--p3t); font-size: 13px; }
+.ag-short { display: none; } #home-ag { cursor: default; }
+.ag-ttl { font-size: 15px; font-weight: 600; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.ag-join { min-height: 44px; width: 100%; } .ag-join.hidden, #ags-b.hidden { display: none; } .ag-t { font-size: 18px; } .z-L .ag-l { display: flex; align-items: center; gap: 12px; } .z-L .ag-l .ag-mid { flex: 1; min-width: 0; } .z-L .ag-l .ag-join { width: auto; flex: none; min-width: 96px; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -1711,6 +1718,7 @@ header .host { display: none; }
   <section class="tab" id="t-inicio">
     <div class="home-head"><button class="pcchip rail" id="pc-chip3" aria-label="Trocar de PC"><svg class="pcmon" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-monitor"/></svg></button><h2>Início</h2>
       <div class="pm-strip hidden" id="home-pm" role="button" tabindex="0" aria-label="Abrir o Foco em Tarefas"><span class="pms-ph" id="pms-ph"></span><span class="pms-t" id="pms-t" role="timer"></span><button class="btn" id="pms-b"></button></div>
+      <div class="pm-strip hidden" id="home-ag" aria-label="Próxima reunião"><span class="pms-ph" id="ags-ph"></span><span class="pms-ph ag-short" id="ags-s">Reunião</span><span class="pms-t ag-t" id="ags-t" role="timer"></span><button class="btn primary hidden" id="ags-b" data-ag="join">Entrar</button></div>
       <div class="hdots hidden" id="home-dots" role="group" aria-label="Páginas do Início"></div>
       <button class="btn sm" id="home-edit">Editar</button></div>
     <div class="home port" id="home"></div>
@@ -2331,7 +2339,7 @@ const lumeSvg = (skin, cls = "") => `<svg class="lm ${cls}" viewBox="0 0 120 120
 function makeMascot(store, now) {
   const KEY = "mascot", FLOOR = 30, KEEP = 14, SAY_GAP = 15 * 60, LOG_MAX = 200;
   const RATE = { water: 0.5, sat: 0.2, energy: 0.2 };   // pontos por minuto ativo
-  const ROUTES = ["notif", "export", "alert", "pomo", "trello", "steam", "download", "focus"];
+  const ROUTES = ["notif", "export", "alert", "pomo", "trello", "steam", "download", "focus", "agenda"];
   const WATER_LINES = ["Que tal um copo d'água?", "Hora de um golinho d'água?", "Uma água cairia bem agora.", "Vamos beber água juntos?", "Seu copo está esperando.", "Pausa rápida: água!"];
   const pad = (n) => String(n).padStart(2, "0");
   const ymd = (t) => { const d = new Date(t * 1000); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
@@ -2934,10 +2942,12 @@ function onMsg(m) {
     case "steam": steamSet(m.d); break;
     case "trello": trelloSet(m.d); break;
     case "reminders": remSet(m.d); break;
+    case "agenda": agSet(m.d); break;
     case "gameart": state.gameart = { [m.id]: "data:image/jpeg;base64," + m.jpg }; renderGames(); break;
     case "event": lumeEvent(m, () => {
       if (m.kind === "pomo.done") { pomoDone(m); return; }
       if (m.kind === "reminder") { remEvent(m); return; }
+      if (m.kind === "agenda.soon") { agNotice(m); return; }
       if (m.kind === "notif") { homeNotifPush(m); snd("note"); notify(`${m.app}: ${m.title}`, m.body, "pcn-" + m.app); return; }
       if (m.kind === "steam.done" && prefs.alerts.download) { snd("note"); notify("Download da Steam concluído", m.name, "steam-" + m.appid); toast("Steam: " + m.name + " terminou de baixar", "ok"); return; }
       if (m.kind === "download" && prefs.alerts.download) notify("Download concluído", m.name + (m.size ? ` · ${fmtBytes(m.size)}` : ""), "dl");
@@ -4670,6 +4680,64 @@ Object.assign(HOME_W, {
     },
   },
 });
+
+// ---------------------------------------------------------------- Agenda (somente leitura; o servidor lê o .ics e manda só o necessário)
+const ag = { d: null, off: 0 };
+const agNow = () => Date.now() + ag.off;
+const agHM = (t) => new Date(t * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+function agSet(d) { if (!d || typeof d !== "object") return; ag.d = d; ag.off = (+d.now || 0) * 1000 - Date.now(); homeUpd("agenda"); }
+function agCount(nx) {
+  if (nx.now) return "agora";
+  const m = Math.ceil((nx.start * 1000 - agNow()) / 60000);
+  return m <= 0 ? "agora" : m < 60 ? m + " min" : Math.floor(m / 60) + " h " + String(m % 60).padStart(2, "0");
+}
+function agDay(t0) {
+  const t = new Date(t0 * 1000), n = new Date(agNow()), same = t.toDateString() === n.toDateString(), tom = new Date(n.getTime() + 86400000).toDateString() === t.toDateString();
+  return same ? "" : tom ? "amanhã " : String(t.getDate()).padStart(2, "0") + "/" + String(t.getMonth() + 1).padStart(2, "0") + " ";
+}
+function agWhen(nx) {
+  return agDay(nx.start) + agHM(nx.start) + "–" + agHM(nx.end);
+}
+function agEmpty(d) {
+  return d.state === "off" ? "Agenda desligada (ligue no painel do PC)" : d.state === "waiting" ? "Carregando…" : d.state === "bad_url" ? "Endereço da agenda recusado" : d.state === "bad_feed" ? "Calendário ilegível" : d.state === "net_error" ? "Sem conexão com a agenda" : "Sem reuniões";
+}
+function agJoin() {
+  const nx = ag.d && ag.d.next; if (!nx || !nx.join) return; buzz();
+  send("agenda.join", { id: nx.id }).then(() => toast("Aberto no PC", "ok")).catch((e) => { if (e.message !== "offline") toast(e.message, "bad"); });
+}
+function agStrip() {
+  const el = $("home-ag"), d = ag.d, nx = d && d.on && d.next;
+  const on = !!nx && vis("inicio") && (nx.now || nx.start * 1000 - agNow() <= 3600000) && !homeList.some((w) => w.id === "agenda");
+  el.classList.toggle("hidden", !on); if (!on) return;
+  setText($("ags-ph"), nx.title); setText($("ags-t"), agCount(nx)); $("ags-b").classList.toggle("hidden", !nx.join);
+}
+function agNotice(m) {   // aviso X min antes: balão do Lume com "Entrar" (ou aviso comum); o título só aparece no aparelho
+  const msg = `Reunião em ${m.minutes} min: ${m.title}`; snd("note");
+  if (m.join) undoToast(msg, () => send("agenda.join", { id: m.id }).catch((e) => toast(e.message, "bad")), "Entrar", null, 9000); else toast(msg, "ok");
+}
+Object.assign(HOME_W, {
+  agenda: {
+    name: "Próxima reunião", icon: "history", sizes: "PALG", def: "A",
+    html(z) {
+      const head = '<div class="hw-t"><span>Reunião</span><span data-k="cnt"></span></div>', join = '<button class="btn primary ag-join hidden" data-ag="join" data-k="join">Entrar</button>';
+      const main = '<div class="hmain ag-main"><b data-k="n">–</b><span data-k="nl"></span></div>';
+      if (z === "P") return `<div class="pq" data-clip>${main}<div class="ag-ttl" data-k="ttl"></div>${join}</div>`;
+      if (z === "L") return `<div class="ag-l">${main}<div class="ag-mid"><div class="ag-ttl" data-k="ttl"></div><div class="hsub1" data-k="when"></div></div>${join}</div>`;
+      return `${head}${main}<div class="ag-ttl" data-k="ttl"></div><div class="hsub1" data-k="when"></div>${join}<div class="htk-list" data-k="list" data-fit></div>`;
+    },
+    ready: () => !!ag.d,
+    upd(el) {
+      const d = ag.d, nx = d.next, z = el.dataset.z;
+      setText(hk(el, "cnt"), d.upcoming && d.upcoming.length > 1 ? "+" + (d.upcoming.length - 1) : "");
+      setText(hk(el, "n"), nx ? agCount(nx) : "–");
+      setText(hk(el, "nl"), nx ? (nx.now ? "termina às " + agHM(nx.end) : "começa às " + agHM(nx.start)) : agEmpty(d));
+      setText(hk(el, "ttl"), nx ? nx.title : ""); setText(hk(el, "when"), nx ? agWhen(nx) : "");
+      const j = hk(el, "join"); if (j) j.classList.toggle("hidden", !(nx && nx.join));
+      const n = el.closest(".pager") ? 6 : { A: 3, G: 4 }[z] || 0;
+      if (hk(el, "list")) setHtml(hk(el, "list"), (d.upcoming || []).slice(1, 1 + n).map((r) => `<div class="rw"><b>${esc(agDay(r.start) + agHM(r.start))}</b><span>${esc(r.title)}</span></div>`).join(""));
+    },
+  },
+});
 // Widget do Início: as <img> só são refeitas quando a assinatura muda; a cada segundo só os textos (data-w)
 function dotaWidgetPlan(d, z) {
   const L = d.live, l = d.lobby, h = d.hero, k = dota.k, hw = z === "G" ? [144, 81] : z === "A" ? [104, 58] : [64, 36], iw = z === "G" ? [60, 44] : [44, 32];
@@ -4958,7 +5026,7 @@ $("home-dots").addEventListener("click", (e) => {
 });
 matchMedia("(orientation: landscape)").addEventListener("change", () => { if (vis("inicio")) homeBuild(); });
 // funcionalidade do servidor de que cada widget depende: sem ela neste PC o widget fica no lugar, com "indisponível neste PC"
-const HOME_NEEDS = { reminders: "reminders", now: "media", work: "work", today: "work", games: "library", notif: "notif", trello: "trello", pomo: "pomo", dota: "dota" };
+const HOME_NEEDS = { agenda: "agenda", reminders: "reminders", now: "media", work: "work", today: "work", games: "library", notif: "notif", trello: "trello", pomo: "pomo", dota: "dota" };
 // Início em páginas (deitado/tablet): nos tamanhos A e G as listas ocupam a altura que sobra e mostram quantos itens couberem
 // (só dados que já existem; o que não cabe fica escondido com .fx e volta quando a altura cresce).
 const HW_FIT = "[data-fit], [data-clip]";
@@ -4981,6 +5049,7 @@ const hwRO = typeof ResizeObserver === "function" ? new ResizeObserver((es) => e
 function homeUpd(only) {
   if (!vis("inicio")) return;
   if (!only || only === "pomo") homeStrip();
+  if (!only || only === "agenda") agStrip();
   const feats = welcome.features;   // ainda não chegou = não se sabe: segue o esqueleto de carregamento
   for (const el of $("home").querySelectorAll(".hw[data-w]")) {
     const id = el.dataset.w; if (only && only !== id) continue;
@@ -5089,6 +5158,7 @@ $("home").addEventListener("click", (e) => {
     if (a.dataset.a === "play" && m) { const u = a.querySelector("use"); u.setAttribute("href", m.status === "playing" ? "#ic-play" : "#ic-pause"); }   // otimista
     return act("media." + (a.dataset.a === "play" ? "play_pause" : a.dataset.a));
   }
+  if (e.target.closest("[data-ag=join]")) return agJoin();
   const t = e.target.closest(".trow[data-id]"); if (t) return homeTaskToggle(t.dataset.id);
   if (e.target.closest('.hw[data-w="reminders"]')) { buzz(8); showView("reminders"); }
   if (e.target.closest('.hw[data-w="now"]')) { buzz(8); showView("media"); }   // fora dos botões: abre o Rádio
@@ -5844,7 +5914,7 @@ function rmTap(it, b) {
 // ---- balão do Lume + roteador de avisos: o aviso do PC é apresentado UMA vez, como balão ou como toast (Ajustes › Lume, por tipo).
 // Os efeitos do handler (lista de notificações, som, vibração, notificação do sistema) continuam iguais; só o toast é desviado (lumeCap).
 const LB = { q: [], cur: null, t: 0 };
-const LU_TYPE = { notif: "notif", "steam.done": "steam", download: "download", export: "export", alert: "alert", "pomo.done": "pomo", "trello.digest": "trello", "focus.summary": "focus" };
+const LU_TYPE = { notif: "notif", "steam.done": "steam", download: "download", export: "export", alert: "alert", "pomo.done": "pomo", "trello.digest": "trello", "focus.summary": "focus", "agenda.soon": "agenda" };
 const lumeCanBalloon = (type) => lumeOn() && !lumeHidden() && !document.hidden && LM.cfg().route[type] === "b" && (type !== "trello" || LM.cfg().trello.on);
 function lumeEvent(m, run) {
   const type = LU_TYPE[m.kind];
@@ -5892,7 +5962,7 @@ $("lume-bal").addEventListener("click", (e) => {
 });
 
 // ---- Ajustes › Lume (tudo no aparelho)
-const LU_ROUTES = { notif: "Notificações do PC", export: "Arquivo exportado", alert: "Arquivo fora do lugar", pomo: "Pomodoro", trello: "Trello", steam: "Download da Steam", download: "Download concluído", focus: "Resumo do foco" };
+const LU_ROUTES = { notif: "Notificações do PC", export: "Arquivo exportado", alert: "Arquivo fora do lugar", pomo: "Pomodoro", trello: "Trello", steam: "Download da Steam", download: "Download concluído", focus: "Resumo do foco", agenda: "Aviso de reunião" };
 function lumeSetRender() {
   const slots = document.querySelectorAll("[data-lume]"); if (!slots.length) return;
   const c = LM.cfg(), sw = (k, on, lab) => `<button class="switch${on ? " on" : ""}" data-lk="${k}" data-t="sw" aria-pressed="${on}" aria-label="${lab}"></button>`;
@@ -7202,7 +7272,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
 
   // ====================================================================== Ajustes
   function settingsView(main) {
-    let orig = null, vals = null, net = null, editSc = null, bk = {}, tr = {}, up = { info: {}, chk: null, busy: "", msg: "", bad: false }, trForm = { key: "", token: "", on: false, msg: "" };
+    let orig = null, vals = null, net = null, editSc = null, bk = {}, tr = {}, up = { info: {}, chk: null, busy: "", msg: "", bad: false }, agp = {}, agForm = { url: "", on: false, notify_min: 5, msg: "" }, trForm = { key: "", token: "", on: false, msg: "" };
     const body = h("div"), msg = h("span", { class: "pn-dim" });
     main.append(h("section", {}, h("h1", {}, "Ajustes"), h("p", { class: "pn-sub" }, "Opções do servidor no PC."), body));
     const KEYS = ["upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "idle_min", "notif_ignore", "shortcuts", "export_watch", "misplaced_min", "backup_dir", "pc_name", "remote_base", "allowed_origins", "repo_dir"];
@@ -7249,6 +7319,36 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
       catch (e) { trForm.msg = e.message; }
       render();
     };
+    const agSave = async () => {
+      try {
+        const ch = { agenda: { on: agForm.on, notify_min: agForm.notify_min, ...(agForm.url.trim() ? { url: agForm.url.trim() } : {}) } };
+        await call("config_save", { changes: ch }); agForm.url = ""; agForm.msg = "Salvo."; await load();
+      } catch (e) { agForm.msg = e.message; render(); }
+    };
+    const agTest = async () => {
+      try { const r = await call("agenda_test", { url: agForm.url }, 25000); agForm.msg = "Lido" + (r.name ? " (" + r.name + ")" : "") + ": " + r.count + (r.count === 1 ? " reunião" : " reuniões") + " nos próximos 14 dias" + (r.skipped ? "; " + r.skipped + " não deu para ler" : "") + "."; }
+      catch (e) { agForm.msg = e.message; }
+      render();
+    };
+    function agendaCard() {
+      const at = agp.at ? new Date(agp.at * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
+      const line = !agp.has_url ? "Sem endereço salvo." : !agp.on ? "Desligada."
+        : agp.state === "bad_url" ? "O calendário recusou o endereço. Cole o endereço secreto em formato iCal de novo."
+        : agp.state === "bad_feed" ? "O endereço não devolveu um calendário .ics."
+        : agp.state === "net_error" ? "Sem conexão com o calendário" + (at ? " (mostrando a leitura das " + at + ")" : "") + "."
+        : agp.state === "ok" ? "Funcionando · atualizada às " + at + (agp.skipped ? " · " + agp.skipped + " evento(s) com fuso ou regra desconhecidos ficaram de fora" : "") : "Aguardando a primeira leitura (só com o celular conectado).";
+      return h("div", { class: "pn-card" },
+        h("div", { class: "pn-faint" }, "Mostra a próxima reunião no celular. O Companion só LÊ o calendário (nunca escreve nada nele) e guarda o endereço só neste PC. No Google Agenda: Configurações › seu calendário › “Endereço secreto no formato iCal”. Quem tem esse endereço vê a agenda: não o compartilhe."),
+        h("div", { class: "pn-form", style: "margin-top:8px" }, h("label", { for: "ag-url" }, "Endereço secreto (.ics)"), h("input", { id: "ag-url", class: "pn-in", type: "password", autocomplete: "off", spellcheck: "false", maxlength: "1500",
+          placeholder: agp.has_url ? "•••••••• (já salvo; deixe em branco para manter)" : "https://calendar.google.com/…/basic.ics", value: agForm.url, oninput: (e) => { agForm.url = e.target.value; } })),
+        h("div", { class: "pn-row", style: "margin-top:10px" }, h("div", { class: "pn-grow", id: "lb-ag" }, "Mostrar a próxima reunião no celular"),
+          h("button", { class: "pn-sw", type: "button", role: "switch", "aria-checked": !!agForm.on, "aria-labelledby": "lb-ag", onclick: () => { agForm.on = !agForm.on; render(); } })),
+        h("div", { class: "pn-row", style: "margin-top:10px" }, h("label", { class: "pn-grow", for: "ag-min" }, "Avisar antes da reunião"),
+          h("select", { id: "ag-min", class: "pn-in", onchange: (e) => { agForm.notify_min = parseInt(e.target.value, 10); render(); } }, [1, 5, 10, 15].map((v) => h("option", { value: v, selected: v === agForm.notify_min }, v + " min")))),
+        h("div", { class: "pn-foot" }, h("button", { class: "pn-btn primary", type: "button", onclick: agSave }, "Salvar"), h("button", { class: "pn-btn", type: "button", onclick: agTest }, "Testar"),
+          h("span", { class: "pn-faint", role: "status" }, agForm.msg)),
+        h("div", { class: "pn-faint", style: "margin-top:6px" }, line));
+    }
     function trelloCard() {
       const st = tr.state, at = tr.at ? new Date(tr.at * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
       const line = !tr.has_key || !tr.has_secret ? "Sem credenciais salvas." : !tr.on ? "Desligado."
@@ -7324,6 +7424,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
             bk.ok ? "Último backup: " + new Date(bk.at * 1000).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) + " (" + bk.files + " arquivos)"
               : bk.ok === false ? "O último backup falhou (" + (bk.error || "erro") + "). Nova tentativa em até 1 h." : "Nenhum backup feito ainda."),
             h("button", { class: "pn-btn", type: "button", disabled: !orig.backup_dir || vals.backup_dir !== orig.backup_dir, onclick: async () => { try { bk = await call("backup_run", {}, 60000); render(); toast(bk.ok ? "Backup feito." : "O backup falhou.", { bad: !bk.ok }); } catch (e) { fail(e); } } }, "Fazer backup agora"))),
+        h("div", { class: "pn-h" }, "Agenda (somente leitura)"), agendaCard(),
         h("div", { class: "pn-h" }, "Trello (somente leitura)"), trelloCard(),
         h("div", { class: "pn-h" }, "Exportação concluída"), h("div", { class: "pn-card" },
           h("div", { class: "pn-row" }, h("div", { class: "pn-grow", id: "lb-exp" }, "Avisar quando um arquivo exportado ficar pronto"), h("button", { class: "pn-sw", type: "button", role: "switch", "aria-checked": !!vals.export_watch.on, "aria-labelledby": "lb-exp", onclick: () => { vals.export_watch.on = !vals.export_watch.on; render(); } })),
@@ -7351,7 +7452,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
     }
     const load = async () => {
       try { try { up.info = await call("update_info"); } catch (e) { /* ok */ }
-      const c = await call("config_get"); net = c.net; bk = c.backup || {}; tr = c.trello || {}; trForm.on = !!tr.on; orig = {}; KEYS.forEach((k) => { orig[k] = clone(c[k]); }); vals = clone(orig); editSc = null; render(); } catch (e) { fail(e); }
+      const c = await call("config_get"); net = c.net; bk = c.backup || {}; tr = c.trello || {}; trForm.on = !!tr.on; agp = c.agenda || {}; agForm.on = !!agp.on; agForm.notify_min = agp.notify_min || 5; orig = {}; KEYS.forEach((k) => { orig[k] = clone(c[k]); }); vals = clone(orig); editSc = null; render(); } catch (e) { fail(e); }
     };
     return { start: load, stop() {} };
   }

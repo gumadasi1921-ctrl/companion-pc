@@ -74,6 +74,7 @@ from websockets.datastructures import Headers
 from websockets.http11 import Response
 from websockets.exceptions import ConnectionClosed
 
+import agenda
 import alerts
 import multipc
 import audio_profiles
@@ -663,7 +664,7 @@ def work_csv(offset):
 # config.json editado pelo painel do PC: um conjunto fechado de opções
 # --------------------------------------------------------------------------
 CONFIG_EDITABLE = {"upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "notif_ignore", "shortcuts",
-                   "idle_min", "export_watch", "misplaced_min", "backup_dir", "trello", "pc_name", "allowed_origins", "remote_base", "repo_dir"}
+                   "idle_min", "export_watch", "misplaced_min", "backup_dir", "trello", "pc_name", "allowed_origins", "remote_base", "repo_dir", "agenda"}
 CONFIG_RESTART = {"upload_dir", "downloads_dir"}  # lidas só na abertura do servidor
 SHORTCUT_ID = re.compile(r"^[a-z0-9_-]{1,40}$")
 _CTRL = re.compile(r"[\x00-\x1f\x7f]")
@@ -734,6 +735,14 @@ def clean_config_value(key, v):
         if v["on"] and not (out["key"] and out["token"]):
             raise ValueError("Informe a API key e o token para ligar o Trello")
         return out
+    if key == "agenda":   # url em branco = mantém a salva; a URL secreta nunca volta ao painel nem ao celular
+        if not isinstance(v, dict) or set(v) - {"url", "on", "notify_min"} or not isinstance(v.get("on"), bool):
+            raise ValueError("Agenda: formato inválido")
+        cur = CFG.get("agenda") if isinstance(CFG.get("agenda"), dict) else {}
+        url = agenda.valid_url(v["url"]) if isinstance(v.get("url"), str) and v["url"].strip() else cur.get("url", "")
+        if v["on"] and not url:
+            raise ValueError("Cole o endereço secreto do calendário para ligar a Agenda")
+        return {"url": url, "on": v["on"], "notify_min": agenda.valid_notify(v.get("notify_min", cur.get("notify_min", agenda.DEFAULT_NOTIFY)))}
     if key == "repo_dir":   # pasta do repositório git usado pelo "Atualizar" do painel; "" = não definida
         if v == "":
             return ""
@@ -801,7 +810,7 @@ def config_get():
     fallback = {"upload_dir": DEFAULT_CFG["upload_dir"], "downloads_dir": DEFAULT_CFG["downloads_dir"],
                 "allow_power": DEFAULT_CFG["allow_power"], "shutdown_delay_s": DEFAULT_CFG["shutdown_delay_s"],
                 "notif_ignore": [], "shortcuts": [], "idle_min": 5,
-                "export_watch": {"folders": [], "on": True}, "misplaced_min": alerts.DEFAULT_MISPLACED_MIN, "backup_dir": "", "trello": {}, "pc_name": "", "allowed_origins": [], "remote_base": "", "repo_dir": ""}
+                "export_watch": {"folders": [], "on": True}, "misplaced_min": alerts.DEFAULT_MISPLACED_MIN, "backup_dir": "", "trello": {}, "pc_name": "", "allowed_origins": [], "remote_base": "", "repo_dir": "", "agenda": {}}
     out = {}
     for k in CONFIG_EDITABLE:
         v = CFG.get(k)
@@ -809,6 +818,7 @@ def config_get():
         out[k] = json.loads(json.dumps(v if ok else fallback[k]))
     out["idle_min"] = round(WORK.idle_s / 60)
     out["backup"] = BACKUP.status()
+    out["agenda"] = AGENDA.status()    # idem: só "tem URL?" e o estado
     out["trello"] = TRELLO.status()    # só "tem key/token?" e o estado: as credenciais nunca saem do config.json
     out["net"] = {"ip": lan_ip(), "port": WEB["port"],
                   "mode": "só cabo (127.0.0.1)" if WEB["host"] in ("127.0.0.1", "localhost") else "rede local + cabo"}
@@ -964,6 +974,7 @@ PANEL_WS = {   # nome -> função(params dict); as de gravação rodam na fila d
     "config_save": lambda p: PANEL_OPS["config_save"](_need(p, "changes", dict)),
     "backup_run": lambda p: PANEL_OPS["backup_run"](),
     "trello_test": lambda p: trello_test(p),
+    "agenda_test": lambda p: agenda_test(p),
     "update_info": lambda p: update_op("info"), "update_check": lambda p: update_op("check"),
     "update_apply": lambda p: update_op("apply"), "update_rollback": lambda p: update_op("rollback"),
     "open_focus": lambda p: os.startfile("ms-settings:quietmomentshome"),   # só abre a tela do Windows; o Foco é do usuário
@@ -1114,6 +1125,8 @@ ASYNC_ACTIONS = {
     "pomo.skip": lambda p: pomo_run("skip", p),
     "pomo.reset": lambda p: pomo_run("reset", p),
     "pomo.config": lambda p: pomo_run("config", p),
+    "agenda.get": lambda p: agenda_get(p),
+    "agenda.join": lambda p: agenda_join(p),
     **{f"reminders.{n}": (lambda p, n=n: rem_run(n, p)) for n in ("get", "add", "edit", "remove", "restore", "done", "snooze", "clear")},
     "timer.start": lambda p: TIMER.start(p.get("action"), p.get("minutes")),
     "timer.cancel": lambda p: timer_cancel(),
@@ -1323,7 +1336,7 @@ def welcome_payload():
         "features": {"media": pc_info.HAS_MEDIA, "volume": pc_info.HAS_VOLUME, "mixer": pc_info.HAS_VOLUME,
                      "screen": True, "clipboard": True, "files": True, "deck": True,
                      "mic": pc_info.HAS_VOLUME, "timer": True, "deck_auto": True, "macro": True,
-                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True, "trello": True, "reminders": True,
+                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True, "trello": True, "reminders": True, "agenda": True,
                      "dota": True},
     }
 
@@ -1421,6 +1434,7 @@ async def session(ws, peer, kind, xff=None):
     await pomo_send([json.dumps({"t": "pomo", "d": await pomo_state()})], only=ws)
     await rem_send(only=ws)
     await trello_send(only=ws)
+    await agenda_send(only=ws)
     if DOTA.state is not None:
         await dota_send(DOTA.state, only=ws)
     await weather_send(WEATHER.state(), only=ws)
@@ -1494,7 +1508,7 @@ QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "m
                  "tasks_remove", "tasks_move", "tasks_toggle", "tasks_clear_done", "tasks_restore", "work_get",
                  "work_week", "work_csv", "work_month", "work_month_csv", "work_note_set", "work_add_root", "work_remove_root", "work_assign_preview", "work_assign",
                  "work_ignore", "work_rules_get", "work_rule_delete", "work_unignore", "config_get", "config_save", "open_focus", "backup_run", "trello_test",
-                 "update_info", "update_check", "update_apply", "update_rollback",
+                 "update_info", "update_check", "update_apply", "update_rollback", "agenda_test", "agenda.get", "agenda.join",
                  "trello.get", "trello.open", "work_links_get", "work_link_set", "work_link_delete", "work_link_restore", "trello_cards"}
 
 
@@ -1604,6 +1618,71 @@ async def trello_loop():
                     await phones_send({"t": "event", "kind": "trello.digest", **d})
         except Exception as e:  # noqa: BLE001
             log.warning("trello_loop: %s", type(e).__name__)
+        await asyncio.sleep(20)
+
+
+# --------------------------------------------------------------------------
+# Agenda (agenda.py, SOMENTE LEITURA): próxima reunião, aviso X min antes, "Entrar" abre o link no PC
+# --------------------------------------------------------------------------
+AGENDA = agenda.Agenda(BASE, lambda: CFG.get("agenda"))
+_agenda_sig = [None]
+AGENDA_ERR = {"bad_url": "O Google recusou o endereço (confira se é o endereço secreto em formato iCal)",
+              "net_error": "Não consegui falar com o calendário agora", "bad_feed": "O endereço não devolveu um calendário .ics"}
+
+
+def agenda_test(p):
+    cur = CFG.get("agenda") if isinstance(CFG.get("agenda"), dict) else {}
+    url = agenda.valid_url(p["url"]) if isinstance(p.get("url"), str) and p["url"].strip() else cur.get("url", "")
+    if not url:
+        raise ValueError("Cole o endereço secreto do calendário")
+    try:
+        return AGENDA.test(url)
+    except agenda.FeedError as e:
+        raise ValueError(AGENDA_ERR.get(e.kind, "Erro ao ler o calendário")) from None
+
+
+async def agenda_get(p):
+    if p.get("refresh"):
+        await on_io(AGENDA.refresh_manual)
+    return await on_io(AGENDA.state)
+
+
+async def agenda_join(p):
+    link = await on_io(AGENDA.link_for, _need(p, "id", str))
+    if not link:
+        raise ValueError("essa reunião não tem link")
+    os.startfile(link)   # só link https de Meet/Zoom/Teams guardado no cache (nunca URL vinda do celular)
+    return {"ok": True}
+
+
+async def agenda_send(only=None):
+    st = await on_io(AGENDA.state)
+    sig = json.dumps({**st, "now": 0}, sort_keys=True)
+    if not only and sig == _agenda_sig[0]:
+        return
+    if not only:
+        _agenda_sig[0] = sig
+    msg = json.dumps({"t": "agenda", "d": st}, ensure_ascii=False)
+    for ws in [only] if only else list(clients):
+        try:
+            await ws.send(msg)
+        except ConnectionClosed:
+            clients.discard(ws)
+
+
+async def agenda_loop():
+    """A cada 20 s: relê o .ics (5 min, só com aparelho), empurra o estado quando muda e avisa X min antes (só com celular)."""
+    while True:
+        try:
+            if AGENDA.due(bool(clients)):
+                await on_io(AGENDA.refresh)
+            await agenda_send()
+            if phone_connected() and AGENDA.enabled():
+                for ev in await on_io(AGENDA.soon):
+                    log.info("aviso de reunião enviado")   # sem título
+                    await phones_send({"t": "event", "kind": "agenda.soon", **ev})
+        except Exception as e:  # noqa: BLE001
+            log.warning("agenda_loop: %s", type(e).__name__)
         await asyncio.sleep(20)
 
 
@@ -2370,6 +2449,7 @@ async def main():
     spawn("work", work_loop)
     spawn("backup", backup_loop)
     spawn("trello", trello_loop)
+    spawn("agenda", agenda_loop)
     spawn("adb", adb_loop)
     spawn("downloads", downloads_loop)
     spawn("web_watch", web_watch)
