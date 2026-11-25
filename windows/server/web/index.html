@@ -1298,6 +1298,10 @@ header .host { display: none; }
 .pcpick .pcst { margin-left: auto; font-size: 12px; color: var(--text-2, var(--p2)); flex: none; }
 .pcedit { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
 .pcedit .fi { flex: 1; min-width: 120px; }
+/* widget que depende de algo que este PC não tem: fica no lugar (o layout não muda), só mostra o aviso */
+.hw.na { position: relative; }
+.hw.na > * { visibility: hidden; }
+.hw.na::after { content: attr(data-na); position: absolute; inset: 0; display: grid; place-items: center; padding: 12px; text-align: center; font-size: 13px; line-height: 1.3; color: var(--text-2, var(--p2)); }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -2163,6 +2167,7 @@ function onMsg(m) {
         if (typeof pcPaint === "function") pcPaint();
       }
       welcome = m; retry = 0;
+      if (typeof homeUpd === "function") homeUpd();   // PC novo: o que ele não tem fica "indisponível neste PC" no próprio lugar
       $("host").textContent = m.host; $("os").textContent = m.os;
       setDot("ok", "");
       renderPower(); loadDeck(); pollMixer(); loadTasks();
@@ -3818,11 +3823,17 @@ $("home-dots").addEventListener("click", (e) => {
   const root = $("home"); root.scrollTo({ left: +b.dataset.pg * root.clientWidth, behavior: REDUCED ? "auto" : "smooth" });
 });
 matchMedia("(orientation: landscape)").addEventListener("change", () => { if (vis("inicio")) homeBuild(); });
+// funcionalidade do servidor de que cada widget depende: sem ela neste PC o widget fica no lugar, com "indisponível neste PC"
+const HOME_NEEDS = { now: "media", work: "work", today: "work", games: "library", notif: "notif", trello: "trello", pomo: "pomo", dota: "dota" };
 function homeUpd(only) {
   if (!vis("inicio")) return;
   if (!only || only === "pomo") homeStrip();
+  const feats = welcome.features;   // ainda não chegou = não se sabe: segue o esqueleto de carregamento
   for (const el of $("home").querySelectorAll(".hw[data-w]")) {
     const id = el.dataset.w; if (only && only !== id) continue;
+    const need = HOME_NEEDS[id], na = !!(need && feats && !feats[need]);
+    el.classList.toggle("na", na);
+    if (na) { el.dataset.na = `${HOME_W[id].name}: indisponível neste PC`; el.classList.remove("sk"); continue; }
     const w = HOME_W[id], ok = w.ready();
     el.classList.toggle("sk", !ok);
     if (ok) w.upd(el, homeCur);
