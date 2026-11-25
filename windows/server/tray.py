@@ -339,7 +339,7 @@ class Panel:
         root.minsize(460, 340)
         try:
             from PIL import ImageTk
-            self._ico = ImageTk.PhotoImage(make_icon(COLORS["ok"]))
+            self._ico = ImageTk.PhotoImage(make_icon(COLORS["ok"]), master=root)
             root.iconphoto(True, self._ico)
         except Exception:  # noqa: BLE001
             pass
@@ -1102,7 +1102,7 @@ class Panel:
                     from PIL import ImageTk
                     q = qrcode.QRCode(border=2, box_size=4)
                     q.add_data(url)
-                    self._qr_img = ImageTk.PhotoImage(q.make_image(fill_color="black", back_color="white").get_image())
+                    self._qr_img = ImageTk.PhotoImage(q.make_image(fill_color="black", back_color="white").get_image(), master=self.root)
                 except Exception:  # noqa: BLE001  (qrcode não instalado)
                     log.info("qrcode indisponível - painel sem QR")
             self.qr.configure(image=self._qr_img or "")
