@@ -1274,6 +1274,13 @@ header .hchip::after { content: ""; position: absolute; inset: -10px -8px; }
 :where(button, .btn, .chip2, .hchip, .tile, .key, [role=tab], label.btn):active { filter: brightness(.82); }
 :where(button, input, select, textarea, a, [role=tab], [tabindex]):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { :where(button, .btn, .chip2, .hchip, .tile, .key, [role=tab]):active { filter: none; } }
+/* Dota v2 (etapa 4): trilho de fases e resultado em destaque */
+.dota .dsteps { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.dota .dsteps li { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; min-height: 32px; padding: 0 6px; border: 1px solid var(--p4); border-radius: var(--r-sm, 2px); font: 600 13px/1 var(--font, var(--mono)); color: var(--p3t); white-space: nowrap; }
+.dota .dsteps li.done { color: var(--text-2, var(--p2)); border-color: var(--p3); }
+.dota .dsteps li.on { background: var(--accent-fill, var(--p)); border-color: var(--accent-fill, var(--p)); color: var(--on-accent, var(--bg)); }
+.dota .dres.w { box-shadow: inset 4px 0 0 var(--success, var(--p)); }
+.dota .dres.l { box-shadow: inset 4px 0 0 var(--danger-text, var(--alert)); }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -2319,7 +2326,7 @@ function dotaStrip(d, mode) {
   const clock = nn(L?.clock_s), day = nn(L?.daytime);
   const pic = (w, hh, cls) => (dId(id) || name ? dImg("hero", id, "loadout", name, w, hh, cls) : "");
   return dSec("hero", JSON.stringify([mode, d.phase, id, name, clock, day, !!h.mine, h.mine?.avg_kda, r.win, dKda(r), mode]) + dota.k, () => {
-    if (mode === "end") return `<div class="card dres">${pic(132, 176, `ld ${dResult(r.win)}`)}<div class="dresx">
+    if (mode === "end") return `<div class="card dres ${dResult(r.win)}">${pic(132, 176, `ld ${dResult(r.win)}`)}<div class="dresx">
       <div class="dbig">${dWin(r.win, "Vitória", "Derrota", "Partida encerrada")}</div>${dKda(r) ? `<div class="dname">${dKda(r)}</div>` : ""}${name ? `<div class="sub">${esc(name)}</div>` : ""}
       <div class="dnote">Análise completa no DotaCopilot (no PC)</div></div></div>`;
     const right = mode === "game"
@@ -2329,7 +2336,7 @@ function dotaStrip(d, mode) {
   });
 }
 const dMsg = (sig, html) => ({ cls: "", cols: [{ c: "dfull", s: [dSec("msg", sig, () => html)] }] });
-function dotaPlan(d) {
+function dotaPlan0(d) {
   if (!d) return dMsg("load", '<div class="card dmsg">Carregando…</div>');
   const ph = d.phase, h = d.hero, L = d.live;
   const some = (arr) => arr.filter(Boolean);
@@ -2337,7 +2344,10 @@ function dotaPlan(d) {
     const msg = dSec("msg", d.reason || "", () => `<div class="card dmsg" role="status">${d.reason ? `<span>Abra o DotaCopilot para ver a partida</span><small>${esc(d.reason)}</small>` : "<span>Dota fechado</span><small>Abra o Dota para ver a partida</small>"}</div>`);
     return { cls: "c3", cols: [{ c: "dfull", s: [msg] }, ...dotaLobbyCols(d.lobby)] };
   }
-  if (ph === "menu") return { cls: "c3", cols: [{ c: "dfull", s: [dSec("head", "menu", () => '<h2 class="dhead" role="status">No menu do Dota</h2>')] }, ...dotaLobbyCols(d.lobby)] };
+  if (ph === "menu") {
+    const lob = dotaLobbyCols(d.lobby);
+    return { cls: "c3", cols: [{ c: "dfull", s: [dSec("head", "menu", () => '<h2 class="dhead" role="status">No menu do Dota</h2>')] }, ...(lob.length ? lob : [{ c: "dfull", s: [dSec("nolobby", "x", () => '<div class="card dmsg"><span>Sem dados do lobby ainda</span><small>O DotaCopilot ainda não enviou MMR nem partidas recentes</small></div>')] }])] };
+  }
   if (ph === "draft" || ph === "pregame") {
     if (!h) return dMsg("pick", '<div class="card dmsg">Escolhendo o herói…</div>');
     return { cls: "c2", cols: [{ c: "", s: some([dotaStrip(d, "pick"), dotaSkills(h.build)]) }, { c: "", s: [dotaBuildSec(h, false, DOTA_IMG_MAX - 1)] }] };
@@ -2348,8 +2358,19 @@ function dotaPlan(d) {
     if (h) cols.push({ c: "", s: [dotaBuildSec(h, true, DOTA_IMG_MAX - 12)] });   // 1 herói + até 10 do inventário + 1 próximo item
     return { cls: "c3", cols };
   }
-  if (ph === "postgame") return { cls: "", cols: [{ c: "dfull", s: [dotaStrip(d, "end")] }] };
+  if (ph === "postgame") return { cls: "c3", cols: [{ c: "dfull", s: [dotaStrip(d, "end")] }, ...dotaLobbyCols(d.lobby)] };
   return dMsg("unk", '<div class="card dmsg">Estado desconhecido</div>');
+}
+// trilho de fases (só a fase que a ponte informa; "Escolha" vira "Pré-jogo" quando a ponte diz pregame)
+const DOTA_STEP_OF = { menu: 0, draft: 1, pregame: 1, game: 2, postgame: 3 };
+function dotaSteps(ph) {
+  const at = DOTA_STEP_OF[ph], names = ["Menu", ph === "pregame" ? "Pré-jogo" : "Escolha", "Partida", "Fim"];
+  return dSec("steps", ph, () => `<ol class="dsteps" aria-label="Fase da partida">${names.map((n, i) => `<li class="${i < at ? "done" : i === at ? "on" : ""}"${i === at ? ' aria-current="step"' : ""}>${n}</li>`).join("")}</ol>`);
+}
+function dotaPlan(d) {
+  const plan = dotaPlan0(d);
+  if (d && nn(DOTA_STEP_OF[d.phase])) plan.cols.unshift({ c: "dfull", s: [dotaSteps(d.phase)] });
+  return plan;
 }
 function renderDota() {
   const root = $("dota"); if (!root) return;

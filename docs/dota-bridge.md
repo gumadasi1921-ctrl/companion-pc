@@ -205,3 +205,7 @@ os números e o check da build (item comprado = check verde; os outros a 40%) mu
 Teste visual sem o Dota: `py -3 tests/dota_preview.py` sobe uma ponte falsa (fixtures de cada fase, incluindo `game-full` com
 slots 0–9 e `game-null` com campos `null`, e PNGs nos tamanhos reais) e uma cópia do servidor em portas de teste.
 
+
+### Trilho de fases e fim de partida (etapa 4)
+
+Toda fase exceto `offline` mostra no topo um trilho `Menu · Escolha · Partida · Fim` (`draft` e `pregame` ficam em "Escolha"; no `pregame` o rótulo vira "Pré-jogo"). O passo atual vem só de `phase`; nada é estimado. No fim da partida (`postgame`) a tela mostra o resultado (faixa verde/vermelha) e, abaixo, o que a ponte mandou em `lobby` (MMR, hoje, últimas partidas, mais jogados). Menu sem `lobby` = "Sem dados do lobby ainda".
