@@ -1288,6 +1288,16 @@ header .hchip::after { content: ""; position: absolute; inset: -10px -8px; }
 .pcchip .ni { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; }
 .pcchip.rail { min-width: 44px; min-height: 44px; justify-content: center; padding: 0; }
 .pcchip.rail::after { inset: 0; }
+.mrow .badge { position: static; margin-left: auto; margin-right: 8px; }
+#nav-list .wd-row { padding-left: 0; padding-right: 0; }
+#nav-list .wd-nm small { display: block; }
+/* celular deitado: o trilho usa a altura toda (botões dividem o espaço, sem teto de 76 px) e o topo fica compacto (chip do PC, ponto e hora em 2 linhas) */
+@media (orientation: landscape) and (max-height: 560px) {
+  nav { overflow-y: auto; }
+  nav button, :root[data-theme="modern"] nav button { flex: 1 1 0; max-height: none; min-height: 44px; }
+  .rail-top, :root[data-theme="modern"] .rail-top { display: grid; grid-template-columns: auto auto; justify-content: center; align-items: center; column-gap: 5px; row-gap: 2px; padding: 4px 0; }
+  .rail-top .pcchip.rail { grid-column: 1 / -1; justify-self: center; }
+}
 
 /* Bolinha do microfone: flutuante, arrastável; verde = ativo, vermelho + microfone cortado = mudo, cinza = PC não respondeu */
 #mic-safe { position: fixed; left: 0; top: 0; width: 0; height: 0; visibility: hidden; pointer-events: none; padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
@@ -1393,16 +1403,6 @@ header .host { display: none; }
   <section class="tab" id="t-more">
     <h2>Mais</h2>
     <div class="mlist" id="more-list">
-      <button class="mrow" data-view="dash"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-activity"/></svg><span>Sistema</span></button>
-      <button class="mrow" data-view="media"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-headphones"/></svg><span>Rádio e mixer</span></button>
-      <button class="mrow" data-view="games"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-gamepad-2"/></svg><span>Jogos</span></button>
-      <button class="mrow" data-view="dota"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-gamepad"/></svg><span>Dota</span></button>
-      <button class="mrow" data-view="work"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-briefcase"/></svg><span>Trabalho</span></button>
-      <button class="mrow" data-view="weather"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-cloud-sun"/></svg><span>Tempo</span></button>
-      <button class="mrow" data-view="send"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-folder-open"/></svg><span>Arquivos</span></button>
-      <button class="mrow" data-view="power"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-log-out"/></svg><span>Energia</span></button>
-      <button class="mrow" data-view="widgets"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-layout-grid"/></svg><span>Widgets do Início</span></button>
-      <button class="mrow" data-view="sys"><svg class="mi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-sliders-horizontal"/></svg><span>Ajustes</span></button>
     </div>
   </section>
   <!-- MAIS > Tempo (previsão; renderizada pelo JS) -->
@@ -1674,6 +1674,12 @@ header .host { display: none; }
         <div class="card" id="lay-card">
           <div class="set"><label>Layout em uso<small id="lay-cur">Padrão</small></label><button class="btn sm" id="lay-open">Gerenciar</button></div>
         </div>
+        <h2>Barra de navegação</h2>
+        <div class="card" id="nav-card">
+          <div class="set"><label>Itens da barra<small>A barra comporta 4 itens, na ordem abaixo. O que ficar de fora continua em Mais.</small></label></div>
+          <div id="nav-list"></div>
+          <div class="set"><label>Restaurar padrão<small>Início, Controle, Botões e Tarefas</small></label><button class="btn sm" id="nav-reset">Restaurar</button></div>
+        </div>
         <h2>Visual</h2>
         <div class="card">
           <div class="set fo-only"><label>Cor do terminal</label><div class="themes" id="themes">
@@ -1705,23 +1711,6 @@ header .host { display: none; }
 
 <nav id="nav">
   <div class="rail-top"><button class="pcchip rail" id="pc-chip2" aria-label="Trocar de PC"><i class="pcdot"></i><span id="pc-ini"></span></button><span id="dot2" class="dot"></span><span id="clock2"></span></div>
-  <button data-sec="inicio"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-house"/></svg><span>Início</span></button>
-  <button data-sec="ctrl"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-mouse-pointer-2"/></svg><span>Controle</span></button>
-  <button data-sec="deck"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-layout-grid"/></svg><span>Botões</span></button>
-  <button data-sec="tasks"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-check-check"/></svg><span>Tarefas</span><b class="badge hidden" id="tk-badge"></b></button>
-  <button data-sec="mais"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-ellipsis"/></svg><span>Mais</span></button>
-  <!-- só na barra lateral (tela larga): o "Mais" aparece direto, sem a tela de lista -->
-  <div class="nav-label nm-label">Mais</div>
-  <button class="nm" data-view="dash"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-activity"/></svg><span>Sistema</span></button>
-  <button class="nm" data-view="media"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-headphones"/></svg><span>Rádio e mixer</span></button>
-  <button class="nm" data-view="games"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-gamepad-2"/></svg><span>Jogos</span></button>
-  <button class="nm" data-view="dota"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-gamepad"/></svg><span>Dota</span></button>
-  <button class="nm" data-view="work"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-briefcase"/></svg><span>Trabalho</span></button>
-  <button class="nm" data-view="weather"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-cloud-sun"/></svg><span>Tempo</span></button>
-  <button class="nm" data-view="send"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-folder-open"/></svg><span>Arquivos</span></button>
-  <button class="nm" data-view="power"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-log-out"/></svg><span>Energia</span></button>
-  <button class="nm" data-view="widgets"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-layout-grid"/></svg><span>Widgets do Início</span></button>
-  <button class="nm" data-view="sys"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-sliders-horizontal"/></svg><span>Ajustes</span></button>
 </nav>
 <div id="mic-safe" aria-hidden="true"></div>
 <button id="mic-fab" class="hidden" data-s="off" aria-label="Microfone do PC indisponível" aria-disabled="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/><path class="mf-slash" d="M3 3l18 18"/></svg></button>
@@ -1842,8 +1831,8 @@ const store = {
 // endereço de PC ou caminho: o pacote de compartilhar usa uma lista de campos permitidos (SHARE).
 /* LAY:begin */
 function makeLayouts(store, rid, now, defaults) {
-  const KEYS = ["theme", "variant", "mode", "accent", "crt", "home", "homepg", "tab", "views"];
-  const SHARE = ["theme", "variant", "mode", "accent", "crt", "home"];
+  const KEYS = ["theme", "variant", "mode", "accent", "crt", "home", "homepg", "tab", "views", "nav"];
+  const SHARE = ["theme", "variant", "mode", "accent", "crt", "home", "nav"];
   const ENUM = { theme: ["modern", "fallout"], variant: ["green", "amber", "cyan"], mode: ["auto", "light", "dark"], accent: ["blue", "purple", "green", "orange", "pink"] };
   const MAX = 10, MAX_NAME = 30, MAX_CODE = 8192, PREFIX = "PCL1.", SIZES = ["P", "A", "L", "G"];
   let applying = false, timer = 0;
@@ -1868,10 +1857,25 @@ function makeLayouts(store, rid, now, defaults) {
     }
     return out;
   };
+  // barra de navegação: {v:1, order:[todos os ids, por prioridade], hidden:[ids fora da barra]}; a barra mostra no máximo NAV_CAP itens (o resto fica em Mais)
+  const NAV_IDS = ["inicio", "ctrl", "deck", "tasks", "dash", "media", "games", "dota", "work", "weather", "send", "power", "widgets", "sys"], NAV_CAP = 4;
+  const navDef = () => ({ v: 1, order: NAV_IDS.slice(), hidden: NAV_IDS.slice(NAV_CAP) });
+  const validNav = (n) => {
+    if (!isObj(n) || n.v !== 1 || !Array.isArray(n.order) || !Array.isArray(n.hidden) || n.order.length > 40 || n.hidden.length > 40) return null;
+    const order = [], seen = new Set(), hide = new Set();
+    for (const id of n.order) if (typeof id === "string" && NAV_IDS.includes(id) && !seen.has(id)) { seen.add(id); order.push(id); }
+    for (const id of NAV_IDS) if (!seen.has(id)) { order.push(id); hide.add(id); }   // item que este layout não conhecia: entra no fim, em Mais
+    for (const id of n.hidden) if (typeof id === "string" && NAV_IDS.includes(id)) hide.add(id);
+    let vis = order.filter((id) => !hide.has(id));
+    if (!vis.length) { hide.delete(order[0]); vis = [order[0]]; }
+    vis.slice(NAV_CAP).forEach((id) => hide.add(id));
+    return { v: 1, order, hidden: order.filter((id) => hide.has(id)) };
+  };
   const validOne = (k, v) => {
     if (ENUM[k]) return ENUM[k].includes(v) ? v : undefined;
     if (k === "crt") return typeof v === "boolean" ? v : undefined;
     if (k === "home") { const h = validHome(v); return h || undefined; }
+    if (k === "nav") return validNav(v) || undefined;
     if (k === "homepg") {
       if (!isObj(v)) return undefined;
       const o = {}; for (const m of Object.keys(v).slice(0, 6)) if (/^[a-z]{1,10}$/.test(m) && Number.isInteger(v[m]) && v[m] >= 0 && v[m] < 3) o[m] = v[m];
@@ -1914,7 +1918,7 @@ function makeLayouts(store, rid, now, defaults) {
   const b64 = (str) => { const bytes = new TextEncoder().encode(str); let bin = ""; for (const b of bytes) bin += String.fromCharCode(b); return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
   const unb64 = (t) => { const bin = atob(t.replace(/-/g, "+").replace(/_/g, "/")); return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))); };
   const api = {
-    KEYS, SHARE, MAX, MAX_NAME, validData,
+    KEYS, SHARE, MAX, MAX_NAME, validData, NAV: { IDS: NAV_IDS, CAP: NAV_CAP, def: navDef, norm: validNav },
     init() { const s = state(); write(s); return s; },
     list() { const s = state(); return s.list.map((p) => ({ id: p.id, name: p.name, active: p.id === s.active, isDefault: p.id === "default" })); },
     active() { const s = state(); const p = find(s, s.active); return { id: p.id, name: p.name, isDefault: p.id === "default" }; },
@@ -2414,13 +2418,12 @@ function showView(name, temp) {
   const sec = secOf(name), grp = groupOf(name), multi = wide && !!grp;
   shown = new Set(multi ? GROUPS[grp] : [name]);
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", shown.has(t.id.slice(2))));
-  document.querySelectorAll("nav button[data-sec]").forEach((b) => b.classList.toggle("on", b.dataset.sec === sec));
-  document.querySelectorAll("nav button[data-view]").forEach((b) => b.classList.toggle("on", shown.has(b.dataset.view)));
+  navMark(name);
   MAIN.classList.toggle("multi", multi);
   MAIN.style.gridTemplateColumns = multi ? SPLIT[grp] : "";
   const items = [];
   if (!multi) {
-    if (sec === "mais" && name !== "more" && !wide) items.push(["more", "‹ Mais", true]);
+    if (sec === "mais" && name !== "more" && !wide && !navBar.includes(navItemOf(name))) items.push(["more", "‹ Mais", true]);
     if (grp) GROUPS[grp].forEach((v) => items.push([v, LABEL[v]]));
   }
   const sub = $("subtabs");
@@ -2443,12 +2446,83 @@ function showView(name, temp) {
   if (vis("widgets")) wdShow();
 }
 $("subtabs").onclick = (e) => { const b = e.target.closest("[data-view]"); if (b) { buzz(8); showView(b.dataset.view); } };
-$("more-list").onclick = (e) => { const b = e.target.closest("[data-view]"); if (b) { buzz(8); showView(b.dataset.view); } };
-document.querySelectorAll("nav button[data-view]").forEach((b) => (b.onclick = () => { buzz(8); showView(b.dataset.view); }));
-document.querySelectorAll("nav button[data-sec]").forEach((b) => (b.onclick = () => {
-  buzz(8); const sec = b.dataset.sec, last = lastView[sec];
-  showView(sec === "mais" ? "more" : VIEWS.includes(last) && secOf(last) === sec ? last : SECTIONS[sec][0][0]);
-}));
+// ---- barra de navegação configurável (Ajustes › Barra de navegação). A configuração {v,order,hidden} é uma chave de layout ("nav").
+// Itens fora da barra (ou que não cabem: LAY.NAV.CAP) ficam sempre acessíveis em Mais (lista na vista "more" e, na barra lateral larga, abaixo do rótulo Mais).
+const NAVM = {   // id: [rótulo na barra, rótulo longo, ícone, vista de entrada]
+  inicio: ["Início", "Início", "house", "inicio"], ctrl: ["Controle", "Controle", "mouse-pointer-2", "mouse"], deck: ["Botões", "Botões", "layout-grid", "deck"],
+  tasks: ["Tarefas", "Tarefas", "check-check", "tasks"], dash: ["Sistema", "Sistema", "activity", "dash"], media: ["Rádio", "Rádio e mixer", "headphones", "media"],
+  games: ["Jogos", "Jogos", "gamepad-2", "games"], dota: ["Dota", "Dota", "gamepad", "dota"], work: ["Trabalho", "Trabalho", "briefcase", "work"],
+  weather: ["Tempo", "Tempo", "cloud-sun", "weather"], send: ["Arquivos", "Arquivos", "folder-open", "send"], power: ["Energia", "Energia", "log-out", "power"],
+  widgets: ["Widgets", "Widgets do Início", "layout-grid", "widgets"], sys: ["Ajustes", "Ajustes", "sliders-horizontal", "sys"],
+};
+let navBar = [];   // ids que estão na barra agora
+const navCfg = () => LAY.NAV.norm(store.get("nav", null)) || LAY.NAV.def();
+const navItemOf = (v) => {   // vista → item da barra a que ela pertence
+  if (v === "more") return null;
+  if (groupOf(v) === "ctrl") return "ctrl";
+  if (v === "mix") return "media";
+  const s = secOf(v); return s === "mais" ? v : s;
+};
+const navIc = (n, cls) => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-${n}"/></svg>`;
+function navBuild() {
+  const cfg = navCfg();
+  navBar = cfg.order.filter((id) => !cfg.hidden.includes(id)).slice(0, LAY.NAV.CAP);
+  const rest = cfg.order.filter((id) => !navBar.includes(id)), nav = $("nav"), bdg = (id) => (id === "tasks" ? '<b class="badge tk-b hidden"></b>' : "");
+  [...nav.children].forEach((c) => { if (!c.classList.contains("rail-top")) c.remove(); });
+  nav.insertAdjacentHTML("beforeend",
+    navBar.map((id) => `<button data-nid="${id}">${navIc(NAVM[id][2], "ni")}<span>${NAVM[id][0]}</span>${bdg(id)}</button>`).join("") +
+    (rest.length ? `<button data-nid="mais" data-sec="mais">${navIc("ellipsis", "ni")}<span>Mais</span></button>
+      <div class="nav-label nm-label">Mais</div>` + rest.map((id) => `<button class="nm" data-nid="${id}">${navIc(NAVM[id][2], "ni")}<span>${NAVM[id][1]}</span>${bdg(id)}</button>`).join("") : ""));
+  $("more-list").innerHTML = rest.map((id) => `<button class="mrow" data-nid="${id}">${navIc(NAVM[id][2], "mi")}<span>${NAVM[id][1]}</span>${bdg(id)}</button>`).join("");
+  navBadge(); navMark(prefs.tab);
+}
+function navMark(name) {   // marca o item da barra da vista atual (Mais acende quando a vista não está na barra)
+  const it = navItemOf(name);
+  document.querySelectorAll("nav [data-nid]").forEach((b) => b.classList.toggle("on", b.dataset.nid === it || (b.dataset.nid === "mais" && (name === "more" || (!!it && !navBar.includes(it))))));
+}
+function navGo(id) {
+  buzz(8);
+  if (id === "mais") return showView("more");
+  if (SECTIONS[id] && id !== "mais") { const last = lastView[id]; return showView(VIEWS.includes(last) && secOf(last) === id ? last : SECTIONS[id][0][0]); }
+  showView(NAVM[id][3]);
+}
+let tkN = 0;
+function navBadge() {
+  document.querySelectorAll(".tk-b").forEach((b) => { b.textContent = tkN > 99 ? "99+" : tkN; b.classList.toggle("hidden", !tkN); b.parentElement.setAttribute("aria-label", tkN ? `Tarefas, ${tkN} pendentes` : "Tarefas"); });
+}
+$("nav").onclick = $("more-list").onclick = (e) => { const b = e.target.closest("[data-nid]"); if (b) navGo(b.dataset.nid); };
+// configuração (Ajustes): ligar/desligar, subir/descer, restaurar
+function navRender() {
+  const cfg = navCfg();
+  $("nav-list").innerHTML = cfg.order.map((id, i) => {
+    const on = navBar.includes(id), n = NAVM[id][1];
+    return `<div class="wd-row" data-id="${id}"><button class="switch${on ? " on" : ""}" data-nop="tg" aria-pressed="${on}" aria-label="${n} na barra"></button>
+      <div class="wd-nm">${navIc(NAVM[id][2], "hi")}<span class="wd-n">${n}</span><small>${on ? "Na barra" : "Em Mais"}</small></div>
+      <button data-nop="up" aria-label="Subir ${n}"${i === 0 ? " disabled" : ""}>${navIc("chevron-up", "hi")}</button>
+      <button data-nop="dn" aria-label="Descer ${n}"${i === cfg.order.length - 1 ? " disabled" : ""}>${navIc("chevron-down", "hi")}</button></div>`;
+  }).join("");
+}
+function navSave(cfg) {
+  if (cfg) store.set("nav", cfg); else store.del("nav");
+  navBuild(); navRender();
+  const t = document.querySelector(".tab.on"), y = t ? t.scrollTop : 0; showView(prefs.tab, true); if (t) t.scrollTop = y;   // refaz as sub-abas ("‹ Mais") sem pular a rolagem
+  if (typeof micFabPaint === "function" && typeof micFab !== "undefined") micFabPaint(); }
+$("nav-list").onclick = (e) => {
+  const b = e.target.closest("[data-nop]"), row = e.target.closest(".wd-row"); if (!b || !row || b.disabled) return;
+  buzz(8);
+  const cfg = navCfg(), id = row.dataset.id, i = cfg.order.indexOf(id), op = b.dataset.nop;
+  if (op === "tg") {
+    if (navBar.includes(id)) { if (navBar.length <= 1) return toast("A barra precisa de pelo menos 1 item", "warn"); cfg.hidden.push(id); }
+    else { if (navBar.length >= LAY.NAV.CAP) return toast(`A barra comporta ${LAY.NAV.CAP} itens. Tire um antes`, "warn"); cfg.hidden = cfg.hidden.filter((x) => x !== id); }
+  } else {
+    const j = op === "up" ? i - 1 : i + 1; if (j < 0 || j >= cfg.order.length) return;
+    [cfg.order[i], cfg.order[j]] = [cfg.order[j], cfg.order[i]];
+  }
+  navSave(cfg);
+  const nb = $("nav-list").querySelector(`[data-id="${id}"] [data-nop="${op}"]`); if (nb && !nb.disabled) nb.focus({ preventScroll: true });
+};
+$("nav-reset").onclick = () => { buzz(8); navSave(null); toast("Barra de navegação restaurada", "ok"); };
+navBuild(); navRender();
 wideMQ.addEventListener("change", () => showView(prefs.tab));
 
 // ---------------------------------------------------------------- abertura (uma vez por carregamento)
@@ -3043,9 +3117,7 @@ async function loadTasks() {
 }
 // selo da navegação: tarefas pendentes (dado do próprio tasks.get)
 function tasksBadge(d) {
-  const n = d.items ? d.items.filter((t) => !t.done).length : 0, b = $("tk-badge");
-  b.textContent = n > 99 ? "99+" : n; b.classList.toggle("hidden", !n);
-  b.parentElement.setAttribute("aria-label", n ? `Tarefas, ${n} pendentes` : "Tarefas");
+  tkN = d.items ? d.items.filter((t) => !t.done).length : 0; navBadge();
 }
 function renderTasks(d) {
   tasksData = d; homeUpd("tasks");

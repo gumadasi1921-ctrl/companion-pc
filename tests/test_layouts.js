@@ -90,4 +90,30 @@ const HOME = { v: 2, phone: [{ id: "now", size: "A" }, { id: "cpu", size: "P" }]
   t("ativo inexistente volta ao Padrão", L.active().isDefault, true);
   L.init(); t("valor inválido de tema é descartado ao ler", JSON.parse(mem.get("layouts")).list[0].data, { accent: "pink" });
 }
+// ---- barra de navegação (chave nav): validação, limite da barra, compartilhar e migração
+{
+  const { L } = fresh(); const N = L.NAV, def = N.def();
+  t("padrão: 4 na barra, o resto em Mais", [def.order.filter((i) => !def.hidden.includes(i)), def.hidden.length], [["inicio", "ctrl", "deck", "tasks"], 10]);
+  t("padrão passa pela validação sem mudar", N.norm(def), def);
+  t("lixo vira null", [N.norm(null), N.norm("x"), N.norm({ v: 2, order: [], hidden: [] }), N.norm({ v: 1, order: "a", hidden: [] })], [null, null, null, null]);
+  const a = N.norm({ v: 1, order: ["sys", "xx", "sys", 5, "games"], hidden: ["games", "zz"] });
+  t("id desconhecido/repetido some; faltantes entram no fim, em Mais", [a.order.length, a.order.slice(0, 2), a.hidden.includes("inicio"), a.hidden.includes("games")], [14, ["sys", "games"], true, true]);
+  t("só 1 visível (sys) porque os faltantes ficam em Mais", a.order.filter((i) => !a.hidden.includes(i)), ["sys"]);
+  const b = N.norm({ v: 1, order: N.IDS, hidden: [] });
+  t("passou do limite: só os 4 primeiros ficam na barra", b.order.filter((i) => !b.hidden.includes(i)), ["inicio", "ctrl", "deck", "tasks"]);
+  const c = N.norm({ v: 1, order: N.IDS, hidden: N.IDS });
+  t("nada visível: o primeiro volta (a barra nunca fica vazia)", c.order.filter((i) => !c.hidden.includes(i)), ["inicio"]);
+  const { L: L2, store } = fresh({ theme: "modern" }); L2.init(); L2.hook();
+  store.set("nav", { v: 1, order: ["games", "inicio", "ctrl", "deck", "tasks", "dash", "media", "dota", "work", "weather", "send", "power", "widgets", "sys"], hidden: ["tasks", "dash", "media", "dota", "work", "weather", "send", "power", "widgets", "sys"] });
+  L2.sync();
+  const code = L2.code("default"), e = L2.import(code);
+  t("o layout compartilha a barra", L2.pack(e.id).data.nav.order[0], "games");
+  t("o espelho no perfil guarda a barra", L2.pack("default").data.nav.hidden.includes("tasks"), true);
+  const bad = L2.import(JSON.stringify({ companion_layout: 1, name: "x", data: { theme: "fallout", nav: { v: 1, order: ["<script>", "sys"], hidden: [9] } } }));
+  t("importar valida a barra (id estranho cai fora)", L2.pack(bad.id).data.nav.order.includes("<script>"), false);
+  const onlyBad = L2.import(JSON.stringify({ companion_layout: 1, name: "y", data: { theme: "fallout", nav: "lixo" } }));
+  t("barra inválida é descartada, o resto do pacote vale", [L2.pack(onlyBad.id).data.theme, "nav" in L2.pack(onlyBad.id).data], ["fallout", false]);
+  const { L: L3 } = fresh({ theme: "fallout", home: HOME }); L3.init();
+  t("perfil antigo (sem nav) continua válido", L3.pack("default").data.nav, undefined);
+}
 process.exit(fail ? 1 : 0);
