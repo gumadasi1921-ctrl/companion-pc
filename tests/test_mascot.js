@@ -57,6 +57,7 @@ function fresh(initial) {
   t("texto da água é fixo, sem número", /água/i.test(M.text("water", {}, clock)), true);
   t("foco calado", M.due(clock, { focus: true }), null);
   M.setCfg({ water: { min: 60 } }); t("ajustável: 60 min", M.cfg().water.min, 60);
+  t("app aberto agora: só lembra 60 min depois de abrir", [M.due(clock, { since: clock }), M.due(clock + 61 * 60, { since: clock })], [null, { id: "water" }]);
   M.say("water", clock); t("depois de falar não repete na hora", M.due(clock + 60, {}), null);
   t("e dentro de 15 min nada fala", M.can("pause", clock + 600), false);
   clock = T(11); t("água de novo após o intervalo", M.due(clock, {}), { id: "water" });

@@ -2271,7 +2271,7 @@ function makeMascot(store, now) {
     ignored(id, t = now()) { roll(t); S.daily.ign[id] = (S.daily.ign[id] || 0) + 1; save(); },
     acted(id, t = now()) { roll(t); S.daily.ign[id] = 0; save(); },
     eodDone(t = now()) { roll(t); S.daily.eod = true; save(); },
-    due(t = now(), ctx = {}) {   // qual lembrete já passou da hora (ou null). ctx = {focus, work:{minutes,app}|null}
+    due(t = now(), ctx = {}) {   // qual lembrete já passou da hora (ou null). ctx = {focus, work:{minutes,app}|null, since}
       roll(t); const c = S.cfg;
       if (ctx.focus || c.mode !== "on") return null;
       if (c.eod.on && !S.daily.eod && !silenced(t) && !sleeping(t) && t >= at(t, c.eod.at) && t < at(t, c.active[1])) return { id: "eod", needData: true };
@@ -2281,7 +2281,7 @@ function makeMascot(store, now) {
         if (api.can("pause", t) && (!r || (c.pause.every > 0 && r.n < 3 && ctx.work.minutes >= r.minutes + c.pause.every))) return { id: "pause", minutes: ctx.work.minutes, app: ctx.work.app || null };
       }
       if (c.water.on && api.can("water", t)) {
-        const anchor = Math.max(S.water_at, at(t, c.active[0]), (S.say.water || { t: 0 }).t);
+        const anchor = Math.max(S.water_at, at(t, c.active[0]), (S.say.water || { t: 0 }).t, ctx.since || 0);   // since = quando o app abriu (com o app fechado ninguém foi lembrado)
         if (t - anchor >= c.water.min * 60) return { id: "water" };
       }
       return null;
@@ -3722,7 +3722,7 @@ function pomoCall(a, p) { return send(a, p).then(pomoSet).catch((e) => { if (e.m
 function pomoToggle() { const d = pm.d; if (!d) return; pomoCall(d.running ? "pomo.pause" : "pomo.start", d.running ? {} : { task_id: pm.sel || null }); }
 function pomoDone(m) {
   const msg = m.finished === "focus" ? `Foco concluído! ${m.next === "long" ? "Pausa longa" : "Pausa"} de ${m.next_min} min` : "Pausa acabou, bora focar";
-  try { if (m.finished === "focus" && LM.cfg().pomo.on) lumeFocusDone(); } catch {}
+  try { if (m.finished === "focus") lumeFocusDone(); } catch {}
   toast(msg, "ok");   // o toast "ok" já toca o som curto (se os sons estiverem ligados)
   if (prefs.vib && navigator.vibrate) try { navigator.vibrate([60, 40, 60]); } catch {}
 }
@@ -5234,10 +5234,10 @@ document.addEventListener("visibilitychange", () => { document.documentElement.c
 // ---- ganhos reais: só estes fatos fazem os medidores subirem
 function lumeTasks(d) {   // tarefa concluída (tasks.get / toque na tarefa): primeira leitura só marca a linha de base
   const items = (d && d.items) || [], done = new Set(items.filter((t) => t.done).map((t) => String(t.id)));
-  if (LU.taskSeen) for (const id of done) if (!LU.taskSeen.has(id) && LM.act("task", Date.now() / 1000, { id }).ok) lumeParty();
+  if (LU.taskSeen) for (const id of done) if (!LU.taskSeen.has(id) && LM.act("task", Date.now() / 1000, { id }).ok && LM.cfg().tasks.on) lumeParty();
   LU.taskSeen = done;
 }
-function lumeFocusDone() { LM.act("focus"); lumeParty(); }
+function lumeFocusDone() { LM.act("focus"); if (LM.cfg().pomo.on) lumeParty(); }
 function lumeWork(d) {   // work.stream do PC ativo: minutos contínuos; a sequência acabar depois de 30+ min = pausa de verdade
   const prev = LU.work;
   LU.work = d && Number.isFinite(d.minutes) ? { minutes: d.minutes, app: d.app || null } : null;
@@ -5288,12 +5288,11 @@ $("t-mascot").addEventListener("click", (e) => {
 // Os efeitos do handler (lista de notificações, som, vibração, notificação do sistema) continuam iguais; só o toast é desviado (lumeCap).
 const LB = { q: [], cur: null, t: 0 };
 const LU_TYPE = { notif: "notif", "steam.done": "steam", download: "download", export: "export", alert: "alert", "pomo.done": "pomo", "trello.digest": "trello", "focus.summary": "focus" };
-const lumeCanBalloon = (type) => lumeOn() && !lumeHidden() && !document.hidden && LM.cfg().route[type] === "b";
+const lumeCanBalloon = (type) => lumeOn() && !lumeHidden() && !document.hidden && LM.cfg().route[type] === "b" && (type !== "trello" || LM.cfg().trello.on);
 function lumeEvent(m, run) {
   const type = LU_TYPE[m.kind];
   if (!type || !lumeCanBalloon(type)) return run();
   lumeCap = {}; let cap; try { run(); } finally { cap = lumeCap; lumeCap = null; }
-  if (type === "trello" && !LM.cfg().trello.on) return;
   if (type === "trello") { if (cap.msg) lumeSay({ src: "pc", text: m.title || cap.msg, act: cap.fn, label: cap.label }); return; }   // só a contagem do título; nome de card nunca no balão
   if (type === "notif") lumeSay({ src: "pc", title: m.app || "", text: [m.title, m.body].filter(Boolean).join(" · ") });
   else if (cap.msg) lumeSay({ src: "pc", text: cap.msg, act: cap.fn, label: cap.label, alt: cap.alt });
@@ -5356,7 +5355,7 @@ function lumeSetRender() {
     row("Pomodoro", "Comemora o foco concluído", sw("pomo.on", c.pomo.on, "Pomodoro")) +
     row("Fim do dia", "Só números reais de trabalho e tarefas; sem dado, ele não fala", sw("eod.on", c.eod.on, "Fim do dia") + `<input type="time" class="sel" data-lk="eod.at" value="${c.eod.at}" aria-label="Horário do fim do dia">`) +
     row("Tarefas", "Comemora tarefa concluída", sw("tasks.on", c.tasks.on, "Tarefas")) +
-    row("Trello", "Só a contagem; toque abre a lista", sw("trello.on", c.trello.on, "Trello")) +
+    row("Trello", "Resumo das 9 h pelo balão (só a contagem; toque abre a lista)", sw("trello.on", c.trello.on, "Trello")) +
     "<h3 class=\"lm-h\">Horários e limites</h3>" +
     row("Horário ativo", "Fora dele o Lume não fala (avisos do PC seguem no toast)", `<input type="time" class="sel" data-lk="active.0" value="${c.active[0]}" aria-label="Começa às"><input type="time" class="sel" data-lk="active.1" value="${c.active[1]}" aria-label="Termina às">`) +
     row("Falas por dia", "Lembretes espontâneos, não conta os avisos do PC", sel("maxDay", c.maxDay, [[3, "3"], [6, "6"], [10, "10"]], "Falas por dia")) +
@@ -5388,6 +5387,32 @@ $("lume-set").addEventListener("change", (e) => {
   const k = el.dataset.lk, num = /^(water\.min|pause\.after|pause\.every|maxDay|sleepMin)$/.test(k);
   LM.setCfg(lumeSetPatch(k, num ? +el.value : el.value)); lumePaint(); lumeSetRender();
 });
+
+// ---- lembretes do Lume (a cada 30 s): vencimento decidido pelo núcleo (horário ativo, limite do dia, ignorados, foco, silêncio, sono).
+// Texto só com número real: pausa usa os minutos do work.stream do PC ativo; fim do dia lê work.get + tarefas concluídas hoje.
+LU.openAt = Date.now();
+async function lumeEod(t) {
+  let work_s = 0;
+  if (lumeOnline() && welcome.features?.work) { try { const w = await send("work.get"); work_s = +w.today_s || 0; } catch {} }
+  const tk = LM.cfg().tasks.on, done = tk ? LM.counts(t).task : 0, pend = tk && tasksData && tasksData.items ? tasksData.items.filter((x) => !x.done).length : 0;
+  const text = LM.text("eod", { work_s, done, pend }, t);
+  LM.eodDone(t);   // uma vez por dia, com ou sem texto (sem número real ele não fala)
+  if (!text || lumeHidden()) return;
+  LM.say("eod", t); lumeSay({ src: "lume", text, id: "eod", act: work_s > 0 ? () => showView("work") : null, label: "Ver Trabalho" });
+}
+async function lumeTick() {
+  if (!lumeOn() || LU.busy || document.hidden || LB.cur || lumeHidden()) return;
+  const t = Date.now() / 1000, work = lumeOnline() && welcome.features?.work && LU.work ? LU.work : null;
+  const d = LM.due(t, { focus: lumeFocus(), work, since: LU.openAt / 1000 });
+  if (!d) return;
+  if (d.id === "eod") { LU.busy = true; try { await lumeEod(t); } finally { LU.busy = false; } return; }
+  const text = LM.text(d.id, d, t); if (!text) return;
+  LM.say(d.id, t, d);
+  const ok = () => { if (LM.act(d.id === "water" ? "water" : "pause", Date.now() / 1000).ok) lumeParty(); else toast("Já contou", "warn"); };
+  lumeSay({ src: "lume", text, id: d.id, act: ok, label: d.id === "water" ? "Bebi água" : "Fiz uma pausa" });
+}
+setInterval(lumeTick, 30000); setTimeout(lumeTick, 5000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) setTimeout(lumeTick, 1500); });
 lumeSetRender(); lumePaint();
 /* LUMEUI:end */
 $("tmr-chip").onclick = () => { buzz(8); showView("power"); };
