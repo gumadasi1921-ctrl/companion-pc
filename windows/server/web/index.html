@@ -1818,16 +1818,20 @@ function send(a, p = {}, reply = true) {
 // Ícone real do app (rota /icon/<id>, autenticada pela chave do welcome). A letra/emoji continua no lugar até a imagem carregar
 // e é o que fica se não houver ícone ou der erro.
 let iconKey = "";
+const iconOk = new Set();   // ids que já carregaram: listas refeitas a cada segundo já nascem com a imagem (sem piscar)
+const iconSrc = (id) => `/icon/${encodeURIComponent(id)}?k=${encodeURIComponent(iconKey)}`;
 function setAppIcon(el, id) {
   if (!el || !id || !iconKey || el.dataset.ic === id) return;
   el.dataset.ic = id;
   const img = new Image();
   img.className = "aic"; img.alt = ""; img.decoding = "async";
-  img.onload = () => { if (el.dataset.ic === id) { el.classList.add("has-ic"); el.replaceChildren(img); } };
-  img.src = `/icon/${encodeURIComponent(id)}?k=${encodeURIComponent(iconKey)}`;
+  img.onload = () => { iconOk.add(id); if (el.dataset.ic === id) { el.classList.add("has-ic"); el.replaceChildren(img); } };
+  img.src = iconSrc(id);
 }
 // marcador de ícone dentro de um HTML montado em texto: <i class="gic" data-icon="ID"></i>; fica escondido até a imagem carregar
-const gic = (id) => (id ? `<i class="gic" data-icon="${esc(id)}"></i>` : "");
+const gic = (id) => (!id || !iconKey ? "" : iconOk.has(id)
+  ? `<i class="gic has-ic" data-ic="${esc(id)}" data-icon="${esc(id)}"><img class="aic" alt="" src="${iconSrc(id)}"></i>`
+  : `<i class="gic" data-icon="${esc(id)}"></i>`);
 const hydrateIcons = (root) => root && root.querySelectorAll("[data-icon]").forEach((el) => setAppIcon(el, el.dataset.icon));
 function act(a, p, label) {
   buzz();
@@ -2048,7 +2052,8 @@ function renderStats() {
   $("g-fps-hint").classList.toggle("hidden", !ferr || !s.app_game);
   if (ferr) $("g-fps-hint").textContent = ferr === "perm" ? "Para ver o FPS, o PC precisa liberar o PresentMon uma vez (veja o README)." : "Para ver o FPS, instale o PresentMon Console no PC.";
   $("window").textContent = s.window || "Área de trabalho";
-  $("procs").innerHTML = (s.procs || []).map((p) => `<div class="row"><span>${esc(p.name)}</span><span>${p.cpu.toFixed(1)}% · ${fmtBytes(p.mem)}</span></div>`).join("");
+  $("procs").innerHTML = (s.procs || []).map((p) => `<div class="row"><span>${gic(p.icon)}${esc(p.name)}</span><span>${p.cpu.toFixed(1)}% · ${fmtBytes(p.mem)}</span></div>`).join("");
+  hydrateIcons($("procs"));
   $("disks").innerHTML = (s.disks || []).map((d) => `<div class="row"><span>${esc(d.name)}</span><span>${fmtBytes(d.used)} / ${fmtBytes(d.total)}</span></div>
     <div class="bar ${d.pct >= 90 ? "bad" : d.pct >= 75 ? "warn" : ""}" style="margin:0 0 8px"><i style="width:${d.pct}%"></i></div>`).join("");
   const up = s.uptime_s, d = Math.floor(up / 86400);
@@ -2432,8 +2437,9 @@ function renderWeek(h) {
     <small>${d.s >= 3600 ? Math.round(d.s / 360) / 10 + "h" : d.s >= 60 ? Math.round(d.s / 60) + "m" : ""}</small>
     <i style="height:${Math.round((d.s / max) * 62)}px"></i>${d.d}</div>`).join("");
   const top = h.top[0]?.s || 1;
-  $("gh-top").innerHTML = h.top.length ? h.top.map((g) => `<div class="toprow"><div class="row"><span>${esc(g.name)}</span><span>${humanDur(g.s)}</span></div>
+  $("gh-top").innerHTML = h.top.length ? h.top.map((g) => `<div class="toprow"><div class="row"><span>${gic(g.icon)}${esc(g.name)}</span><span>${humanDur(g.s)}</span></div>
     <div class="bar"><i style="width:${(g.s / top) * 100}%"></i></div></div>`).join("") : '<div class="empty">Nenhum jogo nos últimos 7 dias</div>';
+  hydrateIcons($("gh-top"));
 }
 function renderLib() {
   setHtml($("g-lib"), libData.length ? libData.map((g, i) => `<button class="lgame${g.running ? " run" : ""}" data-g="${i}">
@@ -3023,8 +3029,9 @@ Object.assign(HOME_W, {
     upd(el) {
       const z = el.dataset.z, bars = z === "A" || z === "G";
       setHtml(hk(el, "list"), (state.stats.procs || []).slice(0, { P: 2, A: 5, L: 3, G: 8 }[z]).map((p) => bars
-        ? `<div class="hproc"><span>${esc(p.name)}</span><span>${p.cpu.toFixed(1)}% · ${fmtBytes(p.mem)}</span><div class="hbar" style="--c:var(--chart-cpu)"><i style="width:${Math.max(2, Math.min(100, p.cpu))}%"></i></div></div>`
-        : `<div class="row"><span>${esc(p.name)}</span><span>${p.cpu.toFixed(1)}% · ${fmtBytes(p.mem)}</span></div>`).join("") || '<div class="hw-na">Sem dados</div>');
+        ? `<div class="hproc"><span>${gic(p.icon)}${esc(p.name)}</span><span>${p.cpu.toFixed(1)}% · ${fmtBytes(p.mem)}</span><div class="hbar" style="--c:var(--chart-cpu)"><i style="width:${Math.max(2, Math.min(100, p.cpu))}%"></i></div></div>`
+        : `<div class="row"><span>${gic(p.icon)}${esc(p.name)}</span><span>${p.cpu.toFixed(1)}% · ${fmtBytes(p.mem)}</span></div>`).join("") || '<div class="hw-na">Sem dados</div>');
+      hydrateIcons(hk(el, "list"));
     },
   },
   games: {
@@ -3037,8 +3044,8 @@ Object.assign(HOME_W, {
       setText(hk(el, "tot"), h.week_s ? humanDur(h.week_s) : el.dataset.z === "P" ? "0 min" : "");
       if (el.dataset.z === "P") return;
       setHtml(hk(el, "chart"), barChart(h.days.map((d) => d.s), h.days.map((d) => d.d), h.days.length - 1, "--chart-gpu", hk(el, "chart").clientWidth, "Tempo de jogo por dia na última semana", L ? 72 : 100));
-      setHtml(hk(el, "top"), L ? "" : (now ? `<div class="row"><span>Jogando agora</span><span>${esc(now.name)}</span></div>` : "") +
-        (h.top.slice(0, 2).map((g) => `<div class="row"><span>${esc(g.name)}</span><span>${humanDur(g.s)}</span></div>`).join("") || (now ? "" : '<div class="hw-na">Nenhum jogo nos últimos 7 dias</div>')));
+      setHtml(hk(el, "top"), L ? "" : (now ? `<div class="row"><span>Jogando agora</span><span>${gic(now.icon)}${esc(now.name)}</span></div>` : "") +
+        (h.top.slice(0, 2).map((g) => `<div class="row"><span>${gic(g.icon)}${esc(g.name)}</span><span>${humanDur(g.s)}</span></div>`).join("") || (now ? "" : '<div class="hw-na">Nenhum jogo nos últimos 7 dias</div>')));
     },
   },
   notif: {

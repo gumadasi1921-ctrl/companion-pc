@@ -356,6 +356,11 @@ class GameMonitor:
         cur = [{"name": self.current["name"], "start": self.current["start"], "end": now}] if self.current else []
         return self.history + cur
 
+    def _icon_field(self, name):
+        info = self.catalog.info_by_name(name)
+        ic = self.catalog.icon_for(info) if info else None
+        return {"icon": ic} if ic else {}
+
     def library(self):
         """Jogos instalados que dá para abrir, os jogados por último primeiro."""
         now, last = time.time(), {}
@@ -400,7 +405,7 @@ class GameMonitor:
                     per_game[s["name"]] = per_game.get(s["name"], 0) + ov
         wd = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
         return {"days": [{"d": wd[time.localtime(d0).tm_wday], "s": int(v)} for d0, v in zip(starts, per_day)],
-                "top": [{"name": n, "s": int(v)} for n, v in sorted(per_game.items(), key=lambda x: -x[1])[:6]],
+                "top": [{"name": n, "s": int(v), **self._icon_field(n)} for n, v in sorted(per_game.items(), key=lambda x: -x[1])[:6]],
                 "week_s": int(sum(per_day))}
 
     def poll(self):

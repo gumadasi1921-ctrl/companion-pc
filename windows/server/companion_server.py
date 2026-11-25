@@ -468,7 +468,7 @@ class Stats:
                     p.cached_name = p.name()  # nome não muda; ler uma vez só
                 with p.oneshot():
                     cpu = p.cpu_percent(None) / self.cores
-                    procs.append((cpu, p.memory_info().rss, p.cached_name))
+                    procs.append((cpu, p.memory_info().rss, p.cached_name, pid))
                 # só descarta processos lentos E ociosos: com a CPU alta qualquer leitura passa de 3 ms
                 # e os processos pesados (os de "Mais pesados") eram descartados para sempre
                 if time.perf_counter() - t0 > 0.003 and cpu < 1 and pid in self.pcache and hasattr(p, "seen"):
@@ -478,6 +478,18 @@ class Stats:
                 self.pcache.pop(pid, None)
         procs.sort(reverse=True)
         return procs
+
+    def _proc_icon(self, pid):
+        """ID do ícone do processo (o caminho do exe fica aqui; lido uma vez por processo, só para os que aparecem na lista)."""
+        p = self.pcache.get(pid)
+        if p is None:
+            return None
+        if not hasattr(p, "cached_exe"):
+            try:
+                p.cached_exe = p.exe()
+            except (psutil.Error, OSError):
+                p.cached_exe = None
+        return ICONS.register(p.cached_exe) if p.cached_exe else None
 
     def collect(self):
         now = time.monotonic()
@@ -515,7 +527,8 @@ class Stats:
             "window": foreground_title(),
             **self._app(),
             "gpu": pc_info.gpu(),
-            "procs": [{"name": n, "cpu": round(c, 1), "mem": m} for c, m, n in procs[:5]],
+            "procs": [{"name": n, "cpu": round(c, 1), "mem": m, **({"icon": i} if i else {})}
+                      for c, m, n, pid in procs[:5] for i in [self._proc_icon(pid)]],
             "sensors": pc_info.sensors(),
         }
 
