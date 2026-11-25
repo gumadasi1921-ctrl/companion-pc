@@ -37,7 +37,7 @@ $sh = New-Object -ComObject WScript.Shell
 function New-Shortcut($lnk) {
     $s = $sh.CreateShortcut($lnk)
     $s.TargetPath = $pyw
-    $s.Arguments = "`"$script`""
+    $s.Arguments = "`"$script`" --supervise"
     $s.WorkingDirectory = $Dest
     $s.Description = "Companion PC - servidor (ícone na bandeja)"
     if (Test-Path $ico) { $s.IconLocation = "$ico,0" }
@@ -60,8 +60,9 @@ $old = Get-CimInstance Win32_Process |
     Where-Object { $_.ProcessId -ne $PID -and $_.Name -match '^(py|pythonw?)\.exe$' -and $_.CommandLine -match 'companion_server\.py' }
 $old | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 Start-Sleep 1
-Start-Process -FilePath $pyw -ArgumentList "`"$script`"" -WorkingDirectory $Dest
+Start-Process -FilePath $pyw -ArgumentList "`"$script`" --supervise" -WorkingDirectory $Dest
 Start-Sleep 3
 Get-Content (Join-Path $Dest "companion-server.log") -Tail 3
+Write-Host "Supervisor ligado: se o servidor cair, ele religa sozinho (companion-supervisor.log)."
 Write-Host "Token: veja 'token' em $Dest\config.json"
 Write-Host "Abra o painel (ícone na bandeja) e escaneie o QR code. Uma vez: windows\setup-network.ps1"

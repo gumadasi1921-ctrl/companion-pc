@@ -26,9 +26,10 @@ kernel32.SetEvent.argtypes = [wintypes.HANDLE]
 kernel32.ResetEvent.argtypes = [wintypes.HANDLE]
 kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
 
-MUTEX_NAME = "Local\\CompanionPCServer"
-SHOW_EVENT = "Local\\CompanionPCShowPanel"
-ACK_EVENT = "Local\\CompanionPCPanelAck"  # a instância aberta confirma que mostrou o painel
+_SFX = os.environ.get("COMPANION_INSTANCE_SUFFIX", "")  # só testes: cópia do servidor sem colidir com a real
+MUTEX_NAME = "Local\\CompanionPCServer" + _SFX
+SHOW_EVENT = "Local\\CompanionPCShowPanel" + _SFX
+ACK_EVENT = "Local\\CompanionPCPanelAck" + _SFX  # a instância aberta confirma que mostrou o painel
 ERROR_ALREADY_EXISTS = 183
 EVENT_MODIFY_STATE = 0x0002
 
@@ -229,12 +230,15 @@ class TrayApp:
 
     def restart(self, *_):
         log.info("reiniciando pelo ícone da bandeja")
+        if os.environ.get("COMPANION_SUPERVISED") == "1":   # o supervisor sobe a nova instância (código 75)
+            self.quit(restarting=True, code=75)
+            return
         script = str(self.base / "companion_server.py")
         subprocess.Popen([sys.executable, script, "--restart"], cwd=str(self.base),
                          creationflags=subprocess.CREATE_NO_WINDOW)
         self.quit(restarting=True)
 
-    def quit(self, *_, restarting=False):
+    def quit(self, *_, restarting=False, code=0):
         if not restarting:
             log.info("encerrado pelo ícone da bandeja")
         try:
@@ -243,7 +247,7 @@ class TrayApp:
             if self.icon:
                 self.icon.stop()
             logging.shutdown()
-            os._exit(0)
+            os._exit(code)
 
     # -- threads --
     def _watch_show_event(self):

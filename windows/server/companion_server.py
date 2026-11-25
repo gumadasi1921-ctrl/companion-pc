@@ -34,6 +34,23 @@ if sys.stderr is None:
     except OSError:
         pass
 
+if __name__ == "__main__" and "--supervise" in sys.argv:
+    # Supervisor: processo leve que só sobe este mesmo script como filho e o religa se cair (supervisor.py)
+    import logging
+    import logging.handlers
+    import supervisor
+    _here = os.path.dirname(os.path.abspath(__file__))
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", handlers=[
+        logging.handlers.RotatingFileHandler(os.path.join(_here, "companion-supervisor.log"), maxBytes=200_000,
+                                             backupCount=1, encoding="utf-8")]
+        + ([logging.StreamHandler(sys.stdout)] if sys.stdout else []))
+    if supervisor.acquire():
+        _args = [a for a in sys.argv[1:] if a != "--supervise"]
+        sys.exit(supervisor.run(os.path.abspath(__file__), _args))
+    if "--console" in sys.argv:
+        sys.exit(0)      # já há um supervisor: no modo console não faz nada
+    sys.argv.remove("--supervise")   # atalho aberto de novo: segue o fluxo normal (mostra o painel da instância viva)
+
 import asyncio
 import ctypes
 import json
@@ -2152,6 +2169,38 @@ async def web_watch():
 LOOP = [None]  # event loop do servidor (o painel do PC agenda push_welcome nele)
 
 
+STARTED_AT = time.time()
+ALIVE_EVERY_S = int(os.environ.get("COMPANION_ALIVE_S", 600))   # a variável existe só para o teste
+
+
+async def alive_loop():
+    """Linha 'estou vivo' periódica no log: só tempo ligado e contagens (nada pessoal)."""
+    while True:
+        await asyncio.sleep(ALIVE_EVERY_S)
+        up = int(time.time() - STARTED_AT)
+        log.info("vivo: ligado há %dh%02dmin, %d celular(es), %d painel(is)",
+                 up // 3600, up % 3600 // 60, len(clients), len(panel_clients))
+
+
+def spawn(name, factory):
+    """Roda uma tarefa de fundo e a religa se ela estourar (espera 5 s, depois 30 s); o log traz só o tipo do erro."""
+    async def runner():
+        fails = 0
+        while True:
+            t0 = time.monotonic()
+            try:
+                await factory()
+                return
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:  # noqa: BLE001
+                fails = 1 if time.monotonic() - t0 > 300 else fails + 1
+                wait = 5 if fails <= 3 else 30
+                log.error("tarefa '%s' parou (%s); religando em %ds", name, type(e).__name__, wait)
+                await asyncio.sleep(wait)
+    return asyncio.create_task(runner(), name=name)
+
+
 async def main():
     LOOP[0] = asyncio.get_running_loop()
     log.info("Companion PC %s", VERSION)
@@ -2163,23 +2212,24 @@ async def main():
     n = await on_io(UPLOADS.clean_stale_parts)
     log.info("uploads: %d arquivo(s) .part de envios anteriores apagado(s)", n)
     st = STATS_REF[0] = Stats()
-    asyncio.create_task(stats_loop(st))
-    asyncio.create_task(PING.loop(lambda: bool(clients)))
-    asyncio.create_task(NOTIF.loop(lambda: bool(notif_subs), push_notif,
-                                   lambda: {a.lower() for a in CFG.get("notif_ignore", [])}))
+    spawn("stats", lambda: stats_loop(st))
+    spawn("ping", lambda: PING.loop(lambda: bool(clients)))
+    spawn("notif", lambda: NOTIF.loop(lambda: bool(notif_subs), push_notif,
+                                      lambda: {a.lower() for a in CFG.get("notif_ignore", [])}))
     await asyncio.to_thread(watchers.kill_orphans)
-    asyncio.create_task(FPS.loop(fps_wanted))
-    asyncio.create_task(now_loop())
-    asyncio.create_task(games_loop())
-    asyncio.create_task(dota_loop())
-    asyncio.create_task(weather_loop())
-    asyncio.create_task(steam_loop())
-    asyncio.create_task(work_loop())
-    asyncio.create_task(backup_loop())
-    asyncio.create_task(trello_loop())
-    asyncio.create_task(adb_loop())
-    asyncio.create_task(downloads_loop())
-    asyncio.create_task(web_watch())
+    spawn("fps", lambda: FPS.loop(fps_wanted))
+    spawn("now", now_loop)
+    spawn("games", games_loop)
+    spawn("dota", dota_loop)
+    spawn("weather", weather_loop)
+    spawn("steam", steam_loop)
+    spawn("work", work_loop)
+    spawn("backup", backup_loop)
+    spawn("trello", trello_loop)
+    spawn("adb", adb_loop)
+    spawn("downloads", downloads_loop)
+    spawn("web_watch", web_watch)
+    spawn("alive", alive_loop)
     await web_main()
 
 
@@ -2219,10 +2269,21 @@ def run_with_tray():
         return
 
     def server_thread():
-        try:
-            asyncio.run(main())
-        except Exception:  # noqa: BLE001
-            log.exception("servidor parou")
+        crashes = []
+        while True:
+            try:
+                asyncio.run(main())
+                return
+            except Exception:  # noqa: BLE001
+                log.exception("servidor parou")
+            now = time.monotonic()
+            crashes = [t for t in crashes if now - t < 300] + [now]
+            if len(crashes) >= 5:
+                log.error("servidor parou %d vezes em 5 min; desisti de religar (o supervisor, se houver, assume)", len(crashes))
+                os._exit(1)   # sai com erro: o supervisor religa o processo inteiro; sem supervisor a bandeja some
+            wait = (1, 2, 5, 15)[len(crashes) - 1]
+            log.warning("religando o servidor em %ds", wait)
+            time.sleep(wait)
     threading.Thread(target=server_thread, daemon=True, name="server").start()
     app = tray.TrayApp(status, LOG_PATH, BASE, VERSION, stop_server, open_on_phone=adb_open_on_phone, ops=PANEL_OPS)
     NOTIFY[0] = app.notify
