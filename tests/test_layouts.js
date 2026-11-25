@@ -11,7 +11,7 @@ function fresh(initial = {}) {
   const store = { get: (k, d) => (mem.has(k) ? JSON.parse(mem.get(k)) : d), set: (k, v) => { mem.set(k, JSON.stringify(v)); }, del: (k) => { mem.delete(k); } };
   let n = 0; const sb = { TextEncoder, TextDecoder, btoa, atob, Uint8Array, Set, Array, Object, JSON, Error, Number, String, Math, setTimeout, clearTimeout, Date };
   vm.createContext(sb); vm.runInContext(m[1] + "\nthis.make = makeLayouts;", sb);
-  const L = sb.make(store, () => "id" + (++n).toString(16).padStart(2, "0"), () => 1000 + n);
+  const L = sb.make(store, () => "id" + (++n).toString(16).padStart(2, "0"), () => 1000 + n, { theme: "modern", variant: "green", mode: "auto", accent: "blue", crt: true });
   return { L, store, mem };
 }
 const HOME = { v: 2, phone: [{ id: "now", size: "A" }, { id: "cpu", size: "P" }], tablet: [{ id: "dota", size: "G" }] };
@@ -29,7 +29,9 @@ const HOME = { v: 2, phone: [{ id: "now", size: "A" }, { id: "cpu", size: "P" }]
   L.init(); t("repetir a migração não muda nada", JSON.parse(mem.get("layouts")).list.length, 1);
 }
 // ---- aparelho novo
-{ const { L } = fresh(); t("aparelho novo: Padrão vazio", L.list().map((p) => p.name), ["Padrão"]); }
+{ const { L } = fresh(); t("aparelho novo: Padrão vazio", L.list().map((p) => p.name), ["Padrão"]);
+  t("aparelho novo exporta os valores padrão (pacote não fica vazio)", L.pack("default").data, { theme: "modern", variant: "green", mode: "auto", accent: "blue", crt: true });
+  const e = L.import(L.code("default")); t("e o código dele importa", e.name, "Padrão (2)"); }
 // ---- gancho: mudar uma chave de layout espelha no perfil ativo; chave de outro tipo não
 {
   const { L, store, mem } = fresh({ theme: "modern" }); L.init(); L.hook();

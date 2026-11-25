@@ -1388,7 +1388,7 @@ header .host { display: none; }
   <section class="tab" id="t-weather"></section>
   <!-- MAIS > Widgets do Início (também pelo botão Editar do Início) -->
   <section class="tab" id="t-widgets">
-    <div class="home-head"><h2>Widgets do Início</h2><button class="btn sm primary" id="wd-done">Concluído</button></div>
+    <div class="home-head"><h2>Widgets do Início</h2><button class="btn sm" id="wd-lay" aria-label="Trocar de layout">Layout: <b id="wd-lay-n"></b></button><button class="btn sm primary" id="wd-done">Concluído</button></div>
     <div class="seg" id="wd-dev" role="group" aria-label="Aparelho"><button data-dev="phone">Celular</button><button data-dev="tablet">Tablet</button></div>
     <div class="wd-info" id="wd-info" role="status"></div>
     <h3 class="wd-h">Na tela, nesta ordem</h3>
@@ -1649,6 +1649,10 @@ header .host { display: none; }
             <div class="accents" id="ap-accent" role="group" aria-label="Cor de destaque">
               <button data-accent="blue" aria-label="Azul"></button><button data-accent="purple" aria-label="Roxo"></button><button data-accent="green" aria-label="Verde"></button><button data-accent="orange" aria-label="Laranja"></button><button data-accent="pink" aria-label="Rosa"></button></div></div>
         </div>
+        <h2>Layouts</h2>
+        <div class="card" id="lay-card">
+          <div class="set"><label>Layout em uso<small id="lay-cur">Padrão</small></label><button class="btn sm" id="lay-open">Gerenciar</button></div>
+        </div>
         <h2>Visual</h2>
         <div class="card">
           <div class="set fo-only"><label>Cor do terminal</label><div class="themes" id="themes">
@@ -1721,6 +1725,31 @@ header .host { display: none; }
     <div class="acts" id="pcs-acts"><button class="btn" type="button" id="pcs-addbtn">Adicionar PC</button><button class="btn primary" type="button" id="pcs-close">Fechar</button></div>
   </div>
 </div>
+<div class="overlay hidden" id="lay">
+  <div class="dialog" role="dialog" aria-labelledby="lay-h">
+    <h1 id="lay-h">Layouts</h1>
+    <p id="lay-sub">Tema, destaque e widgets do Início deste aparelho. Valem para qualquer PC.</p>
+    <div id="lay-list"></div>
+    <form id="lay-form" class="hidden" autocomplete="off">
+      <label>Nome do layout<input class="fi" id="lay-name" maxlength="30" placeholder="ex.: Noite"></label>
+      <div class="acts"><button class="btn" type="button" id="lay-form-x">Voltar</button><button class="btn primary" type="submit" id="lay-form-ok">Criar</button></div>
+    </form>
+    <div id="lay-share" class="hidden">
+      <label>Código deste layout<textarea class="fi" id="lay-code" rows="4" readonly spellcheck="false"></textarea></label>
+      <div class="acts"><button class="btn" type="button" id="lay-copy">Copiar código</button><button class="btn" type="button" id="lay-save">Salvar arquivo</button></div>
+      <p>O código leva só o tema, o destaque e os widgets: nunca token, endereço de PC nem caminho. Se você colar num mensageiro, ele passa por esse serviço. Prefira AirDrop ou o arquivo.</p>
+      <div class="acts"><button class="btn primary" type="button" id="lay-share-x">Voltar</button></div>
+    </div>
+    <div id="lay-imp" class="hidden">
+      <label>Cole o código<textarea class="fi" id="lay-imp-text" rows="4" spellcheck="false" autocapitalize="off" placeholder="PCL1.…"></textarea></label>
+      <label>ou abra um arquivo<input class="fi" id="lay-imp-file" type="file" accept=".json,application/json"></label>
+      <label>Nome (opcional)<input class="fi" id="lay-imp-name" maxlength="30" placeholder="o do layout importado"></label>
+      <div class="acts"><button class="btn" type="button" id="lay-imp-x">Voltar</button><button class="btn primary" type="button" id="lay-imp-ok">Importar</button></div>
+    </div>
+    <p id="lay-msg" role="status"></p>
+    <div class="acts" id="lay-acts"><button class="btn" type="button" id="lay-new">Novo a partir do atual</button><button class="btn" type="button" id="lay-impbtn">Importar</button><button class="btn primary" type="button" id="lay-close">Fechar</button></div>
+  </div>
+</div>
 <div class="overlay hidden" id="bed">
   <form class="dialog wide" id="bed-form">
     <h1 id="bed-title">Botão</h1>
@@ -1787,7 +1816,7 @@ const store = {
 // um gancho em store.set espelha cada mudança no perfil ativo. "Padrão" (id default) sempre existe. Nada aqui leva token,
 // endereço de PC ou caminho: o pacote de compartilhar usa uma lista de campos permitidos (SHARE).
 /* LAY:begin */
-function makeLayouts(store, rid, now) {
+function makeLayouts(store, rid, now, defaults) {
   const KEYS = ["theme", "variant", "mode", "accent", "crt", "home", "homepg", "tab", "views"];
   const SHARE = ["theme", "variant", "mode", "accent", "crt", "home"];
   const ENUM = { theme: ["modern", "fallout"], variant: ["green", "amber", "cyan"], mode: ["auto", "light", "dark"], accent: ["blue", "purple", "green", "orange", "pink"] };
@@ -1909,7 +1938,7 @@ function makeLayouts(store, rid, now) {
     // ---- compartilhar (sem nuvem): só os campos de SHARE; nunca token, endereço de PC ou caminho
     pack(id) {
       api.sync(); const p = find(state(), id); if (!p) throw new Error("Layout não encontrado");
-      return { name: p.name, data: validData(p.data, SHARE) };
+      return { name: p.name, data: { ...validData(defaults || {}, SHARE), ...validData(p.data, SHARE) } };   // o que o aparelho nunca mexeu sai com o valor padrão (senão o pacote ficaria vazio)
     },
     code(id) { const k = api.pack(id); return PREFIX + b64(JSON.stringify({ v: 1, n: k.name, d: k.data })); },
     file(id) { const k = api.pack(id); return JSON.stringify({ companion_layout: 1, name: k.name, data: k.data }, null, 1); },
@@ -1936,7 +1965,8 @@ function makeLayouts(store, rid, now) {
   return api;
 }
 /* LAY:end */
-const LAY = makeLayouts(store, () => Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => b.toString(16).padStart(2, "0")).join(""), () => Date.now());
+const LAY = makeLayouts(store, () => Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => b.toString(16).padStart(2, "0")).join(""), () => Date.now(),
+  { theme: "modern", variant: "green", mode: "auto", accent: "blue", crt: true });
 if (!window.PCC_PANEL) {
   LAY.hook(); LAY.init();
   addEventListener("pagehide", () => LAY.flush());
@@ -2261,6 +2291,71 @@ $("pcs-add").onsubmit = (e) => {
   setTimeout(() => { $("pa-name").value = ""; $("pa-base").value = PCL.norm(b) || ""; $("pa-code").value = /^\d{6}$/.test(c || "") ? c : ""; pcOpen(true); }, 0);
 })();
 pcPaint();
+
+// ---------------------------------------------------------------- layouts: gerenciar (Ajustes › Aparência e editor de widgets)
+let layOpt = null;   // id do layout com as opções abertas
+function layPaint() { const n = LAY.active().name; $("lay-cur").textContent = n; $("wd-lay-n").textContent = n; }
+function layMode(m) {   // list | form | share | imp
+  for (const [id, on] of [["lay-list", m === "list"], ["lay-form", m === "form"], ["lay-share", m === "share"], ["lay-imp", m === "imp"], ["lay-acts", m === "list"], ["lay-sub", m === "list"]]) $(id).classList.toggle("hidden", !on);
+  $("lay-msg").textContent = "";
+}
+function layRender() {
+  layPaint();
+  $("lay-list").innerHTML = LAY.list().map((x) => layOpt === x.id
+    ? `<div class="pcedit">${x.isDefault ? `<b>${esc(x.name)}</b>` : `<input class="fi" id="ly-name" maxlength="30" value="${esc(x.name)}" aria-label="Nome do layout"><button class="btn sm" data-ly="ren" data-id="${x.id}">Renomear</button>`}<button class="btn sm" data-ly="dup" data-id="${x.id}">Duplicar</button><button class="btn sm" data-ly="share" data-id="${x.id}">Compartilhar</button>${x.isDefault ? "" : `<button class="btn sm danger" data-ly="del" data-id="${x.id}">Apagar</button>`}<button class="btn sm" data-ly="close">Fechar</button></div>`
+    : `<div class="pcrow"><button class="pcpick${x.active ? " on" : ""}" data-ly="pick" data-id="${x.id}"><span><b>${esc(x.name)}</b>${x.isDefault ? "<small>vale para todos os PCs</small>" : ""}</span><span class="pcst">${x.active ? "em uso" : ""}</span></button><button class="btn sm" data-ly="opt" data-id="${x.id}" aria-label="Opções de ${esc(x.name)}">Opções</button></div>`).join("");
+}
+function layOpen() { layOpt = null; $("lay").classList.remove("hidden"); layMode("list"); layRender(); }
+function layClose() { $("lay").classList.add("hidden"); }
+const layErr = (e) => { $("lay-msg").textContent = e.message || "Não consegui"; };
+$("lay-open").onclick = $("wd-lay").onclick = () => { buzz(8); layOpen(); };
+$("lay-close").onclick = layClose;
+$("lay-list").onclick = (e) => {
+  const b = e.target.closest("[data-ly]"); if (!b) return; const id = b.dataset.id; $("lay-msg").textContent = "";
+  try {
+    switch (b.dataset.ly) {
+      case "pick": if (id === LAY.active().id) { layClose(); break; } LAY.apply(id); location.reload(); break;   // recarrega: tema e widgets nascem já certos
+      case "opt": layOpt = id; layRender(); setTimeout(() => $("ly-name") && $("ly-name").focus(), 30); break;
+      case "close": layOpt = null; layRender(); break;
+      case "ren": LAY.rename(id, $("ly-name").value); layOpt = null; layRender(); toast("Renomeado", "ok"); break;
+      case "dup": LAY.duplicate(id); layOpt = null; layRender(); toast("Duplicado", "ok"); break;
+      case "del": {
+        if (id === LAY.active().id) { $("lay-msg").textContent = "Troque para outro layout antes de apagar este."; break; }
+        const rm = LAY.remove(id); layOpt = null; layRender();
+        undoToast("Layout apagado", () => { LAY.restore(rm); layRender(); }, "Desfazer", null, 6000); break;
+      }
+      case "share": layOpt = null; $("lay-code").value = LAY.code(id); layMode("share"); setTimeout(() => $("lay-code").select(), 30); layShareId = id; break;
+    }
+  } catch (err) { layErr(err); }
+};
+let layShareId = null;
+$("lay-new").onclick = () => { $("lay-name").value = ""; layMode("form"); setTimeout(() => $("lay-name").focus(), 30); };
+$("lay-form-x").onclick = () => { layMode("list"); layRender(); };
+$("lay-form").onsubmit = (e) => { e.preventDefault(); try { LAY.create($("lay-name").value); layMode("list"); layRender(); toast("Layout criado a partir do atual", "ok"); } catch (err) { layErr(err); } };
+$("lay-share-x").onclick = () => { layMode("list"); layRender(); };
+$("lay-copy").onclick = async () => {
+  const t = $("lay-code").value;
+  try { await navigator.clipboard.writeText(t); toast("Código copiado", "ok"); } catch { $("lay-code").select(); try { document.execCommand("copy"); toast("Código copiado", "ok"); } catch { $("lay-msg").textContent = "Selecione o código e copie."; } }
+};
+$("lay-save").onclick = () => {
+  try {
+    const text = LAY.file(layShareId), name = (LAY.list().find((x) => x.id === layShareId) || {}).name || "layout";
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+    a.download = "layout-" + name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + ".json";
+    document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); toast("Arquivo salvo", "ok");
+  } catch (err) { layErr(err); }
+};
+$("lay-impbtn").onclick = () => { $("lay-imp-text").value = ""; $("lay-imp-file").value = ""; $("lay-imp-name").value = ""; layMode("imp"); setTimeout(() => $("lay-imp-text").focus(), 30); };
+$("lay-imp-x").onclick = () => { layMode("list"); layRender(); };
+$("lay-imp-file").onchange = (e) => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  if (f.size > 8192) { $("lay-msg").textContent = "Esse arquivo é grande demais para ser um layout."; e.target.value = ""; return; }
+  const r = new FileReader(); r.onload = () => { $("lay-imp-text").value = String(r.result || ""); }; r.readAsText(f);
+};
+$("lay-imp-ok").onclick = () => {
+  try { const x = LAY.import($("lay-imp-text").value, $("lay-imp-name").value.trim() || null); layMode("list"); layRender(); toast(`Importado: ${x.name}`, "ok"); } catch (err) { layErr(err); }
+};
+layPaint();
 
 // ---------------------------------------------------------------- seções e vistas
 // 5 seções na barra (Início, Controle, Botões, Tarefas, Mais). "mais" é uma lista que leva às demais vistas;
