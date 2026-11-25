@@ -823,7 +823,7 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .z-G .hq, .z-L .hq { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .z-P .hq { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; } .z-P .hq button { min-height: 52px; }
 .hpq1 { grid-template-columns: minmax(0, 1fr); gap: 4px; text-align: left; } .hpq1 b { font-size: 20px; } .hpq b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
-.z-L[data-w="cpu"] .hw-b, .z-L[data-w="net"] .hw-b, .z-L[data-w="work"] .hw-b { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); grid-template-areas: "t t" "c l"; gap: 4px 12px; align-content: start; }
+.z-L[data-w="work"] .hw-b { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); grid-template-areas: "t t" "c l"; gap: 4px 12px; align-content: start; }
 .z-L[data-w="games"] .hw-b { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "t" "c"; gap: 4px; align-content: start; }
 .z-L .hscale { display: none; } .z-L .wxl2 .hscale { display: flex; } .z-L .hw-t { grid-area: t; } .z-L .hchartbox { grid-area: c; min-height: 56px; } .z-L .hlegs { grid-area: l; } .z-L [data-k="stack"], .z-L [data-k="top"] { display: none; }
 .z-A .hchart, .z-G .hchart { max-height: none; } .z-A .hchartbox, .z-G .hchartbox { min-height: 96px; }
@@ -1289,6 +1289,28 @@ header .hchip::after { content: ""; position: absolute; inset: -10px -8px; }
 .pcchip.rail { min-width: 44px; min-height: 44px; justify-content: center; padding: 0; }
 .pcchip.rail::after { inset: 0; }
 
+/* Widgets v2: blocos comuns (um destaque principal + linhas de apoio) */
+.hmain { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.hmain b { font-size: 34px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hmain span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; color: var(--p2); }
+.hsub1 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--p2); font-variant-numeric: tabular-nums; }
+.hsub1.hcen { text-align: center; }
+[data-clip] { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+[data-clip] > * { flex: none; }
+.hpage .hw [data-clip] { flex: 1 1 0; min-height: 0; overflow: hidden; position: relative; justify-content: flex-start; justify-content: safe center; }
+.hl2 { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 12px; align-items: center; min-width: 0; flex: 1 1 auto; min-height: 0; }
+.hl2 .hl2-n { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.hl2 .hchartbox { grid-area: auto; min-height: 56px; align-self: stretch; }
+.hcols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; flex: 1 1 auto; min-width: 0; min-height: 0; }
+.hcol { display: flex; flex-direction: column; gap: 8px; min-width: 0; justify-content: center; }
+.hcol-q .hq { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.hpq2 .hmain b { font-size: 36px; }
+.hal, .htimes { font-size: 12px; color: var(--p3t); }
+.hal { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.htimes { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+.wxp2 { gap: 2px; } .wxp2 .wxn { gap: 6px; } .wxc1 { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hpage .hw.z-P[data-w="weather"] [data-k="body"] { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+.hw.z-G[data-w="now"] .htimes { grid-area: x; }
 /* Aproveitamento de espaço no Início em páginas: listas dos widgets A/G ocupam a altura que sobra; linhas crescem até um teto (hwFit esconde as que não cabem) */
 .hpage .hw.z-A [data-fit], .hpage .hw.z-G [data-fit] { position: relative; flex: 1 1 0; min-height: 0; overflow: hidden; }
 .hpage .hw.z-A [data-fit]:not(.hq), .hpage .hw.z-G [data-fit]:not(.hq) { display: flex; flex-direction: column; }
@@ -1337,7 +1359,7 @@ header .hchip::after { content: ""; position: absolute; inset: -10px -8px; }
 .hw.z-A[data-w="now"] .hnow.big, .hw.z-G[data-w="now"] .hnow.big { display: contents; }
 .hpage .hw.z-A[data-w="now"] .hnow.big .hart { flex: 1 1 0; min-height: 44px; width: auto; height: auto; max-height: none; max-width: 100%; aspect-ratio: 1; align-self: center; }
 .hpage .hw.z-A[data-w="now"] .hmeta { flex: none; }
-.hw.z-G[data-w="now"] .hw-b { display: grid; grid-template-columns: minmax(96px, 42%) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto; grid-template-areas: "t t" "a m" "a p" "a c"; gap: 8px 16px; }
+.hw.z-G[data-w="now"] .hw-b { display: grid; grid-template-columns: minmax(96px, 42%) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto auto; grid-template-areas: "t t" "a m" "a p" "a x" "a c"; gap: 8px 16px; }
 .hw.z-G[data-w="now"] .hw-t { grid-area: t; }
 .hw.z-G[data-w="now"] .hnow.big .hart { grid-area: a; width: 100%; height: auto; max-height: 100%; aspect-ratio: 1; align-self: center; }
 .hw.z-G[data-w="now"] .hmeta { grid-area: m; align-self: start; }
@@ -3444,17 +3466,21 @@ const HOME_W = {
     name: "Tocando", icon: "headphones", sizes: "PALG", def: "A",
     html(z) {
       const art = `<div class="hart" data-k="art">${ic("headphones")}</div>`, prog = '<div class="hbar" data-k="prog"><i></i></div>';
+      const times = '<div class="htimes"><span data-k="pos"></span><span data-k="dur"></span></div>';
       const play = `<button class="hplay" data-a="play" aria-label="Tocar ou pausar">${ic("play")}</button>`;
       const ctl = `<div class="hctl"><button data-a="prev" aria-label="Anterior">${ic("skip-back")}</button>${play}<button data-a="next" aria-label="Próxima">${ic("skip-forward")}</button></div>`;
-      if (z === "P") return `<div class="hnow">${art}<div class="hmeta"><div class="hti" data-k="title"></div></div>${play}</div>`;
-      if (z === "L") return `<div class="hnow">${art}<div class="hmeta"><div class="hti" data-k="title"></div><div class="har" data-k="artist"></div>${prog}</div>${ctl}</div>`;
-      return `<div class="hw-t"><span>Tocando</span><span data-k="app"></span></div><div class="hnow big">${art}<div class="hmeta"><div class="hti" data-k="title"></div><div class="har" data-k="artist"></div></div></div>${prog}${ctl}`;
+      const meta = (alb) => `<div class="hmeta"><div class="hti" data-k="title"></div><div class="har" data-k="artist"></div>${alb ? '<div class="hal" data-k="album"></div>' : ""}</div>`;
+      if (z === "P") return `<div class="hnow">${art}${meta(false)}${play}</div>${prog}`;
+      if (z === "L") return `<div class="hnow">${art}<div class="hmeta"><div class="hti" data-k="title"></div><div class="har" data-k="artist"></div>${prog}${times}</div>${ctl}</div>`;
+      return `<div class="hw-t"><span>Tocando</span><span data-k="app"></span></div><div class="hnow big">${art}${meta(true)}</div>${prog}${times}${ctl}`;
     },
     ready: () => !!state.now,
     upd(el) {
       const m = state.now.media;
       setText(hk(el, "title"), m ? m.title || "(sem título)" : "Nada tocando");
-      setText(hk(el, "artist"), m ? [m.artist, m.album].filter(Boolean).join(" · ") : "Abra uma música ou vídeo no PC");
+      setText(hk(el, "artist"), m ? (m.artist || m.album || "") : "Abra uma música ou vídeo no PC");
+      setText(hk(el, "album"), m && m.artist ? m.album || "" : "");
+      setText(hk(el, "pos"), m ? fmtTime(mediaPos()) : ""); setText(hk(el, "dur"), m && m.dur ? fmtTime(m.dur) : "");
       setText(hk(el, "app"), m?.app || "");
       const art = m?.art && state.art[m.art], a = hk(el, "art");
       a.style.backgroundImage = art ? `url(${art})` : ""; a.classList.toggle("has", !!art);
@@ -3516,19 +3542,28 @@ const HOME_W = {
   pcquick: {
     name: "PC e atalhos", icon: "activity", sizes: "PAG", def: "A",
     html(z) {
-      if (z === "P") return '<div class="hpq"><div data-m="cpu"><span>CPU</span><b data-k="cpu"></b></div><div data-m="gpu"><span>GPU</span><b data-k="gpu"></b></div></div>';
-      return `<div class="hw-t"><span>PC</span><span data-k="host"></span></div>${meterHtml("cpu", "CPU")}${meterHtml("gpu", "GPU")}${meterHtml("ram", "Mem.")}${quickHtml(z)}`;
+      if (z === "P") return '<div class="hpq2" data-clip><div class="hmain"><b data-k="cpu"></b><span>CPU</span></div><div class="hsub1" data-k="l2"></div><div class="hsub1" data-k="l3"></div></div>';
+      const meters = `${meterHtml("cpu", "CPU")}${meterHtml("gpu", "GPU")}${meterHtml("ram", "Mem.")}<div class="hsub1" data-k="temps"></div>`;
+      const head = '<div class="hw-t"><span>PC</span><span data-k="host"></span></div>';
+      return z === "G" ? `${head}<div class="hcols"><div class="hcol">${meters}</div><div class="hcol hcol-q">${quickHtml(z)}</div></div>` : `${head}${meters}${quickHtml(z)}`;
     },
     ready: () => !!state.stats,
     upd(el) {
-      const s = state.stats, g = s.gpu;
-      if (el.dataset.z === "P") { pqUpd(el, s); return; }
+      const s = state.stats, g = s.gpu, sen = s.sensors;
+      if (el.dataset.z === "P") {
+        setText(hk(el, "cpu"), Math.round(s.cpu) + "%");
+        setText(hk(el, "l2"), [g ? "GPU " + Math.round(g.util) + "%" : "", "Mem " + Math.round(s.ram_pct) + "%"].filter(Boolean).join(" · "));
+        const t3 = sen?.cpu_temp != null ? "CPU " + Math.round(sen.cpu_temp) + " °C" : ""; setText(hk(el, "l3"), t3); hk(el, "l3").classList.toggle("hidden", !t3);
+        return;
+      }
       setText(hk(el, "host"), welcome.host || "");
       for (const [k, v, c] of [["cpu", s.cpu, "--chart-cpu"], ["gpu", g?.util, "--chart-gpu"], ["ram", s.ram_pct, "--chart-mem"]]) {
         const row = el.querySelector(`[data-m="${k}"]`); row.classList.toggle("hidden", k === "gpu" && !g);
         if (k === "gpu" && !g) continue;
         const b = hk(el, k + "b"); b.style.setProperty("--c", `var(${c})`); setBarW(b, v); setText(hk(el, k), Math.round(v) + "%");
       }
+      const tt = [sen?.cpu_temp != null ? "CPU " + Math.round(sen.cpu_temp) + " °C" : "", g?.temp != null ? "GPU " + Math.round(g.temp) + " °C" : ""].filter(Boolean).join(" · ");
+      setText(hk(el, "temps"), tt); hk(el, "temps").classList.toggle("hidden", !tt);
       quickUpd(el);
     },
   },
@@ -3590,40 +3625,57 @@ const homeData = { work: null, week: null, hist: null, t: { work: 0, hist: 0 }, 
 Object.assign(HOME_W, {
   cpu: {
     name: "CPU e GPU", icon: "gauge", sizes: "PALG", def: "A",
-    html: (z) => z === "P" ? '<div class="hpq"><div data-m="cpu"><span>CPU</span><b data-k="cpu"></b></div><div data-m="gpu"><span>GPU</span><b data-k="gpu"></b></div></div>'
-      : `<div class="hw-t"><span>CPU e GPU</span><span>60 s</span></div><div class="hchartbox" data-k="chart"></div><div class="hscale"><span>−60 s</span><span>100%</span><span>agora</span></div><div class="hlegs" data-k="legs"></div>`,
+    html(z) {
+      if (z === "P") return '<div class="hpq2" data-clip><div class="hmain"><b data-k="cpu"></b><span>CPU</span></div><div class="hsub1" data-k="l2"></div><div class="hsub1" data-k="l3"></div></div>';
+      if (z === "L") return '<div class="hw-t"><span>CPU e GPU</span><span>60 s</span></div><div class="hl2"><div class="hl2-n"><div class="hmain"><b data-k="cpu"></b><span>CPU</span></div><div class="hsub1" data-k="l2"></div></div><div class="hchartbox" data-k="chart"></div></div>';
+      return `<div class="hw-t"><span>CPU e GPU</span><span>60 s</span></div><div class="hchartbox" data-k="chart"></div><div class="hscale"><span>−60 s</span><span>100%</span><span>agora</span></div><div class="hlegs" data-k="legs"></div>`;
+    },
     ready: () => !!state.stats,
     upd(el) {
-      const s = state.stats, g = s.gpu, sen = s.sensors;
-      if (el.dataset.z === "P") { pqUpd(el, s); return; }
+      const s = state.stats, g = s.gpu, sen = s.sensors, z = el.dataset.z;
+      if (z === "P" || z === "L") {
+        setText(hk(el, "cpu"), Math.round(s.cpu) + "%");
+        setText(hk(el, "l2"), g ? "GPU " + Math.round(g.util) + "%" + (z === "P" && g.temp != null ? " · " + Math.round(g.temp) + " °C" : "") : "GPU indisponível");
+        if (z === "P") { const t3 = [sen?.cpu_temp != null ? Math.round(sen.cpu_temp) + " °C" : "", s.cpu_mhz ? (s.cpu_mhz / 1000).toFixed(1) + " GHz" : ""].filter(Boolean).join(" · "); setText(hk(el, "l3"), t3); hk(el, "l3").classList.toggle("hidden", !t3); return; }
+        const series = [{ data: hist.cpu, color: "--chart-cpu", fill: true }]; if (g) series.push({ data: hist.gpu, color: "--chart-gpu", fill: true });
+        lineUpd(hk(el, "chart"), series, 100, "CPU e GPU nos últimos 60 segundos"); return;
+      }
       const series = [{ data: hist.cpu, color: "--chart-cpu", fill: true }]; if (g) series.push({ data: hist.gpu, color: "--chart-gpu", fill: true });
       lineUpd(hk(el, "chart"), series, 100, "CPU e GPU nos últimos 60 segundos");
       const cpuL = [Math.round(s.cpu) + "%", sen?.cpu_temp != null ? Math.round(sen.cpu_temp) + " °C" : "", s.cpu_mhz ? (s.cpu_mhz / 1000).toFixed(2) + " GHz" : ""].filter(Boolean).join(" · ");
       const gpuL = g ? [Math.round(g.util) + "%", Math.round(g.temp) + " °C", g.power != null ? Math.round(g.power) + " W" : "", g.fan != null ? `ventoinha ${Math.round(g.fan)}%` : ""].filter(Boolean).join(" · ") : "";
       const fans = (sen?.fans || []).slice(0, 2).map((f) => `${esc(f.name)} ${f.rpm} RPM`).join(" · ");
-      const small = el.dataset.z === "L";   // largo: só CPU e GPU, uma linha cada
-      setHtml(hk(el, "legs"), `<div>${legend("--chart-cpu", "CPU", esc(small ? Math.round(s.cpu) + "%" : cpuL))}</div>${fans && !small ? `<div class="hw-sub">${fans}</div>` : ""}
-        ${g ? `<div>${legend("--chart-gpu", "GPU", esc(small ? Math.round(g.util) + "%" : gpuL))}</div>` : '<div class="hw-sub">GPU: indisponível neste PC</div>'}
-        ${sen || small ? "" : '<div class="hw-sub">Temperatura e ventoinhas da CPU: indisponível neste PC</div>'}`);
+      setHtml(hk(el, "legs"), `<div>${legend("--chart-cpu", "CPU", esc(cpuL))}</div>${fans ? `<div class="hw-sub">${fans}</div>` : ""}
+        ${g ? `<div>${legend("--chart-gpu", "GPU", esc(gpuL))}</div>` : '<div class="hw-sub">GPU: indisponível neste PC</div>'}
+        ${sen ? "" : '<div class="hw-sub">Temperatura e ventoinhas da CPU: indisponível neste PC</div>'}`);
     },
   },
   net: {
     name: "Rede", icon: "arrow-right-left", sizes: "PALG", def: "A",
-    html: (z) => z === "P" ? '<div class="hpq hpq1"><div><span>Baixando</span><b data-k="dn"></b></div><div><span>Enviando</span><b data-k="up"></b></div></div>'
-      : `<div class="hw-t"><span>Rede</span><span data-k="ping"></span></div><div class="hchartbox" data-k="chart"></div><div class="hscale"><span>−60 s</span><span data-k="pk"></span><span>agora</span></div><div class="hlegs" data-k="legs"></div>`,
+    html(z) {
+      if (z === "P") return '<div class="hpq2" data-clip><div class="hmain"><b data-k="dn"></b><span>↓ baixando</span></div><div class="hsub1" data-k="l2"></div><div class="hsub1" data-k="l3"></div></div>';
+      if (z === "L") return '<div class="hw-t"><span>Rede</span><span data-k="ping"></span></div><div class="hl2"><div class="hl2-n"><div class="hmain"><b data-k="dn"></b><span>↓</span></div><div class="hsub1" data-k="l2"></div></div><div class="hchartbox" data-k="chart"></div></div>';
+      return '<div class="hw-t"><span>Rede</span><span data-k="ping"></span></div><div class="hchartbox" data-k="chart"></div><div class="hscale"><span>−60 s</span><span data-k="pk"></span><span>agora</span></div><div class="hlegs" data-k="legs"></div>';
+    },
     ready: () => !!state.stats,
     upd(el) {
-      const s = state.stats, top = Math.max(1e5, ...hist.down, ...hist.up), L = el.dataset.z === "L";
-      if (el.dataset.z === "P") { setText(hk(el, "dn"), fmtBytes(s.net_down, true)); setText(hk(el, "up"), fmtBytes(s.net_up, true)); return; }
+      const s = state.stats, top = Math.max(1e5, ...hist.down, ...hist.up), z = el.dataset.z;
+      const ping = !s.ping ? "" : s.ping.ok ? s.ping.ms + " ms" : "sem internet";
+      if (z === "P" || z === "L") {
+        setText(hk(el, "dn"), fmtBytes(s.net_down, true)); setText(hk(el, "l2"), "↑ " + fmtBytes(s.net_up, true));
+        if (z === "P") { setText(hk(el, "l3"), ping ? "ping " + ping : ""); hk(el, "l3").classList.toggle("hidden", !ping); return; }
+        setText(hk(el, "ping"), ping);
+        lineUpd(hk(el, "chart"), [{ data: hist.down, color: "--chart-down", fill: true }, { data: hist.up, color: "--chart-up" }], top, "Rede nos últimos 60 segundos"); return;
+      }
       lineUpd(hk(el, "chart"), [{ data: hist.down, color: "--chart-down", fill: true }, { data: hist.up, color: "--chart-up" }], top, "Rede nos últimos 60 segundos");
       setText(hk(el, "pk"), "pico " + fmtBytes(top, true));
-      setText(hk(el, "ping"), !s.ping ? "" : s.ping.ok ? s.ping.ms + " ms" : "sem internet");
-      setHtml(hk(el, "legs"), `<div>${legend("--chart-down", "Baixando", fmtBytes(s.net_down, true))}</div><div>${legend("--chart-up", "Enviando", fmtBytes(s.net_up, true))}</div>${L ? "" : `<div class="hw-sub">pico ${fmtBytes(top, true)}</div>`}`);
+      setText(hk(el, "ping"), ping);
+      setHtml(hk(el, "legs"), `<div>${legend("--chart-down", "Baixando", fmtBytes(s.net_down, true))}</div><div>${legend("--chart-up", "Enviando", fmtBytes(s.net_up, true))}</div><div class="hw-sub">pico ${fmtBytes(top, true)}${ping ? " · ping " + ping : ""}</div>`);
     },
   },
   mem: {
     name: "Memória e discos", icon: "layers", sizes: "PALG", def: "A",
-    html: (z) => z === "P" ? '<div class="hringbox" data-k="ring"></div>'
+    html: (z) => z === "P" ? '<div class="hringbox" data-k="ring"></div><div class="hsub1 hcen" data-k="txt"></div>'
       : `<div class="hw-t"><span>Memória</span><span data-k="txt"></span></div><div class="hmem"><div class="hringbox" data-k="ring"></div><div data-k="disks" data-fit></div></div>`,
     ready: () => !!state.stats,
     upd(el) {
@@ -3831,15 +3883,18 @@ function wxWidgetHtml(z, d, pg) {
   if (!d.place) return z === "P" ? `<div class="wxp" data-wx="go">${ic("cloud-sun")}<span>Escolher cidade</span></div>` : '<div class="hw-na" data-wx="go">Escolha sua cidade em Ajustes › Tempo</div>';
   const c = d.current, t0 = d.daily?.[0];
   if (!c) return z === "P" ? `<div class="wxp">${ic("cloud")}<b>–</b></div>` : '<div class="hw-na">Sem previsão agora (sem conexão com o serviço)</div>';
-  if (z === "P") return `<div class="wxp" title="${esc(c.text || "")}">${wxIc(c.icon)}<b>${wxT(c.temp)}</b></div>`;
+  if (z === "P") {
+    const hasR = t0 && Number.isFinite(t0.min) && Number.isFinite(t0.max);
+    return `<div class="wxp2" data-clip><div class="wxn">${wxIc(c.icon, "wxi big")}<b class="wxt">${wxT(c.temp)}</b></div>${hasR ? `<div class="wxr"><span>mín ${wxT(t0.min)} · máx ${wxT(t0.max)}</span></div>` : ""}${c.text ? `<div class="wxc1">${esc(c.text)}</div>` : ""}${d.place.name ? `<div class="wxr wxcity"><span>${esc(d.place.name)}</span></div>` : ""}</div>`;
+  }
   const rng = t0 && (Number.isFinite(t0.min) || Number.isFinite(t0.max)) ? `<div class="wxr">mín ${wxT(t0.min)} · máx ${wxT(t0.max)}</div>` : "";
   const rain = Number.isFinite(t0?.pop) ? `<div class="wxr">${ic("droplets")}<span>Chuva ${Math.round(t0.pop)}%</span></div>` : "";
   const old = d.stale && d.updated_at ? `<div class="wxr wxold">Desatualizado desde ${wxAt(d)}</div>` : "";
   const cond = c.text ? `<div class="wxc">${esc(c.text)}</div>` : "";
   const big = `<div class="wxn">${wxIc(c.icon, "wxi big")}<b class="wxt">${wxT(c.temp)}</b></div>`, hs = d.hourly || [], days = d.daily || [];
-  if (z === "L") { const cv = wxCurve(hs.slice(0, 13), "Próximas 12 horas"); return `<div class="${cv ? "wxl2" : "wxl"}"><div class="wxm">${big}${cond}${rng}${old}</div>${cv}</div>`; }
-  if (z === "G") return `<div class="wxl2"><div class="wxa2">${big}${cond}${rng}${old}${wxDays(days, pg ? 7 : 4, pg)}</div><div class="wxa2">${wxCurve(hs.slice(0, 24), "Próximas 24 horas", 70)}${wxHrs(hs.slice(0, 24), 4)}</div></div>`;
-  return `<div class="wxa2"><div class="wxn">${wxIc(c.icon, "wxi big")}<b class="wxt">${wxT(c.temp)}</b></div>${cond}${wxHrs(hs.slice(0, 24), 4)}${wxDays(days, pg ? 7 : 3, pg)}${old}</div>`;
+  if (z === "L") { const cv = wxCurve(hs.slice(0, 13), "Próximas 12 horas"); return `<div class="${cv ? "wxl2" : "wxl"}"><div class="wxm">${big}${cond}${rng}${rain}${old}</div>${cv}</div>`; }
+  if (z === "G") return `<div class="wxl2"><div class="wxa2">${big}${cond}${rng}${rain}${old}${wxDays(days, pg ? 7 : 4, pg)}</div><div class="wxa2">${wxCurve(hs.slice(0, 24), "Próximas 24 horas", 70)}${wxHrs(hs.slice(0, 24), 4)}</div></div>`;
+  return `<div class="wxa2"><div class="wxn">${wxIc(c.icon, "wxi big")}<b class="wxt">${wxT(c.temp)}</b></div>${cond}${rng}${rain}${wxHrs(hs.slice(0, 24), 4)}${wxDays(days, pg ? 7 : 3, pg)}${old}</div>`;
 }
 Object.assign(HOME_W, {
   weather: {
@@ -4016,9 +4071,9 @@ matchMedia("(orientation: landscape)").addEventListener("change", () => { if (vi
 const HOME_NEEDS = { now: "media", work: "work", today: "work", games: "library", notif: "notif", trello: "trello", pomo: "pomo", dota: "dota" };
 // Início em páginas (deitado/tablet): nos tamanhos A e G as listas ocupam a altura que sobra e mostram quantos itens couberem
 // (só dados que já existem; o que não cabe fica escondido com .fx e volta quando a altura cresce).
-const HW_FIT = "[data-fit]";
+const HW_FIT = "[data-fit], [data-clip]";
 function hwFit(el) {
-  if (!el.closest(".pager") || (el.dataset.z !== "A" && el.dataset.z !== "G")) return;
+  if (!el.closest(".pager")) return;
   for (const c of el.querySelectorAll(HW_FIT)) {
     const kids = [...c.children]; kids.forEach((k) => k.classList.remove("fx"));
     if (kids.length < 2) continue;
