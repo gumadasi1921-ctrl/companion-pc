@@ -1761,6 +1761,7 @@ DOTA = dota.DotaBridge(CFG.get("dota"))
 # proxy das imagens da ponte (/dota/img/...): cache em disco ao lado do servidor, chave de URL derivada do token
 ICONS = icons.Icons(Path(__file__).resolve().with_name("icon-cache"), lambda: CFG["token"])
 pc_info.ICON_REGISTER = ICONS.register
+games.ICON_REGISTER = ICONS.register
 IMG = dota_img.ImageProxy(Path(__file__).resolve().with_name("dota-img"), lambda: CFG["token"], lambda: DOTA.cfg.get("bridge"))
 
 
@@ -1879,7 +1880,7 @@ async def weather_loop():
         await asyncio.sleep(20)
 
 
-STEAMDL = steam_dl.SteamDownloads()
+STEAMDL = steam_dl.SteamDownloads(icon_fn=lambda appid: MON.catalog.steam_icon(appid))
 
 
 async def steam_send(state, only=None):

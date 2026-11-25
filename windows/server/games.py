@@ -78,6 +78,13 @@ def _reg(root, path, name):
         return None
 
 
+ICON_REGISTER = None   # o servidor liga isto a icons.Icons.register: devolve um id opaco (o caminho nunca sai daqui)
+
+
+def _icon_id(path):
+    return ICON_REGISTER(path) if ICON_REGISTER and path else None
+
+
 def steam_libraries(sp):
     """Pastas de biblioteca da Steam (a principal e as de libraryfolders.vdf), sem repetir."""
     libs = {os.path.normcase(sp)}
@@ -192,6 +199,24 @@ class Catalog:
             if hits:
                 return max(hits, key=os.path.getmtime)
         return None
+
+    def steam_icon(self, appid):
+        """ID do ícone local da Steam (<appid>_icon.jpg do cache da biblioteca), se o arquivo existir. Nada de adivinhar exe."""
+        appid = str(appid or "")
+        if not (self.steam_path and appid.isdigit()):
+            return None
+        p = os.path.join(self.steam_path, "appcache", "librarycache", f"{appid}_icon.jpg")
+        return _icon_id(p) if os.path.isfile(p) else None
+
+    def icon_for(self, info):
+        """Ícone de um jogo do catálogo: Steam = _icon.jpg local; GOG = o exe de launch; Epic e o resto = nenhum."""
+        if info.get("appid"):
+            return self.steam_icon(info["appid"])
+        launch = info.get("launch")
+        return _icon_id(launch) if launch and "://" not in launch else None
+
+    def info_by_name(self, name):
+        return next((i for _r, i in self.roots if i["name"] == name), None)
 
     def steam_playtime_min(self, appid):
         if not (self.steam_path and appid):
@@ -343,7 +368,7 @@ class GameMonitor:
             seen.add(info["name"])
             key = self._art_for(info, (460, 215), "lib")  # capa grande para a biblioteca
             out.append({"id": self._gid(info), "name": info["name"], "store": info["store"],
-                        "art": self.art.get(key) if key else None,
+                        "art": self.art.get(key) if key else None, "icon": self.catalog.icon_for(info),
                         "ago": int(now - last[info["name"]]) if info["name"] in last else None,
                         "running": bool(self.current and self.current["name"] == info["name"])})
         out.sort(key=lambda g: (g["ago"] is None, g["ago"] or 0, g["name"].lower()))
@@ -407,7 +432,7 @@ class GameMonitor:
                 mem = p.memory_info().rss
             except psutil.Error:
                 mem = 0
-            g = found.setdefault(game["name"], {**game, "start": info["create_time"] or now, "mem": 0})
+            g = found.setdefault(game["name"], {**game, "start": info["create_time"] or now, "mem": 0, "exe": self.exe_cache[key]})
             g["start"] = min(g["start"], info["create_time"] or now)
             g["mem"] += mem
         self.exe_cache = {k: v for k, v in self.exe_cache.items() if k in alive}
@@ -426,6 +451,7 @@ class GameMonitor:
             self._end_session(now)
         if best and not self.current:
             self.current = {k: best[k] for k in ("name", "store", "appid", "start")}
+            self.current["exe"] = best.get("exe")
             log.info("jogo detectado: %s (%s)", best["name"], best["store"])
 
         game = None
@@ -439,14 +465,20 @@ class GameMonitor:
             game = {"name": c["name"], "store": c["store"], "elapsed": int(now - c["start"]),
                     "today_s": self._today_seconds(c["name"], now),
                     "total_h": round(pt / 60, 1) if pt else None,
-                    "art": self._art_for(c)}
+                    "art": self._art_for(c),
+                    "icon": _icon_id(c.get("exe")) or self.catalog.steam_icon(c.get("appid"))}
 
         recent, seen = [], set()
         for s in reversed(self.history):
             if s["name"] in seen:
                 continue
             seen.add(s["name"])
-            recent.append({"name": s["name"], "store": s["store"], "dur": s["end"] - s["start"], "ago": int(now - s["end"])})
+            r = {"name": s["name"], "store": s["store"], "dur": s["end"] - s["start"], "ago": int(now - s["end"])}
+            info = self.catalog.info_by_name(s["name"])
+            ic = self.catalog.icon_for(info) if info else None
+            if ic:
+                r["icon"] = ic
+            recent.append(r)
             if len(recent) == 4:
                 break
 

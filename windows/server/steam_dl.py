@@ -72,10 +72,11 @@ def finished(m):
 
 
 class SteamDownloads:
-    def __init__(self, steam_path_fn=None, clock=time.time):
+    def __init__(self, steam_path_fn=None, clock=time.time, icon_fn=None):
         self.steam_path_fn = steam_path_fn or (
             lambda: games._reg(games.winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam", "SteamPath"))
         self.clock = clock
+        self.icon_fn = icon_fn      # appid -> id opaco do ícone local da Steam (ou None)
         self.seen = {}          # appid -> (epoch da última leitura baixando, nome)
         self.items = []
         self.available = False
@@ -116,6 +117,9 @@ class SteamDownloads:
         for m in ms:
             it = describe(m)
             if it:
+                ic = self.icon_fn(m["appid"]) if self.icon_fn else None
+                if ic:
+                    it["icon"] = ic
                 items.append(it)
                 self.seen[m["appid"]] = (now, m["name"])
         active = {i["appid"] for i in items}

@@ -32,6 +32,7 @@ BROWSER_MAX_AGE = 86400
 PNG = b"\x89PNG\r\n\x1a\n"
 _ID = re.compile(r"[0-9a-f]{12}")
 EXTS = (".exe", ".lnk")
+STEAM_ICON = re.compile(r"[0-9]{1,10}_icon\.jpg", re.I)   # ícone local da Steam (appcache/librarycache/<appid>_icon.jpg)
 
 
 def icon_key(token):
@@ -178,6 +179,14 @@ def extract_png(path):
         return None
     user32 = ctypes.windll.user32
     ext = os.path.splitext(path)[1].lower()
+    if ext == ".jpg":                          # arquivo local da Steam: só converter para PNG 64 px
+        try:
+            from PIL import Image
+            with Image.open(path) as im:
+                return _png(im.convert("RGBA"))
+        except Exception as e:  # noqa: BLE001
+            log.warning("ícone: erro (%s)", type(e).__name__)
+            return None
     hicon = None
     try:
         if ext == ".exe":
@@ -223,7 +232,8 @@ class Icons:
         """ID opaco para um .exe/.lnk (ou None). Não toca o disco: pode ser chamado ao montar um payload."""
         if not isinstance(path, str) or not path or len(path) > 520 or "\x00" in path:
             return None
-        if os.path.splitext(path)[1].lower() not in EXTS:
+        ext = os.path.splitext(path)[1].lower()
+        if ext not in EXTS and not (ext == ".jpg" and STEAM_ICON.fullmatch(os.path.basename(path))):
             return None
         i = icon_id(path)
         with self.lock:

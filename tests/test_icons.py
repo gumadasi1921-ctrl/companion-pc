@@ -132,5 +132,66 @@ class T(unittest.TestCase):
         self.assertNotIn(os.environ.get("USERNAME", "zzzz").lower(), blob.lower())
 
 
+class GamesAndSteam(unittest.TestCase):
+    """Ícone de jogos (games.Catalog) e dos downloads da Steam: só arquivos locais, nunca exe inferido."""
+
+    def setUp(self):
+        import games
+        import steam_dl
+        self.games, self.steam_dl = games, steam_dl
+        self._d = tempfile.TemporaryDirectory()
+        self.root = Path(self._d.name)
+        self.ic = icons.Icons(self.root / "cache", lambda: TOKEN, extractor=lambda p: PNG)
+        games.ICON_REGISTER = self.ic.register
+        self.cat = games.Catalog({})
+        self.cat.steam_path = str(self.root / "steam")
+        lib = self.root / "steam" / "appcache" / "librarycache"
+        lib.mkdir(parents=True)
+        (lib / "100_icon.jpg").write_bytes(b"jpg")
+
+    def tearDown(self):
+        self.games.ICON_REGISTER = None
+        self._d.cleanup()
+
+    def test_steam_icon_only_when_local_file_exists(self):
+        self.assertRegex(self.cat.steam_icon("100"), r"^[0-9a-f]{12}$")
+        self.assertIsNone(self.cat.steam_icon("200"))              # sem _icon.jpg: fica a capa/texto
+        self.assertIsNone(self.cat.steam_icon("../100"))
+        self.assertIsNone(self.cat.steam_icon(None))
+
+    def test_icon_for_catalog_entries(self):
+        gog = self.root / "Jogo.exe"
+        gog.write_bytes(b"MZ")
+        self.assertIsNotNone(self.cat.icon_for({"name": "G", "store": "GOG", "launch": str(gog)}))
+        self.assertIsNone(self.cat.icon_for({"name": "E", "store": "Epic", "launch": "com.epicgames.launcher://apps/x"}))
+        self.assertIsNone(self.cat.icon_for({"name": "S", "store": "Steam", "appid": "200", "launch": "steam://rungameid/200"}))  # nunca infere exe
+        self.assertIsNotNone(self.cat.icon_for({"name": "S", "store": "Steam", "appid": "100", "launch": "steam://rungameid/100"}))
+
+    def test_only_steam_icon_jpgs_are_accepted(self):
+        self.assertIsNone(self.ic.register(str(self.root / "foto.jpg")))
+        self.assertIsNone(self.ic.register(str(self.root / "x_icon.jpg")))
+        self.assertIsNotNone(self.ic.register(str(self.root / "7_icon.jpg")))
+
+    def test_jpg_converts_to_png_64(self):
+        from PIL import Image
+        f = self.root / "9_icon.jpg"
+        Image.new("RGB", (32, 32), (200, 30, 30)).save(f, "JPEG")
+        png = icons.extract_png(str(f))
+        self.assertTrue(png.startswith(b"\x89PNG"))
+        self.assertEqual(Image.open(io.BytesIO(png)).size, (64, 64))
+
+    def test_steam_downloads_carry_icon_only_when_known(self):
+        (self.root / "steam" / "steamapps").mkdir()
+        for appid in ("100", "200"):
+            (self.root / "steam" / "steamapps" / f"appmanifest_{appid}.acf").write_text(
+                ('"AppState"\n{\n"appid" "%s"\n"name" "J%s"\n"StateFlags" "1026"\n"BytesToDownload" "1000"\n"BytesDownloaded" "10"\n}\n' % (appid, appid)),
+                encoding="utf-8")
+        s = self.steam_dl.SteamDownloads(lambda: str(self.root / "steam"), icon_fn=self.cat.steam_icon)
+        s.poll()
+        got = {i["appid"]: i.get("icon") for i in s.state()["items"]}
+        self.assertIsNotNone(got["100"])
+        self.assertIsNone(got["200"])
+
+
 if __name__ == "__main__":
     unittest.main()
