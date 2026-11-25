@@ -1111,6 +1111,8 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .prof-new input { min-height: 44px; flex: 1 1 120px; }
 .mx-apps { display: flex; flex-direction: column; min-height: 0; }
 #mx-list { min-height: 0; }
+.aic { width: 100%; height: 100%; object-fit: contain; display: block; }
+.has-ic { font-size: 0; padding: 0; }
 .mxrow { grid-template-columns: 32px minmax(0, 1fr) 46px 44px; gap: 8px; padding: 6px 12px; }
 .mxrow .mxname { white-space: normal; overflow-wrap: anywhere; line-height: 1.15; }
 #mx-list .empty { display: grid; place-items: center; text-align: center; min-height: 96px; padding: 16px; line-height: 1.35; }
@@ -1805,6 +1807,17 @@ function send(a, p = {}, reply = true) {
     setTimeout(() => { if (pending.delete(msg.id)) reject(new Error("sem resposta")); }, 8000);
   });
 }
+// Ícone real do app (rota /icon/<id>, autenticada pela chave do welcome). A letra/emoji continua no lugar até a imagem carregar
+// e é o que fica se não houver ícone ou der erro.
+let iconKey = "";
+function setAppIcon(el, id) {
+  if (!el || !id || !iconKey || el.dataset.ic === id) return;
+  el.dataset.ic = id;
+  const img = new Image();
+  img.className = "aic"; img.alt = ""; img.decoding = "async";
+  img.onload = () => { if (el.dataset.ic === id) { el.classList.add("has-ic"); el.replaceChildren(img); } };
+  img.src = `/icon/${encodeURIComponent(id)}?k=${encodeURIComponent(iconKey)}`;
+}
 function act(a, p, label) {
   buzz();
   return send(a, p).then((d) => { if (label) toast(label, "ok"); return d; }).catch((e) => { if (e.message !== "offline") toast(e.message, "bad"); });
@@ -1814,6 +1827,7 @@ function onMsg(m) {
   switch (m.t) {
     case "paired": store.set("token", m.token); $("login").classList.add("hidden"); break;   // o token nunca aparece na tela
     case "welcome":
+      if (m.icon_key) iconKey = m.icon_key;   // o welcome parcial do aviso de página nova não traz a chave: ela fica guardada
       // página nova no PC: recarrega (o app reconecta sozinho e nunca baixaria o HTML de novo)
       if (m.web && pageBuild && m.web !== pageBuild) { location.reload(); return; }
       pageBuild = pageBuild || m.web;

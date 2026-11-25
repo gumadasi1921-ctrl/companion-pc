@@ -4,3 +4,4 @@ config.json
 config.json.bak*
 *.log
 graphify-out/
+icon-cache/

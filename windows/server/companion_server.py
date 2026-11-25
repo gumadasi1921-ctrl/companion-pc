@@ -63,6 +63,7 @@ import backup
 import dota
 import dota_img
 import extras
+import icons
 import games
 import pair
 import pc_info
@@ -1227,7 +1228,7 @@ async def web_handler(ws):
 
 def welcome_payload():
     return {
-        "t": "welcome", "version": VERSION, "web": web_build(), "host": socket.gethostname(),
+        "t": "welcome", "version": VERSION, "web": web_build(), "icon_key": ICONS.key(), "host": socket.gethostname(),
         "os": f"{platform.system()} {platform.release()}",
         "shortcuts": [{"id": s["id"], "name": s["name"]} for s in CFG["shortcuts"]],
         "power": bool(CFG.get("allow_power")),
@@ -1742,6 +1743,7 @@ async def games_loop():
 
 DOTA = dota.DotaBridge(CFG.get("dota"))
 # proxy das imagens da ponte (/dota/img/...): cache em disco ao lado do servidor, chave de URL derivada do token
+ICONS = icons.Icons(Path(__file__).resolve().with_name("icon-cache"), lambda: CFG["token"])
 IMG = dota_img.ImageProxy(Path(__file__).resolve().with_name("dota-img"), lambda: CFG["token"], lambda: DOTA.cfg.get("bridge"))
 
 
@@ -1993,6 +1995,10 @@ async def http_entry(connection, request):
     """Entrada HTTP: imagens do Dota (proxy com cache, na fila de disco) ou os arquivos do app."""
     if request.path.startswith("/dota/img/") and "websocket" not in request.headers.get("Upgrade", "").lower():
         status, ctype, body, extra = await on_io(IMG.handle, request.path)
+        return Response(status, HTTPStatus(status).phrase,
+                        Headers([("Content-Type", ctype), ("Content-Length", str(len(body))), *extra.items()]), body)
+    if request.path.startswith("/icon/") and "websocket" not in request.headers.get("Upgrade", "").lower():
+        status, ctype, body, extra = await on_io(ICONS.handle, request.path)
         return Response(status, HTTPStatus(status).phrase,
                         Headers([("Content-Type", ctype), ("Content-Length", str(len(body))), *extra.items()]), body)
     return serve_static(connection, request)
