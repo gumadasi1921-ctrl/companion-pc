@@ -5245,8 +5245,11 @@ function lumeWork(d) {   // work.stream do PC ativo: minutos contínuos; a sequ�
 }
 
 // ---- tela do Lume (Mais › Lume): estado, cuidar, medidores e histórico do dia (tudo do aparelho; nada de PC)
-const LU_LINE = { happy: "Tudo bem por aqui.", focus: "Concentrado: sem avisos durante o foco.", tired: "Cansado. Uma pausa de verdade ajuda.", thirst: "Com sede. Beba água com ele.",
-  hunger: "Com fome. Petiscos vêm de tarefas e focos concluídos.", sleep: "Dormindo.", party: "Comemorando!", alert: "Tem um aviso para você." };
+const LU_LINE = {   // frases fixas (voz do Lume, sem dado do PC); a variação gira por hora, nunca por sorteio
+  happy: ["Tudo bem por aqui.", "Estou por perto.", "Dia tranquilo, pelo que vejo."], focus: ["Concentrado: sem avisos durante o foco.", "Shh, foco em andamento."],
+  tired: ["Cansado. Uma pausa de verdade ajuda.", "Um alongamento cairia bem."], thirst: ["Com sede. Beba água com ele.", "Um copo d'água e já melhoro."],
+  hunger: ["Com fome. Petiscos vêm de tarefas e focos concluídos.", "Concluir algo rende um petisco."], sleep: ["Dormindo."], party: ["Comemorando!", "Boa!"], alert: ["Tem um aviso para você."] };
+const lumeLine = (st) => { const a = LU_LINE[st] || LU_LINE.happy; return a[new Date().getHours() % a.length]; };
 const LU_KIND = { water: "Bebeu água", pause: "Pausa feita", task: "Tarefa concluída", focus: "Foco concluído", feed: "Petisco", sleep: "Foi dormir", wake: "Acordou", say: "Lume falou" };
 const LU_SAY = { water: "lembrete de água", pause: "lembrete de pausa", eod: "resumo do dia" };
 const hhmm = (t) => new Date(t * 1000).toTimeString().slice(0, 5);
@@ -5261,7 +5264,7 @@ function lumeRender() {
   ${LM.cfg().mode === "off" ? '<div class="card"><div class="set"><label>O Lume está desligado<small>Ligue para ele voltar à tela</small></label><button class="btn sm primary" data-lm2="on">Ligar</button></div></div>' : ""}
   <div class="lm-grid">
    <div class="card lm-stage"><div class="lm-pic">${lumeSvg(LU.skin).replace('data-st="happy"', `data-st="${v.st}"`)}</div>
-     <div class="lm-state"><b>${sl ? "Dormindo até " + hhmm(LM.sleepUntil()) : LU_ST[v.st][0].toUpperCase() + LU_ST[v.st].slice(1)}</b><span>${sl ? "Os avisos do PC voltam ao toast enquanto ele dorme." : LU_LINE[v.st]}</span><small>Do Lume · ${LM.silenced() ? "em silêncio até amanhã" : "o humor dele sobe com o que você faz de verdade"}</small></div></div>
+     <div class="lm-state"><b>${sl ? "Dormindo até " + hhmm(LM.sleepUntil()) : LU_ST[v.st][0].toUpperCase() + LU_ST[v.st].slice(1)}</b><span>${sl ? "Os avisos do PC voltam ao toast enquanto ele dorme." : lumeLine(v.st)}</span><small>Do Lume · ${LM.silenced() ? "em silêncio até amanhã" : "o humor dele sobe com o que você faz de verdade"}</small></div></div>
    <div class="card lm-care"><h3>Cuidar</h3>
      <div class="lm-btns"><button class="btn" data-lm2="water">Dar água<small>você bebe junto</small></button>
        <button class="btn" data-lm2="feed"${LM.snacks() ? "" : " disabled"}>Petisco (${LM.snacks()})<small>${LM.snacks() ? "ganho por tarefa ou foco" : "conclua uma tarefa ou um foco"}</small></button>
