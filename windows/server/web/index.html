@@ -307,7 +307,6 @@ input[type=range]:disabled { opacity: .35; }
   .ctrls { justify-content: flex-start; }
 }
 .mixer { display: grid; gap: 10px; }
-@container (min-width: 620px) { .mixer { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); align-items: start; } }
 .outrow { display: flex; gap: 10px; align-items: center; width: 100%; padding: 9px 6px; text-align: left; font-size: 14px; border-radius: 2px; }
 .outrow span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .outrow i { flex: none; font-style: normal; white-space: nowrap; }
@@ -480,14 +479,9 @@ body.crt .isvg { filter: drop-shadow(0 0 3px var(--glow)); }
     #g-fps { margin-top: 2px; } #g-fps b { font-size: 30px; }
     .game .card { padding: 8px 10px; }
     .week { height: 72px; }
-    /* Mixer: aplicativos em duas colunas */
     /* Tocando: capa | informações, controles, volume e saída */
     .media { grid-template-columns: auto minmax(0, 1fr); column-gap: 22px; }
     .media .art { width: min(42cqw, calc(100cqh - 8px)); }
-    /* Mixer: apps em duas colunas, lado a lado */
-    .mixer { grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr); }
-    #mx-list { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 18px; }
-    #mx-list .mxrow:nth-last-child(2):nth-child(odd) { border-bottom: 0; }
     /* Arquivos: três colunas estreitas, botões empilhados */
     #t-send .cols { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
     #t-send .cols > div:first-child { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-content: start; }
@@ -1098,6 +1092,44 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 :root[data-theme="modern"] .mxrow { border-bottom: 1px solid var(--separator); }
 :root[data-theme="modern"] .mxrow:last-child { border-bottom: 0; }
 .mxmid input { height: 44px; }
+/* Mixer v2: em pé = uma coluna (rola a página); painel largo (celular deitado ou 700 px+) = lateral (saída + perfis) | apps, cada um rolando sozinho; painel estreito de tablet empilha */
+.mixer { grid-template-columns: minmax(0, 1fr); align-content: start; }
+.mx-side { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.mixer .outrow, :root .mixer .outrow { min-height: 44px; padding: 2px 12px; font-size: 14px; line-height: 1.15; }
+.mixer .outrow.on { font-weight: bold; }
+#outs { max-height: 140px; overflow-y: auto; overscroll-behavior: contain; }          /* 3 saídas cabem; a atual fica no topo e as outras rolam */
+#outs .empty, #prof-list .empty { padding: 8px 14px; }
+#prof-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 12px 0; }
+.mixer .prof-row { gap: 0; border: 1px solid var(--p3); border-radius: 2px; max-width: 100%; }
+.mixer .prof-row .outrow { width: auto; min-width: 0; min-height: 44px; padding: 2px 4px 2px 12px; border: 0; background: none; border-radius: 0; }
+.mixer .prof-row .prof-x { width: 44px; min-height: 44px; }
+:root[data-theme="modern"] .mixer .prof-row { border: 1px solid var(--separator); border-radius: 22px; background: var(--accent-soft); overflow: hidden; }
+:root[data-theme="modern"] .mixer .prof-row .outrow { border-top: 0; }
+.prof-new { padding: 8px 12px 6px; }
+.prof-new .btn { flex: none; min-height: 44px; padding: 0 12px; }
+.prof-new { flex-wrap: wrap; }
+.prof-new input { min-height: 44px; flex: 1 1 120px; }
+.mx-apps { display: flex; flex-direction: column; min-height: 0; }
+#mx-list { min-height: 0; }
+.mxrow { grid-template-columns: 32px minmax(0, 1fr) 46px 44px; gap: 8px; padding: 6px 12px; }
+.mxrow .mxname { white-space: normal; overflow-wrap: anywhere; line-height: 1.15; }
+#mx-list .empty { display: grid; place-items: center; text-align: center; min-height: 96px; padding: 16px; line-height: 1.35; }
+/* lado a lado quando o painel do Mixer é largo: celular deitado (baixo) ou 700 px+ (no tablet o Mixer divide a tela com o Tocando) */
+@container ((min-width: 520px) and (max-height: 480px)) or (min-width: 700px) {
+  .mixer { height: 100%; height: 100cqh; grid-template-columns: clamp(230px, 36%, 320px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); align-items: stretch; }
+  .mx-side { min-height: 0; overflow-y: auto; overscroll-behavior: contain; grid-auto-rows: min-content; }
+  .mx-apps { overflow: hidden; }
+  .mx-apps #mx-list { flex: 1 1 0; overflow-y: auto; overscroll-behavior: contain; }
+}
+@media (orientation: landscape) and (max-height: 560px) {
+  .mixer .mxrow { padding-top: 3px; padding-bottom: 3px; }
+  .mixer .card h3 { padding-top: 4px; padding-bottom: 2px; }
+  .mx-side { gap: 6px; }
+  .prof-sub { display: none; }
+  .prof-new { padding-top: 4px; }
+  .mixer .mxmid input { height: 32px; }
+}
+
 .mxmute { width: 44px; height: 44px; display: grid; place-items: center; }
 .mxmute .hi { width: 22px; height: 22px; }
 :root[data-theme="modern"] .mxmute { border: 0; border-radius: 50%; background: var(--surface-2); }
@@ -1406,10 +1438,12 @@ input.num { min-height: 36px; }
   <!-- RÁDIO > Mixer -->
   <section class="tab" id="t-mix">
     <div class="mixer" id="mixer">
+      <div class="mx-side">
       <div class="card"><h3><span>Saída de áudio</span><span>toque para trocar</span></h3><div id="outs"><div class="empty">Carregando…</div></div></div>
       <div class="card" id="prof-card"><h3><span>Perfis de áudio</span><span>toque para aplicar</span></h3><div id="prof-list"></div>
         <div class="prof-new"><input id="prof-name" type="text" maxlength="40" placeholder="Nome do perfil" autocomplete="off"><button class="btn" id="prof-save">Salvar o atual</button></div></div>
-      <div class="card"><h3><span>Volume por aplicativo</span><span id="mx-master"></span></h3><div id="mx-list"></div></div>
+      </div>
+      <div class="card mx-apps"><h3><span>Volume por aplicativo</span><span id="mx-master"></span></h3><div id="mx-list"></div></div>
     </div>
   </section>
 
@@ -3890,7 +3924,7 @@ function renderMixer() {
   const cur = d.outputs.find((o) => o.default);
   $("out-name").textContent = cur ? cur.name : "–";
   if (!vis("mix")) return;
-  $("outs").innerHTML = d.outputs.map((o) => `<button class="outrow${o.default ? " on" : ""}" data-id="${esc(o.id)}"><i></i><span>${esc(o.name)}</span></button>`).join("")
+  $("outs").innerHTML = [...d.outputs].sort((a, b) => (b.default ? 1 : 0) - (a.default ? 1 : 0)).map((o) => `<button class="outrow${o.default ? " on" : ""}" data-id="${esc(o.id)}"><i></i><span>${esc(o.name)}</span></button>`).join("")
     || '<div class="empty">Nenhuma saída ativa</div>';
   $("mx-master").textContent = d.master ? (d.master.muted ? "PC: mudo" : `PC: ${d.master.level}%`) : "";
   const list = $("mx-list"), seen = new Set();
@@ -3911,7 +3945,7 @@ function renderMixer() {
     row.querySelector(".peak i").style.setProperty("--pk", Math.min(100, Math.sqrt(a.peak) * 100) + "%");
   }
   [...list.children].forEach((r) => { if (r.dataset.key && !seen.has(r.dataset.key)) r.remove(); });
-  if (!d.apps.length) list.innerHTML = '<div class="empty">Nenhum app tocando som agora</div>';
+  if (!d.apps.length) list.innerHTML = '<div class="empty">Nenhum app tocando som agora.<br>Abra um app com som e ele aparece aqui.</div>';
 }
 function bindMixRow(row) {
   const key = row.dataset.key, inp = row.querySelector("input"); let t = 0;
@@ -3937,7 +3971,7 @@ function renderProfiles() {
   el.innerHTML = (profData || []).map((p) => {
     const sub = [p.output, p.apps ? p.apps + " app" + (p.apps > 1 ? "s" : "") : "", p.mic ? "microfone" : ""].filter(Boolean).join(" · ");
     return `<div class="prof-row" data-id="${esc(p.id)}"><button class="outrow prof-ap"><span>${esc(p.name)}${sub ? `<small class="prof-sub">${esc(sub)}</small>` : ""}</span></button><button class="prof-x" aria-label="Apagar ${esc(p.name)}">×</button></div>`;
-  }).join("") || '<div class="empty">Nenhum perfil salvo</div>';
+  }).join("") || '<div class="empty">Nenhum perfil salvo. Ajuste o áudio e toque em “Salvar o atual”.</div>';
 }
 $("prof-list").onclick = (e) => {
   const row = e.target.closest(".prof-row"); if (!row) return; const id = row.dataset.id, nm = (profData || []).find((p) => p.id === id)?.name || "";
