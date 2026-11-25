@@ -1420,6 +1420,30 @@ header .hchip::after { content: ""; position: absolute; inset: -10px -8px; }
 #lume-fab.peek.sl .lm-w { transform: translateX(-30%); } #lume-fab.peek.sr .lm-w { transform: translateX(30%); }
 #lume-fab.drag .lm-w { transform: scale(1.1) rotate(-4deg); transition: transform .12s ease; }
 #lume-fab:focus-visible { outline: 2px solid var(--accent, var(--p)); outline-offset: 2px; border-radius: 50%; }
+#lume-menu { position: fixed; left: 0; top: 0; z-index: 38; display: flex; flex-direction: column; min-width: 190px; padding: 6px; border-radius: 14px; background: var(--surface-2, var(--bg)); border: 1px solid var(--separator, var(--p3)); box-shadow: 0 6px 24px rgba(0,0,0,.4); }
+#lume-menu button { min-height: 44px; padding: 0 12px; text-align: left; background: none; border: 0; color: var(--text, var(--p)); font: inherit; border-radius: 10px; }
+#lume-menu button:active { background: rgba(128,128,128,.22); }
+/* Tela do Lume */
+.lm-grid { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (orientation: landscape) and (min-width: 640px) { .lm-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.lm-stage { display: flex; gap: 14px; align-items: center; }
+.lm-pic { width: 112px; height: 112px; flex: none; }
+.lm-state { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.lm-state b { font-size: 18px; } .lm-state small { color: var(--p3t); }
+.lm-btns { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.lm-btns .btn { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 56px; }
+.lm-btns .btn small { font-size: 11px; opacity: .75; }
+.lm-sleep { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+.lm-sleep > span { flex: 1 1 100%; color: var(--p3t); }
+.lm-mh { display: flex; justify-content: space-between; font-size: 14px; }
+.lm-bar { height: 8px; border-radius: 4px; background: rgba(128,128,128,.3); overflow: hidden; margin: 4px 0 10px; }
+.lm-bar i { display: block; height: 100%; background: var(--accent, var(--p)); border-radius: 4px; }
+.lm-foot { color: var(--p3t); font-size: 13px; margin: 4px 0 0; }
+.lm-day { font-weight: 600; margin: 10px 0 4px; }
+.lm-it { display: flex; gap: 10px; font-size: 14px; padding: 3px 0; }
+.lm-it time { color: var(--p3t); min-width: 44px; font-variant-numeric: tabular-nums; }
+#lume-set .lm-h { font-size: 13px; color: var(--p3t); margin: 14px 0 4px; font-weight: 600; }
+#lume-set .set { gap: 8px; flex-wrap: wrap; } #lume-set input[type=time] { width: auto; min-width: 96px; }
 /* Selo do PC: monitor na cor do PC (o nome vai no aria-label e na lista); 28 px visíveis, 44 px de toque */
 .pcmon { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--pcc, var(--p)); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .pcchip.rail { border: 0; background: none; }
@@ -1627,6 +1651,8 @@ header .host { display: none; }
   </section>
   <!-- MAIS > Tempo (previsão; renderizada pelo JS) -->
   <section class="tab" id="t-weather"></section>
+  <!-- MAIS > Lume (mascote; renderizada pelo JS) -->
+  <section class="tab" id="t-mascot"></section>
   <!-- MAIS > Widgets do Início (também pelo botão Editar do Início) -->
   <section class="tab" id="t-widgets">
     <div class="home-head"><h2>Widgets do Início</h2><button class="btn sm primary" id="wd-done">Concluído</button></div>
@@ -1915,6 +1941,8 @@ header .host { display: none; }
           <div class="set"><label>Botões seguem o programa<small>Troca a página de botões conforme o programa em foco no PC</small></label><button class="switch" id="sw-deckauto" aria-label="Botões seguem o programa"></button></div>
           <div class="set"><label>Abrir a tela Dota ao iniciar o jogo<small>Quando o Dota abre no PC, o app vai para a tela Dota (dá para voltar)</small></label><button class="switch" id="sw-dotaopen" aria-label="Abrir a tela Dota ao iniciar o jogo"></button></div>
         </div>
+        <h2>Lume</h2>
+        <div class="card" id="lume-set"></div>
         <h2>Este aparelho</h2>
         <div class="card">
           <div class="set"><label>Manter a tela ligada<small>Enquanto o app estiver aberto</small></label><button class="switch" id="sw-wake" aria-label="Manter a tela ligada"></button></div>
@@ -1937,6 +1965,7 @@ header .host { display: none; }
 
 <svg id="lume-defs" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"></svg>
 <button id="lume-fab" class="hidden" aria-label="Lume"></button>
+<div id="lume-menu" class="hidden" role="menu"></div>
 
 <div class="overlay hidden" id="login">
   <form class="dialog" id="login-form">
@@ -2306,7 +2335,7 @@ function makeLayouts(store, rid, now, defaults) {
     return out;
   };
   // barra de navegação: {v:1, order:[todos os ids, por prioridade], hidden:[ids fora da barra]}; a barra mostra no máximo NAV_CAP itens (o resto fica em Mais)
-  const NAV_IDS = ["inicio", "ctrl", "deck", "tasks", "dash", "media", "games", "dota", "work", "weather", "send", "power", "widgets", "sys"], NAV_CAP = 4;
+  const NAV_IDS = ["inicio", "ctrl", "deck", "tasks", "dash", "media", "games", "dota", "work", "weather", "send", "power", "widgets", "sys", "mascot"], NAV_CAP = 4;
   const navDef = () => ({ v: 1, order: NAV_IDS.slice(), hidden: NAV_IDS.slice(NAV_CAP) });
   const validNav = (n) => {
     if (!isObj(n) || n.v !== 1 || !Array.isArray(n.order) || !Array.isArray(n.hidden) || n.order.length > 40 || n.hidden.length > 40) return null;
@@ -2659,6 +2688,7 @@ function onMsg(m) {
     }
     case "stats": state.stats = m.d; statsT = performance.now(); renderStats(); break;
     case "pomo": pomoSet(m.d); break;
+    case "workstream": lumeWork(m.d); break;
     case "now": state.now = m.d; state.nowT = performance.now(); renderNow(); break;
     case "art": state.art = { [m.id]: "data:image/jpeg;base64," + m.jpg }; renderNow(); break;
     case "games": state.games = m.d; state.gamesT = performance.now(); renderGames(); break;
@@ -2853,7 +2883,7 @@ const SECTIONS = {
   deck: [["deck", "Botões"]],
   tasks: [["tasks", "Tarefas"]],
   mais: [["more", "Mais"], ["dash", "Sistema"], ["media", "Tocando"], ["mix", "Mixer"], ["games", "Jogos"], ["dota", "Dota"], ["work", "Trabalho"], ["weather", "Tempo"],
-    ["send", "Arquivos"], ["power", "Energia"], ["widgets", "Widgets do Início"], ["sys", "Ajustes"]],
+    ["send", "Arquivos"], ["power", "Energia"], ["widgets", "Widgets do Início"], ["mascot", "Lume"], ["sys", "Ajustes"]],
 };
 const GROUPS = { ctrl: ["mouse", "screen"], radio: ["media", "mix"] };
 const SPLIT = { ctrl: "minmax(0,1fr) minmax(0,1.7fr)", radio: "minmax(0,1fr) minmax(0,1.1fr)" };
@@ -2898,6 +2928,7 @@ function showView(name, temp) {
   if (vis("weather")) wxShow();
   if (vis("tasks")) loadTasks();
   if (vis("inicio")) homeShow();
+  if (vis("mascot")) lumeRender();
   if (vis("widgets")) wdShow();
   pcPlace();
   try { lumePaint(); } catch {}
@@ -2910,7 +2941,7 @@ const NAVM = {   // id: [rótulo na barra, rótulo longo, ícone, vista de entra
   tasks: ["Tarefas", "Tarefas", "check-check", "tasks"], dash: ["Sistema", "Sistema", "activity", "dash"], media: ["Rádio", "Rádio e mixer", "headphones", "media"],
   games: ["Jogos", "Jogos", "gamepad-2", "games"], dota: ["Dota", "Dota", "gamepad", "dota"], work: ["Trabalho", "Trabalho", "briefcase", "work"],
   weather: ["Tempo", "Tempo", "cloud-sun", "weather"], send: ["Arquivos", "Arquivos", "folder-open", "send"], power: ["Energia", "Energia", "log-out", "power"],
-  widgets: ["Widgets", "Widgets do Início", "layout-grid", "widgets"], sys: ["Ajustes", "Ajustes", "sliders-horizontal", "sys"],
+  widgets: ["Widgets", "Widgets do Início", "layout-grid", "widgets"], mascot: ["Lume", "Lume", "heart", "mascot"], sys: ["Ajustes", "Ajustes", "sliders-horizontal", "sys"],
 };
 let navBar = [];   // ids que estão na barra agora
 const navCfg = () => LAY.NAV.norm(store.get("nav", null)) || LAY.NAV.def();
@@ -3577,6 +3608,7 @@ async function loadTasks() {
 // selo da navegação: tarefas pendentes (dado do próprio tasks.get)
 function tasksBadge(d) {
   tkN = d.items ? d.items.filter((t) => !t.done).length : 0; navBadge();
+  try { lumeTasks(d); } catch {}
 }
 function renderTasks(d) {
   tasksData = d; homeUpd("tasks");
@@ -3677,6 +3709,7 @@ function pomoCall(a, p) { return send(a, p).then(pomoSet).catch((e) => { if (e.m
 function pomoToggle() { const d = pm.d; if (!d) return; pomoCall(d.running ? "pomo.pause" : "pomo.start", d.running ? {} : { task_id: pm.sel || null }); }
 function pomoDone(m) {
   const msg = m.finished === "focus" ? `Foco concluído! ${m.next === "long" ? "Pausa longa" : "Pausa"} de ${m.next_min} min` : "Pausa acabou, bora focar";
+  try { if (m.finished === "focus" && LM.cfg().pomo.on) lumeFocusDone(); } catch {}
   toast(msg, "ok");   // o toast "ok" já toca o som curto (se os sons estiverem ligados)
   if (prefs.vib && navigator.vibrate) try { navigator.vibrate([60, 40, 60]); } catch {}
 }
@@ -5082,16 +5115,24 @@ setInterval(micFabPaint, 2000);
 addEventListener("resize", micFabPaint); addEventListener("orientationchange", () => setTimeout(micFabPaint, 200));
 bindSwitch("sw-micfab", "micFab", micFabPaint);
 $("mic-fab-reset").onclick = () => { buzz(8); mfPos = {}; store.del("micfab"); micFabPaint(); toast("Bolinha no canto padrão", "ok"); };
-// ---- Lume (bolha): mesmas regras da bolinha do mic (área segura, posição por orientação, fora do layout), com ímã de borda
-const LU = { skin: LUME_SKINS.lume, st: "happy", pos: store.get("lumepos", {}), drag: null, touch: Date.now(), ctx: {} }, LUF = 56;
+/* LUMEUI:begin */
+// ---- Lume (bolha, tela e Ajustes). Mesmas regras da bolinha do mic (área segura, posição por orientação, fora do layout), com ímã de borda.
+// Tudo é do APARELHO (localStorage "mascot"/"lumepos"); do PC só chegam fatos (work.stream, eventos, Pomodoro, tarefas).
+const LM = makeMascot(store, () => Date.now() / 1000);
+const LU = { skin: LUME_SKINS[LM.skin()] || LUME_SKINS.lume, st: "happy", pos: store.get("lumepos", {}), drag: null, touch: Date.now(), partyUntil: 0, alertUntil: 0, work: null, wasSleeping: LM.sleeping(), taskSeen: null, press: 0 }, LUF = 56;
+const LU_ST = { happy: "feliz", focus: "concentrado", tired: "cansado", thirst: "com sede", hunger: "com fome", sleep: "dormindo", party: "comemorando", alert: "avisando" };
 (function lumeInit() {
   const st = document.createElement("style"); st.id = "lume-skin"; st.textContent = lumeSkinCss(LU.skin); document.head.append(st);
   $("lume-defs").innerHTML = `<defs>${LU.skin.defs}</defs>`;
   $("lume-fab").innerHTML = `<span class="lm-w">${lumeSvg(LU.skin)}</span>`;
 })();
 const lumeFab = $("lume-fab");
-function lumeOn() { return true; }   // etapa 4: vem de Ajustes › Lume
-function lumeHidden() { return !lumeOn() || vis("mouse") || vis("screen"); }   // etapa 4: "Esconder em Mouse e Tela do PC" configurável
+const lumeFocus = () => !!(pm.d && pm.d.phase === "focus" && pm.d.running);
+const lumeOnline = () => !!(ws && ws.readyState === 1);
+function lumeView() { const n = Date.now(); return LM.view(n / 1000, { focus: lumeFocus(), party: n < LU.partyUntil, alert: n < LU.alertUntil }); }
+const lumeOn = () => LM.cfg().mode === "on";
+const lumeHidden = () => !lumeOn() || LM.sleeping() || vis("mascot") || (LM.cfg().hideCtrl && (vis("mouse") || vis("screen")));
+function lumeParty(ms = 2600) { LU.partyUntil = Date.now() + ms; setTimeout(lumePaint, ms + 50); lumePaint(); }
 function lumePlace() {
   if (LU.drag) return;
   const a = micFabArea(LUF), p = LU.pos[a.key] || { x: 0, y: 0.85 };
@@ -5106,46 +5147,183 @@ function lumePlace() {
   lumeFab.classList.toggle("sl", p.x < 0.5); lumeFab.classList.toggle("sr", p.x >= 0.5);
 }
 function lumePaint() {
+  const sl = LM.sleeping();
+  if (LU.wasSleeping && !sl) { LU.wasSleeping = false; lumeWoke(); }
+  LU.wasSleeping = sl;
+  const v = lumeView(); LU.st = v.st;
+  const sk = document.documentElement.classList; sk.toggle("lm-still", LM.cfg().economy);
+  document.querySelectorAll(".lm").forEach((e) => { e.classList.toggle("still", LM.cfg().economy); if (e.dataset.st !== v.st) e.dataset.st = v.st; });
   const hide = lumeHidden();
   lumeFab.classList.toggle("hidden", hide);
+  if (typeof lumeBalPlace === "function") lumeBalPlace();
+  if (vis("mascot")) lumeRender();
   if (hide) return;
-  lumeFab.classList.toggle("peek", Date.now() - LU.touch > 8000 && !LU.drag);
-  lumeFab.firstElementChild.firstElementChild.setAttribute("data-st", LU.st);
-  lumeFab.setAttribute("aria-label", "Lume. Abrir");
+  lumeFab.classList.toggle("peek", Date.now() - LU.touch > 8000 && !LU.drag && !LU.balOpen);
+  lumeFab.setAttribute("aria-label", `Lume, ${LU_ST[v.st]}. Abrir`);
   lumePlace();
 }
-function lumeTap() { LU.touch = Date.now(); if (VIEWS.includes("mascot")) showView("mascot"); else toast("Lume", "ok"); lumePaint(); }
+function lumeWoke() { toast("O Lume acordou", "ok"); lumeParty(1800); }
+function lumeTap() { LU.touch = Date.now(); lumeMenuHide(); showView("mascot"); lumePaint(); }
+// toque longo = menu rápido (Silenciar hoje, Pôr para dormir, Esconder)
+function lumeMenuHide() { $("lume-menu").classList.add("hidden"); }
+function lumeAnchor(el) {   // põe `el` ao lado da bolha (para o lado do miolo da tela), dentro da tela
+  const r = lumeFab.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight, left = r.left + r.width / 2 < innerWidth / 2;
+  const x = left ? r.right + 6 : r.left - w - 6, y = r.top + r.height / 2 - h / 2;
+  el.style.transform = `translate(${Math.round(Math.max(8, Math.min(innerWidth - w - 8, x)))}px, ${Math.round(Math.max(8, Math.min(innerHeight - h - 8, y)))}px)`;
+}
+function lumeMenuShow() {
+  const m = $("lume-menu"); buzz(12);
+  m.innerHTML = `<button data-lm="silence">${LM.silenced() ? "Voltar a falar hoje" : "Silenciar hoje"}</button><button data-lm="sleep">Pôr para dormir (${LM.cfg().sleepMin} min)</button><button data-lm="hide">Esconder o Lume</button>`;
+  m.classList.remove("hidden"); lumeAnchor(m);
+}
+$("lume-menu").onclick = (e) => {
+  const b = e.target.closest("[data-lm]"); if (!b) return; lumeMenuHide(); buzz(8);
+  if (b.dataset.lm === "silence") { LM.silence(!LM.silenced()); toast(LM.silenced() ? "Lume em silêncio até amanhã" : "O Lume voltou a falar", "ok"); }
+  else if (b.dataset.lm === "sleep") { LM.sleep(LM.cfg().sleepMin); toast("O Lume foi dormir", "ok"); }
+  else { LM.setCfg({ mode: "hide" }); undoToast("Lume escondido (a tela fica em Mais)", () => { LM.setCfg({ mode: "on" }); lumePaint(); }, "Desfazer", null, 6000); }
+  lumePaint(); lumeSetRender();
+};
+document.addEventListener("pointerdown", (e) => { if (!e.target.closest("#lume-menu, #lume-fab")) lumeMenuHide(); });
 lumeFab.addEventListener("pointerdown", (e) => {
   if (e.button > 0) return;
   LU.touch = Date.now(); lumeFab.classList.remove("peek");
-  const a = micFabArea(LUF), p = LU.pos[a.key] || { x: 0, y: 0.85 }, r = lumeFab.getBoundingClientRect();
-  LU.drag = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x0: r.left, y0: r.top, a, moved: false, x: r.left, y: r.top };
+  const a = micFabArea(LUF), r = lumeFab.getBoundingClientRect();
+  LU.drag = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x0: r.left, y0: r.top, a, moved: false, x: r.left, y: r.top, long: false };
+  LU.drag.lt = setTimeout(() => { const d = LU.drag; if (d && !d.moved) { d.long = true; lumeMenuShow(); } }, 500);
   try { lumeFab.setPointerCapture(e.pointerId); } catch {}
 });
 lumeFab.addEventListener("pointermove", (e) => {
   const d = LU.drag; if (!d || e.pointerId !== d.id) return;
   const dx = e.clientX - d.sx, dy = e.clientY - d.sy;
   if (!d.moved && Math.hypot(dx, dy) < 8) return;
-  if (!d.moved) { d.moved = true; lumeFab.classList.add("drag"); }
+  if (!d.moved) { d.moved = true; clearTimeout(d.lt); lumeMenuHide(); lumeFab.classList.add("drag"); }
   d.x = Math.min(d.a.L + d.a.W, Math.max(d.a.L, d.x0 + dx)); d.y = Math.min(d.a.T + d.a.H, Math.max(d.a.T, d.y0 + dy));
   lumeFab.style.transform = `translate(${Math.round(d.x)}px, ${Math.round(d.y)}px)`;
 });
 const luEnd = (e, ok) => {
   const d = LU.drag; if (!d || e.pointerId !== d.id) return;
-  LU.drag = null; lumeFab.classList.remove("drag"); LU.touch = Date.now();
+  clearTimeout(d.lt); LU.drag = null; lumeFab.classList.remove("drag"); LU.touch = Date.now();
   if (d.moved) {   // ímã: encosta na borda esquerda ou direita mais próxima; y fica onde foi solto
-    LU.pos[d.a.key] = { x: d.x + LUF / 2 < d.a.L + d.a.W / 2 + LUF / 2 ? 0 : 1, y: +((d.y - d.a.T) / (d.a.H || 1)).toFixed(3) };
+    LU.pos[d.a.key] = { x: d.x + LUF / 2 < d.a.L + (d.a.W + LUF) / 2 ? 0 : 1, y: +((d.y - d.a.T) / (d.a.H || 1)).toFixed(3) };
     store.set("lumepos", LU.pos);
-  } else if (ok) lumeTap();
+  } else if (ok && !d.long) lumeTap();
   lumePlace();
 };
 lumeFab.addEventListener("pointerup", (e) => luEnd(e, true));
 lumeFab.addEventListener("pointercancel", (e) => luEnd(e, false));
-lumeFab.addEventListener("click", (e) => { if (e.detail === 0) lumeTap(); });   // teclado
+lumeFab.addEventListener("click", (e) => { if (e.detail === 0) lumeTap(); });   // teclado (Enter/Espaço)
+lumeFab.addEventListener("contextmenu", (e) => { e.preventDefault(); });
 setInterval(lumePaint, 2000);
 addEventListener("resize", lumePaint); addEventListener("orientationchange", () => setTimeout(lumePaint, 200));
 document.addEventListener("visibilitychange", () => { document.documentElement.classList.toggle("lm-pause", document.hidden); lumePaint(); });
-lumePaint();
+
+// ---- ganhos reais: só estes fatos fazem os medidores subirem
+function lumeTasks(d) {   // tarefa concluída (tasks.get / toque na tarefa): primeira leitura só marca a linha de base
+  const items = (d && d.items) || [], done = new Set(items.filter((t) => t.done).map((t) => String(t.id)));
+  if (LU.taskSeen) for (const id of done) if (!LU.taskSeen.has(id) && LM.act("task", Date.now() / 1000, { id }).ok) lumeParty();
+  LU.taskSeen = done;
+}
+function lumeFocusDone() { LM.act("focus"); lumeParty(); }
+function lumeWork(d) {   // work.stream do PC ativo: minutos contínuos; a sequência acabar depois de 30+ min = pausa de verdade
+  const prev = LU.work;
+  LU.work = d && Number.isFinite(d.minutes) ? { minutes: d.minutes, app: d.app || null } : null;
+  if (prev && prev.minutes >= 30 && LU.work && LU.work.minutes === 0 && LM.act("pause", Date.now() / 1000, { auto: true }).ok) lumeParty();
+}
+
+// ---- tela do Lume (Mais › Lume): estado, cuidar, medidores e histórico do dia (tudo do aparelho; nada de PC)
+const LU_LINE = { happy: "Tudo bem por aqui.", focus: "Concentrado: sem avisos durante o foco.", tired: "Cansado. Uma pausa de verdade ajuda.", thirst: "Com sede. Beba água com ele.",
+  hunger: "Com fome. Petiscos vêm de tarefas e focos concluídos.", sleep: "Dormindo.", party: "Comemorando!", alert: "Tem um aviso para você." };
+const LU_KIND = { water: "Bebeu água", pause: "Pausa feita", task: "Tarefa concluída", focus: "Foco concluído", feed: "Petisco", sleep: "Foi dormir", wake: "Acordou", say: "Lume falou" };
+const LU_SAY = { water: "lembrete de água", pause: "lembrete de pausa", eod: "resumo do dia" };
+const hhmm = (t) => new Date(t * 1000).toTimeString().slice(0, 5);
+function lumeRender() {
+  const root = $("t-mascot"); if (!root) return;
+  const v = lumeView(), n = v.needs, sl = LM.sleeping(), c = LM.counts(), sig = JSON.stringify([v, sl, LM.snacks(), c, LM.cfg().mode, LM.history(Date.now() / 1000, 7).map((h) => h.items.length)]);
+  if (root._sig === sig) return; root._sig = sig;
+  const bar = (k, lab, val, txt) => `<div class="lm-m"><div class="lm-mh"><span>${lab}</span><b>${txt}</b></div><div class="lm-bar" role="progressbar" aria-label="${lab}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${val}"><i style="width:${val}%"></i></div></div>`;
+  const hist = LM.history(Date.now() / 1000, 7).filter((h) => h.items.length).map((h, i) => `<div class="lm-day">${i === 0 && h.day === LM.ymd(Date.now() / 1000) ? "Hoje" : h.day.split("-").reverse().slice(0, 2).join("/")}</div>` +
+    h.items.slice(0, 30).map((it) => `<div class="lm-it"><time>${hhmm(it[0])}</time><span>${it[1] === "say" ? "Lume falou: " + (LU_SAY[it[2]] || "aviso") : LU_KIND[it[1]] + (it[1] === "pause" && it[2] === "auto" ? " (detectada no PC)" : it[1] === "sleep" ? (it[2] === "day" ? " até amanhã" : ` (${it[2]} min)`) : "")}</span></div>`).join("")).join("");
+  root.innerHTML = `<div class="home-head"><h2>Lume</h2></div>
+  ${LM.cfg().mode === "off" ? '<div class="card"><div class="set"><label>O Lume está desligado<small>Ligue para ele voltar à tela</small></label><button class="btn sm primary" data-lm2="on">Ligar</button></div></div>' : ""}
+  <div class="lm-grid">
+   <div class="card lm-stage"><div class="lm-pic">${lumeSvg(LU.skin).replace('data-st="happy"', `data-st="${v.st}"`)}</div>
+     <div class="lm-state"><b>${sl ? "Dormindo até " + hhmm(LM.sleepUntil()) : LU_ST[v.st][0].toUpperCase() + LU_ST[v.st].slice(1)}</b><span>${sl ? "Os avisos do PC voltam ao toast enquanto ele dorme." : LU_LINE[v.st]}</span><small>Do Lume · ${LM.silenced() ? "em silêncio até amanhã" : "o humor dele sobe com o que você faz de verdade"}</small></div></div>
+   <div class="card lm-care"><h3>Cuidar</h3>
+     <div class="lm-btns"><button class="btn" data-lm2="water">Dar água<small>você bebe junto</small></button>
+       <button class="btn" data-lm2="feed"${LM.snacks() ? "" : " disabled"}>Petisco (${LM.snacks()})<small>${LM.snacks() ? "ganho por tarefa ou foco" : "conclua uma tarefa ou um foco"}</small></button>
+       <button class="btn" data-lm2="pause">Fiz uma pausa<small>energia</small></button></div>
+     <div class="lm-sleep"><span>${sl ? "Dormindo" : "Pôr para dormir"}</span>${sl ? '<button class="btn sm primary" data-lm2="wake">Acordar agora</button>' :
+       [15, 30, 60, 120].map((m) => `<button class="btn sm" data-lm2="sleep" data-min="${m}">${m < 60 ? m + " min" : m / 60 + " h"}</button>`).join("") + '<button class="btn sm" data-lm2="sleep" data-min="day">Até amanhã</button>'}</div></div>
+   <div class="card lm-stat"><h3>Status</h3>${bar("energy", "Energia", n.energy, v.labels.energy)}${bar("sat", "Fome", n.sat, v.labels.sat)}${bar("water", "Sede", n.water, v.labels.water)}${bar("mood", "Humor", n.mood, v.labels.mood)}
+     <p class="lm-foot">Hoje: ${c.water} ${c.water === 1 ? "copo" : "copos"} · ${c.pause} ${c.pause === 1 ? "pausa" : "pausas"} · ${c.focus} ${c.focus === 1 ? "foco" : "focos"} · ${c.task} ${c.task === 1 ? "tarefa" : "tarefas"}</p></div>
+   <div class="card lm-hist"><h3>Histórico</h3>${hist || '<p class="lm-foot">Nada ainda hoje.</p>'}</div>
+  </div>`;
+}
+$("t-mascot").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-lm2]"); if (!b || b.disabled) return; buzz(8);
+  const k = b.dataset.lm2, now = Date.now() / 1000;
+  if (k === "on") { LM.setCfg({ mode: "on" }); lumeSetRender(); }
+  else if (k === "wake") { LM.wake(now); lumeWoke(); }
+  else if (k === "sleep") { LM.sleep(b.dataset.min === "day" ? "day" : +b.dataset.min, now); toast("O Lume foi dormir", "ok"); }
+  else { const r = LM.act(k, now); if (r.ok) lumeParty(); else toast(r.why, "warn"); }
+  lumePaint(); lumeRender();
+});
+
+// ---- Ajustes › Lume (tudo no aparelho)
+const LU_ROUTES = { notif: "Notificações do PC", export: "Arquivo exportado", alert: "Arquivo fora do lugar", pomo: "Pomodoro", trello: "Trello", steam: "Download da Steam", download: "Download concluído", focus: "Resumo do foco" };
+function lumeSetRender() {
+  const root = $("lume-set"); if (!root) return;
+  const c = LM.cfg(), sw = (k, on, lab) => `<button class="switch${on ? " on" : ""}" data-lk="${k}" data-t="sw" aria-pressed="${on}" aria-label="${lab}"></button>`;
+  const sel = (k, val, opts, lab) => `<select class="sel" data-lk="${k}" aria-label="${lab}">${opts.map(([v, l]) => `<option value="${v}"${String(v) === String(val) ? " selected" : ""}>${l}</option>`).join("")}</select>`;
+  const row = (lab, small, ctl) => `<div class="set"><label>${lab}${small ? `<small>${small}</small>` : ""}</label>${ctl}</div>`;
+  const noWork = welcome.host && !welcome.features?.work ? "indisponível neste PC" : "";
+  root.innerHTML =
+    row("Mostrar o Lume", "Bolha sobre as telas; “só pela tela” esconde a bolha e os balões", sel("mode", c.mode, [["on", "Ligado"], ["hide", "Só pela tela"], ["off", "Desligado"]], "Mostrar o Lume")) +
+    row("Economia", "Sem animação (poses paradas); liga sozinho com “reduzir movimento” do sistema", sw("economy", c.economy, "Economia")) +
+    row("Esconder em Mouse e Tela do PC", "Nessas telas a bolha atrapalharia", sw("hideCtrl", c.hideCtrl, "Esconder em Mouse e Tela do PC")) +
+    row("Silenciar hoje", "Corta os lembretes dele até amanhã (avisos do PC continuam)", sw("silence", c.silence === LM.ymd(Date.now() / 1000), "Silenciar hoje")) +
+    row("Posição da bolha", "Volta à borda esquerda, embaixo", '<button class="btn sm" data-lk="pos" data-t="btn">Recolocar</button>') +
+    "<h3 class=\"lm-h\">Lembretes</h3>" +
+    row("Água", "Uma fala do Lume, sem número", sw("water.on", c.water.on, "Lembrete de água") + sel("water.min", c.water.min, [[60, "60 min"], [90, "90 min"], [120, "120 min"], [180, "180 min"]], "Água a cada")) +
+    row("Pausa por trabalho contínuo", noWork || "Usa os minutos reais de trabalho no PC ativo", sw("pause.on", c.pause.on, "Lembrete de pausa") + sel("pause.after", c.pause.after, [[45, "45 min"], [60, "60 min"], [90, "90 min"], [120, "120 min"]], "Pausa após")) +
+    row("Repetir a pausa", "Depois do primeiro aviso, no máximo 3 por sequência", sel("pause.every", c.pause.every, [[15, "a cada 15 min"], [30, "a cada 30 min"], [0, "nunca"]], "Repetir a pausa")) +
+    row("Pomodoro", "Comemora o foco concluído", sw("pomo.on", c.pomo.on, "Pomodoro")) +
+    row("Fim do dia", "Só números reais de trabalho e tarefas; sem dado, ele não fala", sw("eod.on", c.eod.on, "Fim do dia") + `<input type="time" class="sel" data-lk="eod.at" value="${c.eod.at}" aria-label="Horário do fim do dia">`) +
+    row("Tarefas", "Comemora tarefa concluída", sw("tasks.on", c.tasks.on, "Tarefas")) +
+    row("Trello", "Só a contagem; toque abre a lista", sw("trello.on", c.trello.on, "Trello")) +
+    "<h3 class=\"lm-h\">Horários e limites</h3>" +
+    row("Horário ativo", "Fora dele o Lume não fala (avisos do PC seguem no toast)", `<input type="time" class="sel" data-lk="active.0" value="${c.active[0]}" aria-label="Começa às"><input type="time" class="sel" data-lk="active.1" value="${c.active[1]}" aria-label="Termina às">`) +
+    row("Falas por dia", "Lembretes espontâneos, não conta os avisos do PC", sel("maxDay", c.maxDay, [[3, "3"], [6, "6"], [10, "10"]], "Falas por dia")) +
+    row("Tempo de sono", "Quando você o põe para dormir", sel("sleepMin", c.sleepMin, [[15, "15 min"], [30, "30 min"], [60, "1 h"], [120, "2 h"]], "Tempo de sono")) +
+    "<h3 class=\"lm-h\">Avisos do PC: balão ou aviso comum</h3>" +
+    Object.entries(LU_ROUTES).map(([k, l]) => row(l, "", sel("route." + k, c.route[k], [["b", "Balão"], ["t", "Aviso comum"]], l))).join("") +
+    row("Zerar o Lume", "Apaga estado e histórico; os ajustes ficam", '<button class="btn sm" data-lk="reset" data-t="btn">Zerar</button>');
+}
+function lumeSetPatch(path, val) {
+  const p = path.split("."); if (p.length === 1) return { [p[0]]: val };
+  if (p[0] === "active") { const a = LM.cfg().active.slice(); a[+p[1]] = val; return { active: a }; }
+  return { [p[0]]: { [p[1]]: val } };
+}
+$("lume-set").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-lk]"); if (!b || b.tagName === "SELECT" || b.tagName === "INPUT") return; buzz(8);
+  const k = b.dataset.lk;
+  if (k === "pos") { LU.pos = {}; store.del("lumepos"); lumePaint(); toast("Lume na borda esquerda", "ok"); }
+  else if (k === "reset") {
+    const snap = store.get("mascot", null); LM.reset(); lumePaint(); lumeRender();
+    undoToast("Lume zerado", () => { store.set("mascot", snap); location.reload(); }, "Desfazer", null, 6000);
+  } else if (b.dataset.t === "sw") {
+    if (k === "silence") LM.silence(!LM.silenced());
+    else { const cur = k.split(".").reduce((o, x) => o[x], LM.cfg()); LM.setCfg(lumeSetPatch(k, !cur)); }
+    lumePaint(); lumeSetRender();
+  }
+});
+$("lume-set").addEventListener("change", (e) => {
+  const el = e.target.closest("select[data-lk], input[data-lk]"); if (!el) return;
+  const k = el.dataset.lk, num = /^(water\.min|pause\.after|pause\.every|maxDay|sleepMin)$/.test(k);
+  LM.setCfg(lumeSetPatch(k, num ? +el.value : el.value)); lumePaint(); lumeSetRender();
+});
+lumeSetRender(); lumePaint();
+/* LUMEUI:end */
 $("tmr-chip").onclick = () => { buzz(8); showView("power"); };
 document.querySelectorAll("[data-min]").forEach((b) => (b.onclick = () => {
   const min = +b.dataset.min;
