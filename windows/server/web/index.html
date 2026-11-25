@@ -1383,6 +1383,14 @@ body.pc-col #pc-chip3 { display: inline-flex; align-self: center; }
 .pccolors button { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 10px; }
 .pccolors button .pcmon { width: 22px; height: 22px; }
 .pccolors button[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--pcc); }
+/* Relógio do trilho (deitado): maior e de largura fixa; no Início, sem o selo no trilho, ainda maior */
+#clock2 { font-variant-numeric: tabular-nums; font-weight: 600; letter-spacing: 0; line-height: 1; }
+@media (orientation: landscape) and (max-height: 560px) {
+  .rail-top #clock2, :root[data-theme="modern"] .rail-top #clock2 { font-size: 22px; }
+  body.pc-col .rail-top #clock2, :root[data-theme="modern"] body.pc-col .rail-top #clock2 { font-size: 26px; }
+  body.pc-col .rail-top { grid-template-columns: auto; row-gap: 6px; padding: 12px 0; }
+  body.pc-col .rail-top .dot { justify-self: center; }
+}
 .pcdot { width: 10px; height: 10px; border-radius: 50%; background: var(--pcc, var(--p)); flex: none; }
 header .host { display: none; }
 .pcrow { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
