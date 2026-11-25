@@ -176,7 +176,7 @@ nav button.on { background: var(--p); color: var(--bg); text-shadow: none; }
 .subtabs button.on { color: var(--p); border-bottom-color: var(--p); }
 
 main { grid-area: main; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
-.tab { display: none; min-height: 0; min-width: 0; overflow-y: auto; padding: 10px 12px 16px; container-type: size; }
+.tab { display: none; min-height: 0; min-width: 0; overflow-y: auto; padding: 8px 12px 16px; container-type: size; }
 .tab.on { display: block; }
 main.multi { grid-auto-flow: column; }
 main.multi .tab.on ~ .tab.on { border-left: 1px solid var(--p3); }
@@ -448,7 +448,7 @@ body.crt .isvg { filter: drop-shadow(0 0 3px var(--glow)); }
   header { display: none; }
   .subtabs { padding-top: 4px; }
   .subtabs button { font-size: 19px; padding: 4px 12px 3px; }
-  .tab { padding: 6px 10px 10px; }
+  .tab { padding: 4px 8px 8px; }
   .grid.dash { height: 100%; grid-template-rows: minmax(0, 1.2fr) auto minmax(0, 1fr); }
   .grid.dash .spark { flex: 1 1 0; height: 0; min-height: 26px; }
   .c-procs, .c-disks { overflow: hidden; }
@@ -1301,6 +1301,33 @@ header .hchip::after { content: ""; position: absolute; inset: -10px -8px; }
 .hpage .hw .hq { grid-auto-rows: minmax(48px, 1fr); align-content: stretch; }
 .hpage .hw .hq button { min-height: 48px; }
 .hpage .hw .fx { display: none !important; }
+/* celular deitado: escala 4/8 nos espaços, Tarefas sem título repetido (o trilho já mostra a tela) e botões do deck ocupando a altura */
+@media (orientation: landscape) and (max-height: 560px) {
+  .hpage { gap: 8px; } .hw.z-P { padding: 8px; }
+  body.onbar #t-tasks > .home-head { display: none; }
+  #t-deck #deck-grid { grid-auto-rows: minmax(80px, 1fr); }
+}
+/* Tocando na barra lateral larga (divide a tela com o Mixer, então fica estreito): capa grande em cima e o resto distribuído pela altura */
+@media (min-width: 1000px) and (min-height: 600px) and (orientation: landscape) {
+  #t-media .media { grid-template-columns: minmax(0, 1fr); max-width: 460px; min-height: 100%; align-content: space-evenly; row-gap: 12px; }
+  #t-media .media .art { grid-column: 1; grid-row: auto; width: min(100%, 36vh); justify-self: center; align-self: auto; }
+  #t-media .media > :not(.art) { grid-column: 1; grid-row: auto; }
+}
+/* Botões: a grade ocupa a altura da tela (as linhas crescem até 160 px; em pé e no tablet também) */
+#t-deck.on { display: flex; flex-direction: column; }
+#t-deck .deckbar { flex: none; margin-bottom: 8px; }
+#deck-grid { flex: 1 1 0; min-height: 0; grid-auto-rows: minmax(88px, 160px); align-content: start; overflow-y: auto; }
+/* celular deitado: o Início em páginas leva título, pontinhos e "Editar" numa coluna estreita à direita (a altura é o recurso escasso) */
+@media (orientation: landscape) and (max-height: 560px) {
+  #t-inicio.paged.on { flex-direction: row-reverse; gap: 8px; }
+  #t-inicio.paged .home-head { flex: none; flex-direction: column; flex-wrap: nowrap; width: 60px; margin: 0; min-height: 0; align-items: stretch; justify-content: center; gap: 4px; }
+  #t-inicio.paged .home-head h2 { display: none; }
+  #t-inicio.paged .hdots:not(.hidden) { flex: 0 0 auto; flex-direction: column; align-items: center; }
+  #t-inicio.paged .home-head .btn { min-width: 0; padding: 0 4px; }
+  #t-inicio.paged .pm-strip { flex-direction: column; justify-content: center; gap: 2px; padding: 6px 2px; min-height: 0; text-align: center; }
+  #t-inicio.paged .pms-ph { font-size: 11px; } #t-inicio.paged .pms-t { font-size: 17px; } #t-inicio.paged .pm-strip .btn { width: 100%; padding: 0 2px; }
+  #t-inicio.paged > .home { flex: 1 1 0; min-width: 0; }
+}
 /* Foco: o anel e o tempo crescem com a altura */
 .hpage .hw.z-A .hpm, .hpage .hw.z-G .hpm { flex: 1 1 0; min-height: 0; justify-content: center; }
 .hpage .hw.z-A .hpm { flex-direction: column; gap: 8px; } .hpage .hw.z-A .hpm-r { width: 120px; height: 120px; } .hpage .hw.z-A .hpm-t { font-size: 34px; }
@@ -2438,6 +2465,7 @@ const LABEL = Object.fromEntries(Object.values(SECTIONS).flat());
 const secOf = (v) => Object.keys(SECTIONS).find((s) => SECTIONS[s].some(([n]) => n === v)) || "inicio";
 const groupOf = (v) => Object.keys(GROUPS).find((g) => GROUPS[g].includes(v));
 const wideMQ = matchMedia("(min-width: 1000px) and (min-height: 600px) and (orientation: landscape)");
+const railMQ = matchMedia("(orientation: landscape) and (min-width: 640px)");   // trilho lateral: o botão Mais dele já volta para a lista (sem a barra "‹ Mais")
 const MAIN = $("main"), lastView = store.get("views", {});
 let shown = new Set();
 const vis = (v) => shown.has(v);
@@ -2453,7 +2481,7 @@ function showView(name, temp) {
   MAIN.style.gridTemplateColumns = multi ? SPLIT[grp] : "";
   const items = [];
   if (!multi) {
-    if (sec === "mais" && name !== "more" && !wide && !navBar.includes(navItemOf(name))) items.push(["more", "‹ Mais", true]);
+    if (sec === "mais" && name !== "more" && !wide && !railMQ.matches && !navBar.includes(navItemOf(name))) items.push(["more", "‹ Mais", true]);
     if (grp) GROUPS[grp].forEach((v) => items.push([v, LABEL[v]]));
   }
   const sub = $("subtabs");
@@ -2508,6 +2536,7 @@ function navBuild() {
 }
 function navMark(name) {   // marca o item da barra da vista atual (Mais acende quando a vista não está na barra)
   const it = navItemOf(name);
+  document.body.classList.toggle("onbar", navBar.includes(it));   // a tela ativa já aparece no trilho: o título dela pode sair no deitado
   document.querySelectorAll("nav [data-nid]").forEach((b) => b.classList.toggle("on", b.dataset.nid === it || (b.dataset.nid === "mais" && (name === "more" || (!!it && !navBar.includes(it))))));
 }
 function navGo(id) {
@@ -2554,6 +2583,7 @@ $("nav-list").onclick = (e) => {
 $("nav-reset").onclick = () => { buzz(8); navSave(null); toast("Barra de navegação restaurada", "ok"); };
 navBuild(); navRender();
 wideMQ.addEventListener("change", () => showView(prefs.tab));
+railMQ.addEventListener("change", () => showView(prefs.tab, true));
 
 // ---------------------------------------------------------------- abertura (uma vez por carregamento)
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
