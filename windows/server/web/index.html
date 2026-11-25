@@ -377,6 +377,8 @@ input[type=range]:disabled { opacity: .35; }
 /* ícone desenhado (Lucide): traço na cor do terminal, do tamanho da sigla de texto */
 .isvg { width: .9em; height: .9em; display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 body.crt .isvg { filter: drop-shadow(0 0 3px var(--glow)); }
+.dbtn .di.has-ic { display: grid; place-items: center; }
+.dbtn .di .aic { width: 1.1em; height: 1.1em; }
 .dbtn .dl { font-size: 12.5px; text-align: center; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .dbtn.warn::after { content: "!"; position: absolute; top: 4px; right: 8px; color: var(--alert); font: 20px/1 var(--display); }
 .deckgrid.editing .dbtn { border-style: dashed; }
@@ -3676,9 +3678,11 @@ function renderDeck() {
   let html = btns.map((b, i) => `<button class="dbtn${b.confirm ? " warn" : ""}" data-i="${i}"${b.color ? ` style="--c:${esc(b.color)};--ic:${esc(b.color)}"` : ""}>
     <span class="di">${deckGlyph(b)}</span><span class="dl">${esc(deckName(b))}</span>${deckKeys(b) ? `<span class="dsc">${esc(deckKeys(b))}</span>` : ""}</button>`).join("");
   if (deckEdit && !pg.auto) html += '<button class="dbtn add" data-i="new"><span class="di">+</span><span class="dl">Novo botão</span></button>';
+  const dIcons = btns.map((b) => (b.type === "shortcut" ? (welcome.shortcuts || []).find((x) => x.id === b.value)?.icon : null));
   if (deckEdit && pg.auto) html += '<div class="empty full">Esta página mostra os programas do config.json do PC — edite lá.</div>';
   if (!btns.length && !deckEdit) html = `<div class="empty full">${pg.auto ? "Nenhum programa no config.json do PC" : "Página vazia. Toque em Editar para adicionar botões."}</div>`;
   $("deck-grid").innerHTML = html;
+  dIcons.forEach((id, i) => { if (id) setAppIcon($("deck-grid").querySelector(`.dbtn[data-i="${i}"] .di`), id); });   // ícone do programa; sem ele fica o glifo
   $("deck-grid").classList.toggle("editing", deckEdit);
   $("deck-edit").textContent = deckEdit ? "Pronto" : "Editar";
   $("deck-editbar").classList.toggle("hidden", !deckEdit);

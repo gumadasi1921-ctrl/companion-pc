@@ -395,6 +395,21 @@ def power(action):
         raise ValueError(f"ação de energia inválida: {action}")
 
 
+def shortcut_icon(sc):
+    """ID do ícone de um programa do deck: só quando o atalho abre um .exe/.lnk conhecido (caminho absoluto ou nome
+    resolvido pelo PATH, como o Windows faria). URL, pasta, app da Loja e o resto ficam sem ícone."""
+    try:
+        if sc.get("appx"):
+            return None
+        t = os.path.expandvars(str(sc.get("open") or ""))
+        if not t.lower().endswith((".exe", ".lnk")):
+            return None
+        path = t if os.path.isabs(t) else (shutil.which(t) if not os.path.dirname(t) else None)
+        return ICONS.register(path) if path else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def launch(shortcut_id):
     sc = next((s for s in CFG["shortcuts"] if s.get("id") == shortcut_id), None)
     if not sc:
@@ -1230,7 +1245,8 @@ def welcome_payload():
     return {
         "t": "welcome", "version": VERSION, "web": web_build(), "icon_key": ICONS.key(), "host": socket.gethostname(),
         "os": f"{platform.system()} {platform.release()}",
-        "shortcuts": [{"id": s["id"], "name": s["name"]} for s in CFG["shortcuts"]],
+        "shortcuts": [{k: v for k, v in (("id", s["id"]), ("name", s["name"]), ("icon", shortcut_icon(s))) if v}
+                      for s in CFG["shortcuts"]],
         "power": bool(CFG.get("allow_power")),
         "features": {"media": pc_info.HAS_MEDIA, "volume": pc_info.HAS_VOLUME, "mixer": pc_info.HAS_VOLUME,
                      "screen": True, "clipboard": True, "files": True, "deck": True,
