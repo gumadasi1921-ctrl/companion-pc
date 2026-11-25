@@ -1777,7 +1777,171 @@ const $ = (id) => document.getElementById(id);
 const store = {
   get(k, d) { try { const v = localStorage.getItem("pcc." + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem("pcc." + k, JSON.stringify(v)); } catch {} },
+  del(k) { try { localStorage.removeItem("pcc." + k); } catch {} },
 };
+
+
+// ---------------------------------------------------------------- perfis de layout (do APARELHO, não do PC)
+// Um perfil guarda tema, modo, destaque, widgets do Início e a última tela. As chaves de hoje (theme, home...) continuam sendo a
+// cópia de trabalho do perfil em uso (o script do tema, antes da primeira tela, e todo o resto seguem lendo as mesmas chaves);
+// um gancho em store.set espelha cada mudança no perfil ativo. "Padrão" (id default) sempre existe. Nada aqui leva token,
+// endereço de PC ou caminho: o pacote de compartilhar usa uma lista de campos permitidos (SHARE).
+/* LAY:begin */
+function makeLayouts(store, rid, now) {
+  const KEYS = ["theme", "variant", "mode", "accent", "crt", "home", "homepg", "tab", "views"];
+  const SHARE = ["theme", "variant", "mode", "accent", "crt", "home"];
+  const ENUM = { theme: ["modern", "fallout"], variant: ["green", "amber", "cyan"], mode: ["auto", "light", "dark"], accent: ["blue", "purple", "green", "orange", "pink"] };
+  const MAX = 10, MAX_NAME = 30, MAX_CODE = 8192, PREFIX = "PCL1.", SIZES = ["P", "A", "L", "G"];
+  let applying = false, timer = 0;
+  const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
+  const cleanName = (n) => {
+    const t = String(n == null ? "" : n).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
+    if (!t || t.length > MAX_NAME) throw new Error(`O nome precisa ter de 1 a ${MAX_NAME} letras`);
+    return t;
+  };
+  const validHome = (h) => {
+    if (!isObj(h) || (h.v !== 1 && h.v !== 2)) return null;
+    const out = { v: h.v };
+    for (const dev of ["phone", "tablet"]) {
+      if (!(dev in h)) continue;
+      if (!Array.isArray(h[dev]) || h[dev].length > 40) return null;
+      const list = [];
+      for (const it of h[dev]) {
+        if (!isObj(it) || typeof it.id !== "string" || !/^[a-z0-9_]{1,24}$/.test(it.id) || !SIZES.includes(it.size)) return null;
+        list.push({ id: it.id, size: it.size });
+      }
+      out[dev] = list;
+    }
+    return out;
+  };
+  const validOne = (k, v) => {
+    if (ENUM[k]) return ENUM[k].includes(v) ? v : undefined;
+    if (k === "crt") return typeof v === "boolean" ? v : undefined;
+    if (k === "home") { const h = validHome(v); return h || undefined; }
+    if (k === "homepg") {
+      if (!isObj(v)) return undefined;
+      const o = {}; for (const m of Object.keys(v).slice(0, 6)) if (/^[a-z]{1,10}$/.test(m) && Number.isInteger(v[m]) && v[m] >= 0 && v[m] < 3) o[m] = v[m];
+      return o;
+    }
+    if (k === "tab") return typeof v === "string" && /^[a-z]{2,12}$/.test(v) ? v : undefined;
+    if (k === "views") {
+      if (!isObj(v)) return undefined;
+      const o = {}; for (const m of Object.keys(v).slice(0, 12)) if (/^[a-z]{2,12}$/.test(m) && typeof v[m] === "string" && /^[a-z]{2,12}$/.test(v[m])) o[m] = v[m];
+      return o;
+    }
+    return undefined;
+  };
+  const validData = (d, keys) => { const o = {}; if (!isObj(d)) return o; for (const k of keys) if (k in d) { const v = validOne(k, d[k]); if (v !== undefined) o[k] = v; } return o; };
+  const capture = () => { const d = {}; for (const k of KEYS) { const v = store.get(k, null); if (v !== null) d[k] = v; } return validData(d, KEYS); };
+  const write = (s) => store.set("layouts", s);
+  const state = () => {
+    let s = store.get("layouts", null), ok = isObj(s) && s.v === 1 && Array.isArray(s.list);
+    if (ok) {
+      const seen = new Set(); s.list = s.list.filter((p) => isObj(p) && typeof p.id === "string" && /^[a-z0-9]{1,16}$/.test(p.id) && !seen.has(p.id) && seen.add(p.id) && typeof p.name === "string" && p.name.length >= 1 && p.name.length <= MAX_NAME)
+        .map((p) => ({ id: p.id, name: p.name, data: validData(p.data, KEYS), updated: Number(p.updated) || 0 }));
+      ok = s.list.length > 0;
+    }
+    if (!ok) { s = { v: 1, active: "default", list: [] }; }
+    if (!s.list.some((p) => p.id === "default")) s.list.unshift({ id: "default", name: "Padrão", data: capture(), updated: now() });   // migração: o layout de hoje vira o Padrão
+    s.list.find((p) => p.id === "default").name = "Padrão";
+    if (!s.list.some((p) => p.id === s.active)) s.active = "default";
+    return s;
+  };
+  const find = (s, id) => s.list.find((p) => p.id === id);
+  const unique = (s, name, exceptId, auto) => {
+    let n = name, i = 2;
+    const taken = (x) => s.list.some((p) => p.id !== exceptId && p.name.toLowerCase() === x.toLowerCase());
+    if (!taken(n)) return n;
+    if (!auto) throw new Error("Já existe um layout com esse nome");
+    const base = name.replace(/ \(\d+\)$/, "");
+    do { const suf = ` (${i++})`; n = base.slice(0, MAX_NAME - suf.length) + suf; } while (taken(n));
+    return n;
+  };
+  const b64 = (str) => { const bytes = new TextEncoder().encode(str); let bin = ""; for (const b of bytes) bin += String.fromCharCode(b); return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
+  const unb64 = (t) => { const bin = atob(t.replace(/-/g, "+").replace(/_/g, "/")); return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))); };
+  const api = {
+    KEYS, SHARE, MAX, MAX_NAME, validData,
+    init() { const s = state(); write(s); return s; },
+    list() { const s = state(); return s.list.map((p) => ({ id: p.id, name: p.name, active: p.id === s.active, isDefault: p.id === "default" })); },
+    active() { const s = state(); const p = find(s, s.active); return { id: p.id, name: p.name, isDefault: p.id === "default" }; },
+    sync() { clearTimeout(timer); timer = 0; const s = state(), p = find(s, s.active); p.data = capture(); p.updated = now(); write(s); },
+    flush() { if (timer) api.sync(); },
+    hook() {   // toda mudança de uma chave de layout é espelhada no perfil ativo (com um pequeno atraso)
+      const set = store.set.bind(store), del = store.del.bind(store), later = () => { if (!applying && !timer) timer = setTimeout(api.sync, 500); };
+      store.set = (k, v) => { set(k, v); if (KEYS.includes(k)) later(); };
+      store.del = (k) => { del(k); if (KEYS.includes(k)) later(); };
+    },
+    create(name) {
+      api.sync();
+      const s = state(); if (s.list.length >= MAX) throw new Error(`No máximo ${MAX} layouts`);
+      const e = { id: rid(), name: unique(s, cleanName(name), null, false), data: capture(), updated: now() };
+      s.list.push(e); s.active = e.id; write(s); return e;
+    },
+    apply(id) {   // grava os dados do perfil nas chaves de trabalho; quem chama recarrega a tela
+      api.sync();
+      const s = state(), p = find(s, id); if (!p) throw new Error("Layout não encontrado");
+      applying = true;
+      try { for (const k of KEYS) { if (k in p.data) store.set(k, p.data[k]); else store.del(k); } } finally { applying = false; }
+      s.active = id; write(s); return p;
+    },
+    rename(id, name) {
+      const s = state(), p = find(s, id); if (!p || id === "default") throw new Error("O Padrão não pode ser renomeado");
+      p.name = unique(s, cleanName(name), id, false); write(s); return p;
+    },
+    duplicate(id) {
+      api.sync();
+      const s = state(), p = find(s, id); if (!p) throw new Error("Layout não encontrado");
+      if (s.list.length >= MAX) throw new Error(`No máximo ${MAX} layouts`);
+      const e = { id: rid(), name: unique(s, p.name, null, true), data: JSON.parse(JSON.stringify(p.data)), updated: now() };
+      s.list.splice(s.list.indexOf(p) + 1, 0, e); write(s); return e;
+    },
+    remove(id) {   // devolve o que foi apagado (para o Desfazer); apagar o que está em uso volta ao Padrão (recarregar)
+      const s = state(), i = s.list.findIndex((p) => p.id === id); if (i < 0 || id === "default") throw new Error("O Padrão não pode ser apagado");
+      const [entry] = s.list.splice(i, 1), wasActive = s.active === id;
+      write(s);
+      if (wasActive) api.apply("default");
+      return { entry, index: i, wasActive };
+    },
+    restore(rm) {
+      const s = state(); if (s.list.length >= MAX || s.list.some((p) => p.id === rm.entry.id)) return false;
+      rm.entry.name = unique(s, rm.entry.name, null, true); s.list.splice(Math.min(rm.index, s.list.length), 0, rm.entry); write(s); return true;
+    },
+    // ---- compartilhar (sem nuvem): só os campos de SHARE; nunca token, endereço de PC ou caminho
+    pack(id) {
+      api.sync(); const p = find(state(), id); if (!p) throw new Error("Layout não encontrado");
+      return { name: p.name, data: validData(p.data, SHARE) };
+    },
+    code(id) { const k = api.pack(id); return PREFIX + b64(JSON.stringify({ v: 1, n: k.name, d: k.data })); },
+    file(id) { const k = api.pack(id); return JSON.stringify({ companion_layout: 1, name: k.name, data: k.data }, null, 1); },
+    parse(text) {
+      const t = String(text == null ? "" : text).trim();
+      if (!t) throw new Error("Cole o código ou abra um arquivo de layout");
+      if (t.length > MAX_CODE) throw new Error("Esse conteúdo é grande demais para ser um layout");
+      let raw;
+      try {
+        if (t.startsWith(PREFIX)) { const o = JSON.parse(unb64(t.slice(PREFIX.length))); if (!isObj(o) || o.v !== 1) throw 0; raw = { name: o.n, data: o.d }; }
+        else { const o = JSON.parse(t); if (!isObj(o) || o.companion_layout !== 1) throw 0; raw = { name: o.name, data: o.data }; }
+      } catch { throw new Error("Isso não parece um layout do Companion PC"); }
+      const data = validData(raw.data, SHARE);
+      if (!Object.keys(data).length) throw new Error("Esse layout está vazio ou inválido");
+      let name; try { name = cleanName(raw.name); } catch { name = "Importado"; }
+      return { name, data };
+    },
+    import(text, name) {
+      const k = api.parse(text), s = state(); if (s.list.length >= MAX) throw new Error(`No máximo ${MAX} layouts`);
+      const e = { id: rid(), name: unique(s, name ? cleanName(name) : k.name, null, true), data: k.data, updated: now() };
+      s.list.push(e); write(s); return e;
+    },
+  };
+  return api;
+}
+/* LAY:end */
+const LAY = makeLayouts(store, () => Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => b.toString(16).padStart(2, "0")).join(""), () => Date.now());
+if (!window.PCC_PANEL) {
+  LAY.hook(); LAY.init();
+  addEventListener("pagehide", () => LAY.flush());
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") LAY.flush(); });
+}
 
 // ---------------------------------------------------------------- vários PCs (perfil único neste aparelho)
 // A lista de PCs (nome, endereço, token, pc_id) fica SÓ aqui, no localStorage deste aparelho: nunca em log, URL, backup ou outro PC.
