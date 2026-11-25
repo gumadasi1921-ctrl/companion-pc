@@ -1482,8 +1482,15 @@ html.lm-still .rm *, .rm .still, .rm.still * { animation: none !important; trans
 .st-t { flex: 1; min-width: 0; } .st-t small { display: block; color: var(--p3t); font-size: 12.5px; margin-top: 2px; }
 .st-v { color: var(--p3t); font-size: 14px; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .set.st-row::after { content: ""; width: 8px; height: 8px; border-right: 2px solid var(--p3t); border-top: 2px solid var(--p3t); transform: rotate(45deg); flex: none; margin-left: 2px; }
+.st-groups .set.st-row { min-height: 48px; padding-top: 6px; padding-bottom: 6px; }
 .st-groups .st-row.on { box-shadow: inset 3px 0 0 var(--accent, var(--p)); } .st-groups .st-row.on .st-t { font-weight: 600; }
 .st-note { color: var(--p3t); font-size: 13px; margin: 8px 2px; }
+@container (min-width: 600px) {
+  #t-sys { overflow: hidden; }
+  #t-sys .st { display: grid; grid-template-columns: minmax(230px, 290px) minmax(0, 1fr); gap: 14px; height: 100%; }
+  #t-sys .st-list, #t-sys .st-detail { display: block; min-height: 0; overflow-y: auto; }
+  #t-sys .st-hd { display: none; }
+}
 /* Selo do PC: monitor na cor do PC (o nome vai no aria-label e na lista); 28 px visíveis, 44 px de toque */
 .pcmon { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--pcc, var(--p)); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .pcchip.rail { border: 0; background: none; }
@@ -1922,7 +1929,7 @@ header .host { display: none; }
   <!-- PC > Ajustes -->
   <section class="tab" id="t-sys">
     <div class="st" id="st">
-      <nav class="st-list" id="st-list" aria-label="Ajustes">
+      <div class="st-list" id="st-list" role="navigation" aria-label="Ajustes">
         <h2 class="st-hd">Ajustes</h2>
         <div class="card st-groups">
           <button class="set st-row" data-go="pcs" data-st-v="pcs"><i class="st-ic" style="--ic:#4C9AFF"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-monitor"/></svg></i><span class="st-t">PCs e conexão</span><span class="st-v"></span></button>
@@ -1932,7 +1939,7 @@ header .host { display: none; }
           <button class="set st-row" data-go="work" data-st-v="work"><i class="st-ic" style="--ic:#FF9F0A"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-briefcase"/></svg></i><span class="st-t">Foco, trabalho e integrações</span><span class="st-v"></span></button>
           <button class="set st-row" data-go="device" data-st-v="device"><i class="st-ic" style="--ic:#8E8E93"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-sliders-horizontal"/></svg></i><span class="st-t">Este aparelho e Sobre</span><span class="st-v"></span></button>
         </div>
-      </nav>
+      </div>
       <div class="st-detail" id="st-detail">
         <div class="st-bar"><button class="btn sm st-back hidden" id="st-back">‹ Ajustes</button><h2 id="st-title"></h2></div>
       <div class="st-pg" data-pg="pcs" data-title="PCs e conexão" data-parent="">
