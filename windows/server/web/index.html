@@ -1484,12 +1484,16 @@ html.lm-still .rm *, .rm .still, .rm.still * { animation: none !important; trans
 .set.st-row::after { content: ""; width: 8px; height: 8px; border-right: 2px solid var(--p3t); border-top: 2px solid var(--p3t); transform: rotate(45deg); flex: none; margin-left: 2px; }
 .st-groups .set.st-row { min-height: 48px; padding-top: 6px; padding-bottom: 6px; }
 .st-groups .st-row.on { box-shadow: inset 3px 0 0 var(--accent, var(--p)); } .st-groups .st-row.on .st-t { font-weight: 600; }
+.st-search { margin: 0 0 10px; } .st-search .fi { width: 100%; box-sizing: border-box; min-height: 44px; }
+.st-res { padding: 0 12px; } .st-res.hidden { display: none; } .st-res small { display: block; color: var(--p3t); font-size: 12.5px; margin-top: 2px; }
+.st-hit { outline: 2px solid var(--accent, var(--p)); outline-offset: 2px; border-radius: 4px; transition: outline-color .4s; }
 .st-note { color: var(--p3t); font-size: 13px; margin: 8px 2px; }
 @container (min-width: 600px) {
   #t-sys { overflow: hidden; }
   #t-sys .st { display: grid; grid-template-columns: minmax(230px, 290px) minmax(0, 1fr); gap: 14px; height: 100%; }
   #t-sys .st-list, #t-sys .st-detail { display: block; min-height: 0; overflow-y: auto; }
   #t-sys .st-hd { display: none; }
+  #t-sys .st-search { margin-bottom: 6px; } #t-sys .st-groups .set.st-row { min-height: 46px; padding-top: 3px; padding-bottom: 3px; }
 }
 /* Selo do PC: monitor na cor do PC (o nome vai no aria-label e na lista); 28 px visíveis, 44 px de toque */
 .pcmon { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--pcc, var(--p)); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -1931,6 +1935,8 @@ header .host { display: none; }
     <div class="st" id="st">
       <div class="st-list" id="st-list" role="navigation" aria-label="Ajustes">
         <h2 class="st-hd">Ajustes</h2>
+        <div class="st-search"><input class="fi" id="st-q" type="search" placeholder="Buscar nos ajustes" aria-label="Buscar nos ajustes" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></div>
+        <div class="card st-res hidden" id="st-res" role="list"></div>
         <div class="card st-groups">
           <button class="set st-row" data-go="pcs" data-st-v="pcs"><i class="st-ic" style="--ic:#4C9AFF"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-monitor"/></svg></i><span class="st-t">PCs e conexão</span><span class="st-v"></span></button>
           <button class="set st-row" data-go="look" data-st-v="look"><i class="st-ic" style="--ic:#BF5AF2"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-paintbrush"/></svg></i><span class="st-t">Aparência e layout</span><span class="st-v"></span></button>
@@ -3179,6 +3185,42 @@ $("t-sys").addEventListener("click", (e) => {
 });
 $("t-sys").addEventListener("change", () => setTimeout(stVals, 0));
 addEventListener("resize", () => { if (vis("sys")) stSync(); });
+// busca: título + descrição de cada linha (e dos títulos de seção); tocar abre a subtela, rola até a linha e a destaca
+const stNorm = (t) => (t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+function stIndex() {
+  const out = [];
+  document.querySelectorAll(".st-pg").forEach((pg) => {
+    const top = stPg(stTop(pg.dataset.pg)), path = top && top !== pg ? top.dataset.title + " › " + pg.dataset.title : pg.dataset.title;
+    pg.querySelectorAll(":scope > h2, .set").forEach((el) => {
+      const lab = el.matches("h2") ? el : el.querySelector("label, .st-t");
+      const title = lab ? (lab.firstChild && lab.firstChild.nodeType === 3 ? lab.firstChild.textContent : lab.textContent).trim() : "";
+      if (!title) return;
+      const text = el.matches("h2") ? el.textContent : [...el.querySelectorAll("label, .st-t, [aria-label]")].map((x) => x.textContent + " " + (x.getAttribute("aria-label") || "")).join(" ");
+      out.push({ pg: pg.dataset.pg, title, path, key: stNorm(title + " " + text + " " + path), h: el.matches("h2") });
+    });
+  });
+  return out;
+}
+function stFind(pg, title) {
+  const p = stPg(pg); if (!p) return null;
+  return [...p.querySelectorAll(":scope > h2, .set")].find((el) => { const l = el.matches("h2") ? el : el.querySelector("label, .st-t"); return l && l.textContent.trim().startsWith(title); }) || null;
+}
+function stSearch() {
+  const q = stNorm($("st-q").value).trim(), res = $("st-res"), groups = document.querySelector(".st-groups");
+  res.classList.toggle("hidden", !q); groups.classList.toggle("hidden", !!q);
+  if (!q) { res.innerHTML = ""; return; }
+  const words = q.split(/\s+/), hits = stIndex().filter((e) => words.every((w) => e.key.includes(w))).slice(0, 25);
+  res.innerHTML = hits.length ? hits.map((e, i) => `<button class="set st-row" role="listitem" data-hit="${i}"><span class="st-t">${esc(e.title)}<small>${esc(e.path)}</small></span></button>`).join("") : '<div class="set"><span class="st-t">Nada encontrado<small>Tente outra palavra</small></span></div>';
+  res._hits = hits;
+}
+$("st-q").addEventListener("input", stSearch);
+$("st-q").addEventListener("keydown", (e) => { if (e.key === "Escape") { $("st-q").value = ""; stSearch(); } });
+$("st-res").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-hit]"); if (!b) return; buzz(8);
+  const h = $("st-res")._hits[+b.dataset.hit]; $("st-q").value = ""; stSearch(); stGo(h.pg);
+  requestAnimationFrame(() => { const el = stFind(h.pg, h.title); if (!el) return; el.scrollIntoView({ block: "center" }); el.classList.add("st-hit"); setTimeout(() => el.classList.remove("st-hit"), 1800); });
+});
+
 
 // ---- barra de navegação configurável (Ajustes › Barra de navegação). A configuração {v,order,hidden} é uma chave de layout ("nav").
 // Itens fora da barra (ou que não cabem: LAY.NAV.CAP) ficam sempre acessíveis em Mais (lista na vista "more" e, na barra lateral larga, abaixo do rótulo Mais).
