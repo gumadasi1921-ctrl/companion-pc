@@ -1413,6 +1413,7 @@ async def session(ws, peer, kind, xff=None):
     await weather_send(WEATHER.state(), only=ws)
     if STEAMDL.polled:
         await steam_send(STEAMDL.state(), only=ws)
+    await work_stream_send(only=ws)
     log.info("conectado: %s (%s) tela %s", kind, peer, str(hello.get("screen", "?"))[:120])
     try:
         async for raw in ws:
@@ -1710,11 +1711,29 @@ def _misplaced_min():
     return v if v in alerts.MISPLACED_OPTIONS else alerts.DEFAULT_MISPLACED_MIN
 
 
+WSTREAM = [None]   # último {minutes, app} enviado aos celulares (mascote: pausa por trabalho contínuo)
+
+
+async def work_stream_send(only=None):
+    if WSTREAM[0] is None:
+        return
+    msg = json.dumps({"t": "workstream", "d": WSTREAM[0]}, ensure_ascii=False)
+    for ws in ([only] if only else [w for w in list(clients) if client_kind.get(w) == "celular"]):
+        try:
+            await ws.send(msg)
+        except ConnectionClosed:
+            clients.discard(ws)
+
+
 async def work_loop():
     """Tempo no Photoshop/Premiere/After: lê o foco a cada 2 s, na fila de disco (WORK não usa locks)."""
     while True:
         try:
             info, has_roots = await on_io(_work_step)
+            st = await on_io(WORK.stream)
+            if st != WSTREAM[0]:   # muda no máximo 1×/min (minutos inteiros) e ao zerar
+                WSTREAM[0] = st
+                await work_stream_send()
             a = MISPLACED.observe(info, time.time(), has_roots, _misplaced_min())
             if a:
                 log.info("aviso de arquivo fora do lugar")   # sem nomes

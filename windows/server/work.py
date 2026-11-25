@@ -53,6 +53,7 @@ UNTITLED = "sem título"
 MAX_ROOTS, FOLDER_MAX = 20, 260
 GAP_S = 15             # intervalo maior que isso entre leituras (suspensão, travada) não conta
 SAVE_EVERY_S = 30
+RUN_GAP_S = 300        # trabalho contínuo (mascote): fora dos apps de trabalho ou parado por mais que isso encerra a sequência
 # índice de nomes para o Photoshop (só nomes; nada é aberto, lido, movido ou alterado)
 INDEX_EXT = {".psd", ".psb", ".tif", ".tiff", ".png", ".jpg", ".jpeg"}
 INDEX_MAX_DEPTH = 6        # níveis abaixo da raiz
@@ -450,6 +451,7 @@ class WorkTracker:
             self.idle_s = valid_idle_min(idle_min) * 60
         except ValueError:
             self.idle_s = 5 * 60
+        self.run_start = self.run_last = self.run_app = None   # sequência de trabalho contínuo (só memória)
         raw = _load_json(self.hist_path, _ok_history)
         self.days = (raw or {"days": {}})["days"]
         if raw is not None and raw.get("version") != 2:
@@ -612,11 +614,23 @@ class WorkTracker:
                     self.pending.append((max(prev, li), now, key))
         if idle >= self.idle_s:
             self.pending = []          # passou do limite: a espera não conta
+        if app and idle < self.idle_s:
+            if self.run_start is None or now - self.run_last > RUN_GAP_S:
+                self.run_start = now
+            self.run_last, self.run_app = now, app
         self.prev = now
         self.now_info = info
         if self.dirty and now - self.saved_at >= SAVE_EVERY_S:
             self.save(now)
         return info
+
+    def stream(self, now=None):
+        """Minutos de trabalho contínuo (app de trabalho em foco com input recente; lacunas até RUN_GAP_S não quebram).
+        Só memória; sem arquivo, sem cliente. Sem sequência = minutes 0 e app None."""
+        now = time.time() if now is None else now
+        if self.run_start is None or now - self.run_last > RUN_GAP_S:
+            return {"minutes": 0, "app": None}
+        return {"minutes": int((self.run_last - self.run_start) // 60), "app": self.run_app}
 
     def save(self, now=None):
         if not self.dirty:
