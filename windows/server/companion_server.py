@@ -90,6 +90,7 @@ import watchers
 import pomodoro
 import tasks
 import trello
+import updater
 import weather
 import work
 
@@ -661,7 +662,7 @@ def work_csv(offset):
 # config.json editado pelo painel do PC: um conjunto fechado de opções
 # --------------------------------------------------------------------------
 CONFIG_EDITABLE = {"upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "notif_ignore", "shortcuts",
-                   "idle_min", "export_watch", "misplaced_min", "backup_dir", "trello", "pc_name", "allowed_origins", "remote_base"}
+                   "idle_min", "export_watch", "misplaced_min", "backup_dir", "trello", "pc_name", "allowed_origins", "remote_base", "repo_dir"}
 CONFIG_RESTART = {"upload_dir", "downloads_dir"}  # lidas só na abertura do servidor
 SHORTCUT_ID = re.compile(r"^[a-z0-9_-]{1,40}$")
 _CTRL = re.compile(r"[\x00-\x1f\x7f]")
@@ -732,6 +733,13 @@ def clean_config_value(key, v):
         if v["on"] and not (out["key"] and out["token"]):
             raise ValueError("Informe a API key e o token para ligar o Trello")
         return out
+    if key == "repo_dir":   # pasta do repositório git usado pelo "Atualizar" do painel; "" = não definida
+        if v == "":
+            return ""
+        v = _text(v, "caminho da pasta", 260)
+        if not re.match(r"^[A-Za-z]:\\", v):
+            raise ValueError("a pasta precisa ser um caminho completo")
+        return v
     if key == "backup_dir":   # "" = sem backup
         if v == "":
             return ""
@@ -792,7 +800,7 @@ def config_get():
     fallback = {"upload_dir": DEFAULT_CFG["upload_dir"], "downloads_dir": DEFAULT_CFG["downloads_dir"],
                 "allow_power": DEFAULT_CFG["allow_power"], "shutdown_delay_s": DEFAULT_CFG["shutdown_delay_s"],
                 "notif_ignore": [], "shortcuts": [], "idle_min": 5,
-                "export_watch": {"folders": [], "on": True}, "misplaced_min": alerts.DEFAULT_MISPLACED_MIN, "backup_dir": "", "trello": {}, "pc_name": "", "allowed_origins": [], "remote_base": ""}
+                "export_watch": {"folders": [], "on": True}, "misplaced_min": alerts.DEFAULT_MISPLACED_MIN, "backup_dir": "", "trello": {}, "pc_name": "", "allowed_origins": [], "remote_base": "", "repo_dir": ""}
     out = {}
     for k in CONFIG_EDITABLE:
         v = CFG.get(k)
@@ -955,6 +963,8 @@ PANEL_WS = {   # nome -> função(params dict); as de gravação rodam na fila d
     "config_save": lambda p: PANEL_OPS["config_save"](_need(p, "changes", dict)),
     "backup_run": lambda p: PANEL_OPS["backup_run"](),
     "trello_test": lambda p: trello_test(p),
+    "update_info": lambda p: update_op("info"), "update_check": lambda p: update_op("check"),
+    "update_apply": lambda p: update_op("apply"), "update_rollback": lambda p: update_op("rollback"),
     "open_focus": lambda p: os.startfile("ms-settings:quietmomentshome"),   # só abre a tela do Windows; o Foco é do usuário
 }
 PANEL_ASYNC = {"pick_folder": lambda p: asyncio.to_thread(pick_folder),
@@ -1480,6 +1490,7 @@ QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "m
                  "tasks_remove", "tasks_move", "tasks_toggle", "tasks_clear_done", "tasks_restore", "work_get",
                  "work_week", "work_csv", "work_month", "work_month_csv", "work_note_set", "work_add_root", "work_remove_root", "work_assign_preview", "work_assign",
                  "work_ignore", "work_rules_get", "work_rule_delete", "work_unignore", "config_get", "config_save", "open_focus", "backup_run", "trello_test",
+                 "update_info", "update_check", "update_apply", "update_rollback",
                  "trello.get", "trello.open", "work_links_get", "work_link_set", "work_link_delete", "work_link_restore", "trello_cards"}
 
 
@@ -1535,6 +1546,28 @@ MON = games.GameMonitor(CFG, BASE)
 WORK = work.WorkTracker(BASE, CFG.get("idle_min", 5))
 BACKUP = backup.Backup(BASE)
 TRELLO = trello.Trello(BASE, lambda: CFG.get("trello"))
+UPD = updater.Updater(BASE, lambda: CFG.get("repo_dir") or "", VERSION)
+RESTART_FN = [None]   # a bandeja registra aqui o reinício seguro (código 75 -> o supervisor religa)
+
+
+def update_op(kind):
+    """Painel: info/check/apply/rollback do Atualizar. Erro de updater vira mensagem pronta (ValueError)."""
+    try:
+        if kind == "info":
+            return UPD.info()
+        if kind == "check":
+            return UPD.check()
+        res = UPD.apply() if kind == "apply" else UPD.rollback()
+    except updater.UpdateError as e:
+        UPD._done(False, str(e))
+        raise ValueError(str(e)) from None
+    if res.pop("restart", False):
+        fn = RESTART_FN[0]
+        if fn:
+            threading.Timer(2.0, fn).start()   # dá tempo de a resposta chegar ao painel
+        else:
+            res["msg"] += " (sem bandeja: reinicie o servidor à mão)"
+    return res
 _trello_sig = [None]
 
 
@@ -2340,6 +2373,7 @@ def run_with_tray():
     threading.Thread(target=server_thread, daemon=True, name="server").start()
     app = tray.TrayApp(status, LOG_PATH, BASE, VERSION, stop_server, open_on_phone=adb_open_on_phone, ops=PANEL_OPS)
     NOTIFY[0] = app.notify
+    RESTART_FN[0] = app.restart
     app.run()
 
 

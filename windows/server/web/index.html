@@ -7053,10 +7053,10 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
 
   // ====================================================================== Ajustes
   function settingsView(main) {
-    let orig = null, vals = null, net = null, editSc = null, bk = {}, tr = {}, trForm = { key: "", token: "", on: false, msg: "" };
+    let orig = null, vals = null, net = null, editSc = null, bk = {}, tr = {}, up = { info: {}, chk: null, busy: "", msg: "", bad: false }, trForm = { key: "", token: "", on: false, msg: "" };
     const body = h("div"), msg = h("span", { class: "pn-dim" });
     main.append(h("section", {}, h("h1", {}, "Ajustes"), h("p", { class: "pn-sub" }, "Opções do servidor no PC."), body));
-    const KEYS = ["upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "idle_min", "notif_ignore", "shortcuts", "export_watch", "misplaced_min", "backup_dir", "pc_name", "remote_base", "allowed_origins"];
+    const KEYS = ["upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "idle_min", "notif_ignore", "shortcuts", "export_watch", "misplaced_min", "backup_dir", "pc_name", "remote_base", "allowed_origins", "repo_dir"];
     const dirty = () => KEYS.filter((k) => JSON.stringify(vals[k]) !== JSON.stringify(orig[k]));
     const pickDir = async (k) => { try { const f = await call("pick_folder", {}, 600000); if (f) { vals[k] = f; render(); } } catch (e) { fail(e); } };
     const slug = (name) => { let b = name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 36) || "programa", id = b, n = 2; const ids = new Set(vals.shortcuts.map((s) => s.id)); while (ids.has(id)) id = b + "-" + n++; return id; };
@@ -7118,6 +7118,31 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
           h("span", { class: "pn-faint", role: "status" }, trForm.msg)),
         h("div", { class: "pn-faint", style: "margin-top:6px" }, line));
     }
+    const upRun = async (op, label, ms) => {
+      up.busy = label; up.msg = ""; up.bad = false; render();
+      try { const r = await call(op, {}, ms); up.busy = ""; if (op === "update_check") up.chk = r; else { up.chk = null; up.msg = r.msg; } }
+      catch (e) { up.busy = ""; up.msg = e.message; up.bad = true; }
+      try { up.info = await call("update_info"); } catch (e) { /* servidor reiniciando */ }
+      render();
+    };
+    const upPick = async () => { try { const f = await call("pick_folder", {}, 600000); if (!f) return; await call("config_save", { changes: { repo_dir: f } }); await load(); up.chk = null; } catch (e) { fail(e); } };
+    function aboutCard() {
+      const i = up.info || {}, c = up.chk, busy = !!up.busy;
+      const when = i.at ? new Date(i.at * 1000).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "";
+      return h("div", { class: "pn-card" },
+        h("div", { class: "pn-row" }, h("div", { class: "pn-grow" }, h("div", {}, "Versão " + (i.version || "?")), h("div", { class: "pn-faint" }, i.hash ? "Instalada: " + i.hash + (i.subject ? " · " + i.subject : "") + (when ? " · " + when : "") : "Hash da instalação desconhecido (aparece depois da primeira atualização por aqui).")),),
+        h("div", { class: "pn-row", style: "margin-top:10px" }, h("div", { class: "pn-grow" }, h("div", {}, "Repositório do Companion"), h("div", { class: "pn-faint" }, orig.repo_dir || "Nenhuma pasta escolhida")),
+          h("button", { class: "pn-btn", type: "button", disabled: busy, onclick: upPick }, "Escolher…")),
+        h("div", { class: "pn-foot" },
+          h("button", { class: "pn-btn", type: "button", disabled: busy || !orig.repo_dir, onclick: () => upRun("update_check", "Procurando…", 150000) }, "Procurar atualização"),
+          c && c.state === "behind" ? h("button", { class: "pn-btn primary", type: "button", disabled: busy, onclick: () => upRun("update_apply", "Atualizando…", 700000) }, "Atualizar") : null,
+          i.has_prev ? h("button", { class: "pn-btn", type: "button", disabled: busy, onclick: () => upRun("update_rollback", "Voltando…", 60000) }, "Voltar à versão anterior") : null,
+          h("span", { class: "pn-dim", role: "status" }, up.busy)),
+        c ? h("div", { style: "margin-top:8px" },
+          h("div", { class: "pn-faint" }, c.state === "behind" ? c.behind + (c.behind === 1 ? " commit novo:" : " commits novos:") : c.state === "ahead" ? "Nada novo no GitHub (há " + c.ahead + " commit(s) locais à frente)." : "Já está na versão mais recente (" + c.head + ")."),
+          c.commits.map((k) => h("div", { class: "pn-li" }, h("div", { class: "pn-txt" }, h("span", { class: "pn-faint" }, k.hash + "  "), k.subject)))) : null,
+        up.msg ? h("div", { class: up.bad ? "pn-warn" : "pn-dim", role: "status", style: "margin-top:8px" }, up.msg) : (i.last ? h("div", { class: i.last.ok ? "pn-faint" : "pn-warn", style: "margin-top:8px" }, "Último resultado: " + i.last.msg) : null));
+    }
     function render() {
       if (!vals) return;
       const nIn = h("input", { class: "pn-in", type: "text", maxlength: "80", placeholder: "Nome do app", "aria-label": "App a ignorar" });
@@ -7170,12 +7195,14 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
           h("button", { class: "pn-btn sq", type: "button", "aria-label": "Editar " + s.name, onclick: () => { editSc = { index: i, data: { name: s.name, open: s.open, args: s.args || "" } }; render(); } }, ic("edit")),
           h("button", { class: "pn-btn sq danger", type: "button", "aria-label": "Remover " + s.name, onclick: () => { vals.shortcuts.splice(i, 1); render(); } }, ic("trash")))) : h("div", { class: "pn-empty" }, "Nenhum programa.")),
         editSc ? scForm() : h("div", { class: "pn-foot" }, h("button", { class: "pn-btn", type: "button", onclick: () => { editSc = { index: null, data: {} }; render(); } }, "Adicionar programa…")),
+        h("div", { class: "pn-h" }, "Sobre"), aboutCard(),
         h("div", { class: "pn-h" }, "Rede (só leitura)"), h("div", { class: "pn-card pn-dim" }, "IP " + (net.ip || "?") + "  ·  porta " + net.port + "  ·  " + net.mode),
         h("div", { class: "pn-foot", style: "margin-top:20px" }, h("button", { class: "pn-btn primary", type: "button", disabled: !d.length, onclick: save }, "Salvar alterações"),
           h("button", { class: "pn-btn", type: "button", disabled: !d.length, onclick: () => { vals = clone(orig); editSc = null; msg.textContent = ""; render(); } }, "Desfazer"), d.length ? h("span", { class: "pn-warn" }, "Alterações não salvas") : msg));
     }
     const load = async () => {
-      try { const c = await call("config_get"); net = c.net; bk = c.backup || {}; tr = c.trello || {}; trForm.on = !!tr.on; orig = {}; KEYS.forEach((k) => { orig[k] = clone(c[k]); }); vals = clone(orig); editSc = null; render(); } catch (e) { fail(e); }
+      try { try { up.info = await call("update_info"); } catch (e) { /* ok */ }
+      const c = await call("config_get"); net = c.net; bk = c.backup || {}; tr = c.trello || {}; trForm.on = !!tr.on; orig = {}; KEYS.forEach((k) => { orig[k] = clone(c[k]); }); vals = clone(orig); editSc = null; render(); } catch (e) { fail(e); }
     };
     return { start: load, stop() {} };
   }

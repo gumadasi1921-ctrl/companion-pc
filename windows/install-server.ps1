@@ -1,7 +1,7 @@
 ﻿# Companion PC - instala o servidor no Windows e faz ele iniciar com o logon.
 # Uso (não precisa de Administrador):
 #   powershell -ExecutionPolicy Bypass -File install-server.ps1
-param([string]$Source = $PSScriptRoot)
+param([string]$Source = $PSScriptRoot, [switch]$NoRestart)
 
 $Dest = Join-Path $env:USERPROFILE "companion-pc\server"
 New-Item -ItemType Directory -Force -Path $Dest | Out-Null
@@ -55,14 +55,16 @@ New-Shortcut (Join-Path ([Environment]::GetFolderPath("Programs")) "Companion PC
 # Área de Trabalho (também quando ela está no OneDrive); se já existir, apenas atualiza
 New-Shortcut (Join-Path ([Environment]::GetFolderPath("Desktop")) "Companion PC.lnk")
 
-# Reinicia o servidor
-$old = Get-CimInstance Win32_Process |
-    Where-Object { $_.ProcessId -ne $PID -and $_.Name -match '^(py|pythonw?)\.exe$' -and $_.CommandLine -match 'companion_server\.py' }
-$old | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-Start-Sleep 1
-Start-Process -FilePath $pyw -ArgumentList "`"$script`" --supervise" -WorkingDirectory $Dest
-Start-Sleep 3
-Get-Content (Join-Path $Dest "companion-server.log") -Tail 3
+# Reinicia o servidor (com -NoRestart, quem chama - o atualizar do painel - reinicia pela bandeja)
+if (-not $NoRestart) {
+    $old = Get-CimInstance Win32_Process |
+        Where-Object { $_.ProcessId -ne $PID -and $_.Name -match '^(py|pythonw?)\.exe$' -and $_.CommandLine -match 'companion_server\.py' }
+    $old | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Start-Sleep 1
+    Start-Process -FilePath $pyw -ArgumentList "`"$script`" --supervise" -WorkingDirectory $Dest
+    Start-Sleep 3
+    Get-Content (Join-Path $Dest "companion-server.log") -Tail 3
+}
 Write-Host "Supervisor ligado: se o servidor cair, ele religa sozinho (companion-supervisor.log)."
 Write-Host "Token: veja 'token' em $Dest\config.json"
 Write-Host "Abra o painel (ícone na bandeja) e escaneie o QR code. Uma vez: windows\setup-network.ps1"
