@@ -1641,6 +1641,11 @@ header .host { display: none; }
 #rem-alarm.hidden { display: none; } #rem-alarm .ra-t { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; } #rem-alarm .ra-t em { color: var(--p3t); font-style: normal; }
 #rem-alarm .ra-b { display: flex; gap: 8px; flex: none; } #rem-alarm button { min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--p3); background: var(--bg); color: var(--p); font: inherit; cursor: pointer; } #rem-alarm button[data-ra=done] { background: var(--accent-fill, var(--p)); color: var(--on-accent, var(--bg)); border-color: transparent; }
 .rw { display: flex; gap: 8px; align-items: baseline; min-height: 28px; font-size: 14px; } .rw b { flex: none; font-weight: 500; color: var(--p2); font-size: 13px; } .rw span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .rw.hi b { color: var(--alert, #f87168); }
+
+/* Widget Foco: Iniciar/Pausar + Pular (alvos de 44 px) */
+.hpm-bt { display: flex; gap: 8px; align-items: center; min-width: 0; } .hpm-bt .btn.primary { flex: 1 1 auto; min-height: 44px; min-width: 0; } .hw .hpm-bt .btn.pm-skip { flex: none; width: 44px; min-height: 44px; padding: 0; display: grid; place-items: center; }
+.pm-skip svg { width: 20px; height: 20px; } .pm-skip:disabled { opacity: .4; } .hpm-p .hpm-bt, .hpm-g .hpm-bt { width: 100%; } .z-L .hpm .hpm-bt { flex: none; }
+.hw .trow[data-id] { min-height: 44px; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -4619,7 +4624,7 @@ Object.assign(HOME_W, {
   pomo: {
     name: "Foco", icon: "circle-dot", sizes: "PALG", def: "A",
     html(z) {
-      const btn = '<button class="btn primary" data-pm="go" data-k="btn"></button>';
+      const btn = `<div class="hpm-bt"><button class="btn primary" data-pm="go" data-k="btn"></button><button class="btn pm-skip" data-pm="skip" data-k="skip" aria-label="Pular para a próxima fase">${ic("skip-forward")}</button></div>`;
       const ring = `<div class="hpm-r" data-k="ring"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="${PM_R}" class="hring-t"/>
         <circle cx="50" cy="50" r="${PM_R}" class="hring-f" data-k="arc" style="stroke-dasharray:${PM_C.toFixed(1)}" transform="rotate(-90 50 50)"/></svg></div>`;
       const dots = '<div class="pm-dots" data-k="dots"></div>';
@@ -4633,6 +4638,7 @@ Object.assign(HOME_W, {
     upd(el) {
       const d = pm.d, rem = pmRem();
       setText(hk(el, "ph"), PM_PH[d.phase]); setText(hk(el, "time"), pmClock(rem)); setText(hk(el, "btn"), pmBtn(d));
+      const sk = hk(el, "skip"); if (sk) sk.disabled = d.phase === "idle";
       setText(hk(el, "today"), d.today ? `Hoje: ${d.today} pomodoro${d.today === 1 ? "" : "s"}` : "Nenhum pomodoro hoje");
       setText(hk(el, "ph2"), PM_PH[d.phase]); setText(hk(el, "sub"), d.today ? `${d.today} hoje` : "");
       const n = d.config.long_every, filled = d.phase === "long" ? n : d.cycle, cur = d.phase === "focus" ? d.cycle : -1;
@@ -5076,7 +5082,7 @@ async function homeTaskToggle(id, undo) {
 }
 $("home").addEventListener("click", (e) => {
   const q = e.target.closest("[data-q]"); if (q) { buzz(); return quickClick(q.dataset.q); }
-  if (e.target.closest("[data-pm]")) { buzz(); return pomoToggle(); }
+  const pb = e.target.closest("[data-pm]"); if (pb) { if (pb.disabled) return; buzz(); return pb.dataset.pm === "skip" ? pomoCall("pomo.skip") : pomoToggle(); }
   const a = e.target.closest("[data-a]");
   if (a) {
     const m = state.now?.media;
