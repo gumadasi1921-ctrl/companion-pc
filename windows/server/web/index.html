@@ -1512,6 +1512,25 @@ header .host { display: none; }
 .pq-pl > .hproc { flex: 1 0 auto; max-height: 56px; align-content: center; }
 .z-P .hq { flex: 1 1 auto; min-height: 0; }
 .hpage .hw.z-P .hq { position: relative; flex: 1 1 0; overflow: hidden; grid-auto-rows: minmax(48px, 1fr); }
+/* P: Foco, Trabalho, Jogos, Dota, Trello */
+.pq-fill { overflow: hidden; }
+.pqf { position: relative; display: grid; place-items: center; }
+.pqf .hpm-r { width: 84px; height: 84px; }
+.hpage .hw.z-P .pqf .hpm-r { height: 100%; width: auto; aspect-ratio: 1; max-height: 124px; }
+.pqf-c { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 0; }
+.pqf .hpm-t { font-size: clamp(20px, 11cqw, 28px); line-height: 1.1; }
+.pqf-s { font-size: 11px; color: var(--p3t); }
+.pq .pm-dots { gap: 5px; min-height: 0; align-items: center; justify-content: flex-end; } .pq .pm-dots i { width: 9px; height: 9px; border-width: 1.5px; }
+.pq > .btn { flex: none; width: 100%; }
+.pq .hchartbox .hbars { width: 100%; height: auto; }
+.pq-hero { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; min-height: 36px; overflow: hidden; }
+.hpage .hw .pq .pq-hero { flex: 1 1 0; justify-content: flex-start; }
+.pq-hn { display: flex; flex-direction: column; min-width: 0; } .pq-hn b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .pq-hn span { font-size: 12px; color: var(--p2); font-variant-numeric: tabular-nums; }
+.pq-rm { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; } .pq-rm small { font-size: 11px; color: var(--p2); }
+.pq-hero .dimg.nf, .pq-hero .dimg.fail { display: none; }
+.pq-tr { min-height: 0; flex: 1 1 auto; overflow: hidden; }
+.hpage .hw .pq .pq-tr { flex: 1 1 0; justify-content: flex-start; }
+.pq-tr .htr-c { flex: none; font-size: 13px; padding: 3px 0; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -3600,7 +3619,7 @@ const HOME_W = {
     name: "Trello", icon: "layout-grid", sizes: "PALG", def: "A",
     html(z) {
       const head = '<div class="htr-h"><b data-k="n">–</b><span data-k="l"></span></div>', title = '<div class="hw-t"><span>Trello</span><span data-k="cnt"></span></div>';
-      if (z === "P") return '<div class="hpq2" data-clip><div class="hmain htr-hm"><b data-k="n">–</b><span data-k="l"></span></div><div class="hsub1" data-k="nx"></div></div>';
+      if (z === "P") return '<div class="pq" data-clip><div class="hw-t"><span>Trello</span><span data-k="cnt"></span></div><div class="hmain htr-hm"><b data-k="n">–</b><span data-k="l"></span></div><div class="htr-list pq-tr" data-k="list" data-clip></div></div>';
       if (z === "L") return `<div class="htr-l">${head}<div class="htr-list" data-k="list"></div></div>`;
       if (z === "G") return `${title}<div class="hcols"><div class="hcol">${head}<div class="hsub1 htr-cnt" data-k="grp"></div></div><div class="hcol"><div class="htr-list" data-k="list" data-fit></div></div></div>`;
       return `${title}${head}<div class="hsub1 htr-cnt" data-k="grp"></div><div class="htr-list" data-k="list" data-fit></div>`;
@@ -3614,7 +3633,6 @@ const HOME_W = {
       el.classList.toggle("htr-late", !!late && !off);
       setText(hk(el, "cnt"), off ? "" : `${late + today} em foco`);
       const next = ["overdue", "today", "tomorrow", "week", "later", "none"].flatMap((k) => d.groups[k].map((x) => ({ ...x, late: k === "overdue" })));
-      if (z === "P") { const nx = off ? "" : next[0] ? `Próximo: ${trDue(next[0])}` : "Nenhum card atribuído"; setText(hk(el, "nx"), nx); return; }
       const grp = off ? "" : [["overdue", "Atrasados"], ["today", "Hoje"], ["tomorrow", "Amanhã"], ["week", "Semana"]].map(([k, l]) => [l, d.groups[k].length]).filter(([, n]) => n).map(([l, n]) => `${l} ${n}`).join(" · ");
       setText(hk(el, "grp"), grp);
       const pg = !!el.closest(".pager"), n = z === "L" ? 2 : pg ? 8 : 3;
@@ -3767,7 +3785,7 @@ Object.assign(HOME_W, {
     name: "Trabalho na semana", icon: "briefcase", sizes: "PALG", def: "L",
     html(z) {
       const head = '<div class="hw-t"><span>Trabalho na semana</span><span data-k="tot"></span></div>';
-      if (z === "P") return '<div class="hpq2" data-clip><div class="hmain"><b data-k="tot"></b><span>na semana</span></div><div class="hsub1" data-k="td"></div></div>';
+      if (z === "P") return '<div class="pq" data-clip><div class="hw-t"><span>Trabalho</span><span data-k="td"></span></div><div class="hmain"><b data-k="tot"></b><span>na semana</span></div><div class="pq-fill hchartbox" data-k="chart"></div><div class="hsub1" data-k="top"></div></div>';
       if (z === "G") return `${head}<div class="hcols"><div class="hcol"><div class="hmain"><b data-k="tot2"></b><span>na semana</span></div><div class="hsub1" data-k="td"></div><div class="hlegs" data-k="legs"></div></div><div class="hcol"><div class="hchartbox" data-k="chart"></div><div data-k="stack"></div></div></div>`;
       return `${head}<div class="hchartbox" data-k="chart"></div><div data-k="stack"></div><div class="hlegs" data-k="legs"></div>`;
     },
@@ -3778,7 +3796,12 @@ Object.assign(HOME_W, {
       setText(hk(el, "tot"), w.total_s ? humanDur(w.total_s) : el.dataset.z === "P" ? "0 min" : "");
       setText(hk(el, "tot2"), w.total_s ? humanDur(w.total_s) : "0 min");
       const td = homeData.work ? "Hoje " + humanDur(homeData.work.today_s) : ""; setText(hk(el, "td"), td); hk(el, "td")?.classList.toggle("hidden", !td);
-      if (el.dataset.z === "P") return;
+      if (el.dataset.z === "P") {   // pequeno: as 7 barras da semana crescem com a altura; embaixo o cliente que mais pesou
+        const ch = hk(el, "chart");
+        if (!w.total_s) { setHtml(ch, '<div class="hw-na">Nenhum tempo nesta semana</div>'); setText(hk(el, "top"), ""); return; }
+        setHtml(ch, barChart(w.days.map((d) => d.s), w.days.map((d) => d.d), w.days.findIndex((d) => d.today), "--chart-cpu", ch.clientWidth, "Horas trabalhadas por dia nesta semana", Math.max(56, ch.clientHeight)));
+        const c0 = w.clients[0]; setText(hk(el, "top"), c0 ? `${c0.client} · ${humanDur(c0.s)}` : ""); return;
+      }
       if (!w.total_s) { setHtml(hk(el, "chart"), '<div class="hw-na">Nenhum tempo nesta semana</div>'); setHtml(hk(el, "stack"), ""); setHtml(hk(el, "legs"), ""); return; }
       const cw = hk(el, "chart").clientWidth;
       setHtml(hk(el, "chart"), barChart(w.days.map((d) => d.s), w.days.map((d) => d.d), w.days.findIndex((d) => d.today), "--chart-cpu", cw, "Horas trabalhadas por dia nesta semana", L ? 72 : el.dataset.z === "G" ? 130 : 100));
@@ -3848,7 +3871,7 @@ Object.assign(HOME_W, {
     name: "Jogos", icon: "gamepad-2", sizes: "PALG", def: "L",
     html(z) {
       const head = '<div class="hw-t"><span>Jogos na semana</span><span data-k="tot"></span></div>';
-      if (z === "P") return '<div class="hpq2" data-clip><div class="hmain"><b data-k="tot2"></b><span>na semana</span></div><div class="hsub1" data-k="now"></div></div>';
+      if (z === "P") return '<div class="pq" data-clip><div class="hw-t"><span>Jogos</span><span data-k="td"></span></div><div class="hmain"><b data-k="tot2"></b><span>na semana</span></div><div class="pq-fill hchartbox" data-k="chart"></div><div class="hsub1" data-k="now"></div></div>';
       if (z === "L") return `${head}<div class="hl2"><div class="hl2-n"><div class="hmain"><b data-k="tot2"></b><span>na semana</span></div><div class="hsub1" data-k="now"></div></div><div class="hchartbox" data-k="chart"></div></div>`;
       if (z === "G") return `${head}<div class="hcols"><div class="hcol"><div class="hmain"><b data-k="tot2"></b><span>na semana</span></div><div class="hsub1" data-k="now"></div><div data-k="top" data-fit></div></div><div class="hcol"><div class="hchartbox" data-k="chart"></div></div></div>`;
       return `${head}<div class="hchartbox" data-k="chart"></div><div data-k="top"></div>`;
@@ -3860,7 +3883,11 @@ Object.assign(HOME_W, {
       const h = homeData.hist, now = state.games?.game, tot = h.week_s ? humanDur(h.week_s) : "0 min";
       setText(hk(el, "tot"), h.week_s ? humanDur(h.week_s) : z === "A" ? "" : "0 min"); setText(hk(el, "tot2"), tot);
       setText(hk(el, "now"), now ? "Jogando: " + now.name : h.top?.[0] ? "Mais jogado: " + h.top[0].name : "");
-      if (z === "P") return;
+      if (z === "P") {
+        const ch = hk(el, "chart"), g = state.games, t = g ? (g.game ? g.game.today_s : g.today_s) : 0;
+        setText(hk(el, "td"), t ? "Hoje " + humanDur(t) : "");
+        setHtml(ch, barChart(h.days.map((d) => d.s), h.days.map((d) => d.d), h.days.length - 1, "--chart-gpu", ch.clientWidth, "Tempo de jogo por dia na última semana", Math.max(56, ch.clientHeight))); return;
+      }
       setHtml(hk(el, "chart"), barChart(h.days.map((d) => d.s), h.days.map((d) => d.d), h.days.length - 1, "--chart-gpu", hk(el, "chart").clientWidth, "Tempo de jogo por dia na última semana", z === "L" ? 72 : z === "G" ? 130 : 100));
       if (z === "L") return;
       const rows = h.top.slice(0, z === "G" ? 6 : 2).map((g) => `<div class="row"><span>${gic(g.icon)}${esc(g.name)}</span><span>${humanDur(g.s)}</span></div>`).join("");
@@ -3904,7 +3931,7 @@ Object.assign(HOME_W, {
       const ring = `<div class="hpm-r" data-k="ring"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="${PM_R}" class="hring-t"/>
         <circle cx="50" cy="50" r="${PM_R}" class="hring-f" data-k="arc" style="stroke-dasharray:${PM_C.toFixed(1)}" transform="rotate(-90 50 50)"/></svg></div>`;
       const dots = '<div class="pm-dots" data-k="dots"></div>';
-      if (z === "P") return `<div class="hpm-p"><div class="hpm-tc"><div class="hpm-t" data-k="time" role="timer"></div><div class="hpm-ph" data-k="ph"></div></div>${btn}</div>`;
+      if (z === "P") return `<div class="pq" data-clip><div class="hw-t"><span data-k="ph"></span><span class="pm-dots" data-k="dots"></span></div><div class="pq-fill pqf">${ring}<div class="pqf-c"><div class="hpm-t" data-k="time" role="timer"></div><div class="pqf-s" data-k="sub"></div></div></div>${btn}</div>`;
       if (z === "L") return `<div class="hpm"><div class="hpm-c"><div class="hpm-ph" data-k="ph"></div><div class="hpm-t" data-k="time" role="timer"></div></div>${ring}${btn}</div>`;
       const head = '<div class="hw-t"><span>Foco</span><span data-k="ph"></span></div>';
       if (z === "G") return `${head}<div class="hcols hpm-g"><div class="hcol hpm-gl">${ring}<div class="hpm-t" data-k="time" role="timer"></div></div><div class="hcol"><div class="hpm-ph" data-k="ph2"></div>${dots}<div class="hpm-ph" data-k="today"></div>${btn}</div></div>`;
@@ -3915,7 +3942,7 @@ Object.assign(HOME_W, {
       const d = pm.d, rem = pmRem();
       setText(hk(el, "ph"), PM_PH[d.phase]); setText(hk(el, "time"), pmClock(rem)); setText(hk(el, "btn"), pmBtn(d));
       setText(hk(el, "today"), d.today ? `Hoje: ${d.today} pomodoro${d.today === 1 ? "" : "s"}` : "Nenhum pomodoro hoje");
-      setText(hk(el, "ph2"), PM_PH[d.phase]);
+      setText(hk(el, "ph2"), PM_PH[d.phase]); setText(hk(el, "sub"), d.today ? `${d.today} hoje` : "");
       const n = d.config.long_every, filled = d.phase === "long" ? n : d.cycle, cur = d.phase === "focus" ? d.cycle : -1;
       setHtml(hk(el, "dots"), Array.from({ length: n }, (_, i) => `<i class="${i < filled ? "on" : ""}${i === cur ? " cur" : ""}"></i>`).join(""));
       hk(el, "dots")?.setAttribute("aria-label", `${filled} de ${n} focos neste ciclo`);
@@ -3961,17 +3988,19 @@ function dotaWidgetTick(b, d) {
 Object.assign(HOME_W, {
   dota: {
     name: "Dota", icon: "gamepad", sizes: "PALG", def: "A",
-    html: (z) => z === "P" ? '<div class="hpq2" data-clip><div class="hmain"><b data-k="big"></b><span data-k="ph"></span></div><div class="hsub1" data-k="hero"></div><div class="hsub1" data-k="l3"></div></div>' : `<div class="hw-t"><span>Dota</span><span data-k="ph"></span></div><div class="hdota" data-k="body"></div>`,
+    html: (z) => z === "P" ? '<div class="pq" data-clip><div class="hw-t"><span>Dota</span><span data-k="ph"></span></div><div class="hmain"><b data-k="big"></b><span data-k="cap"></span></div><div class="pq-hero" data-k="hero"></div><div class="hsub1" data-k="l3"></div></div>' : `<div class="hw-t"><span>Dota</span><span data-k="ph"></span></div><div class="hdota" data-k="body"></div>`,
     ready: () => !!dota.d,
     upd(el) {
       const d = dota.d;
-      if (el.dataset.z === "P") {   // pequeno: só texto (a fase e o relógio ou o MMR); as imagens ficam nos outros tamanhos
-        const L = d.live, mmr = d.lobby?.mmr?.value;
+      if (el.dataset.z === "P") {   // pequeno: relógio (partida) ou MMR em destaque, o herói (retrato do proxy, nome em texto se a imagem faltar) e KDA / hoje / medalha
+        const L = d.live, mmr = d.lobby?.mmr?.value, inGame = d.phase === "game" && L && nn(L.clock_s), h = d.hero, l = d.lobby;
         setText(hk(el, "ph"), DOTA_PH[d.phase] || "Dota");
-        setText(hk(el, "big"), d.phase === "game" && L && nn(L.clock_s) ? dClock(L.clock_s + dAge()) : nn(mmr) ? dNum(mmr) : "–");
-        setText(hk(el, "hero"), d.hero?.hero || (d.phase === "offline" ? d.reason || "Dota fechado" : ""));
-        const l3 = d.phase === "game" && L && dKda(L) ? "KDA " + dKda(L) : d.lobby?.today ? `Hoje ${d.lobby.today.wins}V – ${d.lobby.today.losses}D` : d.lobby?.mmr?.medal || "";
-        setText(hk(el, "l3"), l3); hk(el, "l3").classList.toggle("hidden", !l3);
+        setText(hk(el, "big"), inGame ? dClock(L.clock_s + dAge()) : nn(mmr) ? dNum(mmr) : "–");
+        setText(hk(el, "cap"), inGame ? "partida" : nn(mmr) ? "MMR" : d.phase === "offline" ? d.reason || "Dota fechado" : "");
+        const rec = (l?.recent || []).slice(0, 3).filter((m) => dId(m.hero_id));
+        setHtml(hk(el, "hero"), h?.hero ? `${dImg("hero", h.hero_id, "portrait", h.hero, 64, 36)}<div class="pq-hn"><b>${esc(h.hero)}</b>${d.phase === "game" && L && dKda(L) ? `<span>KDA ${dKda(L)}</span>` : ""}</div>`
+          : rec.map((m) => `<span class="pq-rm">${dImg("hero", m.hero_id, "portrait", m.hero, 48, 27, dResult(m.win))}<small>${dKda(m)}</small></span>`).join(""));
+        const l3 = d.lobby?.today ? `Hoje ${d.lobby.today.wins}V – ${d.lobby.today.losses}D` : d.lobby?.mmr?.medal || ""; setText(hk(el, "l3"), l3);
         return;
       }
       const p = dotaWidgetPlan(d), b = hk(el, "body");
@@ -4228,7 +4257,7 @@ function hwFit(el) {
     for (let i = 1; i < kids.length; i++) if (kids[i].offsetTop + kids[i].offsetHeight > lim) { for (let j = i; j < kids.length; j++) kids[j].classList.add("fx"); break; }
   }
 }
-const hwRO = typeof ResizeObserver === "function" ? new ResizeObserver((es) => es.forEach((e) => hwFit(e.target))) : null;
+const hwRO = typeof ResizeObserver === "function" ? new ResizeObserver((es) => es.forEach((e) => { hwFit(e.target); const w = e.target.dataset.w; if (e.target.dataset.z === "P" && (w === "work" || w === "games")) homeUpd(w); })) : null;   // gráfico do P: a altura vem do espaço que sobrou
 function homeUpd(only) {
   if (!vis("inicio")) return;
   if (!only || only === "pomo") homeStrip();
