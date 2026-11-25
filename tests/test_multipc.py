@@ -54,6 +54,14 @@ def units():
             check(f"origem inválida recusada {bad!r}", False)
         except ValueError:
             check(f"origem inválida recusada {bad!r}", True)
+    check("link remoto só leva o código", multipc.remote_link(APP, "https://trab.exemplo.ts.net", "123456") == APP + "/#add=https%3A%2F%2Ftrab.exemplo.ts.net~123456")
+    check("link remoto sem código/endereço = nada", multipc.remote_link(APP, "", "123456") is None and multipc.remote_link(APP, "https://a.b", None) is None and multipc.remote_link(APP, "https://a.b", "12") is None)
+    check("endereço do PC pelo Tailscale: https", multipc.clean_remote_base("https://A.b.ts.net/") == "https://a.b.ts.net" and multipc.clean_remote_base("") == "")
+    try:
+        multipc.clean_remote_base("http://a.b")
+        check("remote_base http recusado", False)
+    except ValueError:
+        check("remote_base http recusado", True)
     check("nome do PC", multipc.clean_pc_name(" Casa ") == "Casa")
     try:
         multipc.clean_pc_name("x" * 31)

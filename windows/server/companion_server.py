@@ -661,7 +661,7 @@ def work_csv(offset):
 # config.json editado pelo painel do PC: um conjunto fechado de opções
 # --------------------------------------------------------------------------
 CONFIG_EDITABLE = {"upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "notif_ignore", "shortcuts",
-                   "idle_min", "export_watch", "misplaced_min", "backup_dir", "trello", "pc_name", "allowed_origins"}
+                   "idle_min", "export_watch", "misplaced_min", "backup_dir", "trello", "pc_name", "allowed_origins", "remote_base"}
 CONFIG_RESTART = {"upload_dir", "downloads_dir"}  # lidas só na abertura do servidor
 SHORTCUT_ID = re.compile(r"^[a-z0-9_-]{1,40}$")
 _CTRL = re.compile(r"[\x00-\x1f\x7f]")
@@ -715,6 +715,8 @@ def clean_config_value(key, v):
         return multipc.clean_pc_name(v)
     if key == "allowed_origins":
         return multipc.clean_origins(v)
+    if key == "remote_base":
+        return multipc.clean_remote_base(v)
     if key == "idle_min":
         return work.valid_idle_min(v)
     if key == "misplaced_min":
@@ -790,7 +792,7 @@ def config_get():
     fallback = {"upload_dir": DEFAULT_CFG["upload_dir"], "downloads_dir": DEFAULT_CFG["downloads_dir"],
                 "allow_power": DEFAULT_CFG["allow_power"], "shutdown_delay_s": DEFAULT_CFG["shutdown_delay_s"],
                 "notif_ignore": [], "shortcuts": [], "idle_min": 5,
-                "export_watch": {"folders": [], "on": True}, "misplaced_min": alerts.DEFAULT_MISPLACED_MIN, "backup_dir": "", "trello": {}, "pc_name": "", "allowed_origins": []}
+                "export_watch": {"folders": [], "on": True}, "misplaced_min": alerts.DEFAULT_MISPLACED_MIN, "backup_dir": "", "trello": {}, "pc_name": "", "allowed_origins": [], "remote_base": ""}
     out = {}
     for k in CONFIG_EDITABLE:
         v = CFG.get(k)
@@ -877,6 +879,13 @@ def panel_qr(url):
     return _qr_cache[url]
 
 
+def remote_card():
+    """Link/QR de pareamento remoto (só com o endereço do PC pelo Tailscale e um código vivo): leva o código, nunca o token."""
+    code = (PAIR.state() or {}).get("code")
+    link = multipc.remote_link((CFG.get("allowed_origins") or [""])[0], CFG.get("remote_base", ""), code)
+    return {"link": link, "qr": panel_qr(link)} if link else None
+
+
 def panel_status():
     st = status()
     links = st["phone"].get("links") or {}
@@ -886,7 +895,7 @@ def panel_status():
             "phone": {"web": st["phone"]["web"], "adb": bool(st["phone"]["adb"]), "port": st["phone"]["port"],
                       "wifi": "wifi" in links, "link": main.split("#")[0] if main else None,
                       "qr": panel_qr(links["wifi"]) if "wifi" in links else None},
-            "pair": PAIR.state()}
+            "pair": PAIR.state(), "remote": remote_card()}
 
 
 def pick_folder():

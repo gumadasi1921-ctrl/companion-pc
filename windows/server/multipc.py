@@ -8,6 +8,7 @@ Nada daqui registra token, caminho ou nome de arquivo."""
 import ipaddress
 import re
 import secrets
+from urllib.parse import quote
 
 PROTO = 1              # versão do protocolo app <-> servidor; o app recusa PC com proto menor que o que ele exige
 LOOPBACK = ("127.0.0.1", "::1")
@@ -88,3 +89,20 @@ def client_ip(peer, xff):
 def is_proxied(peer, xff):
     """Conexão que veio por proxy no próprio PC (loopback COM X-Forwarded-For): não é cabo USB nem o painel."""
     return peer in LOOPBACK and bool(xff)
+
+
+def clean_remote_base(v):
+    """Endereço deste PC pelo Tailscale: uma origem https (ou vazio = nenhum)."""
+    if v == "":
+        return ""
+    o = clean_origins([v])[0] if isinstance(v, str) else None
+    if not o or not o.startswith("https://"):
+        raise ValueError("endereço do PC pelo Tailscale: https://nome.exemplo")
+    return o
+
+
+def remote_link(app_origin, remote_base, code):
+    """Link de pareamento remoto: <app>/#add=<endereço do PC>~<código>. Só leva o código de 6 dígitos (120 s, uso único): nunca o token."""
+    if not (remote_base and isinstance(code, str) and re.fullmatch(r"\d{6}", code)):
+        return None
+    return f"{app_origin or remote_base}/#add={quote(remote_base, safe='')}~{code}"

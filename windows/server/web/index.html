@@ -1281,6 +1281,23 @@ header .hchip::after { content: ""; position: absolute; inset: -10px -8px; }
 .dota .dsteps li.on { background: var(--accent-fill, var(--p)); border-color: var(--accent-fill, var(--p)); color: var(--on-accent, var(--bg)); }
 .dota .dres.w { box-shadow: inset 4px 0 0 var(--success, var(--p)); }
 .dota .dres.l { box-shadow: inset 4px 0 0 var(--danger-text, var(--alert)); }
+/* Vários PCs (etapa D): seletor no topo e lista */
+.pcchip { position: relative; flex: none; display: inline-flex; align-items: center; gap: 6px; max-width: 46vw; padding: 3px 8px; border: 1px solid var(--p3); border-radius: var(--r-pill, 2px); font: 600 14px/1.2 var(--font, var(--display)); color: var(--p); }
+.pcchip::after { content: ""; position: absolute; inset: -10px -6px; }
+.pcchip span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pcchip .ni { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; }
+.pcchip.rail { min-width: 44px; min-height: 44px; justify-content: center; padding: 0; }
+.pcchip.rail::after { inset: 0; }
+.pcdot { width: 10px; height: 10px; border-radius: 50%; background: var(--pcc, var(--p)); flex: none; }
+header .host { display: none; }
+.pcrow { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.pcpick { flex: 1; min-width: 0; min-height: 44px; display: flex; align-items: center; gap: 10px; text-align: left; padding: 6px 12px; border: 1px solid var(--p3); border-radius: var(--r-btn, 2px); color: var(--p); }
+.pcpick.on { border-color: var(--accent-fill, var(--p)); box-shadow: inset 0 0 0 1px var(--accent-fill, var(--p)); }
+.pcpick b { font-weight: 600; }
+.pcpick small { display: block; color: var(--text-2, var(--p2)); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pcpick .pcst { margin-left: auto; font-size: 12px; color: var(--text-2, var(--p2)); flex: none; }
+.pcedit { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.pcedit .fi { flex: 1; min-width: 120px; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -1332,6 +1349,7 @@ header .hchip::after { content: ""; position: absolute; inset: -10px -8px; }
 <div id="banner" class="banner hidden"></div>
 <header>
   <span id="dot" class="dot"></span>
+  <button class="pcchip" id="pc-chip" aria-label="Trocar de PC"><i class="pcdot"></i><span id="pc-name"></span><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-chevron-down"/></svg></button>
   <span class="host" id="host">Companion PC</span>
   <span class="via" id="via"></span>
   <span class="hchip hidden" id="fps-chip"></span>
@@ -1659,7 +1677,7 @@ header .hchip::after { content: ""; position: absolute; inset: -10px -8px; }
 </main>
 
 <nav id="nav">
-  <div class="rail-top"><span id="dot2" class="dot"></span><span id="clock2"></span><button class="hchip hidden" id="mic-chip2" aria-label="Microfone do PC">MIC</button></div>
+  <div class="rail-top"><button class="pcchip rail" id="pc-chip2" aria-label="Trocar de PC"><i class="pcdot"></i><span id="pc-ini"></span></button><span id="dot2" class="dot"></span><span id="clock2"></span><button class="hchip hidden" id="mic-chip2" aria-label="Microfone do PC">MIC</button></div>
   <button data-sec="inicio"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-house"/></svg><span>Início</span></button>
   <button data-sec="ctrl"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-mouse-pointer-2"/></svg><span>Controle</span></button>
   <button data-sec="deck"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-layout-grid"/></svg><span>Botões</span></button>
@@ -1687,6 +1705,21 @@ header .hchip::after { content: ""; position: absolute; inset: -10px -8px; }
     <input class="fi hidden" id="token" placeholder="token" autocomplete="off" autocapitalize="off" spellcheck="false">
     <div class="acts"><button class="btn" type="button" id="login-alt">Usar token</button><button class="btn primary" type="submit">Entrar</button></div>
   </form>
+</div>
+<div class="overlay hidden" id="pcs">
+  <div class="dialog" role="dialog" aria-labelledby="pcs-h">
+    <h1 id="pcs-h">Meus PCs</h1>
+    <p id="pcs-sub">Cada PC guarda os próprios dados. Tema e widgets valem para todos.</p>
+    <div id="pcs-list"></div>
+    <form id="pcs-add" class="hidden" autocomplete="off">
+      <label>Nome<input class="fi" id="pa-name" maxlength="30" placeholder="ex.: Trabalho"></label>
+      <label>Endereço do PC<input class="fi" id="pa-base" placeholder="https://nome-do-pc.ts.net" inputmode="url" autocapitalize="off" spellcheck="false"></label>
+      <label>Código do painel (6 dígitos)<input class="fi" id="pa-code" type="tel" inputmode="numeric" maxlength="7" autocomplete="one-time-code" placeholder="123 456"></label>
+      <p id="pa-msg" role="status"></p>
+      <div class="acts"><button class="btn" type="button" id="pa-cancel">Voltar</button><button class="btn primary" type="submit">Adicionar</button></div>
+    </form>
+    <div class="acts" id="pcs-acts"><button class="btn" type="button" id="pcs-addbtn">Adicionar PC</button><button class="btn primary" type="button" id="pcs-close">Fechar</button></div>
+  </div>
 </div>
 <div class="overlay hidden" id="bed">
   <form class="dialog wide" id="bed-form">
@@ -1933,6 +1966,7 @@ function onMsg(m) {
           showLogin(`O endereço de "${a.name}" agora responde por outro PC. Nada foi mostrado. Remova e adicione o PC de novo.`); return;
         }
         PCL.update(a.id, { pcid: m.pc_id, ...(m.pc_name && (a.name === "Este PC" || a.name === "PC") ? { name: m.pc_name } : {}) });
+        if (typeof pcPaint === "function") pcPaint();
       }
       welcome = m; retry = 0;
       $("host").textContent = m.host; $("os").textContent = m.os;
@@ -2006,6 +2040,63 @@ $("login-form").onsubmit = (e) => {
   $("login").classList.add("hidden"); connect(c);
 };
 $("b-logout").onclick = () => { PCL.setToken(""); if (ws) { const s = ws; ws = null; s.close(); } showLogin(); };
+
+
+// ---------------------------------------------------------------- seletor de PC (lista, trocar, adicionar)
+// Trocar de PC = gravar o PC ativo e recarregar a página: todo o estado em memória some (nada do PC anterior fica na tela).
+const PC_COLORS = ["#4C9AFF", "#FF9F0A", "#30D158", "#BF5AF2", "#FF6B9A", "#64D2FF"];
+function pcPaint() {
+  const a = PCL.active(), c = PC_COLORS[a.color % PC_COLORS.length];
+  $("pc-name").textContent = a.name; $("pc-ini").textContent = a.name.slice(0, 2);
+  for (const id of ["pc-chip", "pc-chip2"]) { const el = $(id); el.style.setProperty("--pcc", c); el.setAttribute("aria-label", `PC ativo: ${a.name}. Trocar de PC`); }
+  document.title = `Companion PC · ${a.name}`;
+}
+function pcSwitch(id) { if (id === PCL.active().id) { pcClose(); return; } PCL.setActive(id); location.reload(); }
+let pcEditId = null;
+function pcRender() {
+  const act = PCL.active().id, list = PCL.list();
+  $("pcs-list").innerHTML = list.map((x) => pcEditId === x.id
+    ? `<div class="pcedit"><input class="fi" id="pe-name" maxlength="30" value="${esc(x.name)}" aria-label="Nome do PC"><button class="btn sm" data-pc="save" data-id="${x.id}">Salvar</button>${list.length > 1 ? `<button class="btn sm danger" data-pc="del" data-id="${x.id}">Remover</button>` : ""}<button class="btn sm" data-pc="cancel">Cancelar</button></div>`
+    : `<div class="pcrow"><button class="pcpick${x.id === act ? " on" : ""}" data-pc="pick" data-id="${x.id}" style="--pcc:${PC_COLORS[x.color % PC_COLORS.length]}"><i class="pcdot"></i><span><b>${esc(x.name)}</b><small>${esc(x.base.replace(/^https?:\/\//, ""))}</small></span><span class="pcst">${x.id === act ? "ativo" : x.hasToken ? "" : "sem pareamento"}</span></button><button class="btn sm" data-pc="edit" data-id="${x.id}" aria-label="Editar ${esc(x.name)}">Editar</button></div>`).join("");
+}
+function pcOpen(add) {
+  pcEditId = null; $("pcs").classList.remove("hidden"); pcRender();
+  $("pcs-add").classList.toggle("hidden", !add); $("pcs-acts").classList.toggle("hidden", !!add); $("pcs-list").classList.toggle("hidden", !!add);
+  if (add) { $("pa-msg").textContent = ""; setTimeout(() => ($("pa-base").value ? $("pa-code") : $("pa-name")).focus(), 50); }
+}
+function pcClose() { $("pcs").classList.add("hidden"); }
+$("pc-chip").onclick = $("pc-chip2").onclick = () => { buzz(8); pcOpen(false); };
+$("pcs-close").onclick = pcClose;
+$("pcs-addbtn").onclick = () => { $("pa-name").value = ""; $("pa-base").value = ""; $("pa-code").value = ""; pcOpen(true); };
+$("pa-cancel").onclick = () => pcOpen(false);
+$("pcs-list").onclick = (e) => {
+  const b = e.target.closest("[data-pc]"); if (!b) return; const id = b.dataset.id;
+  switch (b.dataset.pc) {
+    case "pick": pcSwitch(id); break;
+    case "edit": pcEditId = id; pcRender(); setTimeout(() => $("pe-name") && $("pe-name").focus(), 30); break;
+    case "cancel": pcEditId = null; pcRender(); break;
+    case "save": { const n = $("pe-name").value.trim().slice(0, 30); if (n) { PCL.update(id, { name: n }); pcPaint(); } pcEditId = null; pcRender(); break; }
+    case "del": { const was = id === PCL.active().id; PCL.remove(id); pcEditId = null; if (was) location.reload(); else pcRender(); break; }
+  }
+};
+$("pcs-add").onsubmit = (e) => {
+  e.preventDefault();
+  const code = $("pa-code").value.replace(/\D/g, "");
+  if (code.length !== 6) { $("pa-msg").textContent = "Digite os 6 dígitos do código que aparece no painel do PC."; return; }
+  if (location.protocol === "https:" && /^http:/i.test($("pa-base").value.trim())) { $("pa-msg").textContent = "Este app está em https: o PC precisa de um endereço https (Tailscale)."; return; }
+  let ent;
+  try { ent = PCL.add({ name: $("pa-name").value, base: $("pa-base").value }); } catch (err) { $("pa-msg").textContent = err.message; return; }
+  try { sessionStorage.setItem("pcc.pend", JSON.stringify({ id: ent.id, code })); } catch {}   // o código (6 dígitos, vale 120 s) só atravessa a recarga
+  PCL.setActive(ent.id); location.reload();
+};
+// link de pareamento: <app>/#add=<endereço do PC>~<código de 6 dígitos>  (nunca leva token)
+(() => {
+  const m = location.hash.match(/[#&]add=([^&]+)/); if (!m) return;
+  history.replaceState(null, "", location.pathname + location.search);
+  const [b, c] = decodeURIComponent(m[1]).split("~");
+  setTimeout(() => { $("pa-name").value = ""; $("pa-base").value = PCL.norm(b) || ""; $("pa-code").value = /^\d{6}$/.test(c || "") ? c : ""; pcOpen(true); }, 0);
+})();
+pcPaint();
 
 // ---------------------------------------------------------------- seções e vistas
 // 5 seções na barra (Início, Controle, Botões, Tarefas, Mais). "mais" é uma lista que leva às demais vistas;
@@ -4518,7 +4609,11 @@ showView(prefs.tab == "apps" ? "deck" : prefs.tab);
 handleShared();
 renderPower();
 applyWake();
-if (!window.PCC_PANEL) connect();
+if (!window.PCC_PANEL) {
+  let pend = null;
+  try { pend = JSON.parse(sessionStorage.getItem("pcc.pend") || "null"); sessionStorage.removeItem("pcc.pend"); } catch {}
+  if (pend && pend.id === PCL.active().id && /^\d{6}$/.test(pend.code)) connect(pend.code); else connect();
+}
 </script>
 <!-- ============================ MODO PAINEL (janela do PC) ============================
      Aberto por #panel=<panel_token> (Edge em modo app). Não usa o token do celular; fala com o servidor por
@@ -5168,9 +5263,10 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
 
   // ====================================================================== Celular
   function phoneView(main) {
-    const qrBox = h("div"), link = h("div", { class: "pn-dim" }), cable = h("div", { class: "pn-dim" }), codeBox = h("div"), newBtn = h("button", { class: "pn-btn primary", type: "button" }, "Novo código");
+    const remoteCard = h("div"), qrBox = h("div"), link = h("div", { class: "pn-dim" }), cable = h("div", { class: "pn-dim" }), codeBox = h("div"), newBtn = h("button", { class: "pn-btn primary", type: "button" }, "Novo código");
     main.append(h("section", {}, h("h1", {}, "Celular"), h("p", { class: "pn-sub" }, "Conecte um aparelho novo: leia o QR code ou use o código de pareamento."),
       h("div", { class: "pn-card" }, h("div", { class: "pn-row wrap", style: "align-items:flex-start;gap:20px" }, qrBox, h("div", { class: "pn-grow" }, link, h("div", { style: "height:8px" }), cable))),
+      remoteCard,
       h("div", { class: "pn-h" }, "Código de pareamento"),
       h("div", { class: "pn-card" }, codeBox, h("div", { class: "pn-foot" }, newBtn, h("span", { class: "pn-faint" }, "O código vale 120 s, uma vez, e só enquanto este painel está aberto.")))));
     let pair = null, got = 0, autoDone = false;
@@ -5191,6 +5287,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
         link.textContent = !p.web ? "App do celular desligado (a porta " + p.port + " está em uso?)" : p.wifi ? "Wi-Fi: aponte a câmera do celular para o QR code ou abra " + p.link + " e digite o token." : "Wi-Fi desativado (web.host = 127.0.0.1). Use o cabo.";
         cable.textContent = p.adb ? "Cabo: celular conectado. Abra o app pelo ícone da bandeja (Abrir app no celular)." : "Cabo: ligue o celular com “Depuração USB” ativa e abra http://localhost:" + p.port;
         cable.className = p.adb ? "pn-good" : "pn-dim";
+        remoteCard.replaceChildren(...(s.remote ? [h("div", { class: "pn-h" }, "Adicionar este PC a um app que já tem outros PCs"), h("div", { class: "pn-card" }, h("div", { class: "pn-row wrap", style: "align-items:flex-start;gap:20px" }, s.remote.qr ? h("img", { class: "pn-qr", src: s.remote.qr, alt: "QR code para adicionar este PC ao app" }) : h("span"), h("div", { class: "pn-grow" }, h("div", { class: "pn-dim" }, "Aponte a câmera do celular para o QR code (ou abra o link). O link leva só o código de 6 dígitos, que vale 120 s e uma vez."), h("div", { class: "pn-faint", style: "margin-top:6px;word-break:break-all" }, s.remote.link))))] : []));
         drawCode();
       } catch {}
     };
@@ -5204,7 +5301,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
     let orig = null, vals = null, net = null, editSc = null, bk = {}, tr = {}, trForm = { key: "", token: "", on: false, msg: "" };
     const body = h("div"), msg = h("span", { class: "pn-dim" });
     main.append(h("section", {}, h("h1", {}, "Ajustes"), h("p", { class: "pn-sub" }, "Opções do servidor no PC."), body));
-    const KEYS = ["upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "idle_min", "notif_ignore", "shortcuts", "export_watch", "misplaced_min", "backup_dir"];
+    const KEYS = ["upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "idle_min", "notif_ignore", "shortcuts", "export_watch", "misplaced_min", "backup_dir", "pc_name", "remote_base", "allowed_origins"];
     const dirty = () => KEYS.filter((k) => JSON.stringify(vals[k]) !== JSON.stringify(orig[k]));
     const pickDir = async (k) => { try { const f = await call("pick_folder", {}, 600000); if (f) { vals[k] = f; render(); } } catch (e) { fail(e); } };
     const slug = (name) => { let b = name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 36) || "programa", id = b, n = 2; const ids = new Set(vals.shortcuts.map((s) => s.id)); while (ids.has(id)) id = b + "-" + n++; return id; };
@@ -5283,6 +5380,11 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
         h("div", { class: "pn-h" }, "Trabalho"), h("div", { class: "pn-card" }, h("div", { class: "pn-row" }, h("label", { class: "pn-grow", for: "st-idle" }, "Parar de contar depois de (minutos parado)"), h("input", { id: "st-idle", class: "pn-in num", type: "number", min: 1, max: 30, value: vals.idle_min, onchange: (e) => { const n = parseInt(e.target.value, 10); vals.idle_min = Number.isFinite(n) ? n : orig.idle_min; render(); } })),
           h("div", { class: "pn-row", style: "margin-top:10px" }, h("label", { class: "pn-grow", for: "st-mis" }, "Avisar arquivo sem salvar ou fora das pastas de clientes depois de"),
             h("select", { id: "st-mis", class: "pn-in", onchange: (e) => { vals.misplaced_min = parseInt(e.target.value, 10); render(); } }, [[0, "Desligado"], [5, "5 min"], [10, "10 min"], [20, "20 min"]].map(([v, t]) => h("option", { value: v, selected: vals.misplaced_min === v }, t))))),
+        h("div", { class: "pn-h" }, "Vários PCs (app no celular)"), h("div", { class: "pn-card" },
+          h("div", { class: "pn-faint" }, "Para usar este PC no app junto com outros: dê um nome a ele e informe os endereços do Tailscale. Nada disso abre este PC para a internet."),
+          h("div", { class: "pn-row", style: "margin-top:10px" }, h("label", { class: "pn-grow", for: "mp-name" }, "Nome deste PC (ex.: Casa)"), h("input", { id: "mp-name", class: "pn-in", type: "text", maxlength: 30, value: vals.pc_name || "", onchange: (e) => { vals.pc_name = e.target.value.trim(); render(); } })),
+          h("div", { class: "pn-row", style: "margin-top:10px" }, h("label", { class: "pn-grow", for: "mp-base" }, "Endereço deste PC pelo Tailscale"), h("input", { id: "mp-base", class: "pn-in", type: "text", maxlength: 100, placeholder: "https://nome-deste-pc.tailnet.ts.net", value: vals.remote_base || "", onchange: (e) => { vals.remote_base = e.target.value.trim(); render(); } })),
+          h("div", { class: "pn-row", style: "margin-top:10px" }, h("label", { class: "pn-grow", for: "mp-app" }, "Endereço do app (o PC de casa), se não for este"), h("input", { id: "mp-app", class: "pn-in", type: "text", maxlength: 100, placeholder: "https://pc-de-casa.tailnet.ts.net", value: (vals.allowed_origins || [])[0] || "", onchange: (e) => { const v = e.target.value.trim(); vals.allowed_origins = v ? [v] : []; render(); } }))),
         h("div", { class: "pn-h" }, "Backup"), h("div", { class: "pn-card" },
           h("div", { class: "pn-faint" }, "Uma vez por dia e ao fechar o servidor: histórico, regras, notas, tarefas, Pomodoro e botões vão para <pasta>\\Companion-backup\\AAAA-MM-DD. Ficam os últimos 30 dias."),
           vals.backup_dir !== orig.backup_dir ? h("div", { class: "pn-warn", style: "margin-top:6px" }, "Salve as alterações para usar a nova pasta.") : null,
