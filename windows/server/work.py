@@ -321,6 +321,9 @@ def _main_window_titles(pid):
     return out
 
 
+APP_PATHS = {}   # app (Photoshop...) -> caminho do exe visto em foco; só o servidor usa (vira um id opaco de ícone)
+
+
 def foreground():
     """(exe em minúsculas, título) da janela em foco. Título com até 1024 caracteres (caminhos longos).
     Janela da Adobe sem o arquivo no título: usa a janela principal do mesmo processo (pick_title)."""
@@ -330,11 +333,16 @@ def foreground():
     pid = wintypes.DWORD()
     user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
     try:
-        exe = psutil.Process(pid.value).name().lower()
+        proc = psutil.Process(pid.value)
+        exe = proc.name().lower()
     except (psutil.Error, OSError):
         return "", ""
     if exe not in APPS:
         return exe, ""
+    try:
+        APP_PATHS[APPS[exe]] = proc.exe()
+    except (psutil.Error, OSError):
+        pass
     if exe == "capcut.exe":
         try:
             proj = capcut_project(pid.value)

@@ -549,10 +549,10 @@ ACTIONS = {
     "file.cancel": lambda p: UPLOADS.cancel(p["id"]),
     "file.open_folder": lambda p: UPLOADS.open_folder(),
     # tempo de trabalho (work.py): roda na fila de disco, como todo o resto do WORK
-    "work.get": lambda p: WORK.get(),
-    "work.week": lambda p: WORK.week(p.get("offset", 0)),
+    "work.get": lambda p: _wi(WORK.get()),
+    "work.week": lambda p: _wi(WORK.week(p.get("offset", 0))),
     "work.csv": lambda p: work_csv(p.get("offset", 0)),
-    "work.month": lambda p: WORK.month(p.get("ym"), notes=False),   # celular: só os totais, sem notas
+    "work.month": lambda p: _wi(WORK.month(p.get("ym"), notes=False)),   # celular: só os totais, sem notas
     "trello.get": lambda p: trello_get(p),
     "trello.open": lambda p: trello_open(p),
     # tarefas (tasks.py): o celular só vê e marca/desmarca
@@ -769,10 +769,10 @@ PAIR = pair.Pairing()
 
 PANEL_OPS = {
     "pair_new": PAIR.new, "pair_state": PAIR.state, "pair_close": PAIR.close,   # só memória: sem fila de disco
-    "work_get": lambda: io_call(WORK.get),
-    "work_week": lambda offset: io_call(WORK.week, offset),
+    "work_get": lambda: _wi(io_call(WORK.get)),
+    "work_week": lambda offset: _wi(io_call(WORK.week, offset)),
     "work_csv": lambda offset: io_call(WORK.csv, offset),
-    "work_month": lambda ym: io_call(WORK.month, ym),
+    "work_month": lambda ym: _wi(io_call(WORK.month, ym)),
     "work_month_csv": lambda ym: io_call(work_month_csv, ym),
     "work_note_set": lambda day, text: io_call(WORK.note_set, day, text),
     "work_links_get": lambda: io_call(WORK.links_get),
@@ -1269,7 +1269,7 @@ async def push_welcome():
 async def panel_session(ws, peer):
     """Conexão do modo painel (já autenticada). Fica fora de `clients`: não recebe o fluxo do celular."""
     panel_clients.add(ws)
-    await ws.send(json.dumps({"t": "panel_ok", "version": VERSION}))
+    await ws.send(json.dumps({"t": "panel_ok", "version": VERSION, "icon_key": ICONS.key()}))
     await pomo_send([json.dumps({"t": "pomo", "d": await pomo_state()})], only=ws)
     log.info("painel do PC aberto")
     try:
@@ -1630,6 +1630,15 @@ async def pomo_run(name, p):
         pomo_reschedule()
         await pomo_send([json.dumps({"t": "pomo", "d": state})])
     return state
+
+
+def work_app_icons():
+    """{app: id do ícone} dos apps de trabalho já vistos em foco (o caminho do exe nunca sai do servidor)."""
+    return {app: i for app, path in list(work.APP_PATHS.items()) if (i := ICONS.register(path))}
+
+
+def _wi(res):
+    return {**res, "app_icons": work_app_icons()} if isinstance(res, dict) else res
 
 
 def _work_step():

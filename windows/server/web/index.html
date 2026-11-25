@@ -571,6 +571,7 @@ select.sel { flex: none; padding: 6px 8px; border: 1px solid var(--p3); backgrou
 .toprow .bar { margin: 2px 0 8px; height: 6px; }
 /* trabalho: job ativo, semana por job (toque abre os arquivos) */
 .wnow { white-space: normal; }
+.gic.has-ic + .wdot { display: none; }
 .wdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: baseline; }
 .wunid { color: var(--unid); }  /* "Não identificado": âmbar de aviso (o do tema âmbar), como o amarelo do painel */
 .wjobrow { font-size: 14px; padding-left: 8px; }
@@ -2465,8 +2466,14 @@ function renderWork() {
   const d = workData; if (!d) return;
   const n = d.now, now = $("w-now");
   now.classList.toggle("wunid", !!n?.app && !n.identified);
-  now.textContent = !n?.app ? "Nenhum programa monitorado em foco no PC"
+  const nowTxt = !n?.app ? "Nenhum programa monitorado em foco no PC"
     : `${n.counting ? "Contando" : "Parado (ninguém mexendo no PC)"}: ${n.app} · ${n.identified ? `${n.client} › ${n.job}` : n.client} · ${n.file}`;
+  const nowIc = n?.app ? d.app_icons?.[n.app] || "" : "";
+  if (now._k !== nowTxt + "|" + nowIc) {            // só refaz quando muda (o ícone não pisca a cada leitura)
+    now._k = nowTxt + "|" + nowIc;
+    now.textContent = nowTxt;
+    if (nowIc) { now.insertAdjacentHTML("afterbegin", gic(nowIc)); hydrateIcons(now); }
+  }
   $("w-today").textContent = humanDur(d.today_s);
   $("w-today-jobs").innerHTML = d.today.length ? d.today.map((r) => `<div class="row${r.unidentified ? " wunid" : ""}"><span>${esc(r.client)}</span><span>${humanDur(r.s)}</span></div>`).join("")
     : `<div class="empty">${d.roots.length ? "Nada contado hoje" : "Nenhuma pasta de clientes: escolha no painel do PC (aba Trabalho)"}</div>`;
@@ -2481,11 +2488,12 @@ function renderWork() {
     <i style="height:${Math.round((x.s / max) * 62)}px"></i>${x.d}</div>`).join("");
   const top = w.clients[0]?.s || 1;
   const APPC = { Photoshop: "#31A8FF", Illustrator: "#FF9A00", Premiere: "#9999FF", "After Effects": "#CF96FD", CapCut: "#14C3B5" };
-  const files = (fs) => fs.map((f) => `<div class="row wfile"><span><i class="wdot" style="background:${APPC[f.app] || "var(--p3)"}"></i>${esc(f.app)} · ${esc(f.file)}</span><span>${humanDur(f.s)}</span></div>`).join("");
+  const files = (fs) => fs.map((f) => `<div class="row wfile"><span>${gic(w.app_icons?.[f.app])}<i class="wdot" style="background:${APPC[f.app] || "var(--p3)"}"></i>${esc(f.app)} · ${esc(f.file)}</span><span>${humanDur(f.s)}</span></div>`).join("");
   $("w-week-jobs").innerHTML = w.clients.length ? w.clients.map((c, i) => `<div class="toprow wjob${c.unidentified ? " wunid" : ""}" data-i="${i}">
     <div class="row"><span>${esc(c.client)}</span><span>${humanDur(c.s)}</span></div><div class="bar"><i style="width:${(c.s / top) * 100}%"></i></div>
     ${workOpen.has(c.client) ? c.jobs.map((j) => (c.unidentified ? "" : `<div class="row wjobrow"><span>${esc(j.job)}</span><span>${humanDur(j.s)}</span></div>`) + files(j.files)).join("") : ""}</div>`).join("")
     : '<div class="empty">Nenhum tempo nesta semana</div>';
+  hydrateIcons($("w-week-jobs"));
 }
 $("w-week-jobs").onclick = (e) => {
   const r = e.target.closest("[data-i]"); if (!r || !workWeek) return;
@@ -4510,6 +4518,8 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
 .pn-t { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--text-2); }
 .pn-app { display: inline-flex; align-items: center; gap: 6px; color: var(--text-3); font-size: 13px; white-space: nowrap; }
 .pn-app i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.pn-app .gic.has-ic { width: 16px; height: 16px; border-radius: 0; margin: 0; display: inline-block; }
+.pn-app .gic.has-ic + i { display: none; }
 .pn-fl.pn-sel { padding: 0 8px 0 6px; gap: 8px; }
 .pn-fl.pn-sel .pn-chk { width: 44px; height: 44px; }
 .pn-fn { flex: 1; min-width: 0; overflow-wrap: anywhere; }
@@ -4583,7 +4593,12 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
   const fmtDur = (s) => { s = Math.floor(s || 0); if (s < 60) return s ? s + "s" : "0"; const hh = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return hh ? hh + "h" + String(m).padStart(2, "0") : m + " min"; };
   const dm = (s) => s.slice(8, 10) + "/" + s.slice(5, 7);
   const APPC = { Photoshop: "#31A8FF", Illustrator: "#FF9A00", Premiere: "#9999FF", "After Effects": "#CF96FD", CapCut: "#14C3B5" };
-  const appTag = (a) => h("span", { class: "pn-app" }, h("i", { style: "background:" + (APPC[a] || "var(--text-3)") }), a);
+  const pnIcons = {};   // app -> id do ícone (vem junto com work_get/work_week/work_month)
+  const appTag = (a) => {
+    const ic = h("i", { class: "gic" });
+    if (pnIcons[a]) setAppIcon(ic, pnIcons[a]);
+    return h("span", { class: "pn-app" }, ic, h("i", { style: "background:" + (APPC[a] || "var(--text-3)") }), a);
+  };
   const clone = (x) => JSON.parse(JSON.stringify(x));
 
   // ---- toast (com "Desfazer" no lugar de confirmação)
@@ -4614,7 +4629,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
     sock.onopen = () => sock.send(JSON.stringify({ t: "hello", panel: TOK }));
     sock.onmessage = (ev) => {
       let m; try { m = JSON.parse(ev.data); } catch { return; }
-      if (m.t === "panel_ok") { ready = true; retry = 0; banner(""); $p("pn-ver").textContent = "Servidor " + (m.version || ""); onReady(); }
+      if (m.t === "panel_ok") { if (m.icon_key) iconKey = m.icon_key; ready = true; retry = 0; banner(""); $p("pn-ver").textContent = "Servidor " + (m.version || ""); onReady(); }
       else if (m.t === "res" && pending.has(m.id)) { const p = pending.get(m.id); pending.delete(m.id); clearTimeout(p.timer); m.ok ? p.ok(m.d) : p.err(new Error(m.e || "Não deu certo.")); }
       else if (m.t === "pomo") PM.set(m.d);
       else if (m.t === "event" && m.kind === "pomo.done") toast(m.finished === "focus" ? `Foco concluído! ${m.next === "long" ? "Pausa longa" : "Pausa"} de ${m.next_min} min` : "Pausa acabou, bora focar");
@@ -4855,7 +4870,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
     const mShift = (ym, d) => { const [y, m] = ym.split("-").map(Number), t = new Date(y, m - 1 + d, 1); return t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0"); };
     const mNow = () => { const t = new Date(); return t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0"); };
     const hShort = (s) => (s >= 3600 ? Math.floor(s / 3600) + "h" + (Math.round((s % 3600) / 60) ? String(Math.round((s % 3600) / 60)).padStart(2, "0") : "") : s >= 60 ? Math.round(s / 60) + "m" : "");
-    const loadHist = async () => { try { hdata = await call("work_month", { ym: hym || undefined }); hym = hdata.month; if (!hday || !hday.startsWith(hym)) hday = null; renderHist(); } catch (e) { fail(e); } };
+    const loadHist = async () => { try { hdata = await call("work_month", { ym: hym || undefined }); Object.assign(pnIcons, hdata.app_icons); hym = hdata.month; if (!hday || !hday.startsWith(hym)) hday = null; renderHist(); } catch (e) { fail(e); } };
     const csvMonth = async () => { try { const r = await call("work_month_csv", { ym: hym || undefined }); const a = h("a", { href: r.url, download: r.name }); document.body.append(a); a.click(); a.remove(); toast("CSV: " + r.name); } catch (e) { fail(e); } };
     const saveNote = async (day, text) => { try { await call("work_note_set", { day, text }); await loadHist(); toast(text.trim() ? "Nota salva." : "Nota apagada."); } catch (e) { fail(e); } };
     function renderHist() {
@@ -5037,8 +5052,8 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
         !n ? h("div", { class: "pn-empty" }, "Nada por aqui. Marque itens de “Não identificado” acima.") : null);
       rulesBox.replaceChildren(h("div", { class: "pn-h" }, "Regras manuais"), h("div", { class: "pn-list" }, d));
     }
-    const loadWeek = async () => { try { const w = await call("work_week", { offset: off }); if (!week || week.offset !== w.offset) sel.clear(); week = w; renderWeek(); } catch (e) { fail(e); } };
-    const loadNow = async () => { try { data = await call("work_get"); render(); } catch {} };
+    const loadWeek = async () => { try { const w = await call("work_week", { offset: off }); Object.assign(pnIcons, w.app_icons); if (!week || week.offset !== w.offset) sel.clear(); week = w; renderWeek(); } catch (e) { fail(e); } };
+    const loadNow = async () => { try { data = await call("work_get"); Object.assign(pnIcons, data.app_icons); render(); } catch {} };
     return { start: () => { loadNow().then(loadWeek).then(loadRules).then(loadHist).then(loadLinks); poll(loadNow, 5000); }, stop: stopPoll };
   }
 
