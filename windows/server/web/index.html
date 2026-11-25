@@ -2118,6 +2118,160 @@ const lumeSkinCss = (s) => `:root{${s.vars}}` + lumeBaseCss() + s.css;
 const lumeSvg = (skin, cls = "") => `<svg class="lm ${cls}" viewBox="0 0 120 120" data-st="happy" aria-hidden="true" focusable="false">${skin.art}</svg>`;
 /* LUMESKIN:end */
 
+// ---------------------------------------------------------------- Lume: núcleo local (do APARELHO, fora do layout e sem pk())
+// Sem DOM e sem rede: estado, medidores, sono, histórico, lembretes devidos e textos. `now()` devolve segundos (relógio injetável nos testes).
+// Regras sem culpa: nunca morre; medidores têm piso (FLOOR) e SÓ SOBEM com ação real (bebi água, pausa, tarefa concluída, foco cumprido);
+// só descem devagar com o tempo, e só dentro do horário ativo. Nenhum texto afirma dado que não veio de um número real.
+/* LUME:begin */
+function makeMascot(store, now) {
+  const KEY = "mascot", FLOOR = 30, KEEP = 14, SAY_GAP = 15 * 60, LOG_MAX = 200;
+  const RATE = { water: 0.5, sat: 0.2, energy: 0.2 };   // pontos por minuto ativo
+  const ROUTES = ["notif", "export", "alert", "pomo", "trello", "steam", "download", "focus"];
+  const WATER_LINES = ["Que tal um copo d'água?", "Hora de um golinho d'água?", "Uma água cairia bem agora.", "Vamos beber água juntos?", "Seu copo está esperando.", "Pausa rápida: água!"];
+  const pad = (n) => String(n).padStart(2, "0");
+  const ymd = (t) => { const d = new Date(t * 1000); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+  const hmOk = (v) => typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
+  const hmMin = (v) => +v.slice(0, 2) * 60 + +v.slice(3);
+  const at = (t, hm, addDays = 0) => { const d = new Date(t * 1000); return new Date(d.getFullYear(), d.getMonth(), d.getDate() + addDays, +hm.slice(0, 2), +hm.slice(3)).getTime() / 1000; };
+  const oneOf = (v, list, d) => (list.includes(v) ? v : d);
+  const num = (v, lo, hi, d) => (Number.isFinite(v) && v >= lo && v <= hi ? Math.round(v) : d);
+  const flag = (v, d) => (typeof v === "boolean" ? v : d);
+  const DEF = () => ({ mode: "on", economy: false, hideCtrl: true, sleepMin: 30, maxDay: 6, silence: "", active: ["08:00", "22:00"],
+    water: { on: true, min: 90 }, pause: { on: true, after: 90, every: 30 }, pomo: { on: true }, eod: { on: true, at: "18:30" }, tasks: { on: true }, trello: { on: true },
+    route: Object.fromEntries(ROUTES.map((r) => [r, "b"])) });
+  function normCfg(r) {
+    const d = DEF(); r = r && typeof r === "object" ? r : {};
+    const o = (k) => (r[k] && typeof r[k] === "object" ? r[k] : {});
+    const act = Array.isArray(r.active) && hmOk(r.active[0]) && hmOk(r.active[1]) && hmMin(r.active[0]) < hmMin(r.active[1]) ? [r.active[0], r.active[1]] : d.active;
+    return {
+      mode: oneOf(r.mode, ["on", "hide", "off"], d.mode), economy: flag(r.economy, d.economy), hideCtrl: flag(r.hideCtrl, d.hideCtrl),
+      sleepMin: oneOf(r.sleepMin, [15, 30, 60, 120], d.sleepMin), maxDay: oneOf(r.maxDay, [3, 6, 10], d.maxDay),
+      silence: /^\d{4}-\d{2}-\d{2}$/.test(r.silence || "") ? r.silence : "", active: act,
+      water: { on: flag(o("water").on, true), min: oneOf(o("water").min, [60, 90, 120, 180], 90) },
+      pause: { on: flag(o("pause").on, true), after: oneOf(o("pause").after, [45, 60, 90, 120], 90), every: oneOf(o("pause").every, [15, 30, 0], 30) },
+      pomo: { on: flag(o("pomo").on, true) },
+      eod: { on: flag(o("eod").on, true), at: hmOk(o("eod").at) ? o("eod").at : "18:30" },
+      tasks: { on: flag(o("tasks").on, true) }, trello: { on: flag(o("trello").on, true) },
+      route: Object.fromEntries(ROUTES.map((k) => [k, oneOf(o("route")[k], ["b", "t"], "b")])),
+    };
+  }
+  const fresh = () => { const t = now(); return { v: 1, skin: "lume", cfg: DEF(), born: t, water_at: 0, snack: 0, sleep_until: 0,
+    needs: { water: { v: 80, t }, sat: { v: 80, t }, energy: { v: 80, t } }, say: {}, runSay: null, daily: { day: ymd(t), count: 0, ign: {}, eod: false, credited: [] }, log: {} }; };
+  function load() {
+    const r = store.get(KEY, null), f = fresh();
+    if (!r || typeof r !== "object" || r.v !== 1) return f;
+    const nd = (k) => (r.needs && r.needs[k] && Number.isFinite(r.needs[k].v) && Number.isFinite(r.needs[k].t) ? { v: Math.min(100, Math.max(FLOOR, r.needs[k].v)), t: r.needs[k].t } : f.needs[k]);
+    const dl = r.daily && typeof r.daily === "object" ? r.daily : f.daily;
+    return { v: 1, skin: typeof r.skin === "string" ? r.skin : "lume", cfg: normCfg(r.cfg), born: Number.isFinite(r.born) ? r.born : f.born,
+      water_at: Number.isFinite(r.water_at) ? r.water_at : 0, snack: num(r.snack, 0, 999, 0), sleep_until: Number.isFinite(r.sleep_until) ? r.sleep_until : 0,
+      needs: { water: nd("water"), sat: nd("sat"), energy: nd("energy") },
+      say: r.say && typeof r.say === "object" ? r.say : {}, runSay: r.runSay && Number.isFinite(r.runSay.minutes) ? { minutes: r.runSay.minutes, n: num(r.runSay.n, 0, 99, 0) } : null,
+      daily: { day: typeof dl.day === "string" ? dl.day : f.daily.day, count: num(dl.count, 0, 999, 0), ign: dl.ign && typeof dl.ign === "object" ? dl.ign : {}, eod: !!dl.eod, credited: Array.isArray(dl.credited) ? dl.credited.slice(-200) : [] },
+      log: r.log && typeof r.log === "object" ? r.log : {} };
+  }
+  let S = load();
+  const save = () => store.set(KEY, S);
+  function roll(t) {   // virada do dia: zera contadores do dia e poda o histórico
+    const day = ymd(t);
+    if (S.daily.day !== day) S.daily = { day, count: 0, ign: {}, eod: false, credited: [] };
+    prune();
+  }
+  function prune() { const keys = Object.keys(S.log).sort(); while (keys.length > KEEP) delete S.log[keys.shift()]; }
+  function activeMin(t0, t1) {   // minutos entre t0 e t1 dentro do horário ativo (no máximo 4 dias)
+    t1 = Math.min(t1, t0 + 4 * 86400); if (t1 <= t0) return 0;
+    let m = 0;
+    for (let i = 0; i <= 5; i++) {
+      const a = Math.max(t0, at(t0, S.cfg.active[0], i)), b = Math.min(t1, at(t0, S.cfg.active[1], i));
+      if (b > a) m += (b - a) / 60;
+    }
+    return m;
+  }
+  const needVal = (k, t) => { const n = S.needs[k]; return Math.max(FLOOR, Math.min(100, n.v - RATE[k] * activeMin(n.t, t))); };
+  function raise(k, amt, t) { S.needs[k] = { v: Math.min(100, needVal(k, t) + amt), t }; }
+  const inActive = (t) => t >= at(t, S.cfg.active[0]) && t < at(t, S.cfg.active[1]);
+  const sleeping = (t) => S.sleep_until > t;
+  const silenced = (t) => S.cfg.silence === ymd(t);
+  const logAdd = (t, kind, x) => { const a = (S.log[ymd(t)] ||= []); a.push(x === undefined ? [Math.round(t), kind] : [Math.round(t), kind, x]); if (a.length > LOG_MAX) a.shift(); prune(); };
+  const lastLog = (kind, t) => { const a = S.log[ymd(t)] || []; for (let i = a.length - 1; i >= 0; i--) if (a[i][1] === kind) return a[i][0]; return 0; };
+  const fmtDur = (min) => { min = Math.round(min); const h = Math.floor(min / 60), m = min % 60; return h ? (m ? `${h} h ${m}` : `${h} h`) : `${min} min`; };
+
+  const api = {
+    ymd, fmtDur, normCfg, FLOOR, ROUTES,
+    cfg: () => S.cfg,
+    setCfg(patch) { const m = JSON.parse(JSON.stringify(S.cfg)); for (const k of Object.keys(patch || {})) m[k] = patch[k] && typeof patch[k] === "object" && !Array.isArray(patch[k]) ? Object.assign(m[k] || {}, patch[k]) : patch[k]; S.cfg = normCfg(m); save(); return S.cfg; },
+    skin: () => S.skin, setSkin(id) { S.skin = String(id); save(); },
+    sleeping: (t = now()) => sleeping(t), sleepUntil: () => S.sleep_until, silenced: (t = now()) => silenced(t), inActive: (t = now()) => inActive(t),
+    snacks: () => S.snack,
+    silence(on, t = now()) { S.cfg.silence = on ? ymd(t) : ""; save(); },
+    sleep(min, t = now()) {   // min = minutos, ou "day" = até o início do horário ativo de amanhã
+      roll(t); S.sleep_until = min === "day" ? at(t, S.cfg.active[0], 1) : t + Math.max(1, min) * 60; logAdd(t, "sleep", min === "day" ? "day" : min); save();
+    },
+    wake(t = now()) { if (S.sleep_until > 0) { S.sleep_until = 0; logAdd(t, "wake"); save(); } },
+    act(kind, t = now(), o = {}) {   // ações reais. Devolve {ok, why?}
+      roll(t);
+      if (kind === "water") { if (S.water_at && t - S.water_at < 20 * 60) return { ok: false, why: "Ele ainda está bem hidratado" }; raise("water", 45, t); S.water_at = t; }
+      else if (kind === "pause") { if (t - lastLog("pause", t) < 10 * 60 && lastLog("pause", t)) return { ok: false, why: "Pausa já registrada" }; raise("energy", 30, t); }
+      else if (kind === "task") { const id = String(o.id || ""); if (id && S.daily.credited.includes(id)) return { ok: false, why: "já contou" }; if (id) S.daily.credited.push(id); raise("sat", 20, t); S.snack = Math.min(99, S.snack + 1); }
+      else if (kind === "focus") { raise("sat", 25, t); raise("energy", 10, t); S.snack = Math.min(99, S.snack + 1); }
+      else if (kind === "feed") { if (S.snack <= 0) return { ok: false, why: "Sem petiscos: conclua uma tarefa ou um foco" }; S.snack--; raise("sat", 30, t); }
+      else return { ok: false, why: "ação desconhecida" };
+      logAdd(t, kind, o.auto ? "auto" : undefined); save(); return { ok: true };
+    },
+    view(t = now(), ctx = {}) {
+      const w = needVal("water", t), s = needVal("sat", t), e = needVal("energy", t), mood = Math.round((w + s + e) / 3);
+      const st = sleeping(t) ? "sleep" : ctx.focus ? "focus" : ctx.alert ? "alert" : ctx.party ? "party" : w < 55 ? "thirst" : s < 55 ? "hunger" : e < 45 ? "tired" : "happy";
+      const L = (v, hi, mid, a, b, c) => (v >= hi ? a : v >= mid ? b : c);
+      return { st, needs: { water: Math.round(w), sat: Math.round(s), energy: Math.round(e), mood },
+        labels: { water: L(w, 70, 55, "Hidratado", "Bem", "Com sede"), sat: L(s, 70, 55, "Satisfeito", "Bem", "Com fome"), energy: L(e, 70, 45, "Disposto", "Ok", "Cansado"), mood: L(mood, 70, 50, "Feliz", "Tranquilo", "Quietinho") } };
+    },
+    can(id, t = now()) {   // pode falar por conta própria (lembrete)? Nunca em silêncio, dormindo, fora do horário, acima do limite do dia ou depois de 2 ignorados
+      roll(t);
+      return !silenced(t) && !sleeping(t) && inActive(t) && S.daily.count < S.cfg.maxDay && (S.daily.ign[id] || 0) < 2 && t - (S.say._any || 0) >= SAY_GAP;
+    },
+    say(id, t = now(), info) { roll(t); S.say[id] = { t }; S.say._any = t; S.daily.count++; if (id === "pause" && info) S.runSay = { minutes: info.minutes, n: (S.runSay ? S.runSay.n : 0) + 1 }; logAdd(t, "say", id); save(); },
+    ignored(id, t = now()) { roll(t); S.daily.ign[id] = (S.daily.ign[id] || 0) + 1; save(); },
+    acted(id, t = now()) { roll(t); S.daily.ign[id] = 0; save(); },
+    eodDone(t = now()) { roll(t); S.daily.eod = true; save(); },
+    due(t = now(), ctx = {}) {   // qual lembrete já passou da hora (ou null). ctx = {focus, work:{minutes,app}|null}
+      roll(t); const c = S.cfg;
+      if (ctx.focus || c.mode !== "on") return null;
+      if (c.eod.on && !S.daily.eod && !silenced(t) && !sleeping(t) && t >= at(t, c.eod.at) && t < at(t, c.active[1])) return { id: "eod", needData: true };
+      if (c.pause.on && ctx.work && ctx.work.minutes >= c.pause.after) {
+        if (S.runSay && ctx.work.minutes < S.runSay.minutes) S.runSay = null;   // sequência nova
+        const r = S.runSay;
+        if (api.can("pause", t) && (!r || (c.pause.every > 0 && r.n < 3 && ctx.work.minutes >= r.minutes + c.pause.every))) return { id: "pause", minutes: ctx.work.minutes, app: ctx.work.app || null };
+      }
+      if (c.water.on && api.can("water", t)) {
+        const anchor = Math.max(S.water_at, at(t, c.active[0]), (S.say.water || { t: 0 }).t);
+        if (t - anchor >= c.water.min * 60) return { id: "water" };
+      }
+      return null;
+    },
+    text(id, d = {}, t = now()) {   // só com números reais; sem dado = null (o chamador não fala)
+      if (id === "water") return WATER_LINES[(S.daily.count + new Date(t * 1000).getDate()) % WATER_LINES.length];
+      if (id === "pause") return Number.isFinite(d.minutes) ? `Você está há ${fmtDur(d.minutes)} seguidos${d.app ? " no " + d.app : ""}. Que tal uma pausa?` : null;
+      if (id === "eod") {
+        const p = [];
+        if (d.work_s > 0) p.push(`${fmtDur(d.work_s / 60)} de trabalho`);
+        if (d.done > 0) p.push(`${d.done} ${d.done === 1 ? "tarefa feita" : "tarefas feitas"}`);
+        if (d.pend > 0) p.push(`${d.pend === 1 ? "resta" : "restam"} ${d.pend}`);
+        return p.length ? "Hoje: " + p.join(" · ") : null;
+      }
+      return null;
+    },
+    history(t = now(), days = 1) {   // [{day, items:[[t,kind,x]]}] do mais novo para o mais antigo
+      const out = [];
+      for (let i = 0; i < days; i++) { const day = ymd(t - i * 86400); out.push({ day, items: (S.log[day] || []).slice().reverse() }); }
+      return out;
+    },
+    counts(t = now()) { const c = { water: 0, pause: 0, focus: 0, task: 0, feed: 0, say: 0 }; for (const it of S.log[ymd(t)] || []) if (it[1] in c) c[it[1]]++; return c; },
+    reset(t = now()) { const cfg = S.cfg; S = fresh(); S.cfg = cfg; save(); },
+  };
+  roll(now());
+  return api;
+}
+/* LUME:end */
+
 // ---------------------------------------------------------------- perfis de layout (do APARELHO, não do PC)
 // Um perfil guarda tema, modo, destaque, widgets do Início e a última tela. As chaves de hoje (theme, home...) continuam sendo a
 // cópia de trabalho do perfil em uso (o script do tema, antes da primeira tela, e todo o resto seguem lendo as mesmas chaves);
