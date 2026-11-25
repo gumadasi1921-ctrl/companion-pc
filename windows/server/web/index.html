@@ -1375,7 +1375,7 @@ header .hchip::after { content: ""; position: absolute; inset: -10px -8px; }
 /* Foco: o anel e o tempo crescem com a altura */
 .hpage .hw.z-A .hpm, .hpage .hw.z-G .hpm { flex: 1 1 0; min-height: 0; justify-content: center; }
 .hpage .hw.z-A .hpm { flex-direction: column; gap: 8px; } .hpage .hw.z-A .hpm-r { width: 120px; height: 120px; } .hpage .hw.z-A .hpm-t { font-size: 34px; }
-.hpage .hw.z-G .hpm-r { width: 150px; height: 150px; }
+.hpage .hw.z-G .hpm-r { width: 176px; height: 176px; } .hpage .hw.z-G .hpm-t { font-size: 44px; }
 /* Tocando A/G: a capa cresce com a altura; título, progresso e controles ficam juntos embaixo (sem vão) */
 .hw.z-A[data-w="now"] .hnow.big, .hw.z-G[data-w="now"] .hnow.big { display: contents; }
 .hpage .hw.z-A[data-w="now"] .hnow.big .hart { flex: 1 1 0; min-height: 44px; width: auto; height: auto; max-height: none; max-width: 100%; aspect-ratio: 1; align-self: center; }
@@ -1388,7 +1388,7 @@ header .hchip::after { content: ""; position: absolute; inset: -10px -8px; }
 .hw.z-G[data-w="now"] .hctl { grid-area: c; margin: 0; }
 /* Memória: o anel cresce com o espaço */
 .hpage .hw.z-A .hmem, .hpage .hw.z-G .hmem { flex: 1 1 0; min-height: 0; }
-.hpage .hw.z-A .hringbox .hring { width: 112px; height: 112px; } .hpage .hw.z-G .hringbox .hring { width: 156px; height: 156px; }
+.hpage .hw.z-A .hringbox .hring { width: 112px; height: 112px; } .hpage .hw.z-G .hringbox .hring { width: 176px; height: 176px; }
 .mrow .badge { position: static; margin-left: auto; margin-right: 8px; }
 #nav-list .wd-row { padding-left: 0; padding-right: 0; }
 #nav-list .wd-nm small { display: block; }
@@ -1461,8 +1461,9 @@ header .host { display: none; }
 .pq > :empty { display: none; }
 .pq-fill { flex: 1 1 0; min-height: 32px; min-width: 0; }
 .pq .hmain b { font-size: clamp(26px, 15cqw, 36px); }
+.hmain { flex-wrap: wrap; column-gap: 8px; row-gap: 0; }
 .pq .hw-t { flex: none; }
-.z-P .pq .hmeter { grid-template-columns: 38px minmax(0, 1fr) 40px; min-height: 22px; max-height: 34px; flex: 1 1 0; font-size: 14px; }
+.z-P .pq .hmeter { grid-template-columns: 38px minmax(0, 1fr) 40px; min-height: 22px; max-height: 46px; flex: 1 1 0; font-size: 14px; }
 .z-P .pq .hbar { height: 8px; }
 .z-P .pq .hchartbox { min-height: 32px; } .z-P .pq .hchart { min-height: 32px; max-height: none; }
 .z-P .hringbox .hring { width: 84px; height: 84px; }
@@ -1495,7 +1496,7 @@ header .host { display: none; }
 .pq-list { flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .hpage .hw .pq .pq-list, .hpage .hw .pq .pq-pl, .hpage .hw .pq .pq-nt { flex: 1 1 0; justify-content: flex-start; }
 .pq .hbar { flex: none; }
-.pq-list .trow { flex: none; padding: 1px 0; }
+.pq-list .trow { flex: 1 0 auto; max-height: 60px; padding: 1px 0; }
 .pq-cl { display: flex; flex-direction: column; min-width: 0; min-height: 0; flex: 1 1 auto; overflow: hidden; font-size: 13px; }
 .pq-cl .row { padding: 3px 0; flex: none; }
 .hpage .hw .pq .pq-cl { flex: 1 1 0; justify-content: flex-start; }
@@ -1531,6 +1532,16 @@ header .host { display: none; }
 .pq-tr { min-height: 0; flex: 1 1 auto; overflow: hidden; }
 .hpage .hw .pq .pq-tr { flex: 1 1 0; justify-content: flex-start; }
 .pq-tr .htr-c { flex: none; font-size: 13px; padding: 3px 0; }
+.pq-tr .htr-c { align-items: flex-start; } .pq-tr .htr-c span { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
+/* A/L/G: revisão com o mesmo critério (nada de espaço morto, nada cortado) */
+.hpage .hw .hq { position: relative; }
+.hpage .hw.z-A .hringbox .hring { width: 140px; height: 140px; }
+.hpage .hw.z-L .hpm-r { width: 84px; height: 84px; } .hpage .hw.z-L .hpm .hpm-t { font-size: 46px; } .hpage .hw.z-L .hpm { flex: 1 1 0; min-height: 0; }
+.hpage .z-L[data-w="procs"] .hp3 b { font-size: 32px; }
+.hpage .z-L[data-w="work"] .hw-b { grid-template-rows: auto minmax(0, 1fr); align-content: stretch; }
+.hpage .z-L[data-w="work"] .hchartbox { min-height: 0; overflow: hidden; }
+.hpage .hw.z-A .hdota, .hpage .hw.z-G .hdota { flex: 1 1 0; min-height: 0; align-content: center; justify-content: center; }
+.hpage .hw.z-A .hdota .dwr, .hpage .hw.z-G .hdota .dwr { gap: 12px; } .hpage .hw.z-G .hdota .dbig { font-size: 34px; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -3784,7 +3795,7 @@ Object.assign(HOME_W, {
   work: {
     name: "Trabalho na semana", icon: "briefcase", sizes: "PALG", def: "L",
     html(z) {
-      const head = '<div class="hw-t"><span>Trabalho na semana</span><span data-k="tot"></span></div>';
+      const head = '<div class="hw-t"><span>Trabalho</span><span data-k="tot"></span></div>';
       if (z === "P") return '<div class="pq" data-clip><div class="hw-t"><span>Trabalho</span><span data-k="td"></span></div><div class="hmain"><b data-k="tot"></b><span>na semana</span></div><div class="pq-fill hchartbox" data-k="chart"></div><div class="hsub1" data-k="top"></div></div>';
       if (z === "G") return `${head}<div class="hcols"><div class="hcol"><div class="hmain"><b data-k="tot2"></b><span>na semana</span></div><div class="hsub1" data-k="td"></div><div class="hlegs" data-k="legs"></div></div><div class="hcol"><div class="hchartbox" data-k="chart"></div><div data-k="stack"></div></div></div>`;
       return `${head}<div class="hchartbox" data-k="chart"></div><div data-k="stack"></div><div class="hlegs" data-k="legs"></div>`;
@@ -3793,7 +3804,7 @@ Object.assign(HOME_W, {
     upd(el) {
       if (!welcome.features?.work) { setHtml(hk(el, "chart"), NA); setText(hk(el, "tot"), "–"); return; }
       const w = homeData.week, L = el.dataset.z === "L";
-      setText(hk(el, "tot"), w.total_s ? humanDur(w.total_s) : el.dataset.z === "P" ? "0 min" : "");
+      setText(hk(el, "tot"), w.total_s ? humanDur(w.total_s) + (el.dataset.z === "P" ? "" : " na semana") : el.dataset.z === "P" ? "0 min" : "");
       setText(hk(el, "tot2"), w.total_s ? humanDur(w.total_s) : "0 min");
       const td = homeData.work ? "Hoje " + humanDur(homeData.work.today_s) : ""; setText(hk(el, "td"), td); hk(el, "td")?.classList.toggle("hidden", !td);
       if (el.dataset.z === "P") {   // pequeno: as 7 barras da semana crescem com a altura; embaixo o cliente que mais pesou
@@ -3804,7 +3815,7 @@ Object.assign(HOME_W, {
       }
       if (!w.total_s) { setHtml(hk(el, "chart"), '<div class="hw-na">Nenhum tempo nesta semana</div>'); setHtml(hk(el, "stack"), ""); setHtml(hk(el, "legs"), ""); return; }
       const cw = hk(el, "chart").clientWidth;
-      setHtml(hk(el, "chart"), barChart(w.days.map((d) => d.s), w.days.map((d) => d.d), w.days.findIndex((d) => d.today), "--chart-cpu", cw, "Horas trabalhadas por dia nesta semana", L ? 72 : el.dataset.z === "G" ? 130 : 100));
+      setHtml(hk(el, "chart"), barChart(w.days.map((d) => d.s), w.days.map((d) => d.d), w.days.findIndex((d) => d.today), "--chart-cpu", cw, "Horas trabalhadas por dia nesta semana", L ? Math.max(72, el.closest(".pager") ? hk(el, "chart").clientHeight : 0) : el.dataset.z === "G" ? 130 : 100));
       // distribuição por cliente: o servidor só devolve o total semanal de cada um (não por dia), então é uma barra única
       const cl = w.clients, nt = L ? 2 : 4, top = cl.slice(0, nt), rest = cl.slice(nt).reduce((a, c) => a + c.s, 0), tot = w.total_s || 1;
       let x = 0;
@@ -3953,13 +3964,15 @@ Object.assign(HOME_W, {
   },
 });
 // Widget do Início: as <img> só são refeitas quando a assinatura muda; a cada segundo só os textos (data-w)
-function dotaWidgetPlan(d) {
-  const L = d.live, l = d.lobby, h = d.hero, k = dota.k;
+function dotaWidgetPlan(d, z) {
+  const L = d.live, l = d.lobby, h = d.hero, k = dota.k, hw = z === "G" ? [144, 81] : z === "A" ? [104, 58] : [64, 36], iw = z === "G" ? [60, 44] : [44, 32];
   if (d.phase === "game" && L) {
     const n = L.next_item;
-    return { sig: JSON.stringify(["g", h?.hero_id, h?.hero, n?.item_id, n?.item, nn(L.clock_s), !!dKda(L), k]),
-      html: `<div class="dwr">${dImg("hero", h?.hero_id, "portrait", h?.hero, 64, 36)}<div class="dmid">${nn(L.clock_s) ? '<div class="dbig" data-w="clock"></div>' : ""}${dKda(L) ? '<span data-w="kda"></span>' : ""}</div></div>`
-        + (n ? `<div class="dwr">${dImg("item", n.item_id, "", n.item, 44, 32)}<div class="dmid"><b>${esc(n.item)}</b><span data-w="miss"></span></div></div>` : "") };
+    const mm = l?.mmr, td = l?.today;
+    return { sig: JSON.stringify(["g", z, h?.hero_id, h?.hero, n?.item_id, n?.item, nn(L.clock_s), !!dKda(L), k, mm?.value, td?.wins, td?.losses]),
+      html: `<div class="dwr">${dImg("hero", h?.hero_id, "portrait", h?.hero, hw[0], hw[1])}<div class="dmid">${nn(L.clock_s) ? '<div class="dbig" data-w="clock"></div>' : ""}${dKda(L) ? '<span data-w="kda"></span>' : ""}</div></div>`
+        + (n ? `<div class="dwr">${dImg("item", n.item_id, "", n.item, iw[0], iw[1])}<div class="dmid"><b>${esc(n.item)}</b><span data-w="miss"></span></div></div>` : "")
+        + (nn(mm?.value) ? `<div class="row"><span>MMR</span><span>${dNum(mm.value)}</span></div>` : "") + (td ? `<div class="row"><span>Hoje</span><span>${td.wins}V – ${td.losses}D</span></div>` : "") };
   }
   if (d.phase === "draft" || d.phase === "pregame") {
     return { sig: JSON.stringify(["p", h?.hero_id, h?.hero, k]),
@@ -4003,7 +4016,7 @@ Object.assign(HOME_W, {
         const l3 = d.lobby?.today ? `Hoje ${d.lobby.today.wins}V – ${d.lobby.today.losses}D` : d.lobby?.mmr?.medal || ""; setText(hk(el, "l3"), l3);
         return;
       }
-      const p = dotaWidgetPlan(d), b = hk(el, "body");
+      const p = dotaWidgetPlan(d, el.dataset.z), b = hk(el, "body");
       setText(hk(el, "ph"), DOTA_PH[d.phase] || "");
       if (b._sig !== p.sig) { b.innerHTML = p.html; b._sig = p.sig; }
       dotaWidgetTick(b, d);
@@ -4257,7 +4270,7 @@ function hwFit(el) {
     for (let i = 1; i < kids.length; i++) if (kids[i].offsetTop + kids[i].offsetHeight > lim) { for (let j = i; j < kids.length; j++) kids[j].classList.add("fx"); break; }
   }
 }
-const hwRO = typeof ResizeObserver === "function" ? new ResizeObserver((es) => es.forEach((e) => { hwFit(e.target); const w = e.target.dataset.w; if (e.target.dataset.z === "P" && (w === "work" || w === "games")) homeUpd(w); })) : null;   // gráfico do P: a altura vem do espaço que sobrou
+const hwRO = typeof ResizeObserver === "function" ? new ResizeObserver((es) => es.forEach((e) => { hwFit(e.target); const w = e.target.dataset.w; const z = e.target.dataset.z; if ((z === "P" && (w === "work" || w === "games")) || (z === "L" && w === "work")) homeUpd(w); })) : null;   // gráfico do P: a altura vem do espaço que sobrou
 function homeUpd(only) {
   if (!vis("inicio")) return;
   if (!only || only === "pomo") homeStrip();
