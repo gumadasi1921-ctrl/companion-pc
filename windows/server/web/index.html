@@ -1625,6 +1625,22 @@ header .host { display: none; }
 .hpage .z-L[data-w="work"] .hchartbox { min-height: 0; overflow: hidden; }
 .hpage .hw.z-A .hdota, .hpage .hw.z-G .hdota { flex: 1 1 0; min-height: 0; align-content: center; justify-content: center; }
 .hpage .hw.z-A .hdota .dwr, .hpage .hw.z-G .hdota .dwr { gap: 12px; } .hpage .hw.z-G .hdota .dbig { font-size: 34px; }
+
+/* Lembretes: tela, formulário e faixa de alarme (nível Alta) */
+.rem-form { display: grid; gap: 10px; margin: 0 0 14px; padding: 12px; border: 1px solid var(--p4); background: var(--panel); border-radius: 12px; }
+.rem-form.hidden { display: none; } .rem-form label { display: grid; gap: 4px; font-size: 13px; color: var(--p3t); } .rem-form .fi, .rem-form select { width: 100%; box-sizing: border-box; min-height: 44px; }
+.rem-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } .rem-lv { display: grid; gap: 4px; font-size: 13px; color: var(--p3t); } .rem-lv small { min-height: 1.2em; }
+.rem-err { margin: 0; color: var(--alert, #f87168); font-size: 13px; min-height: 1.2em; } .rem-acts { display: flex; gap: 10px; align-items: center; }
+.rem-sec { font-size: 13px; letter-spacing: .05em; text-transform: uppercase; color: var(--p3t); margin: 14px 4px 6px; }
+.rem-row { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px 12px; border: 1px solid var(--p4); background: var(--panel); border-radius: 12px; margin-bottom: 8px; width: 100%; box-sizing: border-box; text-align: left; color: inherit; font: inherit; cursor: pointer; }
+.rem-row .rem-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--p3t); } .rem-row[data-lv=normal] .rem-dot { background: var(--accent, var(--p)); } .rem-row[data-lv=high] .rem-dot { background: var(--alert, #f87168); }
+.rem-row .rem-tx { flex: 1; min-width: 0; } .rem-row .rem-tx b { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .rem-row .rem-tx small { display: block; color: var(--p3t); font-size: 12.5px; margin-top: 2px; }
+.rem-row.end { opacity: .6; } .rem-row.ring { outline: 2px solid var(--alert, #f87168); } .rem-tag { flex: none; font-size: 12px; color: var(--p3t); }
+.rem-empty { color: var(--p3t); padding: 18px 4px; }
+#rem-alarm { position: fixed; left: 50%; top: calc(8px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 47; width: min(560px, calc(100vw - 16px)); box-sizing: border-box; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 14px; background: var(--panel); border: 2px solid var(--alert, #f87168); box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+#rem-alarm.hidden { display: none; } #rem-alarm .ra-t { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; } #rem-alarm .ra-t em { color: var(--p3t); font-style: normal; }
+#rem-alarm .ra-b { display: flex; gap: 8px; flex: none; } #rem-alarm button { min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--p3); background: var(--bg); color: var(--p); font: inherit; cursor: pointer; } #rem-alarm button[data-ra=done] { background: var(--accent-fill, var(--p)); color: var(--on-accent, var(--bg)); border-color: transparent; }
+.rw { display: flex; gap: 8px; align-items: baseline; min-height: 28px; font-size: 14px; } .rw b { flex: none; font-weight: 500; color: var(--p2); font-size: 13px; } .rw span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .rw.hi b { color: var(--alert, #f87168); }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -1784,6 +1800,21 @@ header .host { display: none; }
     </div>
     <div class="pm hidden" id="pomo"></div>
     <div class="trl-sec hidden" id="trello" aria-label="Trello"></div>
+  </section>
+
+  <!-- LEMBRETES (separado de Tarefas; guardados no servidor) -->
+  <section class="tab" id="t-reminders">
+    <div class="home-head"><h2>Lembretes</h2><button class="btn primary" id="rem-new">Novo</button></div>
+    <form class="rem-form hidden" id="rem-form" autocomplete="off">
+      <label>Lembrar de<input class="fi" id="rem-text" maxlength="120" placeholder="ex.: Ligar para o cliente" aria-label="Texto do lembrete"></label>
+      <div class="rem-two"><label>Dia<input class="fi" id="rem-date" type="date" aria-label="Dia"></label><label>Hora<input class="fi" id="rem-time" type="time" aria-label="Hora"></label></div>
+      <label>Repetir<select class="sel" id="rem-rep" aria-label="Repetição"><option value="none">Não repete</option><option value="daily">Todo dia</option><option value="weekly">Toda semana</option><option value="weekdays">Dias úteis (seg a sex)</option></select></label>
+      <div class="rem-lv"><span>Importância</span><div class="seg" id="rem-lvl" role="group" aria-label="Importância"><button type="button" data-lv="low">Baixa</button><button type="button" data-lv="normal">Normal</button><button type="button" data-lv="high">Alta</button></div>
+        <small id="rem-lvh"></small></div>
+      <p class="rem-err" id="rem-err" role="status"></p>
+      <div class="rem-acts"><button type="button" class="btn danger hidden" id="rem-del">Apagar</button><span style="flex:1"></span><button type="button" class="btn" id="rem-cancel">Cancelar</button><button class="btn primary" id="rem-save">Salvar</button></div>
+    </form>
+    <div id="rem-list"><div class="tk-sk"><i></i><i></i><i></i></div></div>
   </section>
 
   <!-- RÁDIO > Tocando -->
@@ -2101,6 +2132,7 @@ header .host { display: none; }
 <button id="lume-fab" class="hidden" aria-label="Lume"></button>
 <div id="lume-menu" class="hidden" role="menu"></div>
 <div id="lume-bal" class="hidden" role="status" aria-live="polite"></div>
+<div id="rem-alarm" class="hidden" role="alertdialog" aria-live="assertive" aria-label="Lembrete"></div>
 
 <div class="overlay hidden" id="login">
   <form class="dialog" id="login-form">
@@ -2533,7 +2565,7 @@ function makeLayouts(store, rid, now, defaults) {
     return out;
   };
   // barra de navegação: {v:1, order:[todos os ids, por prioridade], hidden:[ids fora da barra]}; a barra mostra no máximo NAV_CAP itens (o resto fica em Mais)
-  const NAV_IDS = ["inicio", "ctrl", "deck", "tasks", "dash", "media", "games", "dota", "work", "weather", "send", "power", "widgets", "sys", "mascot"], NAV_CAP = 4;
+  const NAV_IDS = ["inicio", "ctrl", "deck", "tasks", "dash", "media", "games", "dota", "work", "weather", "send", "power", "widgets", "sys", "mascot", "reminders"], NAV_CAP = 4;
   const navDef = () => ({ v: 1, order: NAV_IDS.slice(), hidden: NAV_IDS.slice(NAV_CAP) });
   const validNav = (n) => {
     if (!isObj(n) || n.v !== 1 || !Array.isArray(n.order) || !Array.isArray(n.hidden) || n.order.length > 40 || n.hidden.length > 40) return null;
@@ -2896,9 +2928,11 @@ function onMsg(m) {
     case "weather": wxSet(m.d); break;
     case "steam": steamSet(m.d); break;
     case "trello": trelloSet(m.d); break;
+    case "reminders": remSet(m.d); break;
     case "gameart": state.gameart = { [m.id]: "data:image/jpeg;base64," + m.jpg }; renderGames(); break;
     case "event": lumeEvent(m, () => {
       if (m.kind === "pomo.done") { pomoDone(m); return; }
+      if (m.kind === "reminder") { remEvent(m); return; }
       if (m.kind === "notif") { homeNotifPush(m); snd("note"); notify(`${m.app}: ${m.title}`, m.body, "pcn-" + m.app); return; }
       if (m.kind === "steam.done" && prefs.alerts.download) { snd("note"); notify("Download da Steam concluído", m.name, "steam-" + m.appid); toast("Steam: " + m.name + " terminou de baixar", "ok"); return; }
       if (m.kind === "download" && prefs.alerts.download) notify("Download concluído", m.name + (m.size ? ` · ${fmtBytes(m.size)}` : ""), "dl");
@@ -3084,7 +3118,7 @@ const SECTIONS = {
   deck: [["deck", "Botões"]],
   tasks: [["tasks", "Tarefas"]],
   mais: [["more", "Mais"], ["dash", "Sistema"], ["media", "Tocando"], ["mix", "Mixer"], ["games", "Jogos"], ["dota", "Dota"], ["work", "Trabalho"], ["weather", "Tempo"],
-    ["send", "Arquivos"], ["power", "Energia"], ["widgets", "Widgets do Início"], ["mascot", "Lume"], ["sys", "Ajustes"]],
+    ["send", "Arquivos"], ["power", "Energia"], ["widgets", "Widgets do Início"], ["mascot", "Lume"], ["reminders", "Lembretes"], ["sys", "Ajustes"]],
 };
 const GROUPS = { ctrl: ["mouse", "screen"], radio: ["media", "mix"] };
 const SPLIT = { ctrl: "minmax(0,1fr) minmax(0,1.7fr)", radio: "minmax(0,1fr) minmax(0,1.1fr)" };
@@ -3131,6 +3165,7 @@ function showView(name, temp) {
   if (vis("inicio")) homeShow();
   if (vis("mascot")) lumeRender();
   if (vis("widgets")) wdShow();
+  if (vis("reminders")) remLoad();
   if (vis("sys")) stOpen();
   pcPlace();
   try { lumePaint(); } catch {}
@@ -3230,6 +3265,7 @@ const NAVM = {   // id: [rótulo na barra, rótulo longo, ícone, vista de entra
   games: ["Jogos", "Jogos", "gamepad-2", "games"], dota: ["Dota", "Dota", "gamepad", "dota"], work: ["Trabalho", "Trabalho", "briefcase", "work"],
   weather: ["Tempo", "Tempo", "cloud-sun", "weather"], send: ["Arquivos", "Arquivos", "folder-open", "send"], power: ["Energia", "Energia", "log-out", "power"],
   widgets: ["Widgets", "Widgets do Início", "layout-grid", "widgets"], mascot: ["Lume", "Lume", "heart", "mascot"], sys: ["Ajustes", "Ajustes", "sliders-horizontal", "sys"],
+  reminders: ["Lembretes", "Lembretes", "bell", "reminders"],
 };
 let navBar = [];   // ids que estão na barra agora
 const navCfg = () => LAY.NAV.norm(store.get("nav", null)) || LAY.NAV.def();
@@ -3937,6 +3973,92 @@ function trelloDigest(m) {
   homeNotifPush({ app: "Trello", title: m.title, body: m.body, go: "tasks" });
   snd("note"); notify(m.title, m.body, "trello");
 }
+
+// ---------------------------------------------------------------- Lembretes (servidor guarda; iguais em todos os aparelhos)
+const rem = { d: null, edit: null, lvl: "normal", ring: false };
+const REM_REP = { none: "", daily: "todo dia", weekly: "toda semana", weekdays: "dias úteis" }, REM_LVL = { low: "Baixa", normal: "Normal", high: "Alta" };
+const REM_LVH = { low: "Balão discreto do Lume.", normal: "Balão do Lume e som.", high: "Lume em alerta, aviso fixo até “Feito” ou “Adiar”, vibração." };
+function remSet(d) { if (!d || !Array.isArray(d.items)) return; rem.d = d; remRender(); remAlarm(); homeUpd("reminders"); }
+async function remLoad() { try { remSet((await send("reminders.get")).state); } catch { remRender(); } }
+async function remCall(a, p) { const r = await send("reminders." + a, p); remSet(r.state); return r.item; }
+const remDay = (n) => { const d = new Date(rem.d.local_now.slice(0, 10) + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+function remWhen(w) {   // "AAAA-MM-DD HH:MM" já na hora do PC
+  if (!w || !rem.d) return "";
+  const day = w.slice(0, 10), t = w.slice(11);
+  return (day === remDay(0) ? "hoje" : day === remDay(1) ? "amanhã" : day.slice(8) + "/" + day.slice(5, 7)) + " " + t;
+}
+function remRender() {
+  const root = $("rem-list"); if (!root) return;
+  const d = rem.d;
+  if (!d) { setHtml(root, `<div class="rem-empty">${ws && ws.readyState === 1 ? "Carregando…" : "Sem conexão com o PC."}</div>`); return; }
+  const row = (r) => {
+    const end = r.state === "done" || r.state === "missed", ring = r.state === "ringing";
+    const meta = end ? (r.state === "missed" ? "Perdido (sem aparelho conectado na hora)" : "Feito") : [remWhen(r.when), REM_REP[r.repeat]].filter(Boolean).join(" · ");
+    return `<button class="rem-row${end ? " end" : ""}${ring ? " ring" : ""}" data-id="${r.id}" data-lv="${r.level}"><i class="rem-dot"></i><span class="rem-tx"><b>${esc(r.text)}</b><small>${esc(meta)}</small></span><span class="rem-tag">${REM_LVL[r.level]}</span></button>`;
+  };
+  const ring = d.items.filter((r) => r.state === "ringing"), act = d.items.filter((r) => r.state === "active"), end = d.items.filter((r) => r.state === "done" || r.state === "missed");
+  setHtml(root, (d.items.length ? "" : '<div class="rem-empty">Nenhum lembrete. Toque em Novo.</div>')
+    + (ring.length ? `<div class="rem-sec">Tocando agora</div>${ring.map(row).join("")}` : "")
+    + (act.length ? `<div class="rem-sec">Próximos</div>${act.map(row).join("")}` : "")
+    + (end.length ? `<div class="rem-sec">Encerrados</div>${end.map(row).join("")}<button class="btn sm" data-rem="clear">Limpar encerrados</button>` : ""));
+}
+function remForm(id) {
+  const d = rem.d; if (!d) return toast("Sem conexão com o PC", "bad");
+  const r = id === "new" ? null : d.items.find((x) => x.id === id);
+  rem.edit = id; $("rem-form").classList.remove("hidden"); $("rem-err").textContent = "";
+  const at = r ? r.at : (() => { const t = new Date(d.local_now.replace(" ", "T") + ":00Z"); t.setUTCHours(t.getUTCHours() + 1); t.setUTCMinutes(0); return t.toISOString().slice(0, 16).replace("T", " "); })();
+  $("rem-text").value = r ? r.text : ""; $("rem-date").value = at.slice(0, 10); $("rem-time").value = at.slice(11);
+  $("rem-rep").value = r ? r.repeat : "none"; remLvl(r ? r.level : "normal");
+  $("rem-del").classList.toggle("hidden", !r); $("rem-save").textContent = r ? "Salvar" : "Criar";
+  $("rem-new").classList.add("hidden"); setTimeout(() => $("rem-text").focus(), 30);
+}
+function remLvl(v) {
+  rem.lvl = v; $("rem-lvh").textContent = REM_LVH[v];
+  for (const b of $("rem-lvl").children) { const on = b.dataset.lv === v; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); }
+}
+function remClose() { rem.edit = null; $("rem-form").classList.add("hidden"); $("rem-new").classList.remove("hidden"); }
+$("rem-new").onclick = () => { buzz(8); remForm("new"); };
+$("rem-cancel").onclick = () => { buzz(8); remClose(); };
+$("rem-lvl").onclick = (e) => { const b = e.target.closest("[data-lv]"); if (b) { buzz(8); remLvl(b.dataset.lv); } };
+$("rem-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const p = { text: $("rem-text").value, at: $("rem-date").value + " " + $("rem-time").value, repeat: $("rem-rep").value, level: rem.lvl };
+  if (!$("rem-date").value || !$("rem-time").value) { $("rem-err").textContent = "Escolha o dia e a hora."; return; }
+  try { await remCall(rem.edit === "new" ? "add" : "edit", rem.edit === "new" ? p : { ...p, id: rem.edit }); buzz(); remClose(); }
+  catch (er) { $("rem-err").textContent = er.message === "offline" ? "Sem conexão com o PC." : er.message; }
+};
+$("rem-del").onclick = async () => {
+  const id = rem.edit; if (!id || id === "new") return; buzz();
+  try { const it = await remCall("remove", { id }); remClose(); undoToast("Lembrete apagado", () => remCall("restore", { entry: it }).catch((er) => toast(er.message, "bad")), "Desfazer", null, 6000); }
+  catch (er) { $("rem-err").textContent = er.message; }
+};
+$("rem-list").onclick = (e) => {
+  const c = e.target.closest("[data-rem=clear]"); if (c) { buzz(8); remCall("clear", {}).catch((er) => toast(er.message, "bad")); return; }
+  const r = e.target.closest(".rem-row[data-id]"); if (!r) return; buzz(8);
+  const it = rem.d && rem.d.items.find((x) => x.id === r.dataset.id); if (it && it.state !== "done" && it.state !== "missed") remForm(it.id);
+};
+// aviso: Baixa = balão discreto; Normal = balão + som; sem Lume (dormindo, escondido, desligado, aba oculta) = toast. Alta = faixa fixa abaixo.
+function remEvent(m) {
+  if (m.level === "high") {   // aparece sempre (inclusive em Foco e com o Lume dormindo): a faixa vem do estado `ringing`
+    if (navigator.vibrate) try { navigator.vibrate([300, 150, 300, 150, 300]); } catch {}
+    snd("err"); return;
+  }
+  if (m.level === "normal") snd("note");
+  if (lumeOn() && !lumeHidden() && !document.hidden) lumeSay({ src: "lume", text: m.text, ms: m.level === "low" ? 5000 : 8000 });
+  else toast(m.text, "ok");
+}
+function remAlarm() {
+  const el = $("rem-alarm"), ids = rem.d ? rem.d.ringing : [], it = ids.length ? rem.d.items.find((x) => x.id === ids[0]) : null;
+  if (!it) { el.classList.add("hidden"); if (rem.ring) { rem.ring = false; if (!LB.cur) LU.alertUntil = 0; lumePaint(); } return; }
+  const html = `<div class="ra-t"><b>${esc(it.text)}</b>${ids.length > 1 ? ` <em>+${ids.length - 1}</em>` : ""}</div><div class="ra-b"><button data-ra="done" data-id="${it.id}">Feito</button><button data-ra="snooze" data-id="${it.id}">Adiar 10 min</button></div>`;
+  if (el._h !== html) { el._h = html; el.innerHTML = html; }
+  el.classList.remove("hidden"); rem.ring = true; LU.alertUntil = Date.now() + 36e5; lumePaint();   // Lume em alerta enquanto tocar
+}
+$("rem-alarm").onclick = (e) => {
+  const b = e.target.closest("[data-ra]"); if (!b) return; buzz(8);
+  const id = b.dataset.id, p = b.dataset.ra === "done" ? remCall("done", { id }) : remCall("snooze", { id, min: 10 });
+  p.then(() => { if (b.dataset.ra === "snooze") toast("Adiado em 10 min", "ok"); }).catch((er) => toast(er.message, "bad"));
+};
 // tela Tarefas: anel 140px + pendentes + "Feitas". Toque = homeTaskToggle (otimista + Desfazer 4 s).
 let tkAll = null;
 function tkView(d) {
@@ -4522,6 +4644,26 @@ Object.assign(HOME_W, {
     },
   },
 });
+
+Object.assign(HOME_W, {
+  reminders: {
+    name: "Lembretes", icon: "bell", sizes: "PALG", def: "A",
+    html(z) {
+      const head = '<div class="hw-t"><span>Lembretes</span><span data-k="cnt"></span></div>', list = '<div class="htk-list" data-k="list" data-fit></div>';
+      if (z === "P") return '<div class="pq" data-clip><div class="hw-t"><span>Lembretes</span><span data-k="cnt"></span></div><div class="htk-list pq-list" data-k="list" data-clip></div></div>';
+      if (z === "L") return `<div class="htk-l"><div class="htk-list" data-k="list"></div></div>`;
+      return `${head}${list}`;
+    },
+    ready: () => !!rem.d,
+    upd(el) {
+      const z = el.dataset.z, d = rem.d, live = d.items.filter((r) => r.state === "ringing" || r.state === "active");
+      setText(hk(el, "cnt"), live.length ? String(live.length) : "");
+      const n = el.closest(".pager") && z !== "L" ? 8 : { P: 2, A: 4, L: 2, G: 6 }[z];
+      setHtml(hk(el, "list"), !live.length ? '<div class="hw-na">Nenhum lembrete. Crie em Lembretes.</div>'
+        : live.slice(0, n).map((r) => `<div class="rw${r.state === "ringing" ? " hi" : ""}"><b>${esc(r.state === "ringing" ? "agora" : remWhen(r.when))}</b><span>${esc(r.text)}</span></div>`).join(""));
+    },
+  },
+});
 // Widget do Início: as <img> só são refeitas quando a assinatura muda; a cada segundo só os textos (data-w)
 function dotaWidgetPlan(d, z) {
   const L = d.live, l = d.lobby, h = d.hero, k = dota.k, hw = z === "G" ? [144, 81] : z === "A" ? [104, 58] : [64, 36], iw = z === "G" ? [60, 44] : [44, 32];
@@ -4810,7 +4952,7 @@ $("home-dots").addEventListener("click", (e) => {
 });
 matchMedia("(orientation: landscape)").addEventListener("change", () => { if (vis("inicio")) homeBuild(); });
 // funcionalidade do servidor de que cada widget depende: sem ela neste PC o widget fica no lugar, com "indisponível neste PC"
-const HOME_NEEDS = { now: "media", work: "work", today: "work", games: "library", notif: "notif", trello: "trello", pomo: "pomo", dota: "dota" };
+const HOME_NEEDS = { reminders: "reminders", now: "media", work: "work", today: "work", games: "library", notif: "notif", trello: "trello", pomo: "pomo", dota: "dota" };
 // Início em páginas (deitado/tablet): nos tamanhos A e G as listas ocupam a altura que sobra e mostram quantos itens couberem
 // (só dados que já existem; o que não cabe fica escondido com .fx e volta quando a altura cresce).
 const HW_FIT = "[data-fit], [data-clip]";
@@ -4942,6 +5084,7 @@ $("home").addEventListener("click", (e) => {
     return act("media." + (a.dataset.a === "play" ? "play_pause" : a.dataset.a));
   }
   const t = e.target.closest(".trow[data-id]"); if (t) return homeTaskToggle(t.dataset.id);
+  if (e.target.closest('.hw[data-w="reminders"]')) { buzz(8); showView("reminders"); }
   if (e.target.closest('.hw[data-w="now"]')) { buzz(8); showView("media"); }   // fora dos botões: abre o Rádio
   if (e.target.closest('.hw[data-w="dota"]')) { buzz(8); showView("dota"); }
   if (e.target.closest('.hw[data-w="trello"]')) { buzz(8); pm.mode = "list"; store.set("tkmode", "list"); pomoShowMode(); showView("tasks"); }

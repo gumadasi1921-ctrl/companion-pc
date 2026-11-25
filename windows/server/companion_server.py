@@ -88,6 +88,7 @@ import pc_info
 import steam_dl
 import watchers
 import pomodoro
+import reminders
 import tasks
 import trello
 import updater
@@ -1113,6 +1114,7 @@ ASYNC_ACTIONS = {
     "pomo.skip": lambda p: pomo_run("skip", p),
     "pomo.reset": lambda p: pomo_run("reset", p),
     "pomo.config": lambda p: pomo_run("config", p),
+    **{f"reminders.{n}": (lambda p, n=n: rem_run(n, p)) for n in ("get", "add", "edit", "remove", "restore", "done", "snooze", "clear")},
     "timer.start": lambda p: TIMER.start(p.get("action"), p.get("minutes")),
     "timer.cancel": lambda p: timer_cancel(),
     "games.library": lambda p: asyncio.to_thread(MON.library),
@@ -1321,7 +1323,7 @@ def welcome_payload():
         "features": {"media": pc_info.HAS_MEDIA, "volume": pc_info.HAS_VOLUME, "mixer": pc_info.HAS_VOLUME,
                      "screen": True, "clipboard": True, "files": True, "deck": True,
                      "mic": pc_info.HAS_VOLUME, "timer": True, "deck_auto": True, "macro": True,
-                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True, "trello": True,
+                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True, "trello": True, "reminders": True,
                      "dota": True},
     }
 
@@ -1417,6 +1419,7 @@ async def session(ws, peer, kind, xff=None):
     await send_games(ws, MON.state)
     await push_now(only=ws)
     await pomo_send([json.dumps({"t": "pomo", "d": await pomo_state()})], only=ws)
+    await rem_send(only=ws)
     await trello_send(only=ws)
     if DOTA.state is not None:
         await dota_send(DOTA.state, only=ws)
@@ -1484,6 +1487,7 @@ QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "m
                  "dota.get",  # consultada a cada abertura da tela Dota
                  "weather.get", "weather.search", "weather.set_place", "weather.refresh",  # cidade escolhida / texto digitado
                  "pomo.get", "pomo.start", "pomo.pause", "pomo.resume", "pomo.skip", "pomo.reset", "pomo.config",
+                 "reminders.get", "reminders.add", "reminders.edit", "reminders.remove", "reminders.restore", "reminders.done", "reminders.snooze", "reminders.clear",   # texto dos lembretes
                  "pomo_get", "pomo_start", "pomo_pause", "pomo_resume", "pomo_skip", "pomo_reset", "pomo_config",
                  # modo painel (operações locais; mesmos motivos: texto de tarefas, clientes, pastas, código de pareamento)
                  "panel_status", "pair_new", "pair_state", "pick_folder", "tasks_get", "tasks_add", "tasks_edit",
@@ -1724,6 +1728,59 @@ async def pomo_run(name, p):
         pomo_reschedule()
         await pomo_send([json.dumps({"t": "pomo", "d": state})])
     return state
+
+
+# --------------------------------------------------------------------------
+# Lembretes (reminders.py): um call_later (no máximo 30 s, o relógio monotônico não conta o sono do PC), sem loop de 1 s
+# --------------------------------------------------------------------------
+REM = reminders.Reminders(BASE)
+REM_H = [None]
+REM_OPS = {
+    "get": lambda p: None,
+    "add": lambda p: REM.add(_need(p, "text", str), _need(p, "at", str), p.get("repeat", "none"), p.get("level", "normal")),
+    "edit": lambda p: REM.edit(_need(p, "id", str), _need(p, "text", str), _need(p, "at", str), p.get("repeat", "none"), p.get("level", "normal")),
+    "remove": lambda p: REM.remove(_need(p, "id", str)),
+    "restore": lambda p: REM.restore(_need(p, "entry", dict)),
+    "done": lambda p: REM.done(_need(p, "id", str)),
+    "snooze": lambda p: REM.snooze(_need(p, "id", str), _need(p, "min", int) if "min" in p else 10),
+    "clear": lambda p: REM.clear_ended(),
+}
+
+
+async def rem_send(msgs=None, only=None):
+    msgs = msgs or [json.dumps({"t": "reminders", "d": REM.state()}, ensure_ascii=False)]
+    for ws in [only] if only else list(clients):
+        try:
+            for m in msgs:
+                await ws.send(m)
+        except ConnectionClosed:
+            clients.discard(ws)
+
+
+def rem_reschedule():
+    if REM_H[0]:
+        REM_H[0].cancel()
+        REM_H[0] = None
+    d = REM.next_due()
+    if d is not None:
+        REM_H[0] = asyncio.get_running_loop().call_later(min(d, 30) + 0.05, lambda: asyncio.ensure_future(rem_fire()))
+
+
+async def rem_fire():
+    REM_H[0] = None
+    evs = await on_io(REM.tick, bool(clients))
+    rem_reschedule()
+    if evs:
+        log.info("lembretes: %d avisado(s)", len(evs))   # nunca o texto
+        msgs = [json.dumps({"t": "event", "kind": "reminder", **e}, ensure_ascii=False) for e in evs]
+        await rem_send(msgs + [json.dumps({"t": "reminders", "d": REM.state()}, ensure_ascii=False)])
+
+
+async def rem_run(name, p):
+    res = await on_io(REM_OPS[name], p)
+    rem_reschedule()
+    await rem_send()
+    return {"state": REM.state(), "item": res if isinstance(res, dict) else None}
 
 
 def work_app_icons():
@@ -2294,6 +2351,7 @@ async def main():
         log.info("pomodoro: a fase venceu com o servidor desligado (concluída sem aviso)")
     await pomo_state()   # modo foco já ligado se o servidor reabriu no meio de um Foco
     pomo_reschedule()
+    rem_reschedule()
     pc_info.MEDIA = pc_info.Media()
     n = await on_io(UPLOADS.clean_stale_parts)
     log.info("uploads: %d arquivo(s) .part de envios anteriores apagado(s)", n)
