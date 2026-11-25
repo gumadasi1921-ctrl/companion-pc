@@ -3,7 +3,8 @@
 Roda na fila de disco do servidor (IO_POOL, uma thread): urllib da biblioteca padrão, timeout de 5 s.
 A cidade é só a que o usuário escolheu (config.json "weather": {"place": {...} ou null, "units": "metric"});
 sem cidade nada é buscado, e nunca há localização automática. A última resposta fica em weather.json
-(gravação atômica; arquivo corrompido vira weather.json.bad-<data-hora>). Sem internet: mantém a última e
+(gravação atômica; arquivo corrompido vira weather.json.bad-<data-hora>). Se o Open-Meteo falhar, tenta o wttr.in (reserva: até 3 dias, sem hora a hora, sem
+inventar o que ele não traz). Sem internet nos dois: mantém a última e
 marca "desatualizado" (o aparelho mostra desde quando). No log só "previsão atualizada" / "previsão: erro":
 nunca a cidade, as coordenadas nem a resposta.
 """
@@ -20,6 +21,7 @@ log = logging.getLogger("companion.weather")
 
 GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+WTTR_URL = "https://wttr.in/"   # reserva quando o Open-Meteo falha (sem chave; j1 = JSON)
 TIMEOUT_S = 5
 MAX_BYTES = 512 * 1024
 REFRESH_EVERY_S = 30 * 60      # com aparelho conectado
@@ -128,6 +130,85 @@ def parse_forecast(raw):
     return out
 
 
+# Reserva (wttr.in): códigos do World Weather Online -> código WMO equivalente. Só entra o que tem equivalente
+# claro; granizo fino e chuva com gelo ("sleet") não têm par exato e ficam SEM texto/ícone (nada é inventado).
+WWO_TO_WMO = {
+    113: 0, 116: 2, 119: 3, 122: 3, 143: 45, 248: 45, 260: 48,
+    176: 80, 179: 85, 185: 56, 200: 95,
+    227: 71, 230: 75,
+    263: 51, 266: 51, 281: 56, 284: 57,
+    293: 61, 296: 61, 299: 63, 302: 63, 305: 65, 308: 65, 311: 66, 314: 67,
+    323: 71, 326: 71, 329: 73, 332: 73, 335: 75, 338: 75, 350: 77,
+    353: 80, 356: 81, 359: 82, 368: 85, 371: 86,
+    386: 95, 389: 95, 392: 95, 395: 95,
+}
+
+
+def _wnum(v, nd=1):
+    """Número do wttr.in (vem como texto) -> número ou None."""
+    try:
+        return _num(float(v), nd)
+    except (TypeError, ValueError):
+        return None
+
+
+def _wttr_text_icon(code):
+    """(texto, ícone) do código do wttr. Sem equivalente = (None, None). Sem saber se é dia ou noite, o ícone só
+    sai quando é o mesmo nos dois (o wttr.in não informa a hora local atual)."""
+    try:
+        wmo = WWO_TO_WMO.get(int(code))
+    except (TypeError, ValueError):
+        return None, None
+    if wmo is None:
+        return None, None
+    text, icon_day = describe(wmo, 1)
+    icon_night = describe(wmo, 0)[1]
+    return text, (icon_day if icon_day == icon_night else None)
+
+
+def _wttr_clock(date, hm):
+    """'05:12 AM' + '2026-11-25' -> '2026-11-25T05:12' (hora local do lugar, como o Open-Meteo)."""
+    try:
+        t = time.strptime(str(hm).strip(), "%I:%M %p")
+    except ValueError:
+        return None
+    return f"{date}T{t.tm_hour:02d}:{t.tm_min:02d}"
+
+
+def parse_wttr(raw, units="metric"):
+    """Resposta j1 do wttr.in -> o mesmo estado compacto do parse_forecast. Limites reais da reserva: até 3 dias e
+    sem previsão hora a hora (as horas vêm de 3 em 3 e sem a hora local atual, então 'Agora' não dá para marcar)."""
+    cc = raw.get("current_condition") if isinstance(raw, dict) else None
+    days = raw.get("weather") if isinstance(raw, dict) else None
+    if not (isinstance(cc, list) and cc and isinstance(cc[0], dict)) or not isinstance(days, list):
+        raise ValueError("resposta de previsão inválida")
+    imp = units == "imperial"
+    t_key, f_key, w_key = ("temp_F", "FeelsLikeF", "windspeedMiles") if imp else ("temp_C", "FeelsLikeC", "windspeedKmph")
+    c = cc[0]
+    text, icon = _wttr_text_icon(c.get("weatherCode"))
+    out = {"units": {"temp": "°F" if imp else "°C", "wind": "mph" if imp else "km/h"}}
+    out["current"] = _put({}, temp=_wnum(c.get(t_key)), feels=_wnum(c.get(f_key)), humidity=_wnum(c.get("humidity"), 0),
+                          wind=_wnum(c.get(w_key)), code=None, text=text, icon=icon)
+    out["hourly"] = []
+    mx, mn = ("maxtempF", "mintempF") if imp else ("maxtempC", "mintempC")
+    res = []
+    for d in days[:3]:
+        if not isinstance(d, dict) or not isinstance(d.get("date"), str):
+            continue
+        hrs = [h for h in d.get("hourly") or [] if isinstance(h, dict)]
+        pops = [max(filter(lambda v: v is not None, (_wnum(h.get("chanceofrain"), 0), _wnum(h.get("chanceofsnow"), 0))), default=None)
+                for h in hrs]
+        pops = [p for p in pops if p is not None]
+        noon = next((h for h in hrs if h.get("time") == "1200"), None)   # condição do dia = a das 12h
+        dtext, dicon = _wttr_text_icon(noon.get("weatherCode")) if noon else (None, None)
+        astro = d["astronomy"][0] if isinstance(d.get("astronomy"), list) and d["astronomy"] and isinstance(d["astronomy"][0], dict) else {}
+        res.append(_put({"d": d["date"]}, max=_wnum(d.get(mx)), min=_wnum(d.get(mn)), pop=max(pops) if pops else None,
+                        sunrise=_wttr_clock(d["date"], astro.get("sunrise")), sunset=_wttr_clock(d["date"], astro.get("sunset")),
+                        text=dtext, icon=dicon))
+    out["daily"] = res
+    return out
+
+
 def parse_search(raw):
     """Resposta da geocodificação -> até 5 {name, admin, country, lat, lon}. Sem resultados = lista vazia."""
     res = raw.get("results") if isinstance(raw, dict) else None
@@ -197,16 +278,22 @@ def fetch_forecast(place, units="metric"):
     return _http_json(f"{FORECAST_URL}?{urllib.parse.urlencode(qs)}")
 
 
+def fetch_wttr(place, units="metric"):
+    return _http_json(f"{WTTR_URL}{place['lat']},{place['lon']}?format=j1")
+
+
 class Weather:
     """Estado da previsão. Tudo roda na fila de disco (uma thread): sem locks. Os relógios e os acessos à rede
     são injetáveis (testes sem rede)."""
 
-    def __init__(self, base, cfg=None, clock=time.time, search_fn=None, forecast_fn=None):
+    def __init__(self, base, cfg=None, clock=time.time, search_fn=None, forecast_fn=None, backup_fn=None):
         self.path = Path(base) / "weather.json"
         self.cfg = cfg if isinstance(cfg, dict) else dict(DEFAULT_CFG)
         self.clock = clock
         self.search_fn = search_fn or fetch_search
         self.forecast_fn = forecast_fn or fetch_forecast
+        # reserva (wttr.in): só liga sozinha com o acesso real à rede; testes que injetam forecast_fn não saem da máquina
+        self.backup_fn = backup_fn if backup_fn is not None else (fetch_wttr if forecast_fn is None else None)
         self.data = None            # parse_forecast() da última resposta boa
         self.updated_at = None      # epoch dessa resposta
         self.stale = False          # a última tentativa falhou: a previsão é a anterior
@@ -288,18 +375,26 @@ class Weather:
             return False
         before = self.state()
         self.last_try = self.clock()
+        used_backup = False
         try:
             data = parse_forecast(self.forecast_fn(p, self.units))
         except Exception as e:  # noqa: BLE001  rede, JSON, formato: o motivo detalhado não vai para o log
-            self.last_ok, self.stale = False, True
             log.warning("previsão: erro (%s)", type(e).__name__)
-            return self.state() != before
+            data = None
+            if self.backup_fn:
+                try:
+                    data, used_backup = parse_wttr(self.backup_fn(p, self.units), self.units), True
+                except Exception as e2:  # noqa: BLE001
+                    log.warning("previsão (reserva): erro (%s)", type(e2).__name__)
+            if data is None:
+                self.last_ok, self.stale = False, True
+                return self.state() != before
         self.data, self.updated_at, self.last_ok, self.stale = data, self.clock(), True, False
         try:
             self._save()
         except OSError as e:
             log.warning("previsão: não consegui gravar weather.json (%s)", type(e).__name__)
-        log.info("previsão atualizada")
+        log.info("previsão (reserva) atualizada" if used_backup else "previsão atualizada")
         return True
 
     def refresh_manual(self):
