@@ -1338,6 +1338,7 @@ input.num { min-height: 36px; }
         <div class="fps-hint hidden" id="g-fps-hint"></div>
       </div>
       <div style="display:grid; gap:10px; align-content:start">
+        <div class="card hidden" id="steam-card"><h3><span>Downloads da Steam</span></h3><div id="steam-list"></div></div>
         <div class="card"><h3><span>Jogados recentemente</span></h3><div id="g-recent"></div></div>
         <div class="card"><h3><span>Esta semana</span><span id="gh-total"></span></h3><div class="week" id="gh-days"></div><div id="gh-top" style="margin-top:10px"></div></div>
       </div>
@@ -1805,11 +1806,13 @@ function onMsg(m) {
     case "games": state.games = m.d; state.gamesT = performance.now(); renderGames(); break;
     case "dota": dotaSet(m.d, m.auto_open, m.img_key); break;
     case "weather": wxSet(m.d); break;
+    case "steam": steamSet(m.d); break;
     case "trello": trelloSet(m.d); break;
     case "gameart": state.gameart = { [m.id]: "data:image/jpeg;base64," + m.jpg }; renderGames(); break;
     case "event":
       if (m.kind === "pomo.done") { pomoDone(m); break; }
       if (m.kind === "notif") { homeNotifPush(m); snd("note"); notify(`${m.app}: ${m.title}`, m.body, "pcn-" + m.app); break; }
+      if (m.kind === "steam.done" && prefs.alerts.download) { snd("note"); notify("Download da Steam concluído", m.name, "steam-" + m.appid); toast("Steam: " + m.name + " terminou de baixar", "ok"); break; }
       if (m.kind === "download" && prefs.alerts.download) notify("Download concluído", m.name + (m.size ? ` · ${fmtBytes(m.size)}` : ""), "dl");
       if (m.kind === "export" && prefs.alerts.export) exportNotice(m);
       if (m.kind === "alert" && prefs.alerts.misplaced) misplacedNotice(m);
@@ -2333,7 +2336,25 @@ setInterval(() => { if (dota.d && (dota.d.phase === "game" || dota.d.phase === "
 
 // ---------------------------------------------------------------- Jogos: semana e biblioteca
 let libT = 0, libData = [];
+// Downloads da Steam (lidos dos arquivos da própria Steam no PC; sem velocidade nem tempo restante, só bytes reais)
+let steamD = null;
+function steamSet(d) { steamD = d; renderSteam(); }
+function renderSteam() {
+  const card = $("steam-card"), el = $("steam-list"); if (!card || !steamD) return;
+  if (!steamD.available) { card.classList.remove("hidden"); setHtml(el, '<div class="empty">Steam indisponível</div>'); return; }
+  card.classList.toggle("hidden", !steamD.items.length);
+  const mb = (n) => (n >= 1073741824 ? (n / 1073741824).toFixed(1) + " GB" : Math.round(n / 1048576) + " MB");
+  setHtml(el, steamD.items.map((i) => {
+    const lab = i.phase === "paused" ? "pausado" : i.phase === "stage" ? "instalando arquivos" : "baixando";
+    return `<div style="padding:6px 14px"><div class="row" style="padding:0"><span>${esc(i.name || "Jogo " + i.appid)}</span><span>${i.pct.toFixed(0)}%</span></div><div class="bar"><i style="width:${Math.min(100, i.pct)}%"></i></div><div class="sub">${lab} · ${mb(i.done)} de ${mb(i.total)}</div></div>`;
+  }).join(""));
+}
+async function loadSteam() {
+  if (!ws || ws.readyState !== 1 || !welcome.features?.library) return;
+  try { const r = await send("steam.get"); if (r?.d) steamSet(r.d); } catch {}
+}
 async function loadGamesExtra() {
+  loadSteam();
   if (!ws || ws.readyState !== 1 || !welcome.features?.library || Date.now() - libT < 60000) return;
   libT = Date.now();
   try {

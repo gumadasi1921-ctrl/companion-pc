@@ -78,6 +78,19 @@ def _reg(root, path, name):
         return None
 
 
+def steam_libraries(sp):
+    """Pastas de biblioteca da Steam (a principal e as de libraryfolders.vdf), sem repetir."""
+    libs = {os.path.normcase(sp)}
+    try:
+        lf = parse_vdf(Path(sp, "steamapps", "libraryfolders.vdf").read_text(encoding="utf-8", errors="ignore"))
+        for v in (_ci(lf, "libraryfolders") or {}).values():
+            if isinstance(v, dict) and v.get("path"):
+                libs.add(os.path.normcase(v["path"]))
+    except OSError:
+        pass
+    return libs
+
+
 # --------------------------------------------------------------------------
 # Catálogo de jogos instalados
 # --------------------------------------------------------------------------
@@ -104,15 +117,7 @@ class Catalog:
         self.steam_path = sp
         self.steam_by_id = {}
         if sp and os.path.isdir(sp):
-            libs = {os.path.normcase(sp)}
-            try:
-                lf = parse_vdf(Path(sp, "steamapps", "libraryfolders.vdf").read_text(encoding="utf-8", errors="ignore"))
-                for v in (_ci(lf, "libraryfolders") or {}).values():
-                    if isinstance(v, dict) and v.get("path"):
-                        libs.add(os.path.normcase(v["path"]))
-            except OSError:
-                pass
-            for lib in libs:
+            for lib in steam_libraries(sp):
                 for acf in glob.glob(os.path.join(lib, "steamapps", "appmanifest_*.acf")):
                     try:
                         st = _ci(parse_vdf(Path(acf).read_text(encoding="utf-8", errors="ignore")), "AppState") or {}

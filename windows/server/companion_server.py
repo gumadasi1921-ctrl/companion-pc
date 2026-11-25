@@ -66,6 +66,7 @@ import extras
 import games
 import pair
 import pc_info
+import steam_dl
 import watchers
 import pomodoro
 import tasks
@@ -1015,6 +1016,7 @@ ASYNC_ACTIONS = {
     "mixer.set": lambda p: pc_info.mixer_set(str(p["key"]), p.get("level"), p.get("muted")),
     "audio.set_output": lambda p: output_action(p.get("id")),
     "audio.cycle": lambda p: output_action(cycle=True),
+    "steam.get": lambda p: steam_get(),
     "audio.profiles": lambda p: AUDIO_PROFILES.list(),
     "audio.profile_save": lambda p: profile_save(p),
     "audio.profile_apply": lambda p: profile_apply(p),
@@ -1332,6 +1334,8 @@ async def session(ws, peer, kind):
     if DOTA.state is not None:
         await dota_send(DOTA.state, only=ws)
     await weather_send(WEATHER.state(), only=ws)
+    if STEAMDL.polled:
+        await steam_send(STEAMDL.state(), only=ws)
     log.info("conectado: %s (%s) tela %s", kind, peer, str(hello.get("screen", "?"))[:120])
     try:
         async for raw in ws:
@@ -1384,6 +1388,7 @@ sent_art: dict = {}
 # não vão para o log: repetitivas ou com conteúdo pessoal (texto digitado/copiado)
 QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "mouse.scroll", "key.text", "clip.set", "clip.get", "file.chunk",
                  "screen.shot", "mixer.get", "audio.profiles", "audio.profile_save", "audio.profile_apply", "audio.profile_delete",  # nome do perfil
+                 "steam.get",  # consultada a cada abertura da tela Jogos
                  "deck.get", "deck.save",  # deck.save: textos/macros dos botões
                  "work.get", "work.week", "work.csv", "work.month",  # nomes de cliente/job/arquivo
                  "tasks.get", "tasks.toggle",  # texto das tarefas
@@ -1855,6 +1860,44 @@ async def weather_loop():
         await asyncio.sleep(20)
 
 
+STEAMDL = steam_dl.SteamDownloads()
+
+
+async def steam_send(state, only=None):
+    msg = json.dumps({"t": "steam", "d": state}, ensure_ascii=False)
+    for ws in ([only] if only else list(clients)):
+        try:
+            await ws.send(msg)
+        except ConnectionClosed:
+            clients.discard(ws)
+
+
+async def steam_get():
+    if not STEAMDL.polled:
+        await on_io(STEAMDL.poll)
+    return {"d": STEAMDL.state()}
+
+
+async def steam_loop():
+    """Lê os manifestos da Steam a cada 5 s com download em andamento e a cada 15 s sem; parado sem aparelho."""
+    while True:
+        wait = 15
+        try:
+            if clients:
+                changed, done = await on_io(STEAMDL.poll)
+                if changed:
+                    await steam_send(STEAMDL.state())
+                for d in done:
+                    name = d.get("name") or "Jogo da Steam"
+                    await phones_send({"t": "event", "kind": "steam.done", "appid": d["appid"], "name": name})
+                    await pc_balloon("Download da Steam concluído", name)
+                if STEAMDL.items:
+                    wait = 5
+        except Exception:  # noqa: BLE001
+            log.exception("steam_loop")
+        await asyncio.sleep(wait)
+
+
 async def now_loop():
     while True:
         try:
@@ -2084,6 +2127,7 @@ async def main():
     asyncio.create_task(games_loop())
     asyncio.create_task(dota_loop())
     asyncio.create_task(weather_loop())
+    asyncio.create_task(steam_loop())
     asyncio.create_task(work_loop())
     asyncio.create_task(backup_loop())
     asyncio.create_task(trello_loop())
