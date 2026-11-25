@@ -1453,6 +1453,20 @@ header .host { display: none; }
 .wd-bar .seg { flex: 1 1 auto; min-width: 0; }
 #wd-lay { flex: 0 1 auto; min-width: 0; max-width: 45%; }
 #wd-lay b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+/* Widgets P (Apple): densos mas respiráveis. Um destaque tipográfico, rótulos pequenos em cinza, alinhado à esquerda, margens de 10/8 px.
+   .pq = raiz do P (coluna flex, data-clip: o que não cabe na altura some, a ordem do HTML é a prioridade); .pq-fill = o bloco que cresce com a altura */
+.z-P .hw-b { justify-content: stretch; }
+.pq { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1 1 auto; min-height: 0; }
+.hpage .hw .pq[data-clip] { justify-content: flex-start; }
+.pq > :empty { display: none; }
+.pq-fill { flex: 1 1 0; min-height: 32px; min-width: 0; }
+.pq .hmain b { font-size: clamp(26px, 15cqw, 36px); }
+.pq .hw-t { flex: none; }
+.z-P .pq .hmeter { grid-template-columns: 38px minmax(0, 1fr) 40px; min-height: 22px; max-height: 34px; flex: 1 1 0; font-size: 14px; }
+.z-P .pq .hbar { height: 8px; }
+.z-P .pq .hchartbox { min-height: 32px; } .z-P .pq .hchart { min-height: 32px; max-height: none; }
+.z-P .hringbox .hring { width: 84px; height: 84px; }
+.hpage .hw.z-P .hringbox { align-items: center; } .hpage .hw.z-P .hringbox .hring { height: 100%; width: auto; max-height: 112px; aspect-ratio: 1; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -3569,20 +3583,14 @@ const HOME_W = {
   pcquick: {
     name: "PC e atalhos", icon: "activity", sizes: "PAG", def: "A",
     html(z) {
-      if (z === "P") return '<div class="hpq2" data-clip><div class="hmain"><b data-k="cpu"></b><span>CPU</span></div><div class="hsub1" data-k="l2"></div><div class="hsub1" data-k="l3"></div></div>';
       const meters = `${meterHtml("cpu", "CPU")}${meterHtml("gpu", "GPU")}${meterHtml("ram", "Mem.")}<div class="hsub1" data-k="temps"></div>`;
       const head = '<div class="hw-t"><span>PC</span><span data-k="host"></span></div>';
+      if (z === "P") return `<div class="pq" data-clip>${head}${meters}</div>`;
       return z === "G" ? `${head}<div class="hcols"><div class="hcol">${meters}</div><div class="hcol hcol-q">${quickHtml(z)}</div></div>` : `${head}${meters}${quickHtml(z)}`;
     },
     ready: () => !!state.stats,
     upd(el) {
       const s = state.stats, g = s.gpu, sen = s.sensors;
-      if (el.dataset.z === "P") {
-        setText(hk(el, "cpu"), Math.round(s.cpu) + "%");
-        setText(hk(el, "l2"), [g ? "GPU " + Math.round(g.util) + "%" : "", "Mem " + Math.round(s.ram_pct) + "%"].filter(Boolean).join(" · "));
-        const t3 = sen?.cpu_temp != null ? "CPU " + Math.round(sen.cpu_temp) + " °C" : ""; setText(hk(el, "l3"), t3); hk(el, "l3").classList.toggle("hidden", !t3);
-        return;
-      }
       setText(hk(el, "host"), welcome.host || "");
       for (const [k, v, c] of [["cpu", s.cpu, "--chart-cpu"], ["gpu", g?.util, "--chart-gpu"], ["ram", s.ram_pct, "--chart-mem"]]) {
         const row = el.querySelector(`[data-m="${k}"]`); row.classList.toggle("hidden", k === "gpu" && !g);
@@ -3653,7 +3661,7 @@ Object.assign(HOME_W, {
   cpu: {
     name: "CPU e GPU", icon: "gauge", sizes: "PALG", def: "A",
     html(z) {
-      if (z === "P") return '<div class="hpq2" data-clip><div class="hmain"><b data-k="cpu"></b><span>CPU</span></div><div class="hsub1" data-k="l2"></div><div class="hsub1" data-k="l3"></div></div>';
+      if (z === "P") return '<div class="pq" data-clip><div class="hw-t"><span>CPU</span><span data-k="ghz"></span></div><div class="hmain"><b data-k="cpu"></b><span data-k="cput"></span></div><div class="pq-fill hchartbox" data-k="chart"></div><div class="hsub1" data-k="l2"></div></div>';
       if (z === "L") return '<div class="hw-t"><span>CPU e GPU</span><span>60 s</span></div><div class="hl2"><div class="hl2-n"><div class="hmain"><b data-k="cpu"></b><span>CPU</span></div><div class="hsub1" data-k="l2"></div></div><div class="hchartbox" data-k="chart"></div></div>';
       return `<div class="hw-t"><span>CPU e GPU</span><span>60 s</span></div><div class="hchartbox" data-k="chart"></div><div class="hscale"><span>−60 s</span><span>100%</span><span>agora</span></div><div class="hlegs" data-k="legs"></div>`;
     },
@@ -3663,7 +3671,7 @@ Object.assign(HOME_W, {
       if (z === "P" || z === "L") {
         setText(hk(el, "cpu"), Math.round(s.cpu) + "%");
         setText(hk(el, "l2"), g ? "GPU " + Math.round(g.util) + "%" + (z === "P" && g.temp != null ? " · " + Math.round(g.temp) + " °C" : "") : "GPU indisponível");
-        if (z === "P") { const t3 = [sen?.cpu_temp != null ? Math.round(sen.cpu_temp) + " °C" : "", s.cpu_mhz ? (s.cpu_mhz / 1000).toFixed(1) + " GHz" : ""].filter(Boolean).join(" · "); setText(hk(el, "l3"), t3); hk(el, "l3").classList.toggle("hidden", !t3); return; }
+        if (z === "P") { setText(hk(el, "cput"), sen?.cpu_temp != null ? Math.round(sen.cpu_temp) + " °C" : ""); setText(hk(el, "ghz"), s.cpu_mhz ? (s.cpu_mhz / 1000).toFixed(1) + " GHz" : ""); }
         const series = [{ data: hist.cpu, color: "--chart-cpu", fill: true }]; if (g) series.push({ data: hist.gpu, color: "--chart-gpu", fill: true });
         lineUpd(hk(el, "chart"), series, 100, "CPU e GPU nos últimos 60 segundos"); return;
       }
@@ -3680,7 +3688,7 @@ Object.assign(HOME_W, {
   net: {
     name: "Rede", icon: "arrow-right-left", sizes: "PALG", def: "A",
     html(z) {
-      if (z === "P") return '<div class="hpq2" data-clip><div class="hmain"><b data-k="dn"></b><span>↓ baixando</span></div><div class="hsub1" data-k="l2"></div><div class="hsub1" data-k="l3"></div></div>';
+      if (z === "P") return '<div class="pq" data-clip><div class="hw-t"><span>Rede</span><span data-k="ping"></span></div><div class="hmain"><b data-k="dn"></b><span>↓</span></div><div class="hsub1" data-k="l2"></div><div class="pq-fill hchartbox" data-k="chart"></div><div class="hsub1" data-k="pk"></div></div>';
       if (z === "L") return '<div class="hw-t"><span>Rede</span><span data-k="ping"></span></div><div class="hl2"><div class="hl2-n"><div class="hmain"><b data-k="dn"></b><span>↓</span></div><div class="hsub1" data-k="l2"></div></div><div class="hchartbox" data-k="chart"></div></div>';
       return '<div class="hw-t"><span>Rede</span><span data-k="ping"></span></div><div class="hchartbox" data-k="chart"></div><div class="hscale"><span>−60 s</span><span data-k="pk"></span><span>agora</span></div><div class="hlegs" data-k="legs"></div>';
     },
@@ -3690,7 +3698,7 @@ Object.assign(HOME_W, {
       const ping = !s.ping ? "" : s.ping.ok ? s.ping.ms + " ms" : "sem internet";
       if (z === "P" || z === "L") {
         setText(hk(el, "dn"), fmtBytes(s.net_down, true)); setText(hk(el, "l2"), "↑ " + fmtBytes(s.net_up, true));
-        if (z === "P") { setText(hk(el, "l3"), ping ? "ping " + ping : ""); hk(el, "l3").classList.toggle("hidden", !ping); return; }
+        if (z === "P") setText(hk(el, "pk"), "pico " + fmtBytes(top, true));
         setText(hk(el, "ping"), ping);
         lineUpd(hk(el, "chart"), [{ data: hist.down, color: "--chart-down", fill: true }, { data: hist.up, color: "--chart-up" }], top, "Rede nos últimos 60 segundos"); return;
       }
@@ -3702,13 +3710,14 @@ Object.assign(HOME_W, {
   },
   mem: {
     name: "Memória e discos", icon: "layers", sizes: "PALG", def: "A",
-    html: (z) => z === "P" ? '<div class="hringbox" data-k="ring"></div><div class="hsub1 hcen" data-k="txt"></div>'
+    html: (z) => z === "P" ? '<div class="pq" data-clip><div class="hw-t"><span>Memória</span></div><div class="hringbox pq-fill" data-k="ring"></div><div class="hsub1 hcen" data-k="txt"></div><div data-k="disk"></div></div>'
       : `<div class="hw-t"><span>Memória</span><span data-k="txt"></span></div><div class="hmem"><div class="hringbox" data-k="ring"></div><div data-k="disks" data-fit></div></div>`,
     ready: () => !!state.stats,
     upd(el) {
       const s = state.stats, z = el.dataset.z;
       setText(hk(el, "txt"), `${fmtBytes(s.ram_used)} / ${fmtBytes(s.ram_total)}`);
       ringUpd(hk(el, "ring"), s.ram_pct, "--chart-mem", Math.round(s.ram_pct) + "%", z === "P" ? "" : "em uso", `Memória em uso: ${Math.round(s.ram_pct)}%`);
+      if (z === "P") { const dk = (s.disks || []).reduce((a, d) => (!a || d.pct > a.pct ? d : a), null); setHtml(hk(el, "disk"), dk ? `<div class="hmeter" title="${esc(fmtBytes(dk.used))} / ${esc(fmtBytes(dk.total))}"><span>${esc(dk.name)}</span><div class="hbar${dk.pct >= 90 ? " bad" : ""}"><i style="width:${Math.round(dk.pct)}%"></i></div><b>${Math.round(dk.pct)}%</b></div>` : ""); return; }
       setHtml(hk(el, "disks"), (s.disks || []).slice(0, el.closest(".pager") && (z === "A" || z === "G") ? 8 : z === "L" ? 2 : z === "G" ? 4 : 3).map((d) => `<div class="hmeter" title="${esc(fmtBytes(d.used))} / ${esc(fmtBytes(d.total))}"><span>${esc(d.name)}</span><div class="hbar${d.pct >= 90 ? " bad" : ""}"><i style="width:${Math.round(d.pct)}%"></i></div><b>${Math.round(d.pct)}%</b></div>`).join(""));
     },
   },
