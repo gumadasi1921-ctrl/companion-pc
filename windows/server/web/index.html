@@ -1311,6 +1311,15 @@ header .hchip::after { content: ""; position: absolute; inset: -10px -8px; }
 .wxp2 { gap: 2px; } .wxp2 .wxn { gap: 6px; } .wxc1 { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hpage .hw.z-P[data-w="weather"] [data-k="body"] { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
 .hw.z-G[data-w="now"] .htimes { grid-area: x; }
+/* Widgets v2 (2): Tarefas, Hoje, Trabalho, Jogos, Notificações, Processos */
+.htd2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: center; } .htd2 > div { min-width: 0; }
+.hlist { display: flex; flex-direction: column; min-width: 0; font-size: 13px; }
+.hp3 { display: flex; flex-direction: column; min-width: 0; } .hp3 b { font-size: 24px; line-height: 1; font-variant-numeric: tabular-nums; } .hp3 span { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .hp3 small { font-size: 12px; color: var(--p3t); }
+.z-L[data-w="procs"] [data-k="list"] { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: center; flex: 1 1 auto; }
+.z-L[data-w="notif"] [data-k="list"], .z-G[data-w="notif"] [data-k="list"], .z-G[data-w="procs"] [data-k="list"] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; align-content: start; }
+.z-L[data-w="notif"] .hnt, .z-G[data-w="notif"] .hnt { border-top: 0; }
+.hpage .hw.z-G[data-w="notif"] [data-fit] > *, .hpage .hw.z-G[data-w="procs"] [data-fit] > * { max-height: none; }
+.z-L[data-w="games"] .hw-b { display: flex; }
 /* Aproveitamento de espaço no Início em páginas: listas dos widgets A/G ocupam a altura que sobra; linhas crescem até um teto (hwFit esconde as que não cabem) */
 .hpage .hw.z-A [data-fit], .hpage .hw.z-G [data-fit] { position: relative; flex: 1 1 0; min-height: 0; overflow: hidden; }
 .hpage .hw.z-A [data-fit]:not(.hq), .hpage .hw.z-G [data-fit]:not(.hq) { display: flex; flex-direction: column; }
@@ -3494,7 +3503,7 @@ const HOME_W = {
   tasks: {
     name: "Tarefas", icon: "check-check", sizes: "PALG", def: "A",
     html(z) {
-      if (z === "P") return '<div class="htk-p" data-k="ring"></div>';
+      if (z === "P") return '<div class="hpq2" data-clip><div class="hmain"><b data-k="n"></b><span data-k="nl"></span></div><div class="hsub1" data-k="next"></div></div>';
       if (z === "L") return '<div class="htk-l"><div data-k="ring"></div><div class="htk-list" data-k="list"></div></div>';
       const head = '<div class="hw-t"><span>Tarefas</span><span data-k="cnt"></span></div>', list = '<div class="htk-list" data-k="list" data-fit></div>';
       return z === "G" ? `${head}<div class="htk-head"><div data-k="ring"></div><div class="htk-n" data-k="lbl"></div></div>${list}`
@@ -3504,13 +3513,15 @@ const HOME_W = {
     upd(el) {
       const z = el.dataset.z, d = tasksData, items = d.items || [], total = d.total ?? items.length, done = d.done ?? items.filter((t) => t.done).length;
       const pend = items.filter((t) => !t.done), pct = total ? (done / total) * 100 : 0;
+      if (z === "P") {   // pequeno: quantas faltam (destaque) e qual é a próxima
+        setText(hk(el, "n"), !total ? "–" : String(pend.length)); setText(hk(el, "nl"), !total ? "sem tarefas" : !pend.length ? "tudo feito" : pend.length === 1 ? "falta" : "faltam");
+        setText(hk(el, "next"), pend[0] ? pend[0].text : total ? `${done} de ${total} feitas` : "Adicione pelo painel do PC"); return;
+      }
       setText(hk(el, "cnt"), total ? `${done} de ${total}` : "");
-      if (z === "P") ringUpd(hk(el, "ring"), pct, "--accent-fill, var(--p)", total ? `${done}/${total}` : "–", "", total ? `${done} de ${total} tarefas feitas` : "Sem tarefas");
-      else if (z === "L" || z === "G") {
+      if (z === "L" || z === "G") {
         ringUpd(hk(el, "ring"), pct, "--accent-fill, var(--p)", total ? String(pend.length) : "–", total ? "faltam" : "", total ? `${pend.length} tarefas pendentes` : "Sem tarefas");
         setText(hk(el, "lbl"), !total ? "" : !pend.length ? "Tudo feito!" : pend.length === 1 ? "Só falta 1!" : `Faltam ${pend.length}`);
       } else setBarW(hk(el, "bar"), pct, 101);
-      if (z === "P") return;
       const n = el.closest(".pager") && z !== "L" ? 8 : { A: 3, L: 2, G: 5 }[z];
       setHtml(hk(el, "list"), !total ? '<div class="hw-na">Nenhuma tarefa. Adicione pelo painel do PC.</div>'
         : !pend.length ? `<div class="htk-done">${ic("check-check")}Tudo feito!</div>`
@@ -3687,16 +3698,23 @@ Object.assign(HOME_W, {
   },
   work: {
     name: "Trabalho na semana", icon: "briefcase", sizes: "PALG", def: "L",
-    html: (z) => z === "P" ? '<div class="hbig"><span>Semana</span><b data-k="tot"></b></div>' : `<div class="hw-t"><span>Trabalho na semana</span><span data-k="tot"></span></div><div class="hchartbox" data-k="chart"></div><div data-k="stack"></div><div class="hlegs" data-k="legs"></div>`,
+    html(z) {
+      const head = '<div class="hw-t"><span>Trabalho na semana</span><span data-k="tot"></span></div>';
+      if (z === "P") return '<div class="hpq2" data-clip><div class="hmain"><b data-k="tot"></b><span>na semana</span></div><div class="hsub1" data-k="td"></div></div>';
+      if (z === "G") return `${head}<div class="hcols"><div class="hcol"><div class="hmain"><b data-k="tot2"></b><span>na semana</span></div><div class="hsub1" data-k="td"></div><div class="hlegs" data-k="legs"></div></div><div class="hcol"><div class="hchartbox" data-k="chart"></div><div data-k="stack"></div></div></div>`;
+      return `${head}<div class="hchartbox" data-k="chart"></div><div data-k="stack"></div><div class="hlegs" data-k="legs"></div>`;
+    },
     ready: () => !welcome.features?.work || !!homeData.week,
     upd(el) {
       if (!welcome.features?.work) { setHtml(hk(el, "chart"), NA); setText(hk(el, "tot"), "–"); return; }
       const w = homeData.week, L = el.dataset.z === "L";
       setText(hk(el, "tot"), w.total_s ? humanDur(w.total_s) : el.dataset.z === "P" ? "0 min" : "");
+      setText(hk(el, "tot2"), w.total_s ? humanDur(w.total_s) : "0 min");
+      const td = homeData.work ? "Hoje " + humanDur(homeData.work.today_s) : ""; setText(hk(el, "td"), td); hk(el, "td")?.classList.toggle("hidden", !td);
       if (el.dataset.z === "P") return;
       if (!w.total_s) { setHtml(hk(el, "chart"), '<div class="hw-na">Nenhum tempo nesta semana</div>'); setHtml(hk(el, "stack"), ""); setHtml(hk(el, "legs"), ""); return; }
       const cw = hk(el, "chart").clientWidth;
-      setHtml(hk(el, "chart"), barChart(w.days.map((d) => d.s), w.days.map((d) => d.d), w.days.findIndex((d) => d.today), "--chart-cpu", cw, "Horas trabalhadas por dia nesta semana", L ? 72 : 100));
+      setHtml(hk(el, "chart"), barChart(w.days.map((d) => d.s), w.days.map((d) => d.d), w.days.findIndex((d) => d.today), "--chart-cpu", cw, "Horas trabalhadas por dia nesta semana", L ? 72 : el.dataset.z === "G" ? 130 : 100));
       // distribuição por cliente: o servidor só devolve o total semanal de cada um (não por dia), então é uma barra única
       const cl = w.clients, nt = L ? 2 : 4, top = cl.slice(0, nt), rest = cl.slice(nt).reduce((a, c) => a + c.s, 0), tot = w.total_s || 1;
       let x = 0;
@@ -3706,42 +3724,78 @@ Object.assign(HOME_W, {
     },
   },
   today: {
-    name: "Hoje", icon: "history", sizes: "PAL", def: "A",
-    html: (z) => z === "P" ? '<div data-k="body"></div>' : `<div class="hw-t"><span>Hoje</span><span data-k="date"></span></div><div data-k="body" data-fit></div>`,
+    name: "Hoje", icon: "history", sizes: "PALG", def: "A",
+    html(z) {
+      if (z === "P") return '<div class="hpq2" data-clip data-k="body"></div>';
+      const head = '<div class="hw-t"><span>Hoje</span><span data-k="date"></span></div>';
+      if (z === "G") return `${head}<div class="hcols"><div class="hcol" data-k="wk"></div><div class="hcol" data-k="gm"></div></div>`;
+      return `${head}<div data-k="body"${z === "A" ? " data-fit" : ""}></div>`;
+    },
     ready: () => !!state.games || !!homeData.work || !welcome.features?.work,
     upd(el) {
-      const g = state.games, wk = homeData.work, z = el.dataset.z, rows = [], det = z === "A";
+      const g = state.games, wk = homeData.work, z = el.dataset.z, hasW = !!(welcome.features?.work && wk), pg = !!el.closest(".pager");
       setText(hk(el, "date"), state.stats?.date?.slice(0, 5) || "");
-      if (welcome.features?.work && wk) rows.push(`<div class="hbig"><span>Trabalho</span><b>${humanDur(wk.today_s)}</b></div>` +
-        (det ? (wk.today || []).slice(0, el.closest(".pager") ? 6 : 3).map((r) => `<div class="row"><span>${esc(r.client)}</span><span>${humanDur(r.s)}</span></div>`).join("") : ""));
-      if (g) { const s = g.game ? g.game.today_s : g.today_s; rows.push(`<div class="hbig"><span>Jogando</span><b>${s ? humanDur(s + (performance.now() - state.gamesT) / 1000) : "0 min"}</b></div>`); }
-      setHtml(hk(el, "body"), (z === "P" ? rows.slice(0, 1) : rows).join("") || '<div class="hw-na">Nada contado hoje</div>');
+      const wS = hasW ? humanDur(wk.today_s) : null;
+      const gS = g ? (() => { const x = g.game ? g.game.today_s : g.today_s; return x ? humanDur(x + (performance.now() - state.gamesT) / 1000) : "0 min"; })() : null;
+      const cl = hasW ? wk.today || [] : [];
+      const big = (v, lab) => `<div class="hmain"><b>${v}</b><span>${lab}</span></div>`;
+      if (z === "P") { setHtml(hk(el, "body"), (wS != null ? big(wS, "trabalho hoje") : "") + (gS != null ? `<div class="hsub1">Jogos hoje: ${gS}</div>` : "") || '<div class="hw-na">Nada contado hoje</div>'); return; }
+      if (z === "G") {
+        setHtml(hk(el, "wk"), wS != null ? big(wS, "trabalho hoje") + `<div class="hlist" data-fit>${cl.slice(0, 8).map((r) => `<div class="row"><span>${esc(r.client)}</span><span>${humanDur(r.s)}</span></div>`).join("") || '<div class="hw-sub">Nenhum cliente hoje</div>'}</div>` : '<div class="hw-na">Trabalho: indisponível neste PC</div>');
+        setHtml(hk(el, "gm"), gS != null ? big(gS, "jogos hoje") + (g.game ? `<div class="hsub1">${gic(g.game.icon)}${esc(g.game.name)}</div>` : '<div class="hw-sub">Nenhum jogo aberto</div>') : '<div class="hw-na">Jogos: indisponível</div>');
+        hydrateIcons(hk(el, "gm")); return;
+      }
+      if (z === "L") { setHtml(hk(el, "body"), `<div class="htd2">${wS != null ? `<div>${big(wS, "trabalho")}</div>` : ""}${gS != null ? `<div>${big(gS, "jogos")}</div>` : ""}</div>` || '<div class="hw-na">Nada contado hoje</div>'); return; }
+      const rows = [];
+      if (wS != null) rows.push(`<div class="hbig"><span>Trabalho</span><b>${wS}</b></div>` + cl.slice(0, pg ? 6 : 3).map((r) => `<div class="row"><span>${esc(r.client)}</span><span>${humanDur(r.s)}</span></div>`).join(""));
+      if (gS != null) rows.push(`<div class="hbig"><span>Jogando</span><b>${gS}</b></div>`);
+      setHtml(hk(el, "body"), rows.join("") || '<div class="hw-na">Nada contado hoje</div>');
     },
   },
   procs: {
     name: "Mais pesados agora", icon: "list-video", sizes: "PALG", def: "A",
-    html: (z) => `<div class="hw-t"><span>${z === "P" ? "Mais pesado" : "Mais pesados agora"}</span><span>CPU</span></div><div data-k="list" data-fit></div>`,
+    html(z) {
+      if (z === "P") return '<div class="hpq2" data-clip data-k="list"></div>';
+      return `<div class="hw-t"><span>Mais pesados agora</span><span>CPU</span></div><div data-k="list"${z === "A" ? " data-fit" : z === "G" ? " data-fit" : ""}></div>`;
+    },
     ready: () => !!state.stats,
     upd(el) {
-      const z = el.dataset.z, bars = z === "A" || z === "G";
-      setHtml(hk(el, "list"), (state.stats.procs || []).slice(0, { P: 2, A: 5, L: 3, G: 8 }[z]).map((p) => bars
-        ? `<div class="hproc"><span>${gic(p.icon)}${esc(p.name)}</span><span>${p.cpu.toFixed(1)}% · ${fmtBytes(p.mem)}</span><div class="hbar" style="--c:var(--chart-cpu)"><i style="width:${Math.max(2, Math.min(100, p.cpu))}%"></i></div></div>`
-        : `<div class="row"><span>${gic(p.icon)}${esc(p.name)}</span><span>${p.cpu.toFixed(1)}% · ${fmtBytes(p.mem)}</span></div>`).join("") || '<div class="hw-na">Sem dados</div>');
+      const z = el.dataset.z, ps = state.stats.procs || [];
+      if (z === "P") {
+        const a = ps[0], b = ps[1];
+        setHtml(hk(el, "list"), a ? `<div class="hmain"><b>${a.cpu.toFixed(0)}%</b><span>${gic(a.icon)}${esc(a.name)}</span></div><div class="hsub1">${fmtBytes(a.mem)} de memória</div>${b ? `<div class="hsub1">2º: ${esc(b.name)} ${b.cpu.toFixed(0)}%</div>` : ""}` : '<div class="hw-na">Sem dados</div>');
+        hydrateIcons(hk(el, "list")); return;
+      }
+      if (z === "L") {
+        setHtml(hk(el, "list"), ps.slice(0, 3).map((p) => `<div class="hp3"><b>${p.cpu.toFixed(0)}%</b><span>${gic(p.icon)}${esc(p.name)}</span><small>${fmtBytes(p.mem)}</small></div>`).join("") || '<div class="hw-na">Sem dados</div>');
+        hydrateIcons(hk(el, "list")); return;
+      }
+      setHtml(hk(el, "list"), ps.slice(0, z === "G" ? 8 : 5).map((p) => `<div class="hproc"><span>${gic(p.icon)}${esc(p.name)}</span><span>${p.cpu.toFixed(1)}% · ${fmtBytes(p.mem)}</span><div class="hbar" style="--c:var(--chart-cpu)"><i style="width:${Math.max(2, Math.min(100, p.cpu))}%"></i></div></div>`).join("") || '<div class="hw-na">Sem dados</div>');
       hydrateIcons(hk(el, "list"));
     },
   },
   games: {
     name: "Jogos", icon: "gamepad-2", sizes: "PALG", def: "L",
-    html: (z) => z === "P" ? '<div class="hbig"><span>Jogos na semana</span><b data-k="tot"></b></div>' : `<div class="hw-t"><span>Jogos na semana</span><span data-k="tot"></span></div><div class="hchartbox" data-k="chart"></div><div data-k="top"></div>`,
+    html(z) {
+      const head = '<div class="hw-t"><span>Jogos na semana</span><span data-k="tot"></span></div>';
+      if (z === "P") return '<div class="hpq2" data-clip><div class="hmain"><b data-k="tot2"></b><span>na semana</span></div><div class="hsub1" data-k="now"></div></div>';
+      if (z === "L") return `${head}<div class="hl2"><div class="hl2-n"><div class="hmain"><b data-k="tot2"></b><span>na semana</span></div><div class="hsub1" data-k="now"></div></div><div class="hchartbox" data-k="chart"></div></div>`;
+      if (z === "G") return `${head}<div class="hcols"><div class="hcol"><div class="hmain"><b data-k="tot2"></b><span>na semana</span></div><div class="hsub1" data-k="now"></div><div data-k="top" data-fit></div></div><div class="hcol"><div class="hchartbox" data-k="chart"></div></div></div>`;
+      return `${head}<div class="hchartbox" data-k="chart"></div><div data-k="top"></div>`;
+    },
     ready: () => !welcome.features?.library || !!homeData.hist,
     upd(el) {
-      if (!welcome.features?.library) { setHtml(hk(el, "chart"), NA); setText(hk(el, "tot"), "–"); return; }
-      const h = homeData.hist, now = state.games?.game, L = el.dataset.z === "L";
-      setText(hk(el, "tot"), h.week_s ? humanDur(h.week_s) : el.dataset.z === "P" ? "0 min" : "");
-      if (el.dataset.z === "P") return;
-      setHtml(hk(el, "chart"), barChart(h.days.map((d) => d.s), h.days.map((d) => d.d), h.days.length - 1, "--chart-gpu", hk(el, "chart").clientWidth, "Tempo de jogo por dia na última semana", L ? 72 : 100));
-      setHtml(hk(el, "top"), L ? "" : (now ? `<div class="row"><span>Jogando agora</span><span>${gic(now.icon)}${esc(now.name)}</span></div>` : "") +
-        (h.top.slice(0, 2).map((g) => `<div class="row"><span>${gic(g.icon)}${esc(g.name)}</span><span>${humanDur(g.s)}</span></div>`).join("") || (now ? "" : '<div class="hw-na">Nenhum jogo nos últimos 7 dias</div>')));
+      const z = el.dataset.z;
+      if (!welcome.features?.library) { setHtml(hk(el, "chart"), NA); setText(hk(el, "tot"), "–"); setText(hk(el, "tot2"), "–"); return; }
+      const h = homeData.hist, now = state.games?.game, tot = h.week_s ? humanDur(h.week_s) : "0 min";
+      setText(hk(el, "tot"), h.week_s ? humanDur(h.week_s) : z === "A" ? "" : "0 min"); setText(hk(el, "tot2"), tot);
+      setText(hk(el, "now"), now ? "Jogando: " + now.name : h.top?.[0] ? "Mais jogado: " + h.top[0].name : "");
+      if (z === "P") return;
+      setHtml(hk(el, "chart"), barChart(h.days.map((d) => d.s), h.days.map((d) => d.d), h.days.length - 1, "--chart-gpu", hk(el, "chart").clientWidth, "Tempo de jogo por dia na última semana", z === "L" ? 72 : z === "G" ? 130 : 100));
+      if (z === "L") return;
+      const rows = h.top.slice(0, z === "G" ? 6 : 2).map((g) => `<div class="row"><span>${gic(g.icon)}${esc(g.name)}</span><span>${humanDur(g.s)}</span></div>`).join("");
+      setHtml(hk(el, "top"), z === "G" ? rows || '<div class="hw-na">Nenhum jogo nos últimos 7 dias</div>'
+        : (now ? `<div class="row"><span>Jogando agora</span><span>${gic(now.icon)}${esc(now.name)}</span></div>` : "") + (rows || (now ? "" : '<div class="hw-na">Nenhum jogo nos últimos 7 dias</div>')));
     },
   },
   notif: {
@@ -3752,7 +3806,7 @@ Object.assign(HOME_W, {
       let h;
       if (!welcome.features?.notif || state.notifAvail === false) h = NA;
       else if (!prefs.pcnotif) h = '<div class="hw-na">Desligadas em Ajustes</div>';
-      else h = homeNotif.slice(0, el.closest(".pager") && !"PL".includes(el.dataset.z) ? 8 : { P: 1, L: 1, A: 3, G: 3 }[el.dataset.z]).map((n) => `<div class="hnt"${n.go ? ` data-go="${esc(n.go)}" role="button" tabindex="0"` : ""}><div class="hnt-a"><b>${esc(n.app)}</b><span>${esc(n.time)}</span></div><div class="hnt-b">${esc([n.title, n.body].filter(Boolean).join(" · "))}</div></div>`).join("")
+      else h = homeNotif.slice(0, el.closest(".pager") && !"P".includes(el.dataset.z) ? (el.dataset.z === "L" ? 2 : 8) : { P: 1, L: 1, A: 3, G: 3 }[el.dataset.z]).map((n) => `<div class="hnt"${n.go ? ` data-go="${esc(n.go)}" role="button" tabindex="0"` : ""}><div class="hnt-a"><b>${esc(n.app)}</b><span>${esc(n.time)}</span></div><div class="hnt-b">${esc([n.title, n.body].filter(Boolean).join(" · "))}</div></div>`).join("")
         || '<div class="hw-na">Nenhum aviso desde que o app abriu</div>';
       setHtml(hk(el, "list"), h);
     },
