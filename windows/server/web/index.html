@@ -1491,6 +1491,27 @@ header .host { display: none; }
 .home.port .hw.z-P { min-height: 136px; }
 .home.port .z-P .pqn .hart { width: 72px; height: 72px; }
 .home.port .pq-fill { min-height: 56px; }
+/* P: Tarefas, Hoje, Notificações, Processos, Atalhos */
+.pq-list { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.hpage .hw .pq .pq-list, .hpage .hw .pq .pq-pl, .hpage .hw .pq .pq-nt { flex: 1 1 0; justify-content: flex-start; }
+.pq .hbar { flex: none; }
+.pq-list .trow { flex: none; padding: 1px 0; }
+.pq-cl { display: flex; flex-direction: column; min-width: 0; min-height: 0; flex: 1 1 auto; overflow: hidden; font-size: 13px; }
+.pq-cl .row { padding: 3px 0; flex: none; }
+.hpage .hw .pq .pq-cl { flex: 1 1 0; justify-content: flex-start; }
+.pq-two { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; flex: none; }
+.pq-two > div { min-width: 0; display: flex; flex-direction: column; }
+.pq-two b { font-size: clamp(20px, 11cqw, 28px); line-height: 1.1; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pq-two span { font-size: 12px; color: var(--p2); }
+.pq-nt { display: flex; flex-direction: column; gap: 2px; min-width: 0; min-height: 0; flex: 1 1 auto; overflow: hidden; }
+.pq-nt.hnt { padding: 0; border: 0; }
+.pq-nt .hnt-a { flex: none; font-size: 14px; }
+.pq-ti { flex: none; font-size: 14px; font-weight: 600; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pq-bo { font-size: 13px; line-height: 1.3; color: var(--p2); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; overflow-wrap: anywhere; }
+.pq-pl { display: flex; flex-direction: column; min-width: 0; min-height: 0; flex: 1 1 auto; overflow: hidden; }
+.pq-pl > .hproc { flex: 1 0 auto; max-height: 56px; align-content: center; }
+.z-P .hq { flex: 1 1 auto; min-height: 0; }
+.hpage .hw.z-P .hq { position: relative; flex: 1 1 0; overflow: hidden; grid-auto-rows: minmax(48px, 1fr); }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -3553,7 +3574,7 @@ const HOME_W = {
   tasks: {
     name: "Tarefas", icon: "check-check", sizes: "PALG", def: "A",
     html(z) {
-      if (z === "P") return '<div class="hpq2" data-clip><div class="hmain"><b data-k="n"></b><span data-k="nl"></span></div><div class="hsub1" data-k="next"></div></div>';
+      if (z === "P") return '<div class="pq" data-clip><div class="hw-t"><span>Tarefas</span><span data-k="cnt"></span></div><div class="hmain"><b data-k="n"></b><span data-k="nl"></span></div><div class="hbar" data-k="bar"><i></i></div><div class="htk-list pq-list" data-k="list" data-clip></div></div>';
       if (z === "L") return '<div class="htk-l"><div data-k="ring"></div><div class="htk-list" data-k="list"></div></div>';
       const head = '<div class="hw-t"><span>Tarefas</span><span data-k="cnt"></span></div>', list = '<div class="htk-list" data-k="list" data-fit></div>';
       return z === "G" ? `${head}<div class="htk-head"><div data-k="ring"></div><div class="htk-n" data-k="lbl"></div></div>${list}`
@@ -3563,16 +3584,13 @@ const HOME_W = {
     upd(el) {
       const z = el.dataset.z, d = tasksData, items = d.items || [], total = d.total ?? items.length, done = d.done ?? items.filter((t) => t.done).length;
       const pend = items.filter((t) => !t.done), pct = total ? (done / total) * 100 : 0;
-      if (z === "P") {   // pequeno: quantas faltam (destaque) e qual é a próxima
-        setText(hk(el, "n"), !total ? "–" : String(pend.length)); setText(hk(el, "nl"), !total ? "sem tarefas" : !pend.length ? "tudo feito" : pend.length === 1 ? "falta" : "faltam");
-        setText(hk(el, "next"), pend[0] ? pend[0].text : total ? `${done} de ${total} feitas` : "Adicione pelo painel do PC"); return;
-      }
+      if (z === "P") { setText(hk(el, "n"), !total ? "–" : String(pend.length)); setText(hk(el, "nl"), !total ? "sem tarefas" : !pend.length ? "tudo feito" : pend.length === 1 ? "falta" : "faltam"); }   // pequeno: quantas faltam (destaque), barra e as próximas que couberem
       setText(hk(el, "cnt"), total ? `${done} de ${total}` : "");
       if (z === "L" || z === "G") {
         ringUpd(hk(el, "ring"), pct, "--accent-fill, var(--p)", total ? String(pend.length) : "–", total ? "faltam" : "", total ? `${pend.length} tarefas pendentes` : "Sem tarefas");
         setText(hk(el, "lbl"), !total ? "" : !pend.length ? "Tudo feito!" : pend.length === 1 ? "Só falta 1!" : `Faltam ${pend.length}`);
       } else setBarW(hk(el, "bar"), pct, 101);
-      const n = el.closest(".pager") && z !== "L" ? 8 : { A: 3, L: 2, G: 5 }[z];
+      const n = el.closest(".pager") && z !== "L" ? 8 : { P: 3, A: 3, L: 2, G: 5 }[z];
       setHtml(hk(el, "list"), !total ? '<div class="hw-na">Nenhuma tarefa. Adicione pelo painel do PC.</div>'
         : !pend.length ? `<div class="htk-done">${ic("check-check")}Tudo feito!</div>`
         : pend.slice(0, n).map((t) => `<div class="trow" data-id="${esc(t.id)}" role="checkbox" aria-checked="false" tabindex="0"><span class="tbox"></span><span class="ttx">${esc(t.text)}</span></div>`).join(""));
@@ -3775,8 +3793,8 @@ Object.assign(HOME_W, {
   today: {
     name: "Hoje", icon: "history", sizes: "PALG", def: "A",
     html(z) {
-      if (z === "P") return '<div class="hpq2" data-clip data-k="body"></div>';
       const head = '<div class="hw-t"><span>Hoje</span><span data-k="date"></span></div>';
+      if (z === "P") return `<div class="pq" data-clip>${head}<div class="pq-two" data-k="two"></div><div class="pq-cl" data-k="cl" data-clip></div><div class="hsub1" data-k="sub2"></div></div>`;
       if (z === "G") return `${head}<div class="hcols"><div class="hcol" data-k="wk"></div><div class="hcol" data-k="gm"></div></div>`;
       return `${head}<div data-k="body"${z === "A" ? " data-fit" : ""}></div>`;
     },
@@ -3788,7 +3806,11 @@ Object.assign(HOME_W, {
       const gS = g ? (() => { const x = g.game ? g.game.today_s : g.today_s; return x ? humanDur(x + (performance.now() - state.gamesT) / 1000) : "0 min"; })() : null;
       const cl = hasW ? wk.today || [] : [];
       const big = (v, lab) => `<div class="hmain"><b>${v}</b><span>${lab}</span></div>`;
-      if (z === "P") { setHtml(hk(el, "body"), (wS != null ? big(wS, "trabalho hoje") : "") + (gS != null ? `<div class="hsub1">Jogos hoje: ${gS}</div>` : "") || '<div class="hw-na">Nada contado hoje</div>'); return; }
+      if (z === "P") {   // dois números (trabalho | jogos), o cliente que mais pesou hoje e o jogo aberto
+        const col = (v, l) => `<div><b>${v}</b><span>${l}</span></div>`;
+        setHtml(hk(el, "two"), (wS != null ? col(wS, "trabalho") : "") + (gS != null ? col(gS, "jogos") : "") || '<div class="hw-na">Nada contado hoje</div>');
+        setHtml(hk(el, "cl"), cl.slice(0, 6).map((r) => `<div class="row"><span>${esc(r.client)}</span><span>${humanDur(r.s)}</span></div>`).join("")); setText(hk(el, "sub2"), g?.game ? "Jogando: " + g.game.name : ""); return;
+      }
       if (z === "G") {
         setHtml(hk(el, "wk"), wS != null ? big(wS, "trabalho hoje") + `<div class="hlist" data-fit>${cl.slice(0, 8).map((r) => `<div class="row"><span>${esc(r.client)}</span><span>${humanDur(r.s)}</span></div>`).join("") || '<div class="hw-sub">Nenhum cliente hoje</div>'}</div>` : '<div class="hw-na">Trabalho: indisponível neste PC</div>');
         setHtml(hk(el, "gm"), gS != null ? big(gS, "jogos hoje") + (g.game ? `<div class="hsub1">${gic(g.game.icon)}${esc(g.game.name)}</div>` : '<div class="hw-sub">Nenhum jogo aberto</div>') : '<div class="hw-na">Jogos: indisponível</div>');
@@ -3804,15 +3826,14 @@ Object.assign(HOME_W, {
   procs: {
     name: "Mais pesados agora", icon: "list-video", sizes: "PALG", def: "A",
     html(z) {
-      if (z === "P") return '<div class="hpq2" data-clip data-k="list"></div>';
+      if (z === "P") return '<div class="pq" data-clip><div class="hw-t"><span>Mais pesados</span><span>CPU</span></div><div class="pq-pl" data-k="list" data-clip></div></div>';
       return `<div class="hw-t"><span>Mais pesados agora</span><span>CPU</span></div><div data-k="list"${z === "A" ? " data-fit" : z === "G" ? " data-fit" : ""}></div>`;
     },
     ready: () => !!state.stats,
     upd(el) {
       const z = el.dataset.z, ps = state.stats.procs || [];
       if (z === "P") {
-        const a = ps[0], b = ps[1];
-        setHtml(hk(el, "list"), a ? `<div class="hmain"><b>${a.cpu.toFixed(0)}%</b><span>${gic(a.icon)}${esc(a.name)}</span></div><div class="hsub1">${fmtBytes(a.mem)} de memória</div>${b ? `<div class="hsub1">2º: ${esc(b.name)} ${b.cpu.toFixed(0)}%</div>` : ""}` : '<div class="hw-na">Sem dados</div>');
+        setHtml(hk(el, "list"), ps.slice(0, 5).map((p) => `<div class="hproc"><span>${gic(p.icon)}${esc(p.name)}</span><span>${p.cpu.toFixed(0)}%</span><div class="hbar" style="--c:var(--chart-cpu)"><i style="width:${Math.max(2, Math.min(100, p.cpu))}%"></i></div></div>`).join("") || '<div class="hw-na">Sem dados</div>');
         hydrateIcons(hk(el, "list")); return;
       }
       if (z === "L") {
@@ -3849,20 +3870,28 @@ Object.assign(HOME_W, {
   },
   notif: {
     name: "Notificações", icon: "bookmark", sizes: "PALG", def: "A",
-    html: (z) => `<div class="hw-t"><span>${z === "P" ? "Último aviso" : "Notificações"}</span></div><div data-k="list" data-fit></div>`,
+    html: (z) => z === "P" ? '<div class="pq" data-clip><div class="hw-t"><span>Último aviso</span><span data-k="t"></span></div><div class="pq-nt" data-k="list" data-clip></div><div class="hsub1" data-k="more"></div></div>'
+      : `<div class="hw-t"><span>Notificações</span></div><div data-k="list" data-fit></div>`,
     ready: () => !!welcome.host,
     upd(el) {
       let h;
       if (!welcome.features?.notif || state.notifAvail === false) h = NA;
       else if (!prefs.pcnotif) h = '<div class="hw-na">Desligadas em Ajustes</div>';
+      else if (el.dataset.z === "P") {   // pequeno: o último aviso inteiro (app, hora, título e o corpo nas linhas que couberem) e quantos vieram antes
+        const n = homeNotif[0], lst = hk(el, "list");
+        setHtml(lst, n ? `<div class="hnt-a"><b>${esc(n.app)}</b></div><div class="pq-ti">${esc(n.title)}</div>${n.body ? `<div class="pq-bo" data-lc>${esc(n.body)}</div>` : ""}` : '<div class="hw-na">Nenhum aviso desde que o app abriu</div>');
+        const go = n?.go || ""; lst.classList.toggle("hnt", !!go); if (go) { lst.dataset.go = go; lst.setAttribute("role", "button"); lst.tabIndex = 0; } else { delete lst.dataset.go; lst.removeAttribute("role"); lst.removeAttribute("tabindex"); }
+        setText(hk(el, "t"), n?.time || ""); setText(hk(el, "more"), n && homeNotif.length > 1 ? `+${homeNotif.length - 1} ${homeNotif.length === 2 ? "anterior" : "anteriores"}` : ""); return;
+      }
       else h = homeNotif.slice(0, el.closest(".pager") && !"P".includes(el.dataset.z) ? (el.dataset.z === "L" ? 2 : 8) : { P: 1, L: 1, A: 3, G: 3 }[el.dataset.z]).map((n) => `<div class="hnt"${n.go ? ` data-go="${esc(n.go)}" role="button" tabindex="0"` : ""}><div class="hnt-a"><b>${esc(n.app)}</b><span>${esc(n.time)}</span></div><div class="hnt-b">${esc([n.title, n.body].filter(Boolean).join(" · "))}</div></div>`).join("")
         || '<div class="hw-na">Nenhum aviso desde que o app abriu</div>';
       setHtml(hk(el, "list"), h);
+      if (el.dataset.z === "P") { setText(hk(el, "t"), ""); setText(hk(el, "more"), ""); }
     },
   },
   quick: {
     name: "Atalhos", icon: "layout-grid", sizes: "PAL", def: "A",
-    html: (z) => z === "P" ? quickHtml(z) : `<div class="hw-t"><span>Atalhos</span></div>${quickHtml(z)}`,
+    html: (z) => z === "P" ? `<div class="pq" data-clip><div class="hw-t"><span>Atalhos</span></div>${quickHtml(z)}</div>` : `<div class="hw-t"><span>Atalhos</span></div>${quickHtml(z)}`,
     ready: () => !!welcome.host,
     upd: (el) => quickUpd(el),
   },
@@ -4186,6 +4215,12 @@ const HOME_NEEDS = { now: "media", work: "work", today: "work", games: "library"
 const HW_FIT = "[data-fit], [data-clip]";
 function hwFit(el) {
   if (!el.closest(".pager")) return;
+  for (const t of el.querySelectorAll("[data-lc]")) {   // texto longo: tantas linhas quantas cabem na altura que sobra (nada de linha cortada pela metade)
+    const c = t.parentElement; t.style.webkitLineClamp = "1";
+    const others = [...c.children].filter((x) => x !== t && x.offsetHeight).reduce((a, x) => a + x.offsetHeight, 0), gap = parseFloat(getComputedStyle(c).rowGap) || 0;
+    const lh = parseFloat(getComputedStyle(t).lineHeight) || 16, room = c.clientHeight - others - gap * (c.children.length - 1);
+    t.style.webkitLineClamp = String(Math.max(1, Math.min(6, Math.floor(room / lh))));
+  }
   for (const c of el.querySelectorAll(HW_FIT)) {
     const kids = [...c.children]; kids.forEach((k) => k.classList.remove("fx"));
     if (kids.length < 2) continue;
