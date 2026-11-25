@@ -1,5 +1,5 @@
-"""Teste ao vivo do Pomodoro numa CÓPIA do servidor (pasta temporária, porta de teste). A fase já nasce rodando com
-~6 s no pomodoro.json (o limite de foco é 5 min): confere a restauração, o push e que o pomo.done dispara uma vez só.
+"""Teste ao vivo do Pomodoro numa CÓPIA do servidor (pasta temporária, porta de teste). A fase já nasce PAUSADA com
+6 s no pomodoro.json e só começa a rodar depois que o teste conecta (o limite de foco é 5 min): confere a restauração, o push e que o pomo.done dispara uma vez só.
 Rodar: py -3 tests/test_pomo_live.py"""
 import asyncio
 import json
@@ -52,10 +52,13 @@ async def run():
     panel = await websockets.connect(f"ws://127.0.0.1:{PORT}")
     await panel.send(json.dumps({"t": "hello", "panel": PANEL}))
     m, _ = await recv_until(phone, lambda m: m.get("t") == "pomo", 5)
-    check("celular recebe o estado ao conectar", bool(m) and m["d"]["running"] and 0 < m["d"]["remaining_s"] <= 7 and "server_now" in m["d"], str(m and m["d"]["remaining_s"]))
+    check("celular recebe a fase pausada restaurada ao conectar", bool(m) and not m["d"]["running"] and m["d"]["phase"] == "focus" and m["d"]["remaining_s"] == 6 and "server_now" in m["d"], str(m and m["d"]["remaining_s"]))
     m, _ = await recv_until(panel, lambda m: m.get("t") == "pomo", 5)
-    check("painel recebe o estado ao conectar", bool(m) and m["d"]["running"])
+    check("painel recebe o estado ao conectar", bool(m) and not m["d"]["running"] and m["d"]["remaining_s"] == 6)
+    # o relógio só começa agora (depois do boot e das conexões): o tempo não depende da velocidade da subida
     t0 = time.time()
+    r = await req(phone, "pomo.start")
+    check("retomada responde rodando", bool(r) and r["ok"] and r["d"]["running"] and 0 < r["d"]["remaining_s"] <= 6)
     done_phone, seen = await recv_until(phone, lambda m: m.get("kind") == "pomo.done", 12)
     done_panel, _ = await recv_until(panel, lambda m: m.get("kind") == "pomo.done", 3)
     check("pomo.done chega ao celular", bool(done_phone) and done_phone["finished"] == "focus" and done_phone["next"] == "short",
@@ -96,10 +99,9 @@ def main():
     (srv / "config.json").write_text(json.dumps({"token": TOKEN, "panel_token": PANEL,
                                                  "web": {"host": "127.0.0.1", "port": PORT, "adb_reverse": False, "adb_path": ""}}),
                                      encoding="utf-8")
-    now = time.time()
     (srv / "pomodoro.json").write_text(json.dumps({
         "v": 1, "cfg": {"focus_min": 25, "short_min": 5, "long_min": 15, "long_every": 4, "auto_next": False},
-        "state": {"phase": "focus", "running": True, "ends_at": now + 9, "remaining_s": None, "cycle": 0, "task_id": None},
+        "state": {"phase": "focus", "running": False, "ends_at": None, "remaining_s": 6, "cycle": 0, "task_id": None},
         "history": {}}), encoding="utf-8")
     p = subprocess.Popen([sys.executable, "companion_server.py", "--console"], cwd=srv,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
