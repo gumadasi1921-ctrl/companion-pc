@@ -1,6 +1,6 @@
 # Mascote do Companion — desenho (sem código)
 
-Status: **proposta para revisão**. Nada aqui foi implementado. Base lida: `CLAUDE.md` (Mapa rápido), `graphify-out/GRAPH_REPORT.md` (só cabeçalhos), `docs/DESIGN.md` (só títulos), e no grafo `push_notif`, `FocusHold`, `pomo_state`, `focus_deliver`. Nomes de campo/trecho que **não** foram abertos estão marcados "confirmar na etapa N".
+Status: **implementado** (decisões da seção 11; o resto deste documento é o desenho original, com os ajustes marcados na seção 11). Base lida: `CLAUDE.md` (Mapa rápido), `graphify-out/GRAPH_REPORT.md` (só cabeçalhos), `docs/DESIGN.md` (só títulos), e no grafo `push_notif`, `FocusHold`, `pomo_state`, `focus_deliver`. Nomes de campo/trecho que **não** foram abertos estão marcados "confirmar na etapa N".
 
 Princípios (valem para tudo abaixo):
 
@@ -276,3 +276,31 @@ Cada etapa é testável sozinha e não depende de servidor, exceto a 7.
 10. **Esconder em Mouse e Tela do PC** por padrão: sim/não?
 11. **Conquistas:** querer já na primeira versão ou deixar para depois?
 12. **Exportar/importar o Lume** entre aparelhos: agora, depois ou nunca?
+
+---
+
+## 11. Decisões tomadas e o que foi implementado
+
+Decisões do dono: (1) nome e figura ok, **skin trocável**; (2) fome/sede/sono simulados e rotulados como do Lume, **mas só sobem com ações reais** (bebi água, pausa, tarefa concluída, foco cumprido); (3) dormindo = avisos do PC voltam ao toast; (4) borda esquerda embaixo com ímã; (5) tela em Mais e disponível na barra configurável; (6) fora dos perfis de layout; (7) campo de minutos contínuos no servidor liberado; (8) horários padrão confirmados e ajustáveis; (9) nenhum tipo bloqueado, **balão ou aviso comum por tipo**; (10) esconde em Mouse e Tela do PC; (11) conquistas na segunda versão; (12) exportar/importar depois.
+
+Ajustes em relação ao desenho original, por causa dessas decisões:
+- **Skin** = objeto `LUME_SKINS[id]` com `defs`, `art`, `vars`, `css` (bloco `LUMESKIN` do `index.html`); lógica, bolha e tela só usam `lumeSvg(skin)`/`lumeSkinCss(skin)`. Outra skin = outro objeto + `LM.setSkin(id)` (ainda sem seletor na tela).
+- **Medidores só sobem com ação real** e só descem devagar dentro do horário ativo, com piso 30: água +45 (a ação "Dar água" é o registro de que você bebeu; 20 min de intervalo), pausa +30 energia (botão ou **detectada**: sequência de 30+ min de trabalho que termina), tarefa concluída +20 e foco concluído +25 fome/saciedade. **Petisco** é ganho por tarefa/foco e gasto no botão (sem estoque o botão fica desligado). Dormir não recupera energia.
+- **Conquistas** e exportar/importar ficam fora desta versão.
+- **Trello**: o interruptor liga "resumo das 9 h pelo balão" (só o título/contagem; nunca nome de card).
+- **Lembretes do Lume** esperam o intervalo contado a partir da abertura do app (com o app fechado ninguém foi lembrado).
+
+Pontos que o desenho deixou para confirmar no código, e o que o código mostrou:
+1. **Ignorados**: é `notif_ignore` no `config.json` e o servidor o aplica antes de o evento chegar ao celular; o app não tem lista própria (o Lume não reaplica nada).
+2. **Ociosidade**: `WorkTracker.poll` já lê `idle_seconds`/`counting`; o novo `WorkTracker.stream()` usa os mesmos dados (app de trabalho em foco com input recente; lacuna até 5 min não quebra a sequência). Push `{t:"workstream",d:{minutes,app}}` só quando muda e ao conectar; só memória. Teste: `py -3 tests/test_work_stream.py`.
+3. **Telas**: `micFabArea(sz)` foi generalizada (a bolinha do mic segue igual); o Lume usa a mesma área, com `lumeAnchor` para balão/menu desviarem do mic.
+
+Onde está no código (`windows/server/web/index.html`; procurar pelos marcadores):
+- `/* LUMESKIN:begin */` skin e estados · `/* LUME:begin */` `makeMascot(store, now)` (núcleo puro, chave `pcc.mascot`) · `/* LUMEUI:begin */` bolha (`#lume-fab`), menu (toque longo), balão (`#lume-bal`), roteador (`lumeEvent`: o que seria toast vira balão via `lumeCap`; efeitos do handler iguais), tela (`#t-mascot`), Ajustes (`#lume-set`) e lembretes (`lumeTick`, 30 s).
+- Posição: chave `pcc.lumepos` por orientação, fora do layout e sem `pk()`. O id `mascot` entrou em `LAY.NAV` (o item da barra segue a regra do `nav`).
+- Testes: `node tests/test_mascot.js`, `node tests/test_layouts.js`, `py -3 tests/test_work_stream.py`; galeria de desenvolvimento: `node tests/lume_gallery.js` (gera `tests/lume_gallery.html`, ignorado pelo git).
+
+Medição (844×390, 390×844, 1024×768 × Fallout e Moderno; pelo DOM no servidor de teste): bolha dentro da tela, sem sobrepor o mic, a barra nem o trilho (mesmo no pior caso, na mesma posição do mic); balão (texto longo + 2 botões) e menu dentro da tela e sem tocar mic/bolha; tela do Lume e Ajustes sem overflow horizontal; alvos ≥ 44 px (campos de hora corrigidos); bolha escondida em Mouse/Tela do PC e na própria tela do Lume.
+Peso: skin ≈ 7,3 KB, núcleo ≈ 12,3 KB, UI ≈ 24,6 KB, CSS ≈ 4,3 KB: ≈ 48 KB sem gzip no `index.html` (495 KB → 546 KB; o orçamento do desenho era ~30 KB: estourou por causa da tela, dos Ajustes e dos lembretes, que o desenho não contava). Animação: 3 CSS simultâneas (respiração, brilho, pálpebras), só `transform`/`opacity`; pausadas com a aba oculta (`html.lm-pause`) e removidas com Economia/reduzir movimento.
+
+Ainda por fazer/sem verificação: teste no celular de verdade (toque longo, arrasto com o dedo, bateria em uso real); revisão visual do Lume em telas pequenas pelo dono; seletor de skin na tela; conquistas; exportar/importar.
