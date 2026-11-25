@@ -1113,6 +1113,8 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 #mx-list { min-height: 0; }
 .aic { width: 100%; height: 100%; object-fit: contain; display: block; }
 .has-ic { font-size: 0; padding: 0; }
+.mxic.has-ic { border: 0; background: none; overflow: hidden; }
+:root[data-theme="modern"] .mxic.has-ic { background: none; }
 .mxrow { grid-template-columns: 32px minmax(0, 1fr) 46px 44px; gap: 8px; padding: 6px 12px; }
 .mxrow .mxname { white-space: normal; overflow-wrap: anywhere; line-height: 1.15; }
 #mx-list .empty { display: grid; place-items: center; text-align: center; min-height: 96px; padding: 16px; line-height: 1.35; }
@@ -3951,7 +3953,9 @@ function renderMixer() {
       row.innerHTML = '<span class="mxic"></span><div class="mxmid"><div class="mxname"></div><input type="range" min="0" max="100"><div class="peak"><i></i></div></div><span class="mxval"></span><button class="mxmute"></button>';
       list.appendChild(row); bindMixRow(row);
     }
-    row.querySelector(".mxic").textContent = a.key === "_system" ? "#" : a.name.slice(0, 1).toUpperCase();
+    const mic = row.querySelector(".mxic");
+    if (!mic.dataset.ic) mic.textContent = a.key === "_system" ? "#" : a.name.slice(0, 1).toUpperCase();   // letra: fallback e enquanto o ícone carrega
+    if (a.icon) setAppIcon(mic, a.icon);
     row.querySelector(".mxname").textContent = a.name;
     if (mixDrag !== a.key) { row.querySelector("input").value = a.level; row.querySelector(".mxval").textContent = a.level + "%"; }
     const mb = row.querySelector(".mxmute"); setHtml(mb, ic(a.muted ? "volume-x" : "volume-2")); mb.setAttribute("aria-label", (a.muted ? "Ativar o som de " : "Silenciar ") + a.name);

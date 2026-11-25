@@ -200,6 +200,16 @@ MIXER_NAMES = {"discord": "Discord", "spotify": "Spotify", "chrome": "Chrome", "
                "steamwebhelper": "Steam", "obs64": "OBS"}
 
 
+ICON_REGISTER = None   # o servidor liga isto a icons.Icons.register: devolve um id opaco (o caminho nunca sai daqui)
+
+
+def _exe_path(proc):
+    try:
+        return proc.exe()
+    except Exception:  # noqa: BLE001  (processo protegido ou já fechado)
+        return None
+
+
 def _sessions():
     from pycaw.pycaw import AudioUtilities
     groups = {}
@@ -213,7 +223,10 @@ def _sessions():
                 name = MIXER_NAMES.get(key) or exe.removesuffix(".exe")
             if s.State == 2:  # AudioSessionStateExpired
                 continue
-            groups.setdefault(key, {"key": key, "name": name, "items": []})["items"].append(s)
+            g = groups.setdefault(key, {"key": key, "name": name, "items": [], "exe": None})
+            g["items"].append(s)
+            if g["exe"] is None and key != "_system":
+                g["exe"] = _exe_path(s.Process)
         except Exception:  # noqa: BLE001  (processo fechou no meio)
             continue
     return groups
@@ -231,8 +244,12 @@ def _mixer_get():
     out = []
     for g in _sessions().values():
         vol = g["items"][0].SimpleAudioVolume
-        out.append({"key": g["key"], "name": g["name"], "level": round(vol.GetMasterVolume() * 100),
-                    "muted": bool(vol.GetMute()), "peak": round(max(_peak(s) for s in g["items"]), 3)})
+        a = {"key": g["key"], "name": g["name"], "level": round(vol.GetMasterVolume() * 100),
+             "muted": bool(vol.GetMute()), "peak": round(max(_peak(s) for s in g["items"]), 3)}
+        ic = ICON_REGISTER(g["exe"]) if ICON_REGISTER and g.get("exe") else None
+        if ic:
+            a["icon"] = ic
+        out.append(a)
     out.sort(key=lambda x: (x["key"] == "_system", x["name"].lower()))
     return {"apps": out, "master": _volume_get(), "outputs": _outputs()}
 
