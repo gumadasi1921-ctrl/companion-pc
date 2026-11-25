@@ -1302,6 +1302,11 @@ header .host { display: none; }
 .hw.na { position: relative; }
 .hw.na > * { visibility: hidden; }
 .hw.na::after { content: attr(data-na); position: absolute; inset: 0; display: grid; place-items: center; padding: 12px; text-align: center; font-size: 13px; line-height: 1.3; color: var(--text-2, var(--p2)); }
+/* botão do layout no editor de widgets: na linha do seletor Celular|Tablet, com o nome cortado se for longo */
+.wd-bar { display: flex; gap: 8px; align-items: center; }
+.wd-bar .seg { flex: 1 1 auto; min-width: 0; }
+#wd-lay { flex: 0 1 auto; min-width: 0; max-width: 45%; }
+#wd-lay b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -1392,8 +1397,8 @@ header .host { display: none; }
   <section class="tab" id="t-weather"></section>
   <!-- MAIS > Widgets do Início (também pelo botão Editar do Início) -->
   <section class="tab" id="t-widgets">
-    <div class="home-head"><h2>Widgets do Início</h2><button class="btn sm" id="wd-lay" aria-label="Trocar de layout">Layout: <b id="wd-lay-n"></b></button><button class="btn sm primary" id="wd-done">Concluído</button></div>
-    <div class="seg" id="wd-dev" role="group" aria-label="Aparelho"><button data-dev="phone">Celular</button><button data-dev="tablet">Tablet</button></div>
+    <div class="home-head"><h2>Widgets do Início</h2><button class="btn sm primary" id="wd-done">Concluído</button></div>
+    <div class="wd-bar"><div class="seg" id="wd-dev" role="group" aria-label="Aparelho"><button data-dev="phone">Celular</button><button data-dev="tablet">Tablet</button></div><button class="btn sm" id="wd-lay" aria-label="Trocar de layout"><b id="wd-lay-n"></b></button></div>
     <div class="wd-info" id="wd-info" role="status"></div>
     <h3 class="wd-h">Na tela, nesta ordem</h3>
     <div class="wd-list" id="wd-list"></div>
@@ -2299,7 +2304,7 @@ pcPaint();
 
 // ---------------------------------------------------------------- layouts: gerenciar (Ajustes › Aparência e editor de widgets)
 let layOpt = null;   // id do layout com as opções abertas
-function layPaint() { const n = LAY.active().name; $("lay-cur").textContent = n; $("wd-lay-n").textContent = n; }
+function layPaint() { const n = LAY.active().name; $("lay-cur").textContent = n; $("wd-lay-n").textContent = n; $("wd-lay").setAttribute("aria-label", `Layout: ${n}. Trocar de layout`); }
 function layMode(m) {   // list | form | share | imp
   for (const [id, on] of [["lay-list", m === "list"], ["lay-form", m === "form"], ["lay-share", m === "share"], ["lay-imp", m === "imp"], ["lay-acts", m === "list"], ["lay-sub", m === "list"]]) $(id).classList.toggle("hidden", !on);
   $("lay-msg").textContent = "";
