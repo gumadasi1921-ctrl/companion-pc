@@ -2036,6 +2036,77 @@ const store = {
 };
 
 
+// ---------------------------------------------------------------- Lume: skins (arte separada da lógica)
+// Uma skin = {id, name, defs (gradientes, 1× na página), art (SVG 120×120, estados por data-st), vars (paleta), css (animações)}.
+// Trocar de skin = outro objeto aqui; a lógica (makeMascot) e a bolha não sabem nada da arte. Estados: happy focus tired thirst hunger sleep party alert.
+/* LUMESKIN:begin */
+const LUME_STATES = ["happy", "focus", "tired", "thirst", "hunger", "sleep", "party", "alert"];
+const LUME_SKINS = {
+  lume: {
+    id: "lume", name: "Lume",
+    vars: "--lm-b1:#fff7ea;--lm-b2:#f0d9bb;--lm-b3:#c9a77c;--lm-ink:#2a211c;--lm-bu:var(--accent,var(--p,#4da3ff))",
+    defs: '<radialGradient id="lmB" cx=".35" cy=".25" r=".95"><stop offset="0" class="lb1"/><stop offset=".6" class="lb2"/><stop offset="1" class="lb3"/></radialGradient>' +
+      '<radialGradient id="lmBulb" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff"/><stop offset=".4" class="lbu"/><stop offset="1" class="lbu2"/></radialGradient>' +
+      '<radialGradient id="lmHalo"><stop offset="0" class="lbu" stop-opacity=".6"/><stop offset="1" class="lbu" stop-opacity="0"/></radialGradient>' +
+      '<radialGradient id="lmSh"><stop offset="0" stop-color="#000" stop-opacity=".35"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>',
+    art: '<ellipse cx="60" cy="112" rx="36" ry="6" fill="url(#lmSh)"/>' +
+      '<g class="l-bob"><g class="l-br">' +
+      '<path d="M60 48C60 36 64 30 70 24" fill="none" class="l-ant" stroke-width="3" stroke-linecap="round"/>' +
+      '<g class="l-bulbg"><circle class="l-halo" cx="71" cy="21" r="20" fill="url(#lmHalo)"/><circle cx="71" cy="21" r="8.5" fill="url(#lmBulb)"/><circle cx="68.5" cy="18.5" r="2.4" fill="#fff" opacity=".85"/></g>' +
+      '<ellipse class="l-foot" cx="40" cy="105" rx="13" ry="6.5"/><ellipse class="l-foot" cx="80" cy="105" rx="13" ry="6.5"/>' +
+      '<g class="l-arm x s-alert s-party"><ellipse class="l-foot" cx="107" cy="76" rx="6.5" ry="10"/></g>' +
+      '<rect x="16" y="46" width="88" height="60" rx="32" fill="url(#lmB)"/>' +
+      '<ellipse cx="42" cy="58" rx="18" ry="6.5" fill="#fff" opacity=".4" transform="rotate(-12 42 58)"/>' +
+      '<ellipse cx="31" cy="85" rx="6" ry="4" fill="#ff8f8f" opacity=".35"/><ellipse cx="89" cy="85" rx="6" ry="4" fill="#ff8f8f" opacity=".35"/>' +
+      [44, 76].map((x) => `<ellipse class="l-ink" cx="${x}" cy="72" rx="7.5" ry="9.5"/><circle cx="${x + 2.4}" cy="68.5" r="2.8" fill="#fff"/><circle cx="${x - 2.5}" cy="76" r="1.2" fill="#fff" opacity=".8"/><ellipse class="l-lid" cx="${x}" cy="72" rx="8.6" ry="10.6"/>`).join("") +
+      '<path class="x s-sleep l-line" d="M36 73q8 7 16 0M68 73q8 7 16 0"/>' +
+      '<path class="x s-focus l-line" d="M36 59h16M68 59h16"/>' +
+      '<path class="x s-alert s-party l-line" d="M37 60q7-6 15-1M68 59q8-5 15 1"/>' +
+      '<path class="x s-happy l-line" d="M52 87q8 7 16 0"/>' +
+      '<path class="x s-focus l-line" d="M54 89h12"/>' +
+      '<path class="x s-sleep l-line" d="M55 89q5 3 10 0"/>' +
+      '<ellipse class="x s-tired l-ink l-yawn" cx="60" cy="90" rx="4" ry="5"/>' +
+      '<g class="x s-thirst"><path class="l-line" d="M52 87q8 7 16 0"/><ellipse cx="60" cy="94" rx="3.2" ry="4.4" fill="#ff7a8a"/></g>' +
+      '<ellipse class="x s-hunger l-ink" cx="60" cy="90" rx="3.4" ry="4"/>' +
+      '<g class="x s-party"><path class="l-ink" d="M49 85q11 16 22 0z"/><path d="M54 92q6 5 12 0q-6-3-12 0z" fill="#ff7a8a"/></g>' +
+      '<ellipse class="x s-alert l-ink" cx="60" cy="90" rx="3" ry="3.6"/>' +
+      '</g>' +
+      '<g class="x s-sleep l-zs"><text x="92" y="42" class="l-z" style="animation-delay:0s">z</text><text x="100" y="31" class="l-z" style="animation-delay:.9s">z</text><text x="108" y="20" class="l-z" style="animation-delay:1.8s">Z</text></g>' +
+      '<g class="x s-party l-sp"><path class="l-spk" transform="translate(20 34)" d="M0-6 1.4-1.4 6 0 1.4 1.4 0 6-1.4 1.4-6 0-1.4-1.4z"/><path class="l-spk" transform="translate(104 48) scale(.8)" d="M0-6 1.4-1.4 6 0 1.4 1.4 0 6-1.4 1.4-6 0-1.4-1.4z"/><path class="l-spk" transform="translate(12 74) scale(.6)" d="M0-6 1.4-1.4 6 0 1.4 1.4 0 6-1.4 1.4-6 0-1.4-1.4z"/></g>' +
+      '<path class="x s-thirst" d="M101 40q8 11 0 16q-8-5 0-16z" fill="#6cc4ff"/>' +
+      '<g class="x s-hunger"><circle cx="20" cy="60" r="8" fill="#d9a566"/><circle cx="17" cy="58" r="1.4" fill="#7a4b22"/><circle cx="23" cy="61" r="1.4" fill="#7a4b22"/><circle cx="19" cy="64" r="1.2" fill="#7a4b22"/></g>' +
+      '</g>',
+    css: ".lm .l-ant{stroke:var(--lm-b3)}.lm .l-foot{fill:var(--lm-b3)}.lm .l-ink{fill:var(--lm-ink)}.lm .l-lid{fill:var(--lm-b2)}" +
+      ".lm .l-line{fill:none;stroke:var(--lm-ink);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}.lm .l-z{fill:var(--lm-bu);font:700 12px system-ui,sans-serif}.lm .l-spk{fill:var(--lm-bu)}" +
+      ".lb1{stop-color:var(--lm-b1)}.lb2{stop-color:var(--lm-b2)}.lb3{stop-color:var(--lm-b3)}.lbu,.lbu2{stop-color:var(--lm-bu)}" +
+      "@supports (color:color-mix(in srgb,red,blue)){.lbu2{stop-color:color-mix(in srgb,var(--lm-bu) 70%,#000)}}" +
+      ".lm .l-br{transform-origin:60px 106px;animation:lmBr 4s ease-in-out infinite}" +
+      ".lm .l-lid{transform-box:fill-box;transform-origin:50% 0;transform:scaleY(0);animation:lmBl 6s ease-in-out infinite}" +
+      ".lm .l-halo{animation:lmGl 3s ease-in-out infinite}.lm .l-z{opacity:0;animation:lmZ 2.7s ease-out infinite}" +
+      ".lm .l-yawn{transform-box:fill-box;transform-origin:50% 50%;animation:lmYn 5s ease-in-out infinite}" +
+      ".lm[data-st=party] .l-bob{animation:lmHop .6s ease-out 2}.lm .l-arm{transform-box:fill-box;transform-origin:50% 100%}" +
+      ".lm[data-st=alert] .l-arm,.lm[data-st=party] .l-arm{animation:lmWv .7s ease-in-out 3}" +
+      ".lm[data-st=focus] .l-lid{transform:scaleY(.4);animation:none}.lm[data-st=tired] .l-lid{transform:scaleY(.55);animation:none}.lm[data-st=sleep] .l-lid{transform:scaleY(1);animation:none}" +
+      ".lm[data-st=tired] .l-br{animation-duration:6s}.lm[data-st=thirst] .l-halo,.lm[data-st=hunger] .l-halo{animation-duration:1.6s}" +
+      ".lm[data-st=focus] .l-halo{animation:none;opacity:.5}.lm[data-st=sleep] .l-halo{animation:none;opacity:.08}.lm[data-st=tired] .l-halo{opacity:.55}" +
+      "@keyframes lmBr{0%,100%{transform:scale(1,1)}50%{transform:scale(1.02,1.035)}}" +
+      "@keyframes lmBl{0%,92%,100%{transform:scaleY(0)}95%{transform:scaleY(1)}}" +
+      "@keyframes lmGl{0%,100%{opacity:.7}50%{opacity:1}}" +
+      "@keyframes lmZ{0%{opacity:0;transform:translateY(6px)}30%{opacity:1}100%{opacity:0;transform:translateY(-8px)}}" +
+      "@keyframes lmYn{0%,60%,100%{transform:scaleY(.5)}80%{transform:scaleY(1.1)}}" +
+      "@keyframes lmHop{0%,100%{transform:translateY(0)}35%{transform:translateY(-14px)}}" +
+      "@keyframes lmWv{0%,100%{transform:rotate(0)}50%{transform:rotate(-26deg)}}",
+  },
+};
+// css comum a qualquer skin: estados escondem/mostram as partes marcadas .x + .s-<estado>; "still" (Economia/reduzir movimento) = poses sem animação
+const lumeBaseCss = () => ".lm{width:100%;height:100%;display:block;overflow:visible}.lm .x{display:none}" +
+  LUME_STATES.map((s) => `.lm[data-st=${s}] .s-${s}{display:inline}`).join("") +
+  ".lm.still *,.lm.still{animation:none!important;transition:none!important}html.lm-pause .lm *{animation-play-state:paused!important}" +
+  "@media (prefers-reduced-motion:reduce){.lm *{animation:none!important}}";
+const lumeSkinCss = (s) => `:root{${s.vars}}` + lumeBaseCss() + s.css;
+const lumeSvg = (skin, cls = "") => `<svg class="lm ${cls}" viewBox="0 0 120 120" data-st="happy" aria-hidden="true" focusable="false">${skin.art}</svg>`;
+/* LUMESKIN:end */
+
 // ---------------------------------------------------------------- perfis de layout (do APARELHO, não do PC)
 // Um perfil guarda tema, modo, destaque, widgets do Início e a última tela. As chaves de hoje (theme, home...) continuam sendo a
 // cópia de trabalho do perfil em uso (o script do tema, antes da primeira tela, e todo o resto seguem lendo as mesmas chaves);

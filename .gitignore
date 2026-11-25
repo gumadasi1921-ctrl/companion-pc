@@ -5,3 +5,4 @@ config.json.bak*
 *.log
 graphify-out/
 icon-cache/
+tests/lume_gallery.html
