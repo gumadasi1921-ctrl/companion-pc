@@ -296,7 +296,7 @@ Pontos que o desenho deixou para confirmar no código, e o que o código mostrou
 3. **Telas**: `micFabArea(sz)` foi generalizada (a bolinha do mic segue igual); o Lume usa a mesma área, com `lumeAnchor` para balão/menu desviarem do mic.
 
 Onde está no código (`windows/server/web/index.html`; procurar pelos marcadores):
-- `/* LUMESKIN:begin */` skin e estados · `/* LUME:begin */` `makeMascot(store, now)` (núcleo puro, chave `pcc.mascot`) · `/* LUMEUI:begin */` bolha (`#lume-fab`), menu (toque longo), balão (`#lume-bal`), roteador (`lumeEvent`: o que seria toast vira balão via `lumeCap`; efeitos do handler iguais), tela (`#t-mascot`), Ajustes (`#lume-set`) e lembretes (`lumeTick`, 30 s).
+- `/* LUMESKIN:begin */` skin e estados · `/* LUME:begin */` `makeMascot(store, now)` (núcleo puro, chave `pcc.mascot`) · `/* LUMEUI:begin */` bolha (`#lume-fab`), menu (toque longo), balão (`#lume-bal`), roteador (`lumeEvent`: o que seria toast vira balão via `lumeCap`; efeitos do handler iguais), tela (`#t-mascot`), Ajustes (`[data-lume]`) e lembretes (`lumeTick`, 30 s).
 - Posição: chave `pcc.lumepos` por orientação, fora do layout e sem `pk()`. O id `mascot` entrou em `LAY.NAV` (o item da barra segue a regra do `nav`).
 - Testes: `node tests/test_mascot.js`, `node tests/test_layouts.js`, `py -3 tests/test_work_stream.py`; galeria de desenvolvimento: `node tests/lume_gallery.js` (gera `tests/lume_gallery.html`, ignorado pelo git).
 
