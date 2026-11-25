@@ -1432,21 +1432,43 @@ header .hchip::after { content: ""; position: absolute; inset: -10px -8px; }
 #lume-menu { position: fixed; left: 0; top: 0; z-index: 38; display: flex; flex-direction: column; min-width: 190px; padding: 6px; border-radius: 14px; background: var(--surface-2, var(--bg)); border: 1px solid var(--separator, var(--p3)); box-shadow: 0 6px 24px rgba(0,0,0,.4); }
 #lume-menu button { min-height: 44px; padding: 0 12px; text-align: left; background: none; border: 0; color: var(--text, var(--p)); font: inherit; border-radius: 10px; }
 #lume-menu button:active { background: rgba(128,128,128,.22); }
-/* Tela do Lume */
-.lm-grid { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); align-items: start; }
-@media (orientation: landscape) and (min-width: 640px) { .lm-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
-.lm-stage { display: flex; gap: 14px; align-items: center; }
-.lm-pic { width: 112px; height: 112px; flex: none; }
-.lm-state { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.lm-state b { font-size: 18px; } .lm-state small { color: var(--p3t); }
-.lm-btns { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
-.lm-btns .btn { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 56px; }
-.lm-btns .btn small { font-size: 11px; opacity: .75; }
-.lm-sleep { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
-.lm-sleep > span { flex: 1 1 100%; color: var(--p3t); }
-.lm-mh { display: flex; justify-content: space-between; font-size: 14px; }
-.lm-bar { height: 8px; border-radius: 4px; background: rgba(128,128,128,.3); overflow: hidden; margin: 4px 0 10px; }
-.lm-bar i { display: block; height: 100%; background: var(--accent, var(--p)); border-radius: 4px; }
+/* Quarto do Lume (Mais › Lume): cena em tela cheia; os botões ficam por cima do SVG, nas mesmas coordenadas */
+#t-mascot { padding: 0; overflow: hidden; position: relative; }
+.rm { position: absolute; inset: 0; overflow: hidden; background: linear-gradient(to bottom, var(--rm-wall, #262a31) var(--fy, 70%), var(--rm-floor, #3b3229) var(--fy, 70%)); -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+.rm-bg { position: absolute; left: 0; top: 0; display: block; }
+.rm-it, .rm-lume { position: absolute; left: 0; top: 0; padding: 0; margin: 0; border: 0; background: none; color: inherit; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; will-change: transform; }
+.rm-it { z-index: 3; } .rm-lume { z-index: 2; transition: transform .6s ease; }
+.rm-it svg { width: 100%; height: 100%; display: block; overflow: visible; pointer-events: none; }
+.rm-it:focus-visible, .rm-lume:focus-visible, .rm-hist:focus-visible { outline: 2px solid var(--accent, var(--p)); outline-offset: 2px; border-radius: 12px; }
+.rm-lume.hot { filter: drop-shadow(0 0 10px var(--accent, var(--p))); }
+.rm-lume.pet { animation: rmPet .5s ease-out; }
+.rm-jar.empty svg { opacity: .4; } .rm-jar.shake { animation: rmShake .4s; } .rm-it.lifted svg { opacity: .35; }
+.rm-badge { position: absolute; right: -4px; top: -6px; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 10px; background: var(--accent, var(--p)); color: var(--bg); font: 700 12px/20px system-ui, sans-serif; text-align: center; }
+.rm-jar.empty .rm-badge { display: none; }
+.rm-top { position: absolute; left: 8px; top: 8px; z-index: 4; display: flex; gap: 12px; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 22px; background: rgba(0,0,0,.4); color: #fff; }
+.rm-m { display: flex; align-items: center; gap: 6px; } .rm-m svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.rm-b { display: block; width: 44px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.25); overflow: hidden; }
+.rm-b b { display: block; height: 100%; border-radius: 3px; background: var(--lm-bu, var(--accent, #4da3ff)); }
+.rm-hist { position: absolute; right: 8px; top: 8px; z-index: 4; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: rgba(0,0,0,.4); color: #fff; display: grid; place-items: center; cursor: pointer; }
+.rm-hist svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.rm-note { position: absolute; left: 50%; top: 60px; transform: translateX(-50%); z-index: 4; max-width: calc(100% - 140px); padding: 6px 12px; border-radius: 14px; background: rgba(0,0,0,.45); color: #fff; font-size: 13px; text-align: center; }
+.rm-pop { position: absolute; left: 0; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; max-width: 264px; padding: 8px; border-radius: 14px; background: var(--surface-2, var(--bg)); color: var(--text, var(--p)); border: 1px solid var(--separator, var(--p3)); box-shadow: 0 6px 24px rgba(0,0,0,.4); }
+.rm-pt { flex: 1 1 100%; font-size: 13px; color: var(--p3t); }
+.rm-heart { position: absolute; z-index: 4; width: 22px; height: 22px; margin-left: -11px; pointer-events: none; animation: rmHeart 1.1s ease-out forwards; }
+.rm-heart svg { width: 100%; height: 100%; fill: var(--lm-bu, #ff6b9a); stroke: var(--lm-bu, #ff6b9a); }
+.rm-ghost { position: absolute; left: 0; top: 0; z-index: 7; width: 56px; height: 40px; margin: -20px 0 0 -28px; pointer-events: none; filter: drop-shadow(0 4px 6px rgba(0,0,0,.4)); }
+.rm-ghost svg { width: 100%; height: 100%; display: block; }
+.rm-sheet { position: absolute; inset: 0; z-index: 6; visibility: hidden; pointer-events: none; transition: visibility 0s .3s; }
+.rm-sheet.on { visibility: visible; pointer-events: auto; transition: none; }
+.rm-sb { position: absolute; inset: 0; background: rgba(0,0,0,.4); opacity: 0; transition: opacity .25s; } .rm-sheet.on .rm-sb { opacity: 1; }
+.rm-sp { position: absolute; left: 0; right: 0; bottom: 0; margin: 0 auto; max-width: 560px; max-height: 72%; overflow-y: auto; padding: 8px 16px 16px; border-radius: 18px 18px 0 0; background: var(--surface-2, var(--bg)); color: var(--text, var(--p)); transform: translateY(100%); transition: transform .3s ease; }
+.rm-sheet.on .rm-sp { transform: none; }
+.rm-sh { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; min-height: 44px; }
+@keyframes rmPet { 0%, 100% { transform: translateY(0) scale(1); } 40% { transform: translateY(-10px) scale(1.05); } }
+@keyframes rmShake { 0%, 100% { transform: none; } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+@keyframes rmHeart { from { transform: translateY(0) scale(.7); opacity: 1; } to { transform: translateY(-34px) scale(1.1); opacity: 0; } }
+html.lm-still .rm *, .rm .still, .rm.still * { animation: none !important; transition: none !important; }
+@media (prefers-reduced-motion: reduce) { .rm *, .rm-sp, .rm-sb { animation: none !important; transition: none !important; } }
 .lm-foot { color: var(--p3t); font-size: 13px; margin: 4px 0 0; }
 .lm-day { font-weight: 600; margin: 10px 0 4px; }
 .lm-it { display: flex; gap: 10px; font-size: 14px; padding: 3px 0; }
@@ -2316,6 +2338,65 @@ function makeMascot(store, now) {
   return api;
 }
 /* LUME:end */
+
+// ---------------------------------------------------------------- Lume: quartos (cenário separado da lógica e da skin)
+// Um quarto = {id, name, vars, css, pos{land,port}, art(P), icons{water,snack}}. pos.* em unidades do SVG (land 160×90 deitado/tablet, port 90×160 em pé);
+// a cena encaixa o SVG com "slice" e põe os botões por cima nas mesmas coordenadas. Outro quarto = outro objeto aqui (a cena só lê estes campos).
+/* LUMEROOM:begin */
+const LUME_ROOMS = {
+  quarto: {
+    id: "quarto", name: "Quarto do Lume",
+    vars: "--rm-wall:var(--surface-2,#262a31);--rm-floor:#3b3229;--rm-base:rgba(0,0,0,.28);--rm-rug:var(--lm-bu,#4da3ff);--rm-frame:#e9dcc6;--rm-sky:#8ec9ff;--rm-bed:#c9a77c;--rm-pot:#c47a55",
+    pos: {   // zona segura: x 24–136 e y 8–82 no deitado (o "slice" corta o resto em 4:3 e 21:9)
+      land: { w: 160, h: 90, fl: 60, safe: { w: 124, h: 76 }, win: { x: 24, y: 17, w: 28, h: 26 }, clk: { cx: 75, cy: 16, r: 7 }, plant: { x: 28, y: 46, w: 13, h: 22 }, bed: { x: 118, y: 46, w: 22, h: 24 },
+        bowl: { x: 33, y: 67, w: 17, h: 10 }, jar: { x: 104, y: 62, w: 12, h: 14 }, lume: { x: 52, y: 24, s: 50 } },
+      port: { w: 90, h: 160, fl: 92, safe: { w: 78, h: 132 }, win: { x: 11, y: 20, w: 30, h: 26 }, clk: { cx: 65, cy: 28, r: 7 }, plant: { x: 12, y: 66, w: 12, h: 24 }, bed: { x: 46, y: 112, w: 30, h: 26 },
+        bowl: { x: 11, y: 124, w: 18, h: 11 }, jar: { x: 31, y: 120, w: 12, h: 15 }, lume: { x: 17, y: 50, s: 56 } },
+    },
+    icons: {
+      water: '<svg viewBox="0 0 32 20"><ellipse cx="16" cy="9" rx="14" ry="5" fill="#e9dcc6"/><path d="M2 9q1 10 14 10t14-10z" fill="#c9a77c"/><ellipse cx="16" cy="9" rx="11" ry="3.3" fill="#6cc4ff"/><ellipse cx="13" cy="8.3" rx="4" ry="1" fill="#fff" opacity=".5"/></svg>',
+      snack: '<svg viewBox="0 0 24 28"><rect x="3" y="8" width="18" height="18" rx="5" fill="#e9dcc6" opacity=".92"/><rect x="2" y="3" width="20" height="6" rx="3" fill="#c9a77c"/><circle cx="9" cy="17" r="3" fill="#d9a566"/><circle cx="15" cy="20" r="2.6" fill="#d9a566"/><circle cx="14" cy="14.5" r="2" fill="#d9a566"/></svg>',
+    },
+    art(P) {
+      const { w, h, fl, win: W, clk: C, plant: T, bed: B, lume: M } = P, n = (v) => +v.toFixed(1), wc = W.x + W.w / 2;
+      let o = `<defs><clipPath id="rmWc"><rect x="${W.x}" y="${W.y}" width="${W.w}" height="${W.h}" rx="2"/></clipPath></defs>` +
+        `<rect class="rm-wall" width="${w}" height="${fl}"/><rect class="rm-floor" y="${fl}" width="${w}" height="${h - fl}"/><rect class="rm-base" y="${fl - 2.5}" width="${w}" height="2.5"/>` +
+        `<ellipse class="rm-rug" cx="${n(M.x + M.s / 2)}" cy="${n(M.y + M.s - 3)}" rx="${n(M.s * 0.62)}" ry="${n((h - fl) * 0.2)}"/>`;
+      // relógio (ponteiros giram por atributo transform, ajustado pelo JS)
+      o += `<g class="rm-clk"><circle cx="${C.cx}" cy="${C.cy}" r="${C.r}" class="rm-cf"/><path class="rm-ck" d="M${C.cx} ${n(C.cy - C.r + 1)}v1.6M${C.cx} ${n(C.cy + C.r - 2.6)}v1.6M${n(C.cx - C.r + 1)} ${C.cy}h1.6M${n(C.cx + C.r - 2.6)} ${C.cy}h1.6"/>` +
+        `<line class="rm-hh" data-c="${C.cx} ${C.cy}" x1="${C.cx}" y1="${C.cy}" x2="${C.cx}" y2="${n(C.cy - C.r * 0.5)}"/><line class="rm-mh" data-c="${C.cx} ${C.cy}" x1="${C.cx}" y1="${C.cy}" x2="${C.cx}" y2="${n(C.cy - C.r * 0.78)}"/><circle cx="${C.cx}" cy="${C.cy}" r="0.9" class="rm-ck2"/></g>`;
+      // planta num banquinho
+      const px = T.x + T.w / 2, pb = T.y + T.h;
+      o += `<g class="rm-plant"><rect x="${n(px - 4.5)}" y="${n(pb - 8)}" width="9" height="${n(8 + (fl + 4 > pb ? fl + 4 - pb : 0))}" rx="1" class="rm-stool"/><path d="M${n(px - 4)} ${n(pb - 13)}h8l-1 6h-6z" class="rm-pot"/>` +
+        `<ellipse cx="${n(px - 3)}" cy="${n(pb - 18)}" rx="2.2" ry="5.2" transform="rotate(-28 ${n(px - 3)} ${n(pb - 18)})" class="rm-leaf"/><ellipse cx="${n(px + 3)}" cy="${n(pb - 18)}" rx="2.2" ry="5.2" transform="rotate(28 ${n(px + 3)} ${n(pb - 18)})" class="rm-leaf"/><ellipse cx="${px}" cy="${n(pb - 20)}" rx="2.2" ry="6" class="rm-leaf2"/></g>`;
+      // cama
+      o += `<rect x="${B.x}" y="${n(B.y + B.h * 0.12)}" width="${n(B.w * 0.16)}" height="${n(B.h * 0.88)}" rx="2" class="rm-bedf"/><rect x="${B.x}" y="${n(B.y + B.h * 0.55)}" width="${B.w}" height="${n(B.h * 0.4)}" rx="3" class="rm-bedf"/>` +
+        `<rect x="${n(B.x + B.w * 0.1)}" y="${n(B.y + B.h * 0.38)}" width="${n(B.w * 0.9)}" height="${n(B.h * 0.3)}" rx="3" class="rm-mat"/><rect x="${n(B.x + B.w * 0.14)}" y="${n(B.y + B.h * 0.3)}" width="${n(B.w * 0.28)}" height="${n(B.h * 0.18)}" rx="3" class="rm-pil"/>` +
+        `<rect x="${n(B.x + B.w * 0.46)}" y="${n(B.y + B.h * 0.4)}" width="${n(B.w * 0.54)}" height="${n(B.h * 0.3)}" rx="3" class="rm-blk"/>`;
+      // escuridão (noite / dormindo) por cima de tudo menos a janela
+      o += `<rect class="rm-dim" width="${w}" height="${h}"/>`;
+      // janela: céu do dia/noite e chuva (a previsão só decide a chuva)
+      o += `<g clip-path="url(#rmWc)"><rect class="rm-sky" x="${W.x}" y="${W.y}" width="${W.w}" height="${W.h}"/>` +
+        `<circle class="rm-sun" cx="${n(W.x + W.w * 0.72)}" cy="${n(W.y + W.h * 0.3)}" r="4.2"/>` +
+        `<g class="rm-moon"><circle cx="${n(W.x + W.w * 0.7)}" cy="${n(W.y + W.h * 0.3)}" r="4"/><circle cx="${n(W.x + W.w * 0.7 + 2)}" cy="${n(W.y + W.h * 0.3 - 1)}" r="3.4" class="rm-moonc"/><circle cx="${n(W.x + 5)}" cy="${n(W.y + 6)}" r=".7"/><circle cx="${n(W.x + 12)}" cy="${n(W.y + 15)}" r=".6"/><circle cx="${n(W.x + 22)}" cy="${n(W.y + 20)}" r=".7"/></g>` +
+        `<g class="rm-cloud"><ellipse cx="${n(W.x + W.w * 0.35)}" cy="${n(W.y + 6)}" rx="8" ry="3.4"/><ellipse cx="${n(W.x + W.w * 0.62)}" cy="${n(W.y + 5)}" rx="7" ry="3.8"/></g>` +
+        `<g class="rm-rain"><g class="rm-r1">${[0, 1, 2, 3, 4, 5].map((i) => `<path d="M${n(W.x + 3 + i * 5)} ${n(W.y - 14 + (i % 2) * 5)}l-1 3"/>`).join("")}${[0, 1, 2, 3, 4, 5].map((i) => `<path d="M${n(W.x + 3 + i * 5)} ${n(W.y + 4 + (i % 2) * 5)}l-1 3"/>`).join("")}${[0, 1, 2, 3, 4, 5].map((i) => `<path d="M${n(W.x + 3 + i * 5)} ${n(W.y + 22 + (i % 2) * 5)}l-1 3"/>`).join("")}</g></g></g>` +
+        `<rect x="${W.x}" y="${W.y}" width="${W.w}" height="${W.h}" rx="2" class="rm-wf"/><path class="rm-wf" d="M${wc} ${W.y}v${W.h}M${W.x} ${n(W.y + W.h / 2)}h${W.w}"/><rect x="${n(W.x - 2)}" y="${n(W.y + W.h)}" width="${W.w + 4}" height="2.4" rx="1" class="rm-sill"/>`;
+      return o;
+    },
+    css: ".rm-wall{fill:var(--rm-wall)}.rm-floor{fill:var(--rm-floor)}.rm-base{fill:var(--rm-base)}.rm-rug{fill:var(--rm-rug);opacity:.28}" +
+      ".rm-cf{fill:#f4ead8;stroke:var(--rm-frame);stroke-width:1}.rm-ck{stroke:#6b5a46;stroke-width:.7;fill:none}.rm-hh,.rm-mh{stroke:#2a211c;stroke-linecap:round}.rm-hh{stroke-width:1.3}.rm-mh{stroke-width:.9}.rm-ck2{fill:#2a211c}" +
+      ".rm-stool{fill:var(--rm-bed)}.rm-pot{fill:var(--rm-pot)}.rm-leaf{fill:#5fb36a}.rm-leaf2{fill:#7bc984}.rm-plant{transform-box:fill-box;transform-origin:50% 100%;animation:rmSway 5s ease-in-out infinite}" +
+      ".rm-bedf{fill:var(--rm-bed)}.rm-mat{fill:#f4ead8}.rm-pil{fill:#fff7ea}.rm-blk{fill:var(--rm-rug)}" +
+      ".rm-dim{fill:#070b1f;opacity:0;transition:opacity .6s}.rm[data-night] .rm-dim{opacity:.3}.rm[data-sleep] .rm-dim{opacity:.55}" +
+      ".rm-sky{fill:var(--rm-sky)}.rm[data-night] .rm-sky{fill:#16224d}.rm-sun{fill:#ffd978}.rm-moon{display:none;fill:#fff3c4}.rm-moonc{fill:#16224d}.rm[data-night] .rm-moon{display:inline}.rm[data-night] .rm-sun{display:none}" +
+      ".rm-cloud,.rm-rain{display:none}.rm[data-rain] .rm-cloud{display:inline;fill:#dfe6ee}.rm[data-rain] .rm-rain{display:inline;fill:none;stroke:#6cc4ff;stroke-width:.7;stroke-linecap:round}.rm[data-rain] .rm-sky{fill:#8d9bb0}.rm[data-night][data-rain] .rm-sky{fill:#262f4a}" +
+      ".rm-r1{animation:rmRain .9s linear infinite}.rm-wf{fill:none;stroke:var(--rm-frame);stroke-width:1.6}.rm-sill{fill:var(--rm-frame)}" +
+      "@keyframes rmRain{from{transform:translateY(0)}to{transform:translateY(18px)}}@keyframes rmSway{0%,100%{transform:rotate(-1.5deg)}50%{transform:rotate(1.5deg)}}",
+  },
+};
+const lumeRoomCss = (r) => `:root{${r.vars}}` + r.css;
+/* LUMEROOM:end */
 
 // ---------------------------------------------------------------- perfis de layout (do APARELHO, não do PC)
 // Um perfil guarda tema, modo, destaque, widgets do Início e a última tela. As chaves de hoje (theme, home...) continuam sendo a
@@ -5254,7 +5335,8 @@ function lumeWork(d) {   // work.stream do PC ativo: minutos contínuos; a sequ�
   if (prev && prev.minutes >= 30 && LU.work && LU.work.minutes === 0 && LM.act("pause", Date.now() / 1000, { auto: true }).ok) lumeParty();
 }
 
-// ---- tela do Lume (Mais › Lume): estado, cuidar, medidores e histórico do dia (tudo do aparelho; nada de PC)
+// ---- tela do Lume (Mais › Lume): o QUARTO. Cena em tela cheia; tudo usa o mesmo LM (nenhuma regra nova). Do PC só entra a previsão (chuva na janela).
+// Interações: arrastar a tigela/o pote até o Lume (ou tocar neles), tocar na cama (dormir), na janela (pausa, com confirmação), no relógio (histórico) e no Lume (carinho, só animação).
 const LU_LINE = {   // frases fixas (voz do Lume, sem dado do PC); a variação gira por hora, nunca por sorteio
   happy: ["Tudo bem por aqui.", "Estou por perto.", "Dia tranquilo, pelo que vejo."], focus: ["Concentrado: sem avisos durante o foco.", "Shh, foco em andamento."],
   tired: ["Cansado. Uma pausa de verdade ajuda.", "Um alongamento cairia bem."], thirst: ["Com sede. Beba água com ele.", "Um copo d'água e já melhoro."],
@@ -5263,39 +5345,164 @@ const lumeLine = (st) => { const a = LU_LINE[st] || LU_LINE.happy; return a[new 
 const LU_KIND = { water: "Bebeu água", pause: "Pausa feita", task: "Tarefa concluída", focus: "Foco concluído", feed: "Petisco", sleep: "Foi dormir", wake: "Acordou", say: "Lume falou" };
 const LU_SAY = { water: "lembrete de água", pause: "lembrete de pausa", eod: "resumo do dia" };
 const hhmm = (t) => new Date(t * 1000).toTimeString().slice(0, 5);
+const RM = { room: LUME_ROOMS.quarto, L: null, geo: null, pd: null, sig: "", min: -1, histSig: "" };
+(function rmCss() { const st = document.createElement("style"); st.id = "lume-room"; st.textContent = lumeRoomCss(RM.room); document.head.append(st); })();
+const RM_RAIN = (c) => (c >= 51 && c <= 67) || (c >= 80 && c <= 82) || (c >= 95 && c <= 99);
+function rmBuild(root) {
+  const R = RM.room;
+  root.innerHTML = `<div class="rm" id="rm">
+    <svg class="rm-bg" id="rm-bg" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"></svg>
+    <button class="rm-it" data-it="win" aria-label="Janela: registrar uma pausa"></button>
+    <button class="rm-it" data-it="clk" aria-label="Relógio: histórico do dia"></button>
+    <button class="rm-it" data-it="bed" aria-label="Cama: pôr o Lume para dormir"></button>
+    <button class="rm-it rm-drag" data-it="water" aria-label="Tigela d'água: dar água. Arraste até o Lume ou toque">${R.icons.water}</button>
+    <button class="rm-it rm-drag rm-jar" data-it="feed" aria-label="Pote de petiscos">${R.icons.snack}<b class="rm-badge">0</b></button>
+    <button class="rm-lume" data-it="lume" aria-label="Lume">${lumeSvg(LU.skin)}</button>
+    <div class="rm-top" role="group" aria-label="Status do Lume">
+      <span class="rm-m" data-m="water" role="img">${ic("droplets")}<i class="rm-b"><b></b></i></span>
+      <span class="rm-m" data-m="sat" role="img">${ic("coffee")}<i class="rm-b"><b></b></i></span>
+      <span class="rm-m" data-m="energy" role="img">${ic("sun")}<i class="rm-b"><b></b></i></span></div>
+    <button class="rm-hist" data-it="hist" aria-label="Histórico do dia">${ic("history")}</button>
+    <div class="rm-note hidden" id="rm-note"></div>
+    <div class="rm-pop hidden" id="rm-pop" role="dialog"></div>
+    <div class="rm-sheet" id="rm-sheet"><div class="rm-sb" data-it="sheetx"></div><div class="rm-sp" role="dialog" aria-label="Histórico do dia"><div class="rm-sh"><b>Hoje</b><button class="btn sm" data-it="sheetx">Fechar</button></div><div id="rm-hist"></div></div></div>
+  </div>`;
+  root._built = true; RM.L = null; RM.sig = ""; RM.min = -1;
+}
+function rmFit(root) {
+  const rm = $("rm"), cw = rm.clientWidth, ch = rm.clientHeight; if (!cw || !ch) return false;
+  const L = cw >= ch ? "land" : "port", P = RM.room.pos[L], bg = $("rm-bg");
+  if (L !== RM.L) { RM.L = L; bg.setAttribute("viewBox", `0 0 ${P.w} ${P.h}`); bg.innerHTML = RM.room.art(P); RM.min = -1; }
+  // escala: cobre a tela ("slice") mas nunca corta a zona segura dos itens (P.safe); o que sobra vira parede/chão lisos (fundo em degradê duro na linha do chão)
+  const s = Math.min(Math.max(cw / P.w, ch / P.h), cw / P.safe.w, ch / P.safe.h), ox = (cw - P.w * s) / 2, oy = (ch - P.h * s) / 2, g = { s, ox, oy, P, cw, ch };
+  bg.style.left = Math.round(ox) + "px"; bg.style.top = Math.round(oy) + "px"; bg.style.width = Math.ceil(P.w * s) + "px"; bg.style.height = Math.ceil(P.h * s) + "px"; rm.style.setProperty("--fy", Math.round(oy + P.fl * s) + "px");
+  const key = [cw, ch, L].join("x"); if (RM.geoKey === key) return true; RM.geoKey = key; RM.geo = g;
+  const put = (sel, b, min = 44) => {
+    const el = rm.querySelector(sel), pw = Math.max(min, b.w * s), ph = Math.max(min, b.h * s), cx = ox + (b.x + b.w / 2) * s, cy = oy + (b.y + b.h / 2) * s;
+    el.style.width = pw + "px"; el.style.height = ph + "px"; el.style.left = Math.round(cx - pw / 2) + "px"; el.style.top = Math.round(cy - ph / 2) + "px";
+  };
+  put('[data-it="win"]', P.win); put('[data-it="bed"]', P.bed); put('[data-it="water"]', P.bowl); put('[data-it="feed"]', P.jar);
+  put('[data-it="clk"]', { x: P.clk.cx - P.clk.r, y: P.clk.cy - P.clk.r, w: P.clk.r * 2, h: P.clk.r * 2 });
+  const lm = rm.querySelector(".rm-lume"), ls = P.lume.s * s; lm.style.width = lm.style.height = ls + "px";
+  RM.lumePos = { x: ox + P.lume.x * s, y: oy + P.lume.y * s, s: ls };
+  const b = P.bed, bx = ox + (b.x + b.w * 0.5) * s, by = oy + (b.y + b.h * 0.15) * s;   // dormindo: o Lume deita na cama
+  RM.sleepPos = { dx: bx - (RM.lumePos.x + ls / 2), dy: by - (RM.lumePos.y + ls * 0.55), k: Math.min(0.62, (b.w * s * 0.9) / ls) };
+  return true;
+}
+function rmUpdate(root) {
+  const rm = $("rm"); if (!rm || !RM.geo) return;
+  const now = new Date(), v = lumeView(), n = v.needs, sl = LM.sleeping(), hr = now.getHours(), night = hr >= 19 || hr < 6, code = wx.d && wx.d.current ? wx.d.current.code : null, rain = Number.isFinite(code) && RM_RAIN(code);
+  const sn = LM.snacks(), mode = LM.cfg().mode, foc = lumeFocus(), sil = LM.silenced(), until = sl ? hhmm(LM.sleepUntil()) : "";
+  const sig = JSON.stringify([v.st, n, v.labels, sl, night, rain, sn, mode, foc, sil, until, RM.L, RM.geoKey, LU.skin.id]);
+  if (sig !== RM.sig) {
+    RM.sig = sig;
+    rm.toggleAttribute("data-night", night); rm.toggleAttribute("data-rain", rain); rm.toggleAttribute("data-sleep", sl);
+    const lm = rm.querySelector(".rm-lume"), p = RM.lumePos, sp = RM.sleepPos;
+    lm.style.left = p.x + "px"; lm.style.top = p.y + "px";
+    lm.style.transform = sl ? `translate(${Math.round(sp.dx)}px, ${Math.round(sp.dy)}px) scale(${sp.k.toFixed(2)})` : "none";
+    lm.setAttribute("aria-label", `Lume, ${LU_ST[v.st]}. ${sl ? "Dormindo até " + until + "." : lumeLine(v.st)} Toque para carinho`);
+    rm.querySelectorAll(".lm").forEach((e) => { if (e.dataset.st !== v.st) e.dataset.st = v.st; });
+    for (const [k, lab, val, txt] of [["water", "Sede", n.water, v.labels.water], ["sat", "Fome", n.sat, v.labels.sat], ["energy", "Energia", n.energy, v.labels.energy]]) {
+      const m = rm.querySelector(`[data-m="${k}"]`); m.setAttribute("aria-label", `${lab}: ${txt}`); m.title = `${lab}: ${txt}`; m.querySelector("b").style.width = val + "%";
+    }
+    const jar = rm.querySelector(".rm-jar"); jar.classList.toggle("empty", !sn); jar.querySelector(".rm-badge").textContent = sn; jar.setAttribute("aria-label", sn ? `Pote de petiscos, ${sn}. Arraste até o Lume ou toque` : "Pote de petiscos vazio: conclua uma tarefa ou um foco");
+    rm.querySelector('[data-it="bed"]').setAttribute("aria-label", sl ? "Cama: acordar o Lume" : "Cama: pôr o Lume para dormir");
+    const note = $("rm-note");
+    const txt = mode === "off" ? "" : sl ? `Dormindo até ${until}` : foc ? "Foco: sem avisos" : sil ? "Em silêncio até amanhã" : "";
+    note.classList.toggle("hidden", !txt && mode !== "off"); note.innerHTML = mode === "off" ? '<button class="btn sm primary" data-it="on">Ligar o Lume</button>' : esc(txt);
+  }
+  if (RM.min !== now.getMinutes() + hr * 60) {   // relógio do aparelho: ponteiros
+    RM.min = now.getMinutes() + hr * 60;
+    rm.querySelectorAll(".rm-hh,.rm-mh").forEach((e) => e.setAttribute("transform", `rotate(${e.classList.contains("rm-hh") ? ((hr % 12) + now.getMinutes() / 60) * 30 : now.getMinutes() * 6} ${e.dataset.c})`));
+  }
+  if ($("rm-sheet").classList.contains("on")) rmHist();
+}
+function rmHist() {
+  const t = Date.now() / 1000, c = LM.counts(), h = LM.history(t, 7).filter((d) => d.items.length);
+  const html = `<p class="lm-foot">${c.water} ${c.water === 1 ? "copo" : "copos"} · ${c.pause} ${c.pause === 1 ? "pausa" : "pausas"} · ${c.focus} ${c.focus === 1 ? "foco" : "focos"} · ${c.task} ${c.task === 1 ? "tarefa" : "tarefas"}</p>` +
+    (h.map((d, i) => `<div class="lm-day">${i === 0 && d.day === LM.ymd(t) ? "Hoje" : d.day.split("-").reverse().slice(0, 2).join("/")}</div>` +
+      d.items.slice(0, 30).map((it) => `<div class="lm-it"><time>${hhmm(it[0])}</time><span>${it[1] === "say" ? "Lume falou: " + (LU_SAY[it[2]] || "aviso") : LU_KIND[it[1]] + (it[1] === "pause" && it[2] === "auto" ? " (detectada no PC)" : it[1] === "sleep" ? (it[2] === "day" ? " até amanhã" : ` (${it[2]} min)`) : "")}</span></div>`).join("")).join("") || '<p class="lm-foot">Nada ainda hoje.</p>');
+  if (html !== RM.histSig) { RM.histSig = html; $("rm-hist").innerHTML = html; }
+}
 function lumeRender() {
   const root = $("t-mascot"); if (!root) return;
-  const v = lumeView(), n = v.needs, sl = LM.sleeping(), c = LM.counts(), sig = JSON.stringify([v, sl, LM.snacks(), c, LM.cfg().mode, LM.history(Date.now() / 1000, 7).map((h) => h.items.length)]);
-  if (root._sig === sig) return; root._sig = sig;
-  const bar = (k, lab, val, txt) => `<div class="lm-m"><div class="lm-mh"><span>${lab}</span><b>${txt}</b></div><div class="lm-bar" role="progressbar" aria-label="${lab}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${val}"><i style="width:${val}%"></i></div></div>`;
-  const hist = LM.history(Date.now() / 1000, 7).filter((h) => h.items.length).map((h, i) => `<div class="lm-day">${i === 0 && h.day === LM.ymd(Date.now() / 1000) ? "Hoje" : h.day.split("-").reverse().slice(0, 2).join("/")}</div>` +
-    h.items.slice(0, 30).map((it) => `<div class="lm-it"><time>${hhmm(it[0])}</time><span>${it[1] === "say" ? "Lume falou: " + (LU_SAY[it[2]] || "aviso") : LU_KIND[it[1]] + (it[1] === "pause" && it[2] === "auto" ? " (detectada no PC)" : it[1] === "sleep" ? (it[2] === "day" ? " até amanhã" : ` (${it[2]} min)`) : "")}</span></div>`).join("")).join("");
-  root.innerHTML = `<div class="home-head"><h2>Lume</h2></div>
-  ${LM.cfg().mode === "off" ? '<div class="card"><div class="set"><label>O Lume está desligado<small>Ligue para ele voltar à tela</small></label><button class="btn sm primary" data-lm2="on">Ligar</button></div></div>' : ""}
-  <div class="lm-grid">
-   <div class="card lm-stage"><div class="lm-pic">${lumeSvg(LU.skin).replace('data-st="happy"', `data-st="${v.st}"`)}</div>
-     <div class="lm-state"><b>${sl ? "Dormindo até " + hhmm(LM.sleepUntil()) : LU_ST[v.st][0].toUpperCase() + LU_ST[v.st].slice(1)}</b><span>${sl ? "Os avisos do PC voltam ao toast enquanto ele dorme." : lumeLine(v.st)}</span><small>Do Lume · ${LM.silenced() ? "em silêncio até amanhã" : "o humor dele sobe com o que você faz de verdade"}</small></div></div>
-   <div class="card lm-care"><h3>Cuidar</h3>
-     <div class="lm-btns"><button class="btn" data-lm2="water">Dar água<small>você bebe junto</small></button>
-       <button class="btn" data-lm2="feed"${LM.snacks() ? "" : " disabled"}>Petisco (${LM.snacks()})<small>${LM.snacks() ? "ganho por tarefa ou foco" : "conclua uma tarefa ou um foco"}</small></button>
-       <button class="btn" data-lm2="pause">Fiz uma pausa<small>energia</small></button></div>
-     <div class="lm-sleep"><span>${sl ? "Dormindo" : "Pôr para dormir"}</span>${sl ? '<button class="btn sm primary" data-lm2="wake">Acordar agora</button>' :
-       [15, 30, 60, 120].map((m) => `<button class="btn sm" data-lm2="sleep" data-min="${m}">${m < 60 ? m + " min" : m / 60 + " h"}</button>`).join("") + '<button class="btn sm" data-lm2="sleep" data-min="day">Até amanhã</button>'}</div></div>
-   <div class="card lm-stat"><h3>Status</h3>${bar("energy", "Energia", n.energy, v.labels.energy)}${bar("sat", "Fome", n.sat, v.labels.sat)}${bar("water", "Sede", n.water, v.labels.water)}${bar("mood", "Humor", n.mood, v.labels.mood)}
-     <p class="lm-foot">Hoje: ${c.water} ${c.water === 1 ? "copo" : "copos"} · ${c.pause} ${c.pause === 1 ? "pausa" : "pausas"} · ${c.focus} ${c.focus === 1 ? "foco" : "focos"} · ${c.task} ${c.task === 1 ? "tarefa" : "tarefas"}</p></div>
-   <div class="card lm-hist"><h3>Histórico</h3>${hist || '<p class="lm-foot">Nada ainda hoje.</p>'}</div>
-  </div>`;
+  if (!root._built) rmBuild(root);
+  if (rmFit(root)) rmUpdate(root);
 }
-$("t-mascot").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-lm2]"); if (!b || b.disabled) return; buzz(8);
-  const k = b.dataset.lm2, now = Date.now() / 1000;
-  if (k === "on") { LM.setCfg({ mode: "on" }); lumeSetRender(); }
-  else if (k === "wake") { LM.wake(now); lumeWoke(); }
-  else if (k === "sleep") { LM.sleep(b.dataset.min === "day" ? "day" : +b.dataset.min, now); toast("O Lume foi dormir", "ok"); }
-  else { const r = LM.act(k, now); if (r.ok) lumeParty(); else toast(r.why, "warn"); }
+// ---- interações
+const rmPopHide = () => { const p = $("rm-pop"); if (p) p.classList.add("hidden"); };
+function rmPopShow(anchor, html) {
+  const p = $("rm-pop"), rm = $("rm"); p.innerHTML = html; p.classList.remove("hidden");
+  const a = anchor.getBoundingClientRect(), r = rm.getBoundingClientRect(), w = p.offsetWidth, h = p.offsetHeight;
+  const x = Math.max(6, Math.min(r.width - w - 6, a.left - r.left + a.width / 2 - w / 2)), up = a.top - r.top - h - 6, y = up >= 6 ? up : Math.min(r.height - h - 6, a.bottom - r.top + 6);
+  p.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+  const f = p.querySelector("button"); if (f) f.focus({ preventScroll: true });
+}
+function rmSheet(on) { $("rm-sheet").classList.toggle("on", on); if (on) { RM.histSig = ""; rmHist(); } }
+function rmAct(k) {
+  if (LM.sleeping()) return toast("Ele está dormindo. Acorde-o na cama", "warn");
+  const r = LM.act(k); if (r.ok) lumeParty(); else toast(r.why, "warn");
   lumePaint(); lumeRender();
-});
-
+}
+function rmPet() {
+  if (LM.sleeping()) return toast("Shh, ele está dormindo", "warn");
+  const rm = $("rm"), l = rm.querySelector(".rm-lume"), h = document.createElement("span"); h.className = "rm-heart"; h.innerHTML = ic("heart");
+  h.style.left = RM.lumePos.x + RM.lumePos.s * 0.55 + "px"; h.style.top = RM.lumePos.y + "px"; rm.append(h); setTimeout(() => h.remove(), 1100);
+  l.classList.remove("pet"); void l.offsetWidth; l.classList.add("pet"); lumeParty(1500);   // só animação: nenhum medidor muda
+}
+function rmTap(it, b) {
+  buzz(8); rmPopHide();
+  if (it === "water") rmAct("water");
+  else if (it === "feed") { if (LM.snacks()) rmAct("feed"); else { b.classList.remove("shake"); void b.offsetWidth; b.classList.add("shake"); toast("Sem petiscos: conclua uma tarefa ou um foco", "warn"); } }
+  else if (it === "bed") {
+    if (LM.sleeping()) rmPopShow(b, '<span class="rm-pt">Dormindo</span><button class="btn sm primary" data-pop="wake">Acordar agora</button>');
+    else rmPopShow(b, '<span class="rm-pt">Dormir por quanto tempo?</span>' + [15, 30, 60, 120].map((m) => `<button class="btn sm" data-pop="sleep" data-min="${m}">${m < 60 ? m + " min" : m / 60 + " h"}</button>`).join("") + '<button class="btn sm" data-pop="sleep" data-min="day">Até amanhã</button>');
+  }
+  else if (it === "win") rmPopShow(b, '<span class="rm-pt">Fez uma pausa de verdade?</span><button class="btn sm primary" data-pop="pause">Sim, registrar</button><button class="btn sm" data-pop="x">Agora não</button>');
+  else if (it === "clk" || it === "hist") rmSheet(true);
+  else if (it === "sheetx") rmSheet(false);
+  else if (it === "lume") rmPet();
+  else if (it === "on") { LM.setCfg({ mode: "on" }); lumeSetRender(); lumePaint(); lumeRender(); }
+}
+(function rmEvents() {
+  const root = $("t-mascot");
+  const near = (x, y) => { const p = RM.lumePos, r = $("rm").getBoundingClientRect(); return Math.hypot(x - r.left - (p.x + p.s / 2), y - r.top - (p.y + p.s * 0.6)) < Math.max(56, p.s * 0.5); };
+  root.addEventListener("pointerdown", (e) => {
+    const b = e.target.closest("[data-it]"); if (!b || e.button > 0) return;
+    if (!e.target.closest("#rm-pop")) rmPopHide();
+    RM.pd = { id: e.pointerId, it: b.dataset.it, b, sx: e.clientX, sy: e.clientY, drag: false };
+    if (b.classList.contains("rm-drag")) try { b.setPointerCapture(e.pointerId); } catch {}
+  });
+  root.addEventListener("pointermove", (e) => {
+    const d = RM.pd; if (!d || e.pointerId !== d.id || !d.b.classList.contains("rm-drag")) return;
+    if (!d.drag) {
+      if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 8) return;
+      if (d.it === "feed" && !LM.snacks()) return;   // sem petisco não há o que arrastar (o toque avisa)
+      d.drag = true; const g = document.createElement("div"); g.className = "rm-ghost"; g.innerHTML = d.b.querySelector("svg").outerHTML; $("rm").append(g); d.g = g; d.b.classList.add("lifted");
+    }
+    const r = $("rm").getBoundingClientRect(); d.g.style.transform = `translate(${Math.round(e.clientX - r.left)}px, ${Math.round(e.clientY - r.top)}px)`;
+    root.querySelector(".rm-lume").classList.toggle("hot", near(e.clientX, e.clientY));
+  });
+  const end = (e, ok) => {
+    const d = RM.pd; if (!d || e.pointerId !== d.id) return; RM.pd = null;
+    root.querySelector(".rm-lume").classList.remove("hot"); d.b.classList.remove("lifted");
+    if (d.drag) { d.g.remove(); if (ok && near(e.clientX, e.clientY)) rmAct(d.it); }
+    else if (ok) rmTap(d.it, d.b);
+  };
+  root.addEventListener("pointerup", (e) => end(e, true));
+  root.addEventListener("pointercancel", (e) => end(e, false));
+  root.addEventListener("click", (e) => {   // teclado (Enter/Espaço) e leitor de tela: o toque já foi tratado no pointerup
+    const b = e.target.closest("[data-it]"); if (b && e.detail === 0) rmTap(b.dataset.it, b);
+    const p = e.target.closest("[data-pop]"); if (!p) return; buzz(8);
+    const k = p.dataset.pop, t = Date.now() / 1000; rmPopHide();
+    if (k === "sleep") { LM.sleep(p.dataset.min === "day" ? "day" : +p.dataset.min, t); toast("O Lume foi dormir", "ok"); }
+    else if (k === "wake") { LM.wake(t); lumeWoke(); }
+    else if (k === "pause") { const r = LM.act("pause", t); if (r.ok) lumeParty(); else toast(r.why, "warn"); }
+    lumePaint(); lumeRender();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && vis("mascot")) { rmPopHide(); rmSheet(false); } });
+  document.addEventListener("pointerdown", (e) => { if (vis("mascot") && !e.target.closest("#rm-pop, [data-it]")) rmPopHide(); });
+})();
 
 // ---- balão do Lume + roteador de avisos: o aviso do PC é apresentado UMA vez, como balão ou como toast (Ajustes › Lume, por tipo).
 // Os efeitos do handler (lista de notificações, som, vibração, notificação do sistema) continuam iguais; só o toast é desviado (lumeCap).
