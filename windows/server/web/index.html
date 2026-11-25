@@ -1369,6 +1369,20 @@ header .hchip::after { content: ""; position: absolute; inset: -10px -8px; }
 #mic-fab[data-s="off"] { background: var(--bg); color: var(--p3t); border: 2px dashed var(--p3t); box-shadow: none; }
 :root[data-theme="modern"] #mic-fab[data-s="off"] { background: var(--surface-2); color: var(--text-3); border-color: var(--text-3); }
 #mic-fab.drag { filter: brightness(1.1); }
+/* Selo do PC: monitor na cor do PC (o nome vai no aria-label e na lista); 28 px visíveis, 44 px de toque */
+.pcmon { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--pcc, var(--p)); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.pcchip.rail { border: 0; background: none; }
+.pcchip.rail .pcmon { box-sizing: content-box; width: 20px; height: 20px; padding: 4px; border: 1px solid var(--pcc, var(--p)); border-radius: 8px; }
+.pcchip.rail span { display: none; }
+#pc-chip3 { display: none; }
+body.pc-col #pc-chip2 { display: none; }
+body.pc-col #pc-chip3 { display: inline-flex; align-self: center; }
+@media (min-width: 1000px) and (min-height: 600px) and (orientation: landscape) { .pcchip.rail { width: auto; padding: 0 8px; gap: 8px; } .pcchip.rail span { display: block; font-size: 14px; max-width: 120px; } }
+.pcpick .pcmon { width: 22px; height: 22px; }
+.pccolors { display: flex; gap: 0; flex-basis: 100%; flex-wrap: wrap; }
+.pccolors button { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 10px; }
+.pccolors button .pcmon { width: 22px; height: 22px; }
+.pccolors button[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--pcc); }
 .pcdot { width: 10px; height: 10px; border-radius: 50%; background: var(--pcc, var(--p)); flex: none; }
 header .host { display: none; }
 .pcrow { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
@@ -1439,7 +1453,7 @@ header .host { display: none; }
 <div id="banner" class="banner hidden"></div>
 <header>
   <span id="dot" class="dot"></span>
-  <button class="pcchip" id="pc-chip" aria-label="Trocar de PC"><i class="pcdot"></i><span id="pc-name"></span><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-chevron-down"/></svg></button>
+  <button class="pcchip" id="pc-chip" aria-label="Trocar de PC"><svg class="pcmon" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-monitor"/></svg><span id="pc-name"></span><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-chevron-down"/></svg></button>
   <span class="host" id="host">Companion PC</span>
   <span class="via" id="via"></span>
   <span class="hchip hidden" id="fps-chip"></span>
@@ -1451,7 +1465,7 @@ header .host { display: none; }
 <main id="main">
   <!-- INÍCIO: widgets montados pelo JS a partir do layout salvo (store "home") -->
   <section class="tab" id="t-inicio">
-    <div class="home-head"><h2>Início</h2>
+    <div class="home-head"><button class="pcchip rail" id="pc-chip3" aria-label="Trocar de PC"><svg class="pcmon" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-monitor"/></svg></button><h2>Início</h2>
       <div class="pm-strip hidden" id="home-pm" role="button" tabindex="0" aria-label="Abrir o Foco em Tarefas"><span class="pms-ph" id="pms-ph"></span><span class="pms-t" id="pms-t" role="timer"></span><button class="btn" id="pms-b"></button></div>
       <div class="hdots hidden" id="home-dots" role="group" aria-label="Páginas do Início"></div>
       <button class="btn sm" id="home-edit">Editar</button></div>
@@ -1768,7 +1782,7 @@ header .host { display: none; }
 </main>
 
 <nav id="nav">
-  <div class="rail-top"><button class="pcchip rail" id="pc-chip2" aria-label="Trocar de PC"><i class="pcdot"></i><span id="pc-ini"></span></button><span id="dot2" class="dot"></span><span id="clock2"></span></div>
+  <div class="rail-top"><button class="pcchip rail" id="pc-chip2" aria-label="Trocar de PC"><svg class="pcmon" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-monitor"/></svg><span id="pc-ini"></span></button><span id="dot2" class="dot"></span><span id="clock2"></span></div>
 </nav>
 <div id="mic-safe" aria-hidden="true"></div>
 <button id="mic-fab" class="hidden" data-s="off" aria-label="Microfone do PC indisponível" aria-disabled="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/><path class="mf-slash" d="M3 3l18 18"/></svg></button>
@@ -2093,7 +2107,7 @@ const PCL = (() => {
       const b = norm(base); if (!b) throw new Error("Endereço inválido (https://nome-do-pc.ts.net)");
       if (d.list.length >= 8) throw new Error("No máximo 8 PCs");
       if (d.list.some((x) => x.base === b)) throw new Error("Esse endereço já está na lista");
-      const e = { id: rid(), name: String(name || "").trim().slice(0, 30) || "PC", base: b, token: "", pcid: null, color: d.list.length % COLORS };
+      const e = { id: rid(), name: String(name || "").trim().slice(0, 30) || "PC", base: b, token: "", pcid: null, color: [...Array(COLORS).keys()].find((c) => !d.list.some((x) => x.color % COLORS === c)) ?? d.list.length % COLORS };
       d.list.push(e); save(); return e;
     },
     remove(id) { if (d.list.length < 2) return false; d.list = d.list.filter((x) => x.id !== id); if (d.active === id) d.active = d.list[0].id; save(); return true; },
@@ -2328,20 +2342,25 @@ $("b-logout").onclick = () => { PCL.setToken(""); if (ws) { const s = ws; ws = n
 
 // ---------------------------------------------------------------- seletor de PC (lista, trocar, adicionar)
 // Trocar de PC = gravar o PC ativo e recarregar a página: todo o estado em memória some (nada do PC anterior fica na tela).
-const PC_COLORS = ["#4C9AFF", "#FF9F0A", "#30D158", "#BF5AF2", "#FF6B9A", "#64D2FF"];
+const PC_COLORS = ["#4C9AFF", "#FF9F0A", "#30D158", "#BF5AF2", "#FF6B9A", "#64D2FF"], PC_COLOR_NAMES = ["Azul", "Laranja", "Verde", "Roxo", "Rosa", "Ciano"];
 function pcPaint() {
   const a = PCL.active(), c = PC_COLORS[a.color % PC_COLORS.length];
-  $("pc-name").textContent = a.name; $("pc-ini").textContent = a.name.slice(0, 2);
-  for (const id of ["pc-chip", "pc-chip2"]) { const el = $(id); el.style.setProperty("--pcc", c); el.setAttribute("aria-label", `PC ativo: ${a.name}. Trocar de PC`); }
+  $("pc-name").textContent = a.name; $("pc-ini").textContent = a.name;   // o nome completo só aparece na barra lateral larga
+  for (const id of ["pc-chip", "pc-chip2", "pc-chip3"]) { const el = $(id); el.style.setProperty("--pcc", c); el.setAttribute("aria-label", `PC ativo: ${a.name}. Trocar de PC`); }
   document.title = `Companion PC · ${a.name}`;
 }
+// deitado: no Início o selo do PC vai para a coluna da direita (acima dos pontinhos); nas outras telas fica no trilho
+const shortMQ = matchMedia("(orientation: landscape) and (max-height: 560px)");
+function pcPlace() { document.body.classList.toggle("pc-col", shortMQ.matches && vis("inicio") && $("t-inicio").classList.contains("paged")); }
+shortMQ.addEventListener("change", pcPlace);
 function pcSwitch(id) { if (id === PCL.active().id) { pcClose(); return; } PCL.setActive(id); location.reload(); }
 let pcEditId = null;
+const MONI = '<svg class="pcmon" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-monitor"/></svg>';
 function pcRender() {
   const act = PCL.active().id, list = PCL.list();
   $("pcs-list").innerHTML = list.map((x) => pcEditId === x.id
-    ? `<div class="pcedit"><input class="fi" id="pe-name" maxlength="30" value="${esc(x.name)}" aria-label="Nome do PC"><button class="btn sm" data-pc="save" data-id="${x.id}">Salvar</button>${list.length > 1 ? `<button class="btn sm danger" data-pc="del" data-id="${x.id}">Remover</button>` : ""}<button class="btn sm" data-pc="cancel">Cancelar</button></div>`
-    : `<div class="pcrow"><button class="pcpick${x.id === act ? " on" : ""}" data-pc="pick" data-id="${x.id}" style="--pcc:${PC_COLORS[x.color % PC_COLORS.length]}"><i class="pcdot"></i><span><b>${esc(x.name)}</b><small>${esc(x.base.replace(/^https?:\/\//, ""))}</small></span><span class="pcst">${x.id === act ? "ativo" : x.hasToken ? "" : "sem pareamento"}</span></button><button class="btn sm" data-pc="edit" data-id="${x.id}" aria-label="Editar ${esc(x.name)}">Editar</button></div>`).join("");
+    ? `<div class="pcedit"><input class="fi" id="pe-name" maxlength="30" value="${esc(x.name)}" aria-label="Nome do PC"><div class="pccolors" role="group" aria-label="Cor do PC">${PC_COLORS.map((c, i) => `<button type="button" data-pc="color" data-id="${x.id}" data-c="${i}" style="--pcc:${c}" aria-label="${PC_COLOR_NAMES[i]}" aria-pressed="${i === x.color % PC_COLORS.length}">${MONI}</button>`).join("")}</div><button class="btn sm" data-pc="save" data-id="${x.id}">Salvar</button>${list.length > 1 ? `<button class="btn sm danger" data-pc="del" data-id="${x.id}">Remover</button>` : ""}<button class="btn sm" data-pc="cancel">Cancelar</button></div>`
+    : `<div class="pcrow"><button class="pcpick${x.id === act ? " on" : ""}" data-pc="pick" data-id="${x.id}" style="--pcc:${PC_COLORS[x.color % PC_COLORS.length]}"><svg class="pcmon" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-monitor"/></svg><span><b>${esc(x.name)}</b><small>${esc(x.base.replace(/^https?:\/\//, ""))}</small></span><span class="pcst">${x.id === act ? "ativo" : x.hasToken ? "" : "sem pareamento"}</span></button><button class="btn sm" data-pc="edit" data-id="${x.id}" aria-label="Editar ${esc(x.name)}">Editar</button></div>`).join("");
 }
 function pcOpen(add) {
   pcEditId = null; $("pcs").classList.remove("hidden"); pcRender();
@@ -2349,7 +2368,7 @@ function pcOpen(add) {
   if (add) { $("pa-msg").textContent = ""; setTimeout(() => ($("pa-base").value ? $("pa-code") : $("pa-name")).focus(), 50); }
 }
 function pcClose() { $("pcs").classList.add("hidden"); }
-$("pc-chip").onclick = $("pc-chip2").onclick = () => { buzz(8); pcOpen(false); };
+$("pc-chip").onclick = $("pc-chip2").onclick = $("pc-chip3").onclick = () => { buzz(8); pcOpen(false); };
 $("pcs-close").onclick = pcClose;
 $("pcs-addbtn").onclick = () => { $("pa-name").value = ""; $("pa-base").value = ""; $("pa-code").value = ""; pcOpen(true); };
 $("pa-cancel").onclick = () => pcOpen(false);
@@ -2358,6 +2377,7 @@ $("pcs-list").onclick = (e) => {
   switch (b.dataset.pc) {
     case "pick": pcSwitch(id); break;
     case "edit": pcEditId = id; pcRender(); setTimeout(() => $("pe-name") && $("pe-name").focus(), 30); break;
+    case "color": { const n = $("pe-name") ? $("pe-name").value : ""; PCL.update(id, { color: +b.dataset.c }); pcPaint(); pcRender(); if ($("pe-name")) $("pe-name").value = n; break; }
     case "cancel": pcEditId = null; pcRender(); break;
     case "save": { const n = $("pe-name").value.trim().slice(0, 30); if (n) { PCL.update(id, { name: n }); pcPaint(); } pcEditId = null; pcRender(); break; }
     case "del": { const was = id === PCL.active().id; PCL.remove(id); pcEditId = null; if (was) location.reload(); else pcRender(); break; }
@@ -2503,6 +2523,7 @@ function showView(name, temp) {
   if (vis("tasks")) loadTasks();
   if (vis("inicio")) homeShow();
   if (vis("widgets")) wdShow();
+  pcPlace();
 }
 $("subtabs").onclick = (e) => { const b = e.target.closest("[data-view]"); if (b) { buzz(8); showView(b.dataset.view); } };
 // ---- barra de navegação configurável (Ajustes › Barra de navegação). A configuração {v,order,hidden} é uma chave de layout ("nav").
@@ -3948,7 +3969,7 @@ function homeBuild() {
     <div class="hw-sk" aria-hidden="true"><i></i><i></i><i></i></div><div class="hw-b">${HOME_W[id].html(size, dev)}</div></div>`;
   homeList = homeLayout(dev); homePk = null;
   const paged = mode !== "port" && homeList.length > 0;
-  $("t-inicio").classList.toggle("paged", paged);
+  $("t-inicio").classList.toggle("paged", paged); pcPlace();
   if (!homeList.length) { root.className = "home port"; root.innerHTML = '<div class="card hw"><div class="hw-na">Nenhum widget na tela.</div></div>'; }
   else if (!paged) { root.className = "home port"; root.innerHTML = homeList.map((w) => cell(w)).join(""); }
   else {
