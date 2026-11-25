@@ -75,6 +75,7 @@ from websockets.http11 import Response
 from websockets.exceptions import ConnectionClosed
 
 import alerts
+import multipc
 import audio_profiles
 import backup
 import dota
@@ -168,6 +169,15 @@ def load_config():
         tmp.write_text(json.dumps(raw, indent=2, ensure_ascii=False), encoding="utf-8")
         tmp.replace(CFG_PATH)
         log.info("panel_token novo gerado")
+    if not multipc.valid_pc_id(cfg.get("pc_id")):
+        # id deste PC para o app com vários PCs: grava só esta chave, o resto do arquivo fica como está
+        cfg["pc_id"] = multipc.new_pc_id()
+        raw = json.loads(CFG_PATH.read_text(encoding="utf-8"))
+        raw["pc_id"] = cfg["pc_id"]
+        tmp = CFG_PATH.with_name("config.json.tmp")
+        tmp.write_text(json.dumps(raw, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(CFG_PATH)
+        log.info("pc_id novo gerado")
     if not isinstance(cfg.get("dota"), dict) or cfg["dota"] is DEFAULT_CFG["dota"]:
         # grava só esta chave (o resto do arquivo fica como está), para a opção aparecer no config.json
         raw = json.loads(CFG_PATH.read_text(encoding="utf-8"))
@@ -651,7 +661,7 @@ def work_csv(offset):
 # config.json editado pelo painel do PC: um conjunto fechado de opções
 # --------------------------------------------------------------------------
 CONFIG_EDITABLE = {"upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "notif_ignore", "shortcuts",
-                   "idle_min", "export_watch", "misplaced_min", "backup_dir", "trello"}
+                   "idle_min", "export_watch", "misplaced_min", "backup_dir", "trello", "pc_name", "allowed_origins"}
 CONFIG_RESTART = {"upload_dir", "downloads_dir"}  # lidas só na abertura do servidor
 SHORTCUT_ID = re.compile(r"^[a-z0-9_-]{1,40}$")
 _CTRL = re.compile(r"[\x00-\x1f\x7f]")
@@ -701,6 +711,10 @@ def clean_config_value(key, v):
                     c[opt] = _text(s[opt], opt, 300)
             out.append(c)
         return out
+    if key == "pc_name":
+        return multipc.clean_pc_name(v)
+    if key == "allowed_origins":
+        return multipc.clean_origins(v)
     if key == "idle_min":
         return work.valid_idle_min(v)
     if key == "misplaced_min":
@@ -764,7 +778,7 @@ def config_save(changes):
         WORK.set_idle_min(clean["idle_min"])
     if "trello" in changed and any(old_trello.get(k) != clean["trello"].get(k) for k in ("key", "token")):
         TRELLO.reset()     # credencial nova: tenta de novo e esquece os dados da conta anterior
-    if set(changed) & {"shortcuts", "allow_power"} and LOOP[0]:
+    if set(changed) & {"shortcuts", "allow_power", "pc_name"} and LOOP[0]:
         asyncio.run_coroutine_threadsafe(push_welcome(), LOOP[0])
     log.info("config.json: alterado pelo painel (%s)", ", ".join(changed))
     return {"changed": changed, "restart": bool(set(changed) & CONFIG_RESTART)}
@@ -776,7 +790,7 @@ def config_get():
     fallback = {"upload_dir": DEFAULT_CFG["upload_dir"], "downloads_dir": DEFAULT_CFG["downloads_dir"],
                 "allow_power": DEFAULT_CFG["allow_power"], "shutdown_delay_s": DEFAULT_CFG["shutdown_delay_s"],
                 "notif_ignore": [], "shortcuts": [], "idle_min": 5,
-                "export_watch": {"folders": [], "on": True}, "misplaced_min": alerts.DEFAULT_MISPLACED_MIN, "backup_dir": "", "trello": {}}
+                "export_watch": {"folders": [], "on": True}, "misplaced_min": alerts.DEFAULT_MISPLACED_MIN, "backup_dir": "", "trello": {}, "pc_name": "", "allowed_origins": []}
     out = {}
     for k in CONFIG_EDITABLE:
         v = CFG.get(k)
@@ -1267,13 +1281,20 @@ client_kind: dict = {}  # ws -> "celular"
 
 async def web_handler(ws):
     """Conexão de um aparelho (rede local ou cabo via adb reverse): só o token."""
-    peer = ws.remote_address[0] if ws.remote_address else "?"
-    await session(ws, "cabo USB" if peer in ("127.0.0.1", "::1") else peer, "celular")
+    raw_ip = ws.remote_address[0] if ws.remote_address else "?"
+    hdr = ws.request.headers if ws.request else {}
+    if not multipc.origin_ok(hdr.get("Origin"), hdr.get("Host"), CFG.get("allowed_origins")):
+        log.warning("recusado: origem não permitida (%s)", raw_ip)
+        await ws.close(4004, "origem")
+        return
+    xff = hdr.get("X-Forwarded-For")
+    peer = multipc.client_ip(raw_ip, xff)
+    await session(ws, "cabo USB" if peer in multipc.LOOPBACK else peer, "celular", xff)
 
 
 def welcome_payload():
     return {
-        "t": "welcome", "version": VERSION, "web": web_build(), "icon_key": ICONS.key(), "host": socket.gethostname(),
+        "t": "welcome", "version": VERSION, "proto": multipc.PROTO, "pc_id": CFG["pc_id"], "pc_name": CFG.get("pc_name", ""), "web": web_build(), "icon_key": ICONS.key(), "host": socket.gethostname(),
         "os": f"{platform.system()} {platform.release()}",
         "shortcuts": [{k: v for k, v in (("id", s["id"]), ("name", s["name"]), ("icon", shortcut_icon(s))) if v}
                       for s in CFG["shortcuts"]],
@@ -1337,7 +1358,7 @@ async def panel_session(ws, peer):
         log.info("painel do PC fechado")
 
 
-async def session(ws, peer, kind):
+async def session(ws, peer, kind, xff=None):
     try:
         hello = json.loads(await asyncio.wait_for(ws.recv(), 5))
     except Exception:
@@ -1346,7 +1367,7 @@ async def session(ws, peer, kind):
     if isinstance(hello, dict) and "panel" in hello:
         # modo painel: loopback E panel_token certo. Qualquer outra coisa é recusada (o token nunca vai ao log)
         raw_ip = ws.remote_address[0] if ws.remote_address else "?"
-        ok = (raw_ip in LOOPBACK and hello.get("t") == "hello"
+        ok = (raw_ip in LOOPBACK and not xff and hello.get("t") == "hello"   # por proxy (X-Forwarded-For) o painel nunca abre
               and secrets.compare_digest(str(hello.get("panel", "")), CFG["panel_token"]))
         if not ok:
             log.warning("recusado: painel inválido de %s", peer)
@@ -2049,16 +2070,20 @@ def serve_static(connection, request):
 
 
 async def http_entry(connection, request):
-    """Entrada HTTP: imagens do Dota (proxy com cache, na fila de disco) ou os arquivos do app."""
-    if request.path.startswith("/dota/img/") and "websocket" not in request.headers.get("Upgrade", "").lower():
-        status, ctype, body, extra = await on_io(IMG.handle, request.path)
-        return Response(status, HTTPStatus(status).phrase,
-                        Headers([("Content-Type", ctype), ("Content-Length", str(len(body))), *extra.items()]), body)
-    if request.path.startswith("/icon/") and "websocket" not in request.headers.get("Upgrade", "").lower():
-        status, ctype, body, extra = await on_io(ICONS.handle, request.path)
-        return Response(status, HTTPStatus(status).phrase,
-                        Headers([("Content-Type", ctype), ("Content-Length", str(len(body))), *extra.items()]), body)
-    return serve_static(connection, request)
+    """Entrada HTTP: imagens do Dota (proxy com cache, na fila de disco) ou os arquivos do app.
+    CORS só para as origens de allowed_origins (o app, instalado em outro endereço, lê imagens e links deste PC)."""
+    ws_up = "websocket" in request.headers.get("Upgrade", "").lower()
+    cors = multipc.cors_headers(request.headers.get("Origin"), request.headers.get("Host"), CFG.get("allowed_origins"))
+    for prefix, handler in (("/dota/img/", IMG.handle), ("/icon/", ICONS.handle)):
+        if request.path.startswith(prefix) and not ws_up:
+            status, ctype, body, extra = await on_io(handler, request.path)
+            return Response(status, HTTPStatus(status).phrase,
+                            Headers([("Content-Type", ctype), ("Content-Length", str(len(body))), *extra.items(), *cors.items()]), body)
+    resp = serve_static(connection, request)
+    if resp is not None and cors and request.path.startswith("/dl/"):
+        for k, v in cors.items():
+            resp.headers[k] = v
+    return resp
 
 
 async def web_main():
