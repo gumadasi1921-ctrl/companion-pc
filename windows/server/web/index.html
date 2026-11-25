@@ -1420,6 +1420,15 @@ header .hchip::after { content: ""; position: absolute; inset: -10px -8px; }
 #lume-fab.peek.sl .lm-w { transform: translateX(-30%); } #lume-fab.peek.sr .lm-w { transform: translateX(30%); }
 #lume-fab.drag .lm-w { transform: scale(1.1) rotate(-4deg); transition: transform .12s ease; }
 #lume-fab:focus-visible { outline: 2px solid var(--accent, var(--p)); outline-offset: 2px; border-radius: 50%; }
+#lume-bal { position: fixed; left: 0; top: 0; z-index: 38; width: max-content; max-width: min(260px, calc(100vw - 96px)); padding: 10px 12px; border-radius: 16px; background: var(--surface-2, var(--bg)); color: var(--text, var(--p));
+  border: 1px solid var(--separator, var(--p3)); box-shadow: 0 6px 24px rgba(0,0,0,.4); font-size: 14px; line-height: 1.3; }
+.lb-h { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--p3t); margin-bottom: 4px; }
+.lb-h em { font-style: normal; font-size: 11px; padding: 0 6px; border-radius: 8px; background: rgba(128,128,128,.25); }
+.lb-pc { display: inline-flex; align-items: center; gap: 5px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-pc i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.lb-x { min-width: 44px; min-height: 44px; margin: -14px -12px -14px 0; padding: 0; background: none; border: 0; color: inherit; font-size: 20px; }
+.lb-t { overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.lb-a { margin: 8px 6px 0 0; min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--accent, var(--p)); background: none; color: var(--accent, var(--p)); font: inherit; }
 #lume-menu { position: fixed; left: 0; top: 0; z-index: 38; display: flex; flex-direction: column; min-width: 190px; padding: 6px; border-radius: 14px; background: var(--surface-2, var(--bg)); border: 1px solid var(--separator, var(--p3)); box-shadow: 0 6px 24px rgba(0,0,0,.4); }
 #lume-menu button { min-height: 44px; padding: 0 12px; text-align: left; background: none; border: 0; color: var(--text, var(--p)); font: inherit; border-radius: 10px; }
 #lume-menu button:active { background: rgba(128,128,128,.22); }
@@ -1966,6 +1975,7 @@ header .host { display: none; }
 <svg id="lume-defs" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"></svg>
 <button id="lume-fab" class="hidden" aria-label="Lume"></button>
 <div id="lume-menu" class="hidden" role="menu"></div>
+<div id="lume-bal" class="hidden" role="status" aria-live="polite"></div>
 
 <div class="overlay hidden" id="login">
   <form class="dialog" id="login-form">
@@ -2568,8 +2578,10 @@ function snd(kind) {
   } catch {}
 }
 let toastT;
+var lumeCap = null;   // roteador do Lume: enquanto um aviso do PC é tratado, o que seria toast vira balão (uma só apresentação)
 function toast(msg, kind = "") {
   if (kind === "ok" || kind === "bad") snd(kind === "ok" ? "ok" : "err");
+  if (lumeCap) { lumeCap.msg ||= msg; return; }
   const t = $("toast"); t.textContent = msg; t.className = "toast " + kind;
   clearTimeout(toastT); toastT = setTimeout(() => t.classList.add("hidden"), 2200);
 }
@@ -2697,15 +2709,16 @@ function onMsg(m) {
     case "steam": steamSet(m.d); break;
     case "trello": trelloSet(m.d); break;
     case "gameart": state.gameart = { [m.id]: "data:image/jpeg;base64," + m.jpg }; renderGames(); break;
-    case "event":
-      if (m.kind === "pomo.done") { pomoDone(m); break; }
-      if (m.kind === "notif") { homeNotifPush(m); snd("note"); notify(`${m.app}: ${m.title}`, m.body, "pcn-" + m.app); break; }
-      if (m.kind === "steam.done" && prefs.alerts.download) { snd("note"); notify("Download da Steam concluído", m.name, "steam-" + m.appid); toast("Steam: " + m.name + " terminou de baixar", "ok"); break; }
+    case "event": lumeEvent(m, () => {
+      if (m.kind === "pomo.done") { pomoDone(m); return; }
+      if (m.kind === "notif") { homeNotifPush(m); snd("note"); notify(`${m.app}: ${m.title}`, m.body, "pcn-" + m.app); return; }
+      if (m.kind === "steam.done" && prefs.alerts.download) { snd("note"); notify("Download da Steam concluído", m.name, "steam-" + m.appid); toast("Steam: " + m.name + " terminou de baixar", "ok"); return; }
       if (m.kind === "download" && prefs.alerts.download) notify("Download concluído", m.name + (m.size ? ` · ${fmtBytes(m.size)}` : ""), "dl");
       if (m.kind === "export" && prefs.alerts.export) exportNotice(m);
       if (m.kind === "alert" && prefs.alerts.misplaced) misplacedNotice(m);
       if (m.kind === "focus.summary") focusSummary(m);
       if (m.kind === "trello.digest" && prefs.alerts.trello) trelloDigest(m);
+    });
       break;
   }
 }
@@ -3790,6 +3803,7 @@ setInterval(() => { if (pm.mode === "foco" && vis("tasks") && !document.hidden) 
 // Cada widget é independente: html(dev) monta a estrutura uma vez; upd(el) só troca texto/atributos (nada de
 // innerHTML a cada segundo nos controles, para o toque não se perder). Layout salvo em store "home" (celular e tablet separados).
 function undoToast(msg, fn, label = "Desfazer", alt = null, ms = 4000) {
+  if (lumeCap) { lumeCap.msg ||= msg; lumeCap.fn ||= fn; lumeCap.label ||= label; lumeCap.alt ||= alt; return; }
   const t = $("utoast"), b2 = $("ut-btn2"); $("ut-msg").textContent = msg; $("ut-btn").textContent = label; t.classList.remove("hidden");
   $("ut-btn").onclick = () => { clearTimeout(undoToast.t); t.classList.add("hidden"); fn(); };
   t.classList.toggle("two", !!alt); b2.classList.toggle("hidden", !alt);   // segundo botão opcional: alt = [rótulo, função]
@@ -5162,7 +5176,7 @@ function lumePaint() {
   lumeFab.setAttribute("aria-label", `Lume, ${LU_ST[v.st]}. Abrir`);
   lumePlace();
 }
-function lumeWoke() { toast("O Lume acordou", "ok"); lumeParty(1800); }
+function lumeWoke() { lumeParty(1800); if (!lumeHidden() && lumeOn()) lumeSay({ src: "lume", text: "Voltei.", ms: 2500 }); else toast("O Lume acordou", "ok"); }
 function lumeTap() { LU.touch = Date.now(); lumeMenuHide(); showView("mascot"); lumePaint(); }
 // toque longo = menu rápido (Silenciar hoje, Pôr para dormir, Esconder)
 function lumeMenuHide() { $("lume-menu").classList.add("hidden"); }
@@ -5267,6 +5281,58 @@ $("t-mascot").addEventListener("click", (e) => {
   else if (k === "sleep") { LM.sleep(b.dataset.min === "day" ? "day" : +b.dataset.min, now); toast("O Lume foi dormir", "ok"); }
   else { const r = LM.act(k, now); if (r.ok) lumeParty(); else toast(r.why, "warn"); }
   lumePaint(); lumeRender();
+});
+
+
+// ---- balão do Lume + roteador de avisos: o aviso do PC é apresentado UMA vez, como balão ou como toast (Ajustes › Lume, por tipo).
+// Os efeitos do handler (lista de notificações, som, vibração, notificação do sistema) continuam iguais; só o toast é desviado (lumeCap).
+const LB = { q: [], cur: null, t: 0 };
+const LU_TYPE = { notif: "notif", "steam.done": "steam", download: "download", export: "export", alert: "alert", "pomo.done": "pomo", "trello.digest": "trello", "focus.summary": "focus" };
+const lumeCanBalloon = (type) => lumeOn() && !lumeHidden() && !document.hidden && LM.cfg().route[type] === "b";
+function lumeEvent(m, run) {
+  const type = LU_TYPE[m.kind];
+  if (!type || !lumeCanBalloon(type)) return run();
+  lumeCap = {}; let cap; try { run(); } finally { cap = lumeCap; lumeCap = null; }
+  if (type === "trello" && !LM.cfg().trello.on) return;
+  if (type === "trello") { if (cap.msg) lumeSay({ src: "pc", text: m.title || cap.msg, act: cap.fn, label: cap.label }); return; }   // só a contagem do título; nome de card nunca no balão
+  if (type === "notif") lumeSay({ src: "pc", title: m.app || "", text: [m.title, m.body].filter(Boolean).join(" · ") });
+  else if (cap.msg) lumeSay({ src: "pc", text: cap.msg, act: cap.fn, label: cap.label, alt: cap.alt });
+}
+function lumeSay(o) {
+  o.text = String(o.text || "").slice(0, 140); if (o.title) o.title = String(o.title).slice(0, 28);
+  if (!o.text) return;
+  if (LB.cur) { if (LB.q.length < 3) LB.q.push(o); lumeBalDraw(); return; }
+  lumeBalShow(o);
+}
+function lumeBalDraw() {
+  const o = LB.cur, el = $("lume-bal"), pc = PCL.active();
+  const chip = o.src === "pc" ? `<span class="lb-pc"><i style="background:${PC_COLORS[pc.color] || "#888"}"></i>${esc(pc.name)}</span>` : '<span class="lb-pc">Lume</span>';
+  el.innerHTML = `<div class="lb-h">${chip}${LB.q.length ? `<em>+${LB.q.length}</em>` : ""}<button class="lb-x" data-lb="x" aria-label="Dispensar">×</button></div>${o.title ? `<b>${esc(o.title)}</b>` : ""}<div class="lb-t" data-lb="t">${esc(o.text)}</div>` +
+    (o.act ? `<button class="lb-a" data-lb="a">${esc(o.label || "Abrir")}</button>` : "") + (o.alt ? `<button class="lb-a" data-lb="b">${esc(o.alt[0])}</button>` : "");
+  lumeBalPlace();
+}
+function lumeBalShow(o) {
+  LB.cur = o; LU.balOpen = true; LU.alertUntil = Date.now() + 9000; LU.touch = Date.now();
+  $("lume-bal").classList.remove("hidden"); lumePaint(); lumeBalDraw();
+  clearTimeout(LB.t); LB.t = setTimeout(() => lumeBalClose(false), o.ms || (o.act ? 9000 : 6000));
+}
+function lumeBalClose(acted) {
+  clearTimeout(LB.t); const o = LB.cur; LB.cur = null; LU.balOpen = false; LU.alertUntil = 0; $("lume-bal").classList.add("hidden");
+  if (o && o.id) { if (acted) LM.acted(o.id); else LM.ignored(o.id); }
+  if (LB.q.length) setTimeout(() => lumeBalShow(LB.q.shift()), 350);
+  lumePaint();
+}
+function lumeBalPlace() {
+  const el = $("lume-bal");
+  if (!LB.cur) return;
+  if (lumeFab.classList.contains("hidden")) return lumeBalClose(false);
+  lumeAnchor(el);
+}
+$("lume-bal").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-lb]"); if (!b) return; buzz(8);
+  const o = LB.cur; if (!o) return;
+  if (b.dataset.lb === "x") return lumeBalClose(false);
+  const f = b.dataset.lb === "b" ? o.alt[1] : o.act; lumeBalClose(true); if (f) try { f(); } catch {}
 });
 
 // ---- Ajustes › Lume (tudo no aparelho)
