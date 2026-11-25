@@ -1745,10 +1745,54 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem("pcc." + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem("pcc." + k, JSON.stringify(v)); } catch {} },
 };
-// token via QR/link: http://pc:8770/#t=TOKEN  (o # não vai pela rede)
+
+// ---------------------------------------------------------------- vários PCs (perfil único neste aparelho)
+// A lista de PCs (nome, endereço, token, pc_id) fica SÓ aqui, no localStorage deste aparelho: nunca em log, URL, backup ou outro PC.
+// Tema, widgets e ajustes visuais são do perfil e valem para todos; deck e Dota visto são por PC (pk()).
+const PCL = (() => {
+  const ORIGIN = location.origin, MIN_PROTO = 1, COLORS = 6;
+  const rid = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b.toString(16).padStart(2, "0")).join("");
+  let d = store.get("pcs", null);
+  const fresh = !d || !Array.isArray(d.list) || !d.list.length;
+  if (fresh) {    // primeira vez (ou migração do app de um PC só): uma entrada com o endereço e o token que já existiam
+    d = { v: 1, list: [{ id: rid(), name: "Este PC", base: ORIGIN, token: store.get("token", ""), pcid: null, color: 0 }], active: null };
+    d.active = d.list[0].id;
+  }
+  const save = () => { store.set("pcs", d); if (store.get("token", "")) store.set("token", ""); };   // o token só vive dentro da lista
+  if (fresh && !window.PCC_PANEL) save();   // grava já: o id do PC precisa ser o mesmo a cada abertura (chaves por PC)
+  const norm = (b) => {   // https://nome[:porta] ou http://nome[:porta]; sem caminho; senão null
+    const m = String(b || "").trim().toLowerCase().replace(/\/+$/, "").match(/^(https?):\/\/([a-z0-9]([a-z0-9.-]{0,98}[a-z0-9])?)(:\d{1,5})?$/);
+    return m ? `${m[1]}://${m[2]}${m[4] || ""}` : null;
+  };
+  const api = {
+    MIN_PROTO, COLORS, ORIGIN, norm, fresh,
+    list: () => d.list.map((x) => ({ ...x, token: undefined, hasToken: !!x.token })),   // a tela da lista nunca recebe o token
+    active: () => d.list.find((x) => x.id === d.active) || d.list[0],
+    base: () => api.active().base || ORIGIN,
+    isOrigin: () => api.base() === ORIGIN,
+    url: (path) => (typeof path === "string" && path.startsWith("/") && !api.isOrigin() ? api.base() + path : path),
+    wsUrl: () => api.base().replace(/^http/, "ws") + "/ws",
+    token: () => api.active().token || "",
+    setToken(t, id) { const e = d.list.find((x) => x.id === (id || api.active().id)); if (e) { e.token = t || ""; save(); } },
+    update(id, patch) { const e = d.list.find((x) => x.id === id); if (!e) return; for (const k of ["name", "color", "pcid"]) if (k in patch) e[k] = patch[k]; save(); },
+    add({ name, base }) {
+      const b = norm(base); if (!b) throw new Error("Endereço inválido (https://nome-do-pc.ts.net)");
+      if (d.list.length >= 8) throw new Error("No máximo 8 PCs");
+      if (d.list.some((x) => x.base === b)) throw new Error("Esse endereço já está na lista");
+      const e = { id: rid(), name: String(name || "").trim().slice(0, 30) || "PC", base: b, token: "", pcid: null, color: d.list.length % COLORS };
+      d.list.push(e); save(); return e;
+    },
+    remove(id) { if (d.list.length < 2) return false; d.list = d.list.filter((x) => x.id !== id); if (d.active === id) d.active = d.list[0].id; save(); return true; },
+    forOrigin() { return d.list.find((x) => x.base === ORIGIN) || null; },
+    setActive(id) { if (!d.list.some((x) => x.id === id)) return; d.active = id; save(); },
+  };
+  return api;
+})();
+const pk = (k) => k + "." + PCL.active().id;   // chave por PC (deck, Dota visto)
+// token via QR/link: http://pc:8770/#t=TOKEN  (o # não vai pela rede): vale para o PC deste endereço
 (() => {
   const m = location.hash.match(/[#&]t=([^&]+)/);
-  if (m) store.set("token", decodeURIComponent(m[1]));
+  if (m) { const e = PCL.forOrigin(); if (e) { PCL.setToken(decodeURIComponent(m[1]), e.id); PCL.setActive(e.id); } }
   const tab = location.hash.match(/[#&]tab=(\w+)/);   // link direto para uma aba: #tab=mouse
   if (tab) store.set("tab", tab[1]);
   if (m || tab) history.replaceState(null, "", location.pathname);
@@ -1803,12 +1847,16 @@ const pending = new Map();
 let pageBuild = 0;
 const state = { stats: null, now: null, games: null, art: {}, gameart: {}, nowT: 0, gamesT: 0 };
 
-function wsUrl() { return (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws"; }
+function wsUrl() { return PCL.wsUrl(); }
+const viaName = () => (PCL.isOrigin() ? (["localhost", "127.0.0.1"].includes(location.hostname) ? "cabo USB" : "Wi-Fi") : /\.ts\.net(:\d+)?$/.test(PCL.base()) ? "Tailscale" : "Rede");
 
 function connect(pairCode) {
   clearTimeout(retryT);
-  const token = store.get("token", "");
+  const token = PCL.token();
   if (!token && !pairCode) { showLogin(); return; }
+  if (location.protocol === "https:" && PCL.base().startsWith("http:")) {   // o navegador bloqueia ws:// a partir de uma página https://
+    setDot("", "Endereço bloqueado"); showLogin("Este app abriu por https e o PC usa http. Use o endereço https do PC (Tailscale)."); return;
+  }
   setDot("wait", "Conectando…");
   const sock = ws = new WebSocket(wsUrl());
   sock.onopen = () => sock.send(JSON.stringify({ t: pairCode ? "pair" : "hello", ...(pairCode ? { code: pairCode } : { token }), client: "android",
@@ -1820,7 +1868,8 @@ function connect(pairCode) {
     for (const [, p] of pending) p.reject(new Error("desconectado")); pending.clear();
     if (ev.code === 4002) { showLogin("Código errado ou vencido. Gere outro no painel do PC."); return; }
     if (ev.code === 4003) { showLogin("Muitas tentativas. Espere 1 minuto."); return; }
-    if (ev.code === 4001) { store.set("token", ""); setDot("", "Token inválido"); showLogin("Token inválido. Confira o config.json do PC."); return; }
+    if (ev.code === 4004) { setDot("", "Origem não permitida"); showLogin("Este PC não aceita este app. No painel do PC, em Ajustes, permita o endereço do app."); return; }
+    if (ev.code === 4001) { PCL.setToken(""); setDot("", "Token inválido"); showLogin("Token inválido. Confira o config.json do PC."); return; }
     setDot("", "Desconectado");
     if (wasOnline) { wasOnline = false; snd("off"); }
     retry = Math.min(retry + 1, 6);
@@ -1844,7 +1893,7 @@ function send(a, p = {}, reply = true) {
 // e é o que fica se não houver ícone ou der erro.
 let iconKey = "";
 const iconOk = new Set();   // ids que já carregaram: listas refeitas a cada segundo já nascem com a imagem (sem piscar)
-const iconSrc = (id) => `/icon/${encodeURIComponent(id)}?k=${encodeURIComponent(iconKey)}`;
+const iconSrc = (id) => PCL.url(`/icon/${encodeURIComponent(id)}?k=${encodeURIComponent(iconKey)}`);
 function setAppIcon(el, id) {
   if (!el || !id || !iconKey || el.dataset.ic === id) return;
   el.dataset.ic = id;
@@ -1865,12 +1914,26 @@ function act(a, p, label) {
 
 function onMsg(m) {
   switch (m.t) {
-    case "paired": store.set("token", m.token); $("login").classList.add("hidden"); break;   // o token nunca aparece na tela
+    case "paired": PCL.setToken(m.token); $("login").classList.add("hidden"); break;   // o token nunca aparece na tela
     case "welcome":
       if (m.icon_key) iconKey = m.icon_key;   // o welcome parcial do aviso de página nova não traz a chave: ela fica guardada
       // página nova no PC: recarrega (o app reconecta sozinho e nunca baixaria o HTML de novo)
-      if (m.web && pageBuild && m.web !== pageBuild) { location.reload(); return; }
-      pageBuild = pageBuild || m.web;
+      // PC que não é o de origem do app (outro endereço) não decide a versão da página: senão recarregaria em laço
+      const own = PCL.isOrigin();
+      if (own && m.web && pageBuild && m.web !== pageBuild) { location.reload(); return; }
+      if (own) pageBuild = pageBuild || m.web;
+      if (!own && (m.proto || 0) < PCL.MIN_PROTO) {
+        const s = ws; ws = null; s && s.close(); setDot("", "PC com versão antiga");
+        showLogin("O Companion deste PC está desatualizado. Reinstale-o nele (install-server.ps1)."); return;
+      }
+      if (m.pc_id) {   // nunca misturar PCs: o endereço tem de continuar sendo o mesmo PC
+        const a = PCL.active();
+        if (a.pcid && a.pcid !== m.pc_id) {
+          const s = ws; ws = null; s && s.close(); setDot("", "Outro PC neste endereço");
+          showLogin(`O endereço de "${a.name}" agora responde por outro PC. Nada foi mostrado. Remova e adicione o PC de novo.`); return;
+        }
+        PCL.update(a.id, { pcid: m.pc_id, ...(m.pc_name && (a.name === "Este PC" || a.name === "PC") ? { name: m.pc_name } : {}) });
+      }
       welcome = m; retry = 0;
       $("host").textContent = m.host; $("os").textContent = m.os;
       setDot("ok", "");
@@ -1880,7 +1943,7 @@ function onMsg(m) {
       snd("on"); wasOnline = true;
       if (m.features?.notif) subNotif();
       libT = 0; if (vis("games")) loadGamesExtra();
-      CONN = `${m.host} · servidor ${m.version} · ${location.host}`; showConn();
+      CONN = `${m.pc_name || m.host} · servidor ${m.version} · ${new URL(PCL.base()).host}`; showConn();
       break;
     case "res": {
       const p = pending.get(m.id); if (!p) return; pending.delete(m.id);
@@ -1912,7 +1975,7 @@ function onMsg(m) {
 
 function setDot(cls, text) {
   $("dot").className = $("dot2").className = "dot " + cls;
-  $("via").textContent = text || (["localhost", "127.0.0.1"].includes(location.hostname) ? "cabo USB" : "Wi-Fi");
+  $("via").textContent = text || viaName();
   $("banner").classList.toggle("hidden", cls === "ok" || !welcome.host);
   $("banner").textContent = "Reconectando…"; $("banner").setAttribute("role", "status");
 }
@@ -1935,14 +1998,14 @@ $("login-form").onsubmit = (e) => {
   e.preventDefault();
   if (loginTok) {
     const t = $("token").value.trim(); if (!t) return;
-    store.set("token", t); $("login").classList.add("hidden"); connect();
+    PCL.setToken(t); $("login").classList.add("hidden"); connect();
     return;
   }
   const c = $("code").value.replace(/\D/g, "");
   if (c.length !== 6) { $("login-msg").textContent = "Digite os 6 dígitos do código."; return; }
   $("login").classList.add("hidden"); connect(c);
 };
-$("b-logout").onclick = () => { store.set("token", ""); if (ws) { const s = ws; ws = null; s.close(); } showLogin(); };
+$("b-logout").onclick = () => { PCL.setToken(""); if (ws) { const s = ws; ws = null; s.close(); } showLogin(); };
 
 // ---------------------------------------------------------------- seções e vistas
 // 5 seções na barra (Início, Controle, Botões, Tarefas, Mais). "mais" é uma lista que leva às demais vistas;
@@ -2020,7 +2083,7 @@ function bootLine(t, dim) {
 function bootDone(now) { setTimeout(() => $("boot").classList.add("done"), now || REDUCED ? 0 : 500); }
 bootLine("PC COMPANION 1.6");
 bootLine("Terminal de bolso para o seu PC", true);
-bootLine(`Conectando pelo ${["localhost", "127.0.0.1"].includes(location.hostname) ? "cabo USB" : "Wi-Fi"}…`);
+bootLine(`Conectando pelo ${viaName()}…`);
 setTimeout(() => bootDone(true), 5000);   // sem PC: mostra o app com o aviso de conexão
 
 // ---------------------------------------------------------------- Painel
@@ -2203,7 +2266,7 @@ const dId = (v) => Number.isInteger(v) && v > 0;
 const dResult = (w) => (w === true ? "w" : w === false ? "l" : "");
 // imagem com o tamanho reservado (o layout não pula), esqueleto até carregar e, se faltar id/chave ou falhar, o nome em texto
 function dImg(kind, id, variant, name, w, h, cls = "", noImg = false) {
-  const src = !noImg && dota.k && dId(id) ? `/dota/img/${kind}/${id}?${kind === "hero" ? `kind=${variant}&` : ""}k=${dota.k}` : "";
+  const src = !noImg && dota.k && dId(id) ? PCL.url(`/dota/img/${kind}/${id}?${kind === "hero" ? `kind=${variant}&` : ""}k=${dota.k}`) : "";
   return `<span class="dimg ${src ? "" : "nf "}${cls}" style="width:${w}px;height:${h}px" title="${esc(name || "")}">${src ? `<img src="${src}" alt="" width="${w}" height="${h}" loading="lazy" decoding="async">` : ""}<b class="dfb">${esc(name || "")}</b></span>`;
 }
 document.addEventListener("load", (e) => { const p = e.target.parentNode; if (e.target.tagName === "IMG" && p?.classList?.contains("dimg")) p.classList.add("ok"); }, true);
@@ -2216,8 +2279,8 @@ function dotaSet(d, auto, key) {
   // abrir sozinho: uma vez por abertura do jogo (dota_started novo, vindo do games.py no PC), com auto_open no
   // config.json do PC E a chave em Ajustes deste aparelho; o último tratado fica no aparelho (recarregar não reabre)
   const started = d.companion?.dota_running ? d.companion.dota_started : null;
-  if (started && started !== store.get("dotaSeen", null)) {
-    store.set("dotaSeen", started);
+  if (started && started !== store.get(pk("dotaSeen"), store.get("dotaSeen", null))) {
+    store.set(pk("dotaSeen"), started);
     if (dota.auto && prefs.dotaOpen && !vis("dota")) {
       const back = prefs.tab;
       showView("dota", true);
@@ -2552,7 +2615,7 @@ $("w-csv").onclick = async () => {
   buzz(8);
   try {
     const r = await send("work.csv", { offset: workOff });
-    $("w-csv-link").innerHTML = `<a class="btn sm" href="${esc(r.url)}" download="${esc(r.name)}">Baixar ${esc(r.name)}</a>`;
+    $("w-csv-link").innerHTML = `<a class="btn sm" href="${esc(PCL.url(r.url))}" download="${esc(r.name)}">Baixar ${esc(r.name)}</a>`;
   } catch (er) { toast(er.message, "bad"); }
 };
 // Mês (só leitura): totais por cliente e job, comparados com o mês anterior
@@ -3699,7 +3762,7 @@ document.querySelectorAll(".keys .key[data-key]").forEach((b) => {
 
 // ---------------------------------------------------------------- Botões (deck)
 let deckData = null, deckEdit = false, deckFocusPage = -1;
-prefs.deckPage = store.get("deckPage", 0);
+prefs.deckPage = store.get(pk("deckPage"), store.get("deckPage", 0));
 const DECK_COLORS = ["", "#58a6ff", "#50c878", "#f0b446", "#eb5757", "#aa82ff", "#5865f2", "#ff7ab6", "#3dd6d0"];
 const clone = (o) => JSON.parse(JSON.stringify(o));
 // ícone só em texto: emoji colorido é removido; sem ícone, usa as iniciais do nome
@@ -3756,7 +3819,7 @@ $("deck-pages").onclick = (e) => {
   if (b.dataset.page === "new") return editPage(-1);
   const i = +b.dataset.page;
   if (deckEdit && i === prefs.deckPage) return editPage(i);
-  prefs.deckPage = i; store.set("deckPage", i); renderDeck();
+  prefs.deckPage = i; store.set(pk("deckPage"), i); renderDeck();
 };
 $("deck-edit").onclick = () => { if (!deckData) return; deckEdit = !deckEdit; buzz(8); renderDeck(); };
 $("deck-reset").onclick = () => confirmAsk("Voltar aos botões padrão?", async () => {
@@ -3862,7 +3925,7 @@ $("ped-form").onsubmit = async (e) => {
   const name = $("ped-name").value.trim() || "Página", deck = clone(deckData.deck);
   const apps = parseApps($("ped-apps").value);
   if (pedIdx >= 0) { deck.pages[pedIdx].name = name; deck.pages[pedIdx].apps = apps; }
-  else { deck.pages.push({ name, buttons: [], apps }); prefs.deckPage = deck.pages.length - 1; store.set("deckPage", prefs.deckPage); }
+  else { deck.pages.push({ name, buttons: [], apps }); prefs.deckPage = deck.pages.length - 1; store.set(pk("deckPage"), prefs.deckPage); }
   if (await saveDeck(deck)) $("ped").classList.add("hidden");
 };
 $("ped-del").onclick = () => {
@@ -3876,7 +3939,7 @@ async function movePage(d) {
   const deck = clone(deckData.deck), j = pedIdx + d;
   if (j < 0 || j >= deck.pages.length) return;
   [deck.pages[pedIdx], deck.pages[j]] = [deck.pages[j], deck.pages[pedIdx]];
-  if (await saveDeck(deck)) { pedIdx = j; prefs.deckPage = j; store.set("deckPage", j); renderDeck(); buzz(8); }
+  if (await saveDeck(deck)) { pedIdx = j; prefs.deckPage = j; store.set(pk("deckPage"), j); renderDeck(); buzz(8); }
 }
 $("ped-left").onclick = () => movePage(-1); $("ped-right").onclick = () => movePage(1);
 
@@ -4236,10 +4299,10 @@ $("rcv-get").onclick = async () => {
       if (url) $("rcv-open").href = url;
     } else if (r.kind === "image") {
       out.innerHTML = `<img class="clipimg" src="data:image/jpeg;base64,${r.preview}" alt="Imagem copiada no PC"><div class="sub" style="margin-top:6px">${r.w}×${r.h} px</div>
-        <div class="brow"><a class="btn primary" href="${r.url}" download="${esc(r.name)}">Salvar no celular</a></div>`;
+        <div class="brow"><a class="btn primary" href="${esc(PCL.url(r.url))}" download="${esc(r.name)}">Salvar no celular</a></div>`;
     } else if (r.kind === "files") {
       out.innerHTML = '<div style="margin-top:10px"></div>' + r.files.map((f) => `<div class="row"><span>${f.dir ? "[pasta] " : ""}${esc(f.name)}</span><span>${f.url
-        ? `<a class="lnk" href="${f.url}" download="${esc(f.name)}">baixar · ${fmtBytes(f.size)}</a>` : f.dir ? "pasta (não dá)" : "grande demais"}</span></div>`).join("");
+        ? `<a class="lnk" href="${esc(PCL.url(f.url))}" download="${esc(f.name)}">baixar · ${fmtBytes(f.size)}</a>` : f.dir ? "pasta (não dá)" : "grande demais"}</span></div>`).join("");
     } else out.innerHTML = '<div class="empty">Nada copiado no PC.</div>';
   } catch (e) { out.innerHTML = `<div class="empty">Erro: ${esc(e.message)}</div>`; }
 };
@@ -4279,7 +4342,7 @@ function exportNotice(m) {
   snd("note"); if (navigator.vibrate) try { navigator.vibrate([90, 60, 90]); } catch {}
   if (document.hidden) return sysNotify("Exportado", `${m.name} (${m.size_txt || ""})`, "exp");
   undoToast(title, () => send("export.link", { id: m.id }).then((r) => {
-    const a = document.createElement("a"); a.href = r.url; a.download = r.name; document.body.append(a); a.click(); a.remove(); toast("Baixando " + r.name, "ok");
+    const a = document.createElement("a"); a.href = PCL.url(r.url); a.download = r.name; document.body.append(a); a.click(); a.remove(); toast("Baixando " + r.name, "ok");
   }).catch((e) => toast(e.message, "bad")), "Mandar para o celular",
   ["Abrir pasta no PC", () => send("export.reveal", { id: m.id }).catch((e) => toast(e.message, "bad"))], 10000);
 }
