@@ -123,6 +123,7 @@ svg.ic{width:26px;height:26px;fill:#F2F2F7;vertical-align:middle}
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:44px;background:transparent;margin:0}
 input[type=range]::-webkit-slider-runnable-track{height:6px;background:#3A3A3C;border-radius:3px}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:30px;margin-top:-12px;border-radius:15px;background:#F2F2F7}
+.aic{width:20px;height:20px;vertical-align:middle;margin-right:6px}
 .mxrow{padding:8px 0;border-top:.5px solid #38383A}
 .mxrow:first-child{border-top:0}
 .mxrow.muted .mxname{color:#98989D}
@@ -525,6 +526,7 @@ function onMsg(m) {
       if (m.web && pageBuild && m.web !== pageBuild) { location.reload(); return; }
       pageBuild = pageBuild || m.web;
       welcome = m; retry = 0; online = true;
+      if (m.icon_key) iconKey = m.icon_key;   // o welcome parcial do aviso de página nova não traz a chave
       banner(false);
       loadDeck(); loadTasks(); loadWork(); pollMixer(); subNotif(); loadPomo();
       buildPower(); render();
@@ -733,17 +735,22 @@ function drawChart(l, f) {
   $(l).setAttribute("points", pts.join(" "));
   $(f).setAttribute("points", pts.join(" ") + " 300,90 " + x0.toFixed(1) + ",90");
 }
+var iconKey = "";
+// ícone real do app (rota /icon/<id>); se falhar o <img> some e fica só o nome
+function appIc(id) {
+  return id && iconKey ? '<img class="aic" alt="" src="/icon/' + encodeURIComponent(id) + "?k=" + encodeURIComponent(iconKey) + '" onerror="this.style.display=\'none\'"> ' : "";
+}
 function renderMixer() {
   var d = S.mix, list = $("mx-list"), i, a, h, sig = "";
   if (!d) { if (online && !hasF("mixer")) setHtml(list, '<div class="empty">' + NA + "</div>"); return; }
   setText($("mx-master"), d.master ? (d.master.muted ? "PC: mudo" : "PC: " + d.master.level + "%") : "");
   if (!d.apps.length) { setHtml(list, '<div class="empty">Nenhum app tocando som agora</div>'); list._sig = ""; return; }
-  for (i = 0; i < d.apps.length; i++) sig += d.apps[i].key + "|";
+  for (i = 0; i < d.apps.length; i++) sig += d.apps[i].key + ":" + (d.apps[i].icon || "") + "|";
   if (list._sig !== sig) {
     h = "";
     for (i = 0; i < d.apps.length; i++) {
       a = d.apps[i];
-      h += '<div class="mxrow" data-key="' + esc(a.key) + '"><div class="rowb"><span class="mxname">' + esc(a.name) + '</span><span class="mxv sub"></span></div>' +
+      h += '<div class="mxrow" data-key="' + esc(a.key) + '"><div class="rowb"><span class="mxname">' + appIc(a.icon) + esc(a.name) + '</span><span class="mxv sub"></span></div>' +
         '<div class="row"><div class="f1"><input type="range" min="0" max="100" step="1" data-key="' + esc(a.key) + '"></div><button class="vb mxm" data-key="' + esc(a.key) + '"></button></div></div>';
     }
     list.innerHTML = h; list._sig = sig; list._h = null;
