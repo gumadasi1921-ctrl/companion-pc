@@ -490,11 +490,6 @@ body.crt .isvg { filter: drop-shadow(0 0 3px var(--glow)); }
     #t-send .cols > div:first-child > h2 { grid-column: 1 / -1; margin-bottom: -2px; }
     #t-send .cols > div:first-child > .card { margin-top: 0 !important; }
     #t-send .brow { flex-direction: column; }
-    /* Ajustes: três colunas (Alertas | Visual | Este aparelho) */
-    #t-sys .cols { display: block; columns: 2; column-gap: 14px; }
-    #t-sys .cols .card { break-inside: avoid; }
-    #t-sys .cols h2 { break-after: avoid; }
-    #t-sys .cols > div > h2:first-child { margin-top: 4px; }
     /* Arquivos */
     .cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
     /* Botões: mais colunas e botões baixos (a regra de tablet deixava gigantes) */
@@ -506,9 +501,6 @@ body.crt .isvg { filter: drop-shadow(0 0 3px var(--glow)); }
     .grid.dash { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: minmax(0, 1.2fr) minmax(0, 1fr);
       grid-template-areas: "cpu ram gpu net" "procs disks win sys"; }
     .c-sys, .c-win { overflow: hidden; }
-  }
-  @container (min-width: 760px) {
-    #t-sys .cols { columns: 3; }
   }
 }
 /* celular deitado e baixo (Chrome com barra de endereço, ~340px): Tocando, teclas e Arquivos compactos */
@@ -1473,10 +1465,25 @@ html.lm-still .rm *, .rm .still, .rm.still * { animation: none !important; trans
 .lm-day { font-weight: 600; margin: 10px 0 4px; }
 .lm-it { display: flex; gap: 10px; font-size: 14px; padding: 3px 0; }
 .lm-it time { color: var(--p3t); min-width: 44px; font-variant-numeric: tabular-nums; }
-#lume-set .lm-h { font-size: 13px; color: var(--p3t); margin: 14px 0 4px; font-weight: 600; }
-#lume-set .set { gap: 8px 12px; flex-wrap: wrap; } #lume-set .set label { flex: 1 1 150px; min-width: 150px; }
-#lume-set .lm-ctl { display: flex; gap: 8px; align-items: center; margin-left: auto; }
-#lume-set input[type=time] { width: auto; min-width: 88px; max-width: 100%; min-height: 44px; }
+.lume-sec .set { gap: 8px 12px; flex-wrap: wrap; } .lume-sec .set label { flex: 1 1 150px; min-width: 150px; }
+.lume-sec .lm-ctl { display: flex; gap: 8px; align-items: center; margin-left: auto; }
+.lume-sec input[type=time] { width: auto; min-width: 88px; max-width: 100%; min-height: 44px; }
+
+/* Ajustes (estilo iOS): lista de grupos -> subtelas. Em pé: uma por vez, com voltar. Deitado e tablet: lista | detalhe. */
+.st-hd { margin: 6px 4px 10px; } .st-groups { padding: 0 12px; }
+.st-detail, .st-pg { display: none; } .st.in .st-detail, .st-pg.on { display: block; } .st.in .st-list { display: none; }
+.st-bar { display: flex; align-items: center; gap: 10px; min-height: 48px; margin-bottom: 2px; } .st-bar h2 { margin: 0; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.st-back { min-height: 44px; } .st-back.hidden { display: none; }
+.st-pg > h2 { font-size: 13px; letter-spacing: .05em; text-transform: uppercase; color: var(--p3t); margin: 16px 4px 6px; }
+.set.st-row { width: 100%; box-sizing: border-box; text-align: left; background: none; border-width: 0 0 1px; border-style: dashed; border-color: var(--p4); color: inherit; font: inherit; min-height: 52px; cursor: pointer; }
+.set.st-row:last-child { border-bottom: 0; }
+.st-ic { width: 30px; height: 30px; border-radius: 8px; background: var(--ic, var(--p3)); display: grid; place-items: center; flex: none; }
+.st-ic svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.st-t { flex: 1; min-width: 0; } .st-t small { display: block; color: var(--p3t); font-size: 12.5px; margin-top: 2px; }
+.st-v { color: var(--p3t); font-size: 14px; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.set.st-row::after { content: ""; width: 8px; height: 8px; border-right: 2px solid var(--p3t); border-top: 2px solid var(--p3t); transform: rotate(45deg); flex: none; margin-left: 2px; }
+.st-groups .st-row.on { box-shadow: inset 3px 0 0 var(--accent, var(--p)); } .st-groups .st-row.on .st-t { font-weight: 600; }
+.st-note { color: var(--p3t); font-size: 13px; margin: 8px 2px; }
 /* Selo do PC: monitor na cor do PC (o nome vai no aria-label e na lista); 28 px visíveis, 44 px de toque */
 .pcmon { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--pcc, var(--p)); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .pcchip.rail { border: 0; background: none; }
@@ -1914,30 +1921,33 @@ header .host { display: none; }
 
   <!-- PC > Ajustes -->
   <section class="tab" id="t-sys">
-    <div class="cols">
-      <div>
-        <h2>Alertas</h2>
+    <div class="st" id="st">
+      <nav class="st-list" id="st-list" aria-label="Ajustes">
+        <h2 class="st-hd">Ajustes</h2>
+        <div class="card st-groups">
+          <button class="set st-row" data-go="pcs" data-st-v="pcs"><i class="st-ic" style="--ic:#4C9AFF"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-monitor"/></svg></i><span class="st-t">PCs e conexão</span><span class="st-v"></span></button>
+          <button class="set st-row" data-go="look" data-st-v="look"><i class="st-ic" style="--ic:#BF5AF2"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-paintbrush"/></svg></i><span class="st-t">Aparência e layout</span><span class="st-v"></span></button>
+          <button class="set st-row" data-go="home" data-st-v="home"><i class="st-ic" style="--ic:#30D158"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-layout-grid"/></svg></i><span class="st-t">Início e widgets</span><span class="st-v"></span></button>
+          <button class="set st-row" data-go="alerts" data-st-v="alerts"><i class="st-ic" style="--ic:#FF6B9A"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-heart"/></svg></i><span class="st-t">Avisos e Lume</span><span class="st-v"></span></button>
+          <button class="set st-row" data-go="work" data-st-v="work"><i class="st-ic" style="--ic:#FF9F0A"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-briefcase"/></svg></i><span class="st-t">Foco, trabalho e integrações</span><span class="st-v"></span></button>
+          <button class="set st-row" data-go="device" data-st-v="device"><i class="st-ic" style="--ic:#8E8E93"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-sliders-horizontal"/></svg></i><span class="st-t">Este aparelho e Sobre</span><span class="st-v"></span></button>
+        </div>
+      </nav>
+      <div class="st-detail" id="st-detail">
+        <div class="st-bar"><button class="btn sm st-back hidden" id="st-back">‹ Ajustes</button><h2 id="st-title"></h2></div>
+      <div class="st-pg" data-pg="pcs" data-title="PCs e conexão" data-parent="">
         <div class="card">
-          <div class="set"><label>Download concluído<small>Arquivo novo na pasta Downloads do PC</small></label><button class="switch" id="al-download" aria-label="Download concluído"></button></div>
-          <div class="set"><label>Exportação concluída<small>Arquivo pronto nas pastas de exportação escolhidas no painel do PC</small></label><button class="switch" id="al-export" aria-label="Exportação concluída"></button></div>
-          <div class="set"><label>Arquivo fora do lugar<small>Muito tempo em arquivo sem salvar ou fora das pastas de clientes (tempo: painel do PC)</small></label><button class="switch" id="al-misplaced" aria-label="Arquivo fora do lugar"></button></div>
-          <div class="set"><label>Trello: cards de hoje<small>Às 9h, os atrasados e os que vencem hoje</small></label><button class="switch" id="al-trello" aria-label="Trello: cards de hoje"></button></div>
-          <div class="set"><label>GPU quente<small>Acima de <input class="num" id="al-gpu-v" type="number" inputmode="numeric"> °C</small></label><button class="switch" id="al-gpu" aria-label="GPU quente"></button></div>
-          <div class="set"><label>CPU quente<small>Acima de <input class="num" id="al-cpu-v" type="number" inputmode="numeric"> °C <span id="al-cpu-note">(precisa do LibreHardwareMonitor no PC)</span></small></label><button class="switch" id="al-cpu" aria-label="CPU quente"></button></div>
-          <div class="set"><label>Internet caiu<small>O PC ficou sem conexão (e quando volta)</small></label><button class="switch" id="al-net" aria-label="Internet caiu"></button></div>
-          <div class="set"><label>Notificações do PC<small id="pcn-note">WhatsApp, Discord, e-mail e outros avisos do Windows</small></label><button class="switch" id="sw-pcnotif" aria-label="Notificações do PC"></button></div>
-          <div class="set"><label>Memória cheia<small>Acima de <input class="num" id="al-ram-v" type="number" inputmode="numeric"> %</small></label><button class="switch" id="al-ram" aria-label="Memória cheia"></button></div>
-          <div class="set"><label>Notificações do Android<small>Avisa com o app em segundo plano</small></label><button class="btn sm" id="al-notif">Ativar</button></div>
+          <button class="set st-row" id="st-pcopen" data-st-v="pcname"><i class="st-ic" style="--ic:#4C9AFF"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-monitor"/></svg></i><span class="st-t">PC ativo</span><span class="st-v"></span></button>
+          <div class="set"><label>Conexão<small id="conn-info"></small></label><button class="btn sm" id="b-logout">Trocar token</button></div>
+        </div>
+        <h2>Controle do PC</h2>
+        <div class="card">
+          <div class="set"><label>Velocidade do mouse <small id="sens-val"></small></label><input type="range" id="sens" min="0.5" max="4" step="0.1" style="max-width:50%" aria-label="Velocidade do mouse"></div>
+          <div class="set"><label>Botões seguem o programa<small>Troca a página de botões conforme o programa em foco no PC</small></label><button class="switch" id="sw-deckauto" aria-label="Botões seguem o programa"></button></div>
         </div>
       </div>
-      <div>
-        <h2 id="wx-set-h">Tempo</h2>
-        <div class="card" id="wx-set">
-          <div class="set"><label>Cidade da previsão<small id="wx-cur">Nenhuma cidade escolhida</small></label><button class="btn sm hidden" id="wx-del">Remover</button></div>
-          <form class="wx-form" id="wx-form" role="search"><input class="fi" id="wx-q" type="search" maxlength="80" placeholder="Buscar cidade" aria-label="Buscar cidade" autocomplete="off" autocapitalize="words" spellcheck="false"><button class="btn" type="submit">Buscar</button></form>
-          <div class="wx-res" id="wx-res" role="list"></div>
-        </div>
-        <h2>Aparência</h2>
+      <div class="st-pg" data-pg="look" data-title="Aparência e layout" data-parent="">
+        <h2>Tema</h2>
         <div class="card" id="ap">
           <div class="thcards" id="ap-theme" role="group" aria-label="Tema">
             <button class="thcard" data-pick="modern" aria-pressed="false"><span class="thprev pv-modern"><i class="pv-bar"></i><i class="pv-card"></i><i class="pv-pill"></i></span><b>Moderno</b></button>
@@ -1953,11 +1963,9 @@ header .host { display: none; }
         <div class="card" id="lay-card">
           <div class="set"><label>Layout em uso<small id="lay-cur">Padrão</small></label><button class="btn sm" id="lay-open">Gerenciar</button></div>
         </div>
-        <h2>Barra de navegação</h2>
-        <div class="card" id="nav-card">
-          <div class="set"><label>Itens da barra<small>A barra comporta 4 itens, na ordem abaixo. O que ficar de fora continua em Mais.</small></label></div>
-          <div id="nav-list"></div>
-          <div class="set"><label>Restaurar padrão<small>Início, Controle, Botões e Tarefas</small></label><button class="btn sm" id="nav-reset">Restaurar</button></div>
+        <h2>Navegação</h2>
+        <div class="card">
+          <button class="set st-row" data-go="nav" data-st-v="nav"><i class="st-ic" style="--ic:#4C9AFF"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-layout-grid"/></svg></i><span class="st-t">Barra de navegação</span><span class="st-v"></span></button>
         </div>
         <h2>Visual</h2>
         <div class="card">
@@ -1969,22 +1977,102 @@ header .host { display: none; }
           <div class="set"><label>Bolinha do microfone<small>Fica sobre as telas; arraste para mudar de lugar, toque para mutar o microfone do PC</small></label><button class="switch" id="sw-micfab" aria-label="Bolinha do microfone"></button></div>
           <div class="set"><label>Posição da bolinha<small>Volta ao canto padrão</small></label><button class="btn sm" id="mic-fab-reset">Recolocar</button></div>
           <div class="set"><label>Sons de terminal<small>Bipes curtos ao tocar e ao conectar</small></label><button class="switch" id="sw-snd" aria-label="Sons de terminal"></button></div>
+        </div>
+      </div>
+      <div class="st-pg" data-pg="nav" data-title="Barra de navegação" data-parent="look">
+        <div class="card" id="nav-card">
+          <div class="set"><label>Itens da barra<small>A barra comporta 4 itens, na ordem abaixo. O que ficar de fora continua em Mais.</small></label></div>
+          <div id="nav-list"></div>
+          <div class="set"><label>Restaurar padrão<small>Início, Controle, Botões e Tarefas</small></label><button class="btn sm" id="nav-reset">Restaurar</button></div>
+        </div>
+      </div>
+      <div class="st-pg" data-pg="home" data-title="Início e widgets" data-parent="">
+        <div class="card">
+          <button class="set st-row" data-view="widgets" data-st-v=""><i class="st-ic" style="--ic:#30D158"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-layout-grid"/></svg></i><span class="st-t">Widgets do Início</span><span class="st-v"></span></button>
+          <button class="set st-row" data-go="wx" data-st-v="wx"><i class="st-ic" style="--ic:#64D2FF"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-cloud-sun"/></svg></i><span class="st-t">Tempo</span><span class="st-v"></span></button>
+        </div>
+        <h2>Quando ficar parado</h2>
+        <div class="card">
           <div class="set"><label>Quando ficar parado<small>Passa Sistema, Jogos, Tocando e o relógio, ou só o relógio</small></label><button class="btn sm" id="dock-now">Ver</button><select id="idle-mode" class="sel" aria-label="Quando ficar parado"><option value="cycle">Passar as telas</option><option value="clock">Só o relógio</option><option value="off">Nada</option></select></div>
           <div class="set"><label>Depois de</label><select id="dock-min" class="sel" aria-label="Depois de quanto tempo parado"><option value="1">1 min</option><option value="2">2 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
-          <div class="set"><label>Botões seguem o programa<small>Troca a página de botões conforme o programa em foco no PC</small></label><button class="switch" id="sw-deckauto" aria-label="Botões seguem o programa"></button></div>
+        </div>
+        <h2>Dota</h2>
+        <div class="card">
           <div class="set"><label>Abrir a tela Dota ao iniciar o jogo<small>Quando o Dota abre no PC, o app vai para a tela Dota (dá para voltar)</small></label><button class="switch" id="sw-dotaopen" aria-label="Abrir a tela Dota ao iniciar o jogo"></button></div>
         </div>
-        <h2>Lume</h2>
-        <div class="card" id="lume-set"></div>
+      </div>
+      <div class="st-pg" data-pg="wx" data-title="Tempo" data-parent="home">
+        <h2 id="wx-set-h">Previsão do tempo</h2>
+        <div class="card" id="wx-set">
+          <div class="set"><label>Cidade da previsão<small id="wx-cur">Nenhuma cidade escolhida</small></label><button class="btn sm hidden" id="wx-del">Remover</button></div>
+          <form class="wx-form" id="wx-form" role="search"><input class="fi" id="wx-q" type="search" maxlength="80" placeholder="Buscar cidade" aria-label="Buscar cidade" autocomplete="off" autocapitalize="words" spellcheck="false"><button class="btn" type="submit">Buscar</button></form>
+          <div class="wx-res" id="wx-res" role="list"></div>
+        </div>
+      </div>
+      <div class="st-pg" data-pg="alerts" data-title="Avisos e Lume" data-parent="">
+        <div class="card">
+          <button class="set st-row" data-go="al" data-st-v="al"><i class="st-ic" style="--ic:#FF6B9A"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-activity"/></svg></i><span class="st-t">Alertas</span><span class="st-v"></span></button>
+          <div class="set"><label>Notificações do Android<small>Avisa com o app em segundo plano</small></label><button class="btn sm" id="al-notif">Ativar</button></div>
+        </div>
+        <div class="card">
+          <button class="set st-row" data-go="lume" data-st-v="lume"><i class="st-ic" style="--ic:#FF6B9A"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-heart"/></svg></i><span class="st-t">Lume</span><span class="st-v"></span></button>
+        </div>
+      </div>
+      <div class="st-pg" data-pg="al" data-title="Alertas" data-parent="alerts">
+        <div class="card">
+          <div class="set"><label>Download concluído<small>Arquivo novo na pasta Downloads do PC</small></label><button class="switch" id="al-download" aria-label="Download concluído"></button></div>
+          <div class="set"><label>Exportação concluída<small>Arquivo pronto nas pastas de exportação escolhidas no painel do PC</small></label><button class="switch" id="al-export" aria-label="Exportação concluída"></button></div>
+          <div class="set"><label>Arquivo fora do lugar<small>Muito tempo em arquivo sem salvar ou fora das pastas de clientes (tempo: painel do PC)</small></label><button class="switch" id="al-misplaced" aria-label="Arquivo fora do lugar"></button></div>
+          <div class="set"><label>GPU quente<small>Acima de <input class="num" id="al-gpu-v" type="number" inputmode="numeric"> °C</small></label><button class="switch" id="al-gpu" aria-label="GPU quente"></button></div>
+          <div class="set"><label>CPU quente<small>Acima de <input class="num" id="al-cpu-v" type="number" inputmode="numeric"> °C <span id="al-cpu-note">(precisa do LibreHardwareMonitor no PC)</span></small></label><button class="switch" id="al-cpu" aria-label="CPU quente"></button></div>
+          <div class="set"><label>Internet caiu<small>O PC ficou sem conexão (e quando volta)</small></label><button class="switch" id="al-net" aria-label="Internet caiu"></button></div>
+          <div class="set"><label>Notificações do PC<small id="pcn-note">WhatsApp, Discord, e-mail e outros avisos do Windows</small></label><button class="switch" id="sw-pcnotif" aria-label="Notificações do PC"></button></div>
+          <div class="set"><label>Memória cheia<small>Acima de <input class="num" id="al-ram-v" type="number" inputmode="numeric"> %</small></label><button class="switch" id="al-ram" aria-label="Memória cheia"></button></div>
+        </div>
+      </div>
+      <div class="st-pg" data-pg="lume" data-title="Lume" data-parent="alerts">
+        <div class="card">
+          <button class="set st-row" data-go="lm-geral" data-st-v="lm-geral"><i class="st-ic" style="--ic:#8E8E93"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-sliders-horizontal"/></svg></i><span class="st-t">Geral<small>Mostrar, economia, posição e zerar</small></span><span class="st-v"></span></button>
+          <button class="set st-row" data-go="lm-lemb" data-st-v="lm-lemb"><i class="st-ic" style="--ic:#FF9F0A"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-history"/></svg></i><span class="st-t">Lembretes<small>Água, pausa, fim do dia, tarefas</small></span><span class="st-v"></span></button>
+          <button class="set st-row" data-go="lm-hor" data-st-v="lm-hor"><i class="st-ic" style="--ic:#FFD60A"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-sun"/></svg></i><span class="st-t">Horários e limites<small>Quando e quanto ele fala</small></span><span class="st-v"></span></button>
+          <button class="set st-row" data-go="lm-rota" data-st-v="lm-rota"><i class="st-ic" style="--ic:#30D158"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-send"/></svg></i><span class="st-t">Onde o Lume avisa<small>Balão ou aviso comum, por tipo</small></span><span class="st-v"></span></button>
+        </div>
+      </div>
+      <div class="st-pg" data-pg="lm-geral" data-title="Geral" data-parent="lume">
+        <div class="card lume-sec" data-lume="geral"></div>
+      </div>
+      <div class="st-pg" data-pg="lm-lemb" data-title="Lembretes" data-parent="lume">
+        <div class="card lume-sec" data-lume="lemb"></div>
+      </div>
+      <div class="st-pg" data-pg="lm-hor" data-title="Horários e limites" data-parent="lume">
+        <div class="card lume-sec" data-lume="hor"></div>
+      </div>
+      <div class="st-pg" data-pg="lm-rota" data-title="Onde o Lume avisa" data-parent="lume">
+        <div class="card lume-sec" data-lume="rota"></div>
+      </div>
+      <div class="st-pg" data-pg="work" data-title="Foco, trabalho e integrações" data-parent="">
+        <div class="card">
+          <button class="set st-row" id="st-pomo" data-st-v="pomo"><i class="st-ic" style="--ic:#FF9F0A"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-history"/></svg></i><span class="st-t">Pomodoro</span><span class="st-v"></span></button>
+          <button class="set st-row" data-view="work" data-st-v=""><i class="st-ic" style="--ic:#FF9F0A"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-briefcase"/></svg></i><span class="st-t">Trabalho</span><span class="st-v"></span></button>
+        </div>
+        <h2>Integrações</h2>
+        <div class="card">
+          <div class="set"><label>Trello: cards de hoje<small>Às 9h, os atrasados e os que vencem hoje</small></label><button class="switch" id="al-trello" aria-label="Trello: cards de hoje"></button></div>
+        </div>
+      </div>
+      <div class="st-pg" data-pg="device" data-title="Este aparelho e Sobre" data-parent="">
         <h2>Este aparelho</h2>
         <div class="card">
           <div class="set"><label>Manter a tela ligada<small>Enquanto o app estiver aberto</small></label><button class="switch" id="sw-wake" aria-label="Manter a tela ligada"></button></div>
           <div class="set"><label>Tela cheia<small>Esconde as barras do Android</small></label><button class="switch" id="sw-full" aria-label="Tela cheia"></button></div>
           <div class="set"><label>Travar deitado<small>Abre em tela cheia e não gira mais</small></label><button class="switch" id="sw-land" aria-label="Travar deitado"></button></div>
           <div class="set"><label>Vibrar ao tocar</label><button class="switch" id="sw-vib" aria-label="Vibrar ao tocar"></button></div>
-          <div class="set"><label>Velocidade do mouse <small id="sens-val"></small></label><input type="range" id="sens" min="0.5" max="4" step="0.1" style="max-width:50%" aria-label="Velocidade do mouse"></div>
-          <div class="set"><label>Conexão<small id="conn-info"></small></label><button class="btn sm" id="b-logout">Trocar token</button></div>
         </div>
+        <h2>Sobre</h2>
+        <div class="card">
+          <div class="set"><label>Tela deste aparelho<small id="st-screen"></small></label></div>
+        </div>
+      </div>
       </div>
     </div>
   </section>
@@ -3030,10 +3118,61 @@ function showView(name, temp) {
   if (vis("inicio")) homeShow();
   if (vis("mascot")) lumeRender();
   if (vis("widgets")) wdShow();
+  if (vis("sys")) stOpen();
   pcPlace();
   try { lumePaint(); } catch {}
 }
 $("subtabs").onclick = (e) => { const b = e.target.closest("[data-view]"); if (b) { buzz(8); showView(b.dataset.view); } };
+
+// ---------------------------------------------------------------- Ajustes: grupos -> subtelas (só apresentação; ids e chaves salvas não mudam)
+// A página aberta fica só em memória (ST.pg); em tela larga (>= 600 px) a lista fica à esquerda e o detalhe à direita.
+var ST = { pg: "" };
+const stPg = (id) => document.querySelector('.st-pg[data-pg="' + id + '"]');
+const stWide = () => $("t-sys").clientWidth >= 600;
+const stTop = (id) => { let p = stPg(id); while (p && p.dataset.parent) p = stPg(p.dataset.parent); return p ? p.dataset.pg : id; };
+function stVals() {
+  const al = ["al-download", "al-export", "al-misplaced", "al-trello", "al-gpu", "al-cpu", "al-net", "sw-pcnotif", "al-ram"].filter((i) => $(i) && $(i).classList.contains("on")).length;
+  const city = (typeof wx !== "undefined" && wx.d && wx.d.place && wx.d.place.name) || "Sem cidade";
+  const modes = { auto: "Automático", light: "Claro", dark: "Escuro" }, lm = { on: "Ligado", hide: "Só pela tela", off: "Desligado" };
+  let lume = ""; try { lume = lm[LM.cfg().mode] || ""; } catch {}
+  const V = {
+    pcname: PCL.active().name, pcs: PCL.active().name,
+    look: prefs.theme === "fallout" ? "Fallout" : "Moderno · " + (modes[prefs.mode] || ""),
+    nav: navBar.length + " na barra", home: city, wx: city,
+    alerts: al + " alertas ligados", al: al + " ligados", lume,
+    pomo: pm.d ? "Foco " + pm.d.config.focus_min + " min" : "", work: pm.d ? "Foco " + pm.d.config.focus_min + " min" : "",
+    device: innerWidth + "×" + innerHeight,
+  };
+  document.querySelectorAll("[data-st-v]").forEach((b) => { const v = b.querySelector(".st-v"); if (v) v.textContent = V[b.dataset.stV] || ""; });
+  if ($("st-screen")) $("st-screen").textContent = innerWidth + "×" + innerHeight;
+}
+function stSync() {
+  const wide = stWide(), pg = ST.pg || (wide ? "pcs" : ""), p = stPg(pg), top = stTop(pg);
+  $("st").classList.toggle("in", !!ST.pg);
+  document.querySelectorAll(".st-pg").forEach((x) => x.classList.toggle("on", x === p));
+  document.querySelectorAll(".st-groups .st-row").forEach((r) => r.classList.toggle("on", wide && r.dataset.go === top));
+  if (p) {
+    const par = p.dataset.parent ? stPg(p.dataset.parent) : null;
+    $("st-title").textContent = p.dataset.title;
+    $("st-back").textContent = "‹ " + (par ? par.dataset.title : "Ajustes");
+    $("st-back").classList.toggle("hidden", wide && !par);
+  }
+  stVals();
+}
+function stGo(id) { ST.pg = id; stSync(); $("t-sys").scrollTop = 0; $("st-detail").scrollTop = 0; }
+function stOpen() { stSync(); }
+$("st-back").onclick = () => { buzz(8); const p = stPg(ST.pg); stGo(p && p.dataset.parent ? p.dataset.parent : ""); };
+$("t-sys").addEventListener("click", (e) => {
+  const r = e.target.closest(".st-row"); if (!r) { setTimeout(stVals, 0); return; }
+  buzz(8);
+  if (r.dataset.go) stGo(r.dataset.go);
+  else if (r.id === "st-pcopen") pcOpen(false);
+  else if (r.dataset.view) showView(r.dataset.view);
+  else if (r.id === "st-pomo") { pm.mode = "foco"; store.set("tkmode", "foco"); pm.cfg = true; pomoShowMode(); if (pm.d) pomoRender(); showView("tasks"); }
+});
+$("t-sys").addEventListener("change", () => setTimeout(stVals, 0));
+addEventListener("resize", () => { if (vis("sys")) stSync(); });
+
 // ---- barra de navegação configurável (Ajustes › Barra de navegação). A configuração {v,order,hidden} é uma chave de layout ("nav").
 // Itens fora da barra (ou que não cabem: LAY.NAV.CAP) ficam sempre acessíveis em Mais (lista na vista "more" e, na barra lateral larga, abaixo do rótulo Mais).
 const NAVM = {   // id: [rótulo na barra, rótulo longo, ícone, vista de entrada]
@@ -4497,7 +4636,7 @@ async function wxRefresh() {
   } catch (e) { if (e.message !== "offline") toast(e.message, "bad"); }
   finally { wx.busy = false; const nb = $("wx-ref"); if (nb) nb.disabled = false; }
 }
-function wxGoSettings() { buzz(8); showView("sys"); requestAnimationFrame(() => $("wx-set-h")?.scrollIntoView({ block: "start" })); }
+function wxGoSettings() { buzz(8); showView("sys"); stGo("wx"); }
 $("t-weather").addEventListener("click", (e) => { if (e.target.closest("#wx-ref")) { buzz(8); wxRefresh(); } else if (e.target.closest("[data-wx]")) wxGoSettings(); });
 function wxShow() {
   wxRender();
@@ -5557,39 +5696,41 @@ $("lume-bal").addEventListener("click", (e) => {
 // ---- Ajustes › Lume (tudo no aparelho)
 const LU_ROUTES = { notif: "Notificações do PC", export: "Arquivo exportado", alert: "Arquivo fora do lugar", pomo: "Pomodoro", trello: "Trello", steam: "Download da Steam", download: "Download concluído", focus: "Resumo do foco" };
 function lumeSetRender() {
-  const root = $("lume-set"); if (!root) return;
+  const slots = document.querySelectorAll("[data-lume]"); if (!slots.length) return;
   const c = LM.cfg(), sw = (k, on, lab) => `<button class="switch${on ? " on" : ""}" data-lk="${k}" data-t="sw" aria-pressed="${on}" aria-label="${lab}"></button>`;
   const sel = (k, val, opts, lab) => `<select class="sel" data-lk="${k}" aria-label="${lab}">${opts.map(([v, l]) => `<option value="${v}"${String(v) === String(val) ? " selected" : ""}>${l}</option>`).join("")}</select>`;
   const row = (lab, small, ctl) => `<div class="set"><label>${lab}${small ? `<small>${small}</small>` : ""}</label><span class="lm-ctl">${ctl}</span></div>`;
   const noWork = welcome.host && !welcome.features?.work ? "indisponível neste PC" : "";
-  root.innerHTML =
+  const P = {};
+  P.geral =
     row("Mostrar o Lume", "Bolha sobre as telas; “só pela tela” esconde a bolha e os balões", sel("mode", c.mode, [["on", "Ligado"], ["hide", "Só pela tela"], ["off", "Desligado"]], "Mostrar o Lume")) +
     row("Economia", "Sem animação (poses paradas); liga sozinho com “reduzir movimento” do sistema", sw("economy", c.economy, "Economia")) +
     row("Esconder em Mouse e Tela do PC", "Nessas telas a bolha atrapalharia", sw("hideCtrl", c.hideCtrl, "Esconder em Mouse e Tela do PC")) +
     row("Silenciar hoje", "Corta os lembretes dele até amanhã (avisos do PC continuam)", sw("silence", c.silence === LM.ymd(Date.now() / 1000), "Silenciar hoje")) +
-    row("Posição da bolha", "Volta à borda esquerda, embaixo", '<button class="btn sm" data-lk="pos" data-t="btn">Recolocar</button>') +
-    "<h3 class=\"lm-h\">Lembretes</h3>" +
+    row("Posição do Lume", "Volta à borda esquerda, embaixo", '<button class="btn sm" data-lk="pos" data-t="btn">Recolocar</button>') +
+    row("Zerar o Lume", "Apaga estado e histórico; os ajustes ficam", '<button class="btn sm" data-lk="reset" data-t="btn">Zerar</button>');
+  P.lemb =
     row("Água", "Uma fala do Lume, sem número", sw("water.on", c.water.on, "Lembrete de água") + sel("water.min", c.water.min, [[60, "60 min"], [90, "90 min"], [120, "120 min"], [180, "180 min"]], "Água a cada")) +
     row("Pausa por trabalho contínuo", noWork || "Usa os minutos reais de trabalho no PC ativo", sw("pause.on", c.pause.on, "Lembrete de pausa") + sel("pause.after", c.pause.after, [[45, "45 min"], [60, "60 min"], [90, "90 min"], [120, "120 min"]], "Pausa após")) +
     row("Repetir a pausa", "Depois do primeiro aviso, no máximo 3 por sequência", sel("pause.every", c.pause.every, [[15, "a cada 15 min"], [30, "a cada 30 min"], [0, "nunca"]], "Repetir a pausa")) +
     row("Pomodoro", "Comemora o foco concluído", sw("pomo.on", c.pomo.on, "Pomodoro")) +
     row("Fim do dia", "Só números reais de trabalho e tarefas; sem dado, ele não fala", sw("eod.on", c.eod.on, "Fim do dia") + `<input type="time" class="sel" data-lk="eod.at" value="${c.eod.at}" aria-label="Horário do fim do dia">`) +
     row("Tarefas", "Comemora tarefa concluída", sw("tasks.on", c.tasks.on, "Tarefas")) +
-    row("Trello", "Resumo das 9 h pelo balão (só a contagem; toque abre a lista)", sw("trello.on", c.trello.on, "Trello")) +
-    "<h3 class=\"lm-h\">Horários e limites</h3>" +
+    row("Trello", "Resumo das 9 h pelo balão (só a contagem; toque abre a lista)", sw("trello.on", c.trello.on, "Trello"));
+  P.hor =
     row("Horário ativo", "Fora dele o Lume não fala (avisos do PC seguem no toast)", `<input type="time" class="sel" data-lk="active.0" value="${c.active[0]}" aria-label="Começa às"><input type="time" class="sel" data-lk="active.1" value="${c.active[1]}" aria-label="Termina às">`) +
     row("Falas por dia", "Lembretes espontâneos, não conta os avisos do PC", sel("maxDay", c.maxDay, [[3, "3"], [6, "6"], [10, "10"]], "Falas por dia")) +
-    row("Tempo de sono", "Quando você o põe para dormir", sel("sleepMin", c.sleepMin, [[15, "15 min"], [30, "30 min"], [60, "1 h"], [120, "2 h"]], "Tempo de sono")) +
-    "<h3 class=\"lm-h\">Avisos do PC: balão ou aviso comum</h3>" +
-    Object.entries(LU_ROUTES).map(([k, l]) => row(l, "", sel("route." + k, c.route[k], [["b", "Balão"], ["t", "Aviso comum"]], l))).join("") +
-    row("Zerar o Lume", "Apaga estado e histórico; os ajustes ficam", '<button class="btn sm" data-lk="reset" data-t="btn">Zerar</button>');
+    row("Tempo de sono", "Quando você o põe para dormir", sel("sleepMin", c.sleepMin, [[15, "15 min"], [30, "30 min"], [60, "1 h"], [120, "2 h"]], "Tempo de sono"));
+  P.rota = '<p class="st-note">Cada aviso do PC aparece uma vez: como balão do Lume ou como aviso comum.</p>' +
+    Object.entries(LU_ROUTES).map(([k, l]) => row(l, "", sel("route." + k, c.route[k], [["b", "Balão"], ["t", "Aviso comum"]], l))).join("");
+  slots.forEach((el) => { el.innerHTML = P[el.dataset.lume] || ""; });
 }
 function lumeSetPatch(path, val) {
   const p = path.split("."); if (p.length === 1) return { [p[0]]: val };
   if (p[0] === "active") { const a = LM.cfg().active.slice(); a[+p[1]] = val; return { active: a }; }
   return { [p[0]]: { [p[1]]: val } };
 }
-$("lume-set").addEventListener("click", (e) => {
+$("t-sys").addEventListener("click", (e) => {
   const b = e.target.closest("[data-lk]"); if (!b || b.tagName === "SELECT" || b.tagName === "INPUT") return; buzz(8);
   const k = b.dataset.lk;
   if (k === "pos") { LU.pos = {}; store.del("lumepos"); lumePaint(); toast("Lume na borda esquerda", "ok"); }
@@ -5602,7 +5743,7 @@ $("lume-set").addEventListener("click", (e) => {
     lumePaint(); lumeSetRender();
   }
 });
-$("lume-set").addEventListener("change", (e) => {
+$("t-sys").addEventListener("change", (e) => {
   const el = e.target.closest("select[data-lk], input[data-lk]"); if (!el) return;
   const k = el.dataset.lk, num = /^(water\.min|pause\.after|pause\.every|maxDay|sleepMin)$/.test(k);
   LM.setCfg(lumeSetPatch(k, num ? +el.value : el.value)); lumePaint(); lumeSetRender();
