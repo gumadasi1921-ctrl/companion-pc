@@ -280,6 +280,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:30px;heigh
    </div>
   </div>
  </div>
+ <div class="card hidden" id="pf-card">
+  <div class="rowb"><h3 style="margin:0">Perfis de áudio</h3><span class="sub">toque para aplicar</span></div>
+  <div id="pf-list"></div>
+ </div>
  <div class="card">
   <div class="rowb"><h3 style="margin:0">Mixer</h3><span class="sub" id="mx-master"></span></div>
   <div id="mx-list"><div class="sk"></div><div class="sk w2"></div></div>
@@ -560,7 +564,7 @@ function showPage(n) {
   var bs = $("tabs").children, tn = n === "notif" ? "inicio" : n;
   for (i = 0; i < bs.length; i++) bs[i].className = bs[i].getAttribute("data-pg") === tn ? "on" : "";
   $("main").scrollTop = 0;
-  if (n === "radio") pollMixer();
+  if (n === "radio") { pollMixer(); loadProfiles(); }
   if (n === "botoes") renderDeck();
   if (n === "inicio") { loadTasks(); loadWork(); }
   if (n === "jogos") loadGames();
@@ -606,6 +610,22 @@ function pollMixer() {
   mixBusy = true;
   send("mixer.get", {}).then(function (d) { S.mix = d; dirty = true; mixBusy = false; }, function () { mixBusy = false; });
 }
+var pfLoaded = false;
+function loadProfiles() {
+  if (!(welcome.features && welcome.features.mixer)) return;
+  send("audio.profiles", {}).then(function (d) {
+    var i, h = "";
+    for (i = 0; i < d.length; i++) h += '<button class="chip" style="margin:4px 6px 0 0" data-prof="' + esc(d[i].id) + '">' + esc(d[i].name) + "</button>";
+    $("pf-card").className = d.length ? "card" : "card hidden";
+    setHtml($("pf-list"), h); pfLoaded = true;
+  }, quiet);
+}
+$("pf-list").addEventListener("click", function (e) {
+  var id = e.target.getAttribute("data-prof"); if (!id) return;
+  send("audio.profile_apply", { id: id }).then(function (r) {
+    toast(r.skipped.length ? "Aplicado. Pulado: " + r.skipped.join(", ") : "Perfil aplicado"); pollMixer();
+  }, function (er) { if (er.message !== "offline") toast("O PC recusou: " + er.message, true); });
+});
 function loadDeck() { send("deck.get", {}).then(function (d) { S.deck = d; deckHtml = null; renderDeck(); }, quiet); }
 
 // ---------------------------------------------------------------- Início e Rádio

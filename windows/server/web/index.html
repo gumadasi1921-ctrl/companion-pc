@@ -1081,6 +1081,12 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 }
 /* Mixer: lista agrupada */
 .mixer .card { padding: 6px 0; overflow: hidden; }
+.prof-row { display: flex; align-items: center; gap: 6px; }
+.prof-row .outrow i { display: none; }
+.prof-row .prof-x { flex: none; width: 44px; min-height: 44px; font-size: 18px; opacity: .7; }
+.prof-sub { display: block; font-size: 12px; opacity: .65; }
+.prof-new { display: flex; gap: 8px; padding: 8px 14px 6px; }
+.prof-new input { flex: 1; min-width: 0; min-height: 44px; padding: 0 10px; font: inherit; color: var(--text, inherit); background: transparent; border: 1px solid var(--p3, currentColor); border-radius: 4px; }
 .mixer .card h3 { padding: 8px 14px 6px; }
 :root[data-theme="modern"] .mixer .card { background: var(--surface); }
 .outrow { min-height: 48px; padding: 6px 14px; }
@@ -1400,6 +1406,8 @@ input.num { min-height: 36px; }
   <section class="tab" id="t-mix">
     <div class="mixer" id="mixer">
       <div class="card"><h3><span>Saída de áudio</span><span>toque para trocar</span></h3><div id="outs"><div class="empty">Carregando…</div></div></div>
+      <div class="card" id="prof-card"><h3><span>Perfis de áudio</span><span>toque para aplicar</span></h3><div id="prof-list"></div>
+        <div class="prof-new"><input id="prof-name" type="text" maxlength="40" placeholder="Nome do perfil" autocomplete="off"><button class="btn" id="prof-save">Salvar o atual</button></div></div>
       <div class="card"><h3><span>Volume por aplicativo</span><span id="mx-master"></span></h3><div id="mx-list"></div></div>
     </div>
   </section>
@@ -1893,6 +1901,7 @@ function showView(name, temp) {
   if (vis("dash")) requestAnimationFrame(drawSparks);
   if (vis("screen")) requestAnimationFrame(() => { layoutScreen(); screenLoop(); });
   if (vis("media") || vis("mix")) { mixT = 0; renderMixer(); pollMixer(); }
+  if (vis("mix")) loadProfiles();
   if (vis("games")) loadGamesExtra();
   if (vis("dota")) dotaShow();
   if (vis("work")) loadWork(true);
@@ -3895,6 +3904,34 @@ function bindMixRow(row) {
 $("outs").onclick = (e) => {
   const b = e.target.closest(".outrow"); if (!b || b.classList.contains("on")) return;
   buzz(); act("audio.set_output", { id: b.dataset.id }).then((name) => { if (name) toast("Saída: " + name, "ok"); mixT = 0; pollMixer(); });
+};
+// Perfis de áudio (audio.profiles / profile_save / profile_apply / profile_delete)
+let profData = null;
+async function loadProfiles() {
+  if (!welcome.features?.mixer) return;
+  try { profData = await send("audio.profiles"); renderProfiles(); } catch {}
+}
+function renderProfiles() {
+  const el = $("prof-list"); if (!el) return;
+  el.innerHTML = (profData || []).map((p) => {
+    const sub = [p.output, p.apps ? p.apps + " app" + (p.apps > 1 ? "s" : "") : "", p.mic ? "microfone" : ""].filter(Boolean).join(" · ");
+    return `<div class="prof-row" data-id="${esc(p.id)}"><button class="outrow prof-ap"><span>${esc(p.name)}${sub ? `<small class="prof-sub">${esc(sub)}</small>` : ""}</span></button><button class="prof-x" aria-label="Apagar ${esc(p.name)}">×</button></div>`;
+  }).join("") || '<div class="empty">Nenhum perfil salvo</div>';
+}
+$("prof-list").onclick = (e) => {
+  const row = e.target.closest(".prof-row"); if (!row) return; const id = row.dataset.id, nm = (profData || []).find((p) => p.id === id)?.name || "";
+  if (e.target.closest(".prof-x")) {
+    if (!confirm(`Apagar o perfil "${nm}"?`)) return;
+    act("audio.profile_delete", { id }).then((d) => { if (d) { profData = d; renderProfiles(); } }); return;
+  }
+  act("audio.profile_apply", { id }).then((r) => {
+    if (!r) return; mixT = 0; pollMixer();
+    toast(r.skipped.length ? "Aplicado. Pulado: " + r.skipped.join(", ") : "Perfil aplicado: " + nm, r.skipped.length ? "" : "ok");
+  });
+};
+$("prof-save").onclick = () => {
+  const n = $("prof-name").value.trim();
+  act("audio.profile_save", { name: n }, "Perfil salvo").then((d) => { if (d) { profData = d; $("prof-name").value = ""; renderProfiles(); } });
 };
 $("out-chip").onclick = () => { buzz(); act("audio.cycle").then((name) => { if (name) toast("Saída: " + name, "ok"); mixT = 0; pollMixer(); }); };
 // ---------------------------------------------------------------- Tela do PC

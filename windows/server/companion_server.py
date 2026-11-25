@@ -58,6 +58,7 @@ from websockets.http11 import Response
 from websockets.exceptions import ConnectionClosed
 
 import alerts
+import audio_profiles
 import backup
 import dota
 import dota_img
@@ -927,6 +928,7 @@ async def call_action(action, params):
 
 
 DECK = extras.Deck(BASE)
+AUDIO_PROFILES = audio_profiles.AudioProfiles(BASE)
 UPLOADS = extras.Uploads(CFG.get("upload_dir") or DEFAULT_CFG["upload_dir"])
 DOWNLOADS = extras.FolderWatcher(lambda: [CFG.get("downloads_dir") or DEFAULT_CFG["downloads_dir"]])
 
@@ -1013,6 +1015,10 @@ ASYNC_ACTIONS = {
     "mixer.set": lambda p: pc_info.mixer_set(str(p["key"]), p.get("level"), p.get("muted")),
     "audio.set_output": lambda p: output_action(p.get("id")),
     "audio.cycle": lambda p: output_action(cycle=True),
+    "audio.profiles": lambda p: AUDIO_PROFILES.list(),
+    "audio.profile_save": lambda p: profile_save(p),
+    "audio.profile_apply": lambda p: profile_apply(p),
+    "audio.profile_delete": lambda p: AUDIO_PROFILES.delete(str(p.get("id"))),
     "deck.press": lambda p: deck_press(p),
     "clip.get": lambda p: asyncio.to_thread(extras.clip_get),
     "screen.shot": lambda p: asyncio.to_thread(extras.screen_shot, p.get("mon", 0), p.get("w", 1280),
@@ -1099,6 +1105,18 @@ async def output_action(dev_id=None, cycle=False):
     name = await pc_info.set_output(dev_id, cycle)
     asyncio.create_task(push_now())
     return name
+
+
+async def profile_save(p):
+    snap = await pc_info.profile_snapshot()
+    return AUDIO_PROFILES.save(p.get("name"), snap, p.get("id"))
+
+
+async def profile_apply(p):
+    prof = AUDIO_PROFILES.get(str(p.get("id")))
+    res = await pc_info.profile_apply(prof["data"])
+    asyncio.create_task(push_now())
+    return res
 
 
 async def screen_click(p):
@@ -1365,7 +1383,8 @@ def release_held():
 sent_art: dict = {}
 # não vão para o log: repetitivas ou com conteúdo pessoal (texto digitado/copiado)
 QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "mouse.scroll", "key.text", "clip.set", "clip.get", "file.chunk",
-                 "screen.shot", "mixer.get", "deck.get", "deck.save",  # deck.save: textos/macros dos botões
+                 "screen.shot", "mixer.get", "audio.profiles", "audio.profile_save", "audio.profile_apply", "audio.profile_delete",  # nome do perfil
+                 "deck.get", "deck.save",  # deck.save: textos/macros dos botões
                  "work.get", "work.week", "work.csv", "work.month",  # nomes de cliente/job/arquivo
                  "tasks.get", "tasks.toggle",  # texto das tarefas
                  "export.link", "export.reveal",  # nome de arquivo de cliente

@@ -339,6 +339,107 @@ def _mic_set(muted):
     return _mic_get(fresh=True)
 
 
+# --------------------------------------------------------------------------
+# Perfis de áudio (saída + volume geral + microfone + apps): ler e aplicar
+# --------------------------------------------------------------------------
+def _profile_snapshot():
+    snap = {"apps": {}}
+    try:
+        cur = next((o for o in _outputs() if o["default"]), None)
+        if cur:
+            snap["output"] = {"id": cur["id"], "name": cur["name"]}
+    except Exception as e:  # noqa: BLE001
+        log.debug("perfil/saída: %s", type(e).__name__)
+    m = _volume_get()
+    if m:
+        snap["master"] = {"level": m["level"], "muted": m["muted"]}
+    try:
+        mics = _mics()
+        if mics:
+            ev = mics[0].EndpointVolume
+            snap["mic"] = {"level": round(ev.GetMasterVolumeLevelScalar() * 100), "muted": bool(ev.GetMute())}
+    except Exception as e:  # noqa: BLE001  (volume do microfone instável: guarda o que der)
+        log.debug("perfil/microfone: %s", type(e).__name__)
+        try:
+            mic = _mic_get(fresh=True)
+            if mic:
+                snap["mic"] = {"muted": mic["muted"]}
+        except Exception:  # noqa: BLE001
+            pass
+    for g in _sessions().values():
+        try:
+            v = g["items"][0].SimpleAudioVolume
+            snap["apps"][g["key"]] = {"name": g["name"], "level": round(v.GetMasterVolume() * 100), "muted": bool(v.GetMute())}
+        except Exception:  # noqa: BLE001
+            continue
+    return snap
+
+
+def _profile_apply(data):
+    """Aplica um perfil. Devolve {"ok": [...], "skipped": [...]} em texto curto; o que não existe agora é pulado, nunca trocado."""
+    ok, skipped = [], []
+    o = data.get("output")
+    if o:
+        try:
+            _set_output(o["id"])
+            ok.append("saída")
+        except Exception:  # noqa: BLE001
+            skipped.append("saída não encontrada")
+    m = data.get("master")
+    if m:
+        try:
+            _volume_set(m.get("level"), m.get("muted"))
+            ok.append("volume geral")
+        except Exception:  # noqa: BLE001
+            skipped.append("volume geral")
+    mic = data.get("mic")
+    if mic:
+        try:
+            mics = _mics()
+            if not mics:
+                raise RuntimeError("sem microfone")
+            for d in mics:
+                if mic.get("level") is not None:
+                    d.EndpointVolume.SetMasterVolumeLevelScalar(max(0.0, min(1.0, mic["level"] / 100)), None)
+                if mic.get("muted") is not None:
+                    d.EndpointVolume.SetMute(1 if mic["muted"] else 0, None)
+            _mic_get(fresh=True)
+            ok.append("microfone")
+        except Exception:  # noqa: BLE001
+            skipped.append("microfone não encontrado")
+    apps = data.get("apps") or {}
+    if apps:
+        groups, miss, done = _sessions(), 0, 0
+        for key, a in apps.items():
+            g = groups.get(key)
+            if not g:
+                miss += 1
+                continue
+            try:
+                for s in g["items"]:
+                    v = s.SimpleAudioVolume
+                    if a.get("level") is not None:
+                        v.SetMasterVolume(max(0.0, min(1.0, a["level"] / 100)), None)
+                    if a.get("muted") is not None:
+                        v.SetMute(1 if a["muted"] else 0, None)
+                done += 1
+            except Exception:  # noqa: BLE001
+                miss += 1
+        if done:
+            ok.append(f"{done} app" + ("s" if done != 1 else ""))
+        if miss:
+            skipped.append(f"{miss} app" + ("s" if miss != 1 else "") + " não estava" + ("m" if miss != 1 else "") + " tocando")
+    return {"ok": ok, "skipped": skipped}
+
+
+async def profile_snapshot():
+    return await _on_com(_profile_snapshot)
+
+
+async def profile_apply(data):
+    return await _on_com(_profile_apply, data)
+
+
 async def mic_get():
     if not HAS_VOLUME:
         return None
