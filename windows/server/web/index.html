@@ -1467,6 +1467,30 @@ header .host { display: none; }
 .z-P .pq .hchartbox { min-height: 32px; } .z-P .pq .hchart { min-height: 32px; max-height: none; }
 .z-P .hringbox .hring { width: 84px; height: 84px; }
 .hpage .hw.z-P .hringbox { align-items: center; } .hpage .hw.z-P .hringbox .hring { height: 100%; width: auto; max-height: 112px; aspect-ratio: 1; }
+/* P: Tempo (vertical) e Tocando (capa grande) */
+.pq-mid { display: flex; flex-direction: column; gap: 2px; min-width: 0; min-height: 0; flex: 1 1 auto; overflow: hidden; }
+.hpage .hw .pq .pq-mid { flex: 1 1 0; justify-content: flex-start; }
+.wxp2.pq { gap: 4px; }
+.wxtop { display: flex; align-items: center; gap: 6px; min-width: 0; flex: none; }
+.wxtop .wxt { font-size: clamp(28px, 15cqw, 38px); line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; }
+.wxtop .wxi.big { width: clamp(28px, 14cqw, 36px); height: clamp(28px, 14cqw, 36px); flex: none; }
+.wxcs { margin-left: auto; align-self: flex-start; min-width: 0; max-width: 42%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--p3t); }
+@container (max-width: 170px) { .wxcs { display: none; } }
+.wxp2 .wxr { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--p2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wxp2 .wxr .hi { width: 14px; height: 14px; }
+.wxp2 .wxhrs { flex: none; padding-top: 6px; border-top: 1px solid var(--separator, var(--p4)); font-size: 11px; }
+.wxp2 .wxhrs .wxi { width: 22px; height: 22px; }
+.wxp2 .wxhrs b { font-size: 14px; }
+.pqn-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; flex: 1 1 auto; min-height: 44px; min-width: 0; }
+.hpage .hw .pqn-top { flex: 1 1 0; }
+.z-P .pqn .hart { width: auto; height: 100%; min-height: 44px; aspect-ratio: 1; flex: none; max-width: calc(100% - 52px); border-radius: var(--r-md, var(--r-list, 4px)); }
+.z-P .pqn .hart .hi { width: 30px; height: 30px; }
+.z-P .pqn .hti { -webkit-line-clamp: 2; font-size: 14px; }
+.z-P .pqn .har { -webkit-line-clamp: 1; font-size: 12px; margin-top: 0; }
+.pqn .hbar { height: 4px; flex: none; }
+.home.port .hw.z-P { min-height: 136px; }
+.home.port .z-P .pqn .hart { width: 72px; height: 72px; }
+.home.port .pq-fill { min-height: 56px; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -3505,7 +3529,7 @@ const HOME_W = {
       const play = `<button class="hplay" data-a="play" aria-label="Tocar ou pausar">${ic("play")}</button>`;
       const ctl = `<div class="hctl"><button data-a="prev" aria-label="Anterior">${ic("skip-back")}</button>${play}<button data-a="next" aria-label="Próxima">${ic("skip-forward")}</button></div>`;
       const meta = (alb) => `<div class="hmeta"><div class="hti" data-k="title"></div><div class="har" data-k="artist"></div>${alb ? '<div class="hal" data-k="album"></div>' : ""}</div>`;
-      if (z === "P") return `<div class="hnow">${art}${meta(false)}${play}</div>${prog}`;
+      if (z === "P") return `<div class="pq pqn" data-clip><div class="pqn-top">${art}${play}</div>${meta(false)}${prog}</div>`;
       if (z === "L") return `<div class="hnow">${art}<div class="hmeta"><div class="hti" data-k="title"></div><div class="har" data-k="artist"></div>${prog}${times}</div>${ctl}</div>`;
       return `<div class="hw-t"><span>Tocando</span><span data-k="app"></span></div><div class="hnow big">${art}${meta(true)}</div>${prog}${times}${ctl}`;
     },
@@ -3970,9 +3994,10 @@ function wxWidgetHtml(z, d, pg) {
   if (!d.place) return z === "P" ? `<div class="wxp" data-wx="go">${ic("cloud-sun")}<span>Escolher cidade</span></div>` : '<div class="hw-na" data-wx="go">Escolha sua cidade em Ajustes › Tempo</div>';
   const c = d.current, t0 = d.daily?.[0];
   if (!c) return z === "P" ? `<div class="wxp">${ic("cloud")}<b>–</b></div>` : '<div class="hw-na">Sem previsão agora (sem conexão com o serviço)</div>';
-  if (z === "P") {
-    const hasR = t0 && Number.isFinite(t0.min) && Number.isFinite(t0.max);
-    return `<div class="wxp2" data-clip><div class="wxn">${wxIc(c.icon, "wxi big")}<b class="wxt">${wxT(c.temp)}</b></div>${hasR ? `<div class="wxr"><span>mín ${wxT(t0.min)} · máx ${wxT(t0.max)}</span></div>` : ""}${c.text ? `<div class="wxc1">${esc(c.text)}</div>` : ""}${d.place.name ? `<div class="wxr wxcity"><span>${esc(d.place.name)}</span></div>` : ""}</div>`;
+  if (z === "P") {   // vertical: ícone + temperatura, depois condição / mín·máx / chuva (somem de baixo para cima se faltar altura) e as 3 horas fixas na base
+    const hasR = t0 && Number.isFinite(t0.min) && Number.isFinite(t0.max), pop = Number.isFinite(t0?.pop), hr = wxHrs((d.hourly || []).slice(0, 9), 4);
+    return `<div class="wxp2 pq" data-clip><div class="wxtop">${wxIc(c.icon, "wxi big")}<b class="wxt">${wxT(c.temp)}</b>${d.place.name ? `<span class="wxcs">${esc(d.place.name)}</span>` : ""}</div>`
+      + `<div class="pq-mid" data-clip>${c.text ? `<div class="wxc1">${esc(c.text)}</div>` : ""}${hasR ? `<div class="wxr"><span>mín ${wxT(t0.min)} · máx ${wxT(t0.max)}</span></div>` : ""}${pop ? `<div class="wxr">${ic("droplets")}<span>Chuva ${Math.round(t0.pop)}%</span></div>` : ""}${d.stale && d.updated_at ? `<div class="wxr wxold">Desatualizado desde ${wxAt(d)}</div>` : ""}</div>${hr}</div>`;
   }
   const rng = t0 && (Number.isFinite(t0.min) || Number.isFinite(t0.max)) ? `<div class="wxr">mín ${wxT(t0.min)} · máx ${wxT(t0.max)}</div>` : "";
   const rain = Number.isFinite(t0?.pop) ? `<div class="wxr">${ic("droplets")}<span>Chuva ${Math.round(t0.pop)}%</span></div>` : "";
