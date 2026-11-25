@@ -1304,6 +1304,7 @@ header .hchip::after { content: ""; position: absolute; inset: -10px -8px; }
 /* celular deitado: escala 4/8 nos espaços, Tarefas sem título repetido (o trilho já mostra a tela) e botões do deck ocupando a altura */
 @media (orientation: landscape) and (max-height: 560px) {
   .hpage { gap: 8px; } .hw.z-P { padding: 8px; }
+  .media .mtitle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* título longo em 1 linha: senão a coluna estoura a altura e corta o topo */
   body.onbar #t-tasks > .home-head { display: none; }
   #t-deck #deck-grid { grid-auto-rows: minmax(80px, 1fr); }
 }
