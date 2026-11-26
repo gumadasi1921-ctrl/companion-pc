@@ -133,4 +133,57 @@ function fresh(initial) {
   clock = T(9, 0, 26); t("dia seguinte: reentrada com nova data conta de novo", M.done("tr", { today: "2026-11-26", done: { today_ids: ["c1"] } }, clock), 1);
 }
 
+// ---- almoço (12:00, dias úteis, 1 por dia, adiar 15 min, foco, virada do dia, 2ª pergunta com nomes reais)
+{
+  clock = T(9); const { M } = fresh(); M.setCfg({ water: { on: false } }); const D = (h, mi = 0, d = 25) => M.due(T(h, mi, d), {});
+  t("padrão: ligado, 12:00, dias úteis", M.cfg().lunch, { on: true, at: "12:00", days: "wk" });
+  t("11:59 ainda não", D(11, 59), null);
+  t("12:00 pede o almoço (1º pedido)", D(12), { id: "lunch", n: 1, at: "12:00" });
+  t("texto do meio-dia", M.text("lunch", { n: 1, at: "12:00" }), "Deu meio-dia, hora do almoço! Já vai almoçar?");
+  t("horário ajustado aparece no texto", M.text("lunch", { n: 1, at: "12:30" }), "Deu 12:30, hora do almoço! Já vai almoçar?");
+  clock = T(12); t("pedir conta 1", M.lunchAsk(clock), 1);
+  t("não repete sem adiar (sem resposta some sozinho)", [D(12, 5), D(12, 40)], [null, null]);
+  M.lunchLater(T(12, 1)); t("adiar: antes dos 15 min nada", D(12, 15), null);
+  t("adiar: 12:16 repete", D(12, 16), { id: "lunch", n: 2, at: "12:00" });
+  t("2º pedido tem texto próprio", M.text("lunch", { n: 2, at: "12:00" }), "Ainda dá tempo: já vai almoçar?");
+  M.lunchAsk(T(12, 16)); M.lunchLater(T(12, 17)); t("só repete 1 vez", D(12, 40), null);
+  const w0 = M.counts(T(12, 20)).pause; t("vou agora registra pausa real", [M.lunchGo(T(12, 20)).ok, M.counts(T(12, 20)).pause], [true, w0 + 1]);
+  t("depois do vou agora não insiste", [D(12, 21), D(14)], [null, null]);
+  t("não conta nas falas do dia", M.lunchState(T(13)).n, 2);
+  clock = T(12, 30, 26); t("dia seguinte (quinta) volta a perguntar", M.due(clock, {}), { id: "lunch", n: 1, at: "12:00" });
+}
+{
+  clock = T(9); const { M } = fresh(); M.setCfg({ water: { on: false } });
+  t("sábado não pergunta (dias úteis)", M.due(T(12, 0, 28), {}), null); t("domingo também não", M.due(T(12, 0, 29), {}), null);
+  M.setCfg({ lunch: { days: "all" } }); t("todos os dias: sábado pergunta", M.due(T(12, 0, 28), {}).id, "lunch");
+  M.setCfg({ lunch: { on: false } }); t("desligado não pergunta", M.due(T(12, 0, 28), {}), null);
+  M.setCfg({ lunch: { on: true, at: "13:15" } }); t("horário ajustado", [M.due(T(13, 14), {}), M.due(T(13, 15), {}).id], [null, "lunch"]);
+  M.setCfg({ lunch: { at: "xx" } }); t("horário inválido volta a 12:00", M.cfg().lunch.at, "12:00");
+}
+{
+  clock = T(9); const { M } = fresh(); M.setCfg({ water: { on: false } });
+  t("foco/Pomodoro rodando: nada", M.due(T(12), { focus: true }), null);
+  t("passou o foco: ainda pergunta (até 90 min depois)", [M.due(T(13, 0), {}).id, M.due(T(13, 31), {})], ["lunch", null]);
+  M.silence(true, T(9)); t("silenciar hoje: nada", M.due(T(12), {}), null); M.silence(false, T(9));
+  M.setCfg({ mode: "hide" }); t("Lume não ligado: nada", M.due(T(12), {}), null); M.setCfg({ mode: "on" });
+  M.setCfg({ active: ["13:00", "20:00"] }); t("fora do horário ativo: nada", M.due(T(12), {}), null); M.setCfg({ active: ["08:00", "22:00"] });
+  M.sleep(60, T(11, 30)); t("dormindo: ainda vem (o app mostra como toast)", M.due(T(12), {}).id, "lunch");
+  t("Lume dormindo não bloqueia nem queima o limite de falas", M.lunchAsk(T(12)), 1);
+}
+{
+  clock = T(9); const { M } = fresh(); M.setCfg({ water: { on: false } });
+  const names = ["TOP MARKET - A4", "B - Job", "C - Job", "D - Job", "E - Job"];
+  t("1 card", M.text("lunch2", { names: [names[0]] }), "Você tirou de Em execução? Ainda está: TOP MARKET - A4");
+  t("até 3 nomes e +N", M.text("lunch2", { names }), "Você tirou de Em execução? Ainda estão: TOP MARKET - A4, B - Job, C - Job +2");
+  t("sem card em execução = sem 2ª pergunta", [M.text("lunch2", { names: [] }), M.text("lunch2", {}), M.text("lunch2", { names: [null, ""] })], [null, null, null]);
+  t("nome enorme é cortado", M.text("lunch2", { names: ["X".repeat(80)] }).length < 90, true);
+  M.lunchRem(T(12, 0)); t("vou tirar vale 10 min", [M.lunchRemPending(T(12, 9)) > 0, M.lunchRemPending(T(12, 11))], [true, 0]);
+  M.lunchRem(T(12, 0)); M.lunchRemClear(T(12, 2)); t("já tirei/lembrou: limpa", M.lunchRemPending(T(12, 3)), 0);
+  M.lunchRem(T(12, 0)); clock = T(9, 0, 26); t("virada do dia zera o vou tirar", M.lunchRemPending(clock), 0);
+  const raw = JSON.parse(fresh({ v: 1, cfg: { lunch: { on: false, at: "11:45", days: "all" } } }).mem.get("mascot") || "null");
+  const r = fresh({ v: 1, cfg: { lunch: { on: false, at: "11:45", days: "all" } } }); t("lê a config guardada", r.M.cfg().lunch, { on: false, at: "11:45", days: "all" });
+  t("estado antigo sem lunch carrega", fresh({ v: 1, daily: { day: "2026-11-25", count: 1 } }).M.lunchState(T(9)).n, 0);
+  t("rota do almoço existe", fresh().M.cfg().route.lunch, "b");
+}
+
 console.log(fail ? `\n${fail} FALHA(S)` : "\nTodos OK"); process.exit(fail ? 1 : 0);
