@@ -1664,6 +1664,17 @@ header .host { display: none; }
 #hw-layer .hw-fl { transform: scale(1.04); opacity: .96; box-shadow: 0 12px 32px rgba(0, 0, 0, .5); animation: none; }
 @media (prefers-reduced-motion: reduce) { .home.editing .hw:not(.hw-slot) { animation: none; outline: 2px dashed var(--p3); outline-offset: -3px; } }
 html.lm-still .home.editing .hw:not(.hw-slot) { animation: none; outline: 2px dashed var(--p3); outline-offset: -3px; }
+
+.home.editing .hw { position: relative; }
+.hw-ed { display: none; position: absolute; inset: 0; z-index: 5; border-radius: inherit; background: var(--scrim-soft, rgba(0, 0, 0, .38)); }
+.home.editing .hw-ed { display: block; }
+.hw-x { position: absolute; left: 0; top: 0; width: 44px; height: 44px; display: grid; place-items: center; padding: 0; border: 0; background: none; color: var(--alert, #ff453a); }
+.hw-x .hi { width: 26px; height: 26px; border-radius: 50%; background: var(--panel, var(--bg)); stroke-width: 2; }
+.hw-sz { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; max-width: calc(100% - 12px); }
+.hw-sz button { width: 44px; padding: 0; border: 1px solid var(--p3); border-radius: var(--r-sm, 2px); background: var(--panel, var(--bg)); color: var(--p); font-weight: 700; }
+.hw-sz button[aria-pressed="true"] { background: var(--accent-fill, var(--p)); border-color: var(--accent-fill, var(--p)); color: var(--on-accent, var(--bg)); text-shadow: none; }
+.hw-sz button:disabled { opacity: .35; }
+#hw-gal .wd-pills { max-height: 50vh; overflow: auto; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -1731,7 +1742,7 @@ html.lm-still .home.editing .hw:not(.hw-slot) { animation: none; outline: 2px da
       <div class="pm-strip hidden" id="home-pm" role="button" tabindex="0" aria-label="Abrir o Foco em Tarefas"><span class="pms-ph" id="pms-ph"></span><span class="pms-t" id="pms-t" role="timer"></span><button class="btn" id="pms-b"></button></div>
       <div class="pm-strip hidden" id="home-ag" aria-label="Próxima reunião"><span class="pms-ph" id="ags-ph"></span><span class="pms-ph ag-short" id="ags-s">Reunião</span><span class="pms-t ag-t" id="ags-t" role="timer"></span><button class="btn primary hidden" id="ags-b" data-ag="join">Entrar</button></div>
       <div class="hdots hidden" id="home-dots" role="group" aria-label="Páginas do Início"></div>
-      <button class="btn sm" id="home-edit">Editar</button></div>
+      <button class="btn sm hidden" id="home-add" aria-label="Adicionar widget">+</button><button class="btn sm" id="home-edit">Editar</button></div>
     <div class="home port" id="home"></div>
   </section>
   <!-- MAIS: lista que leva às outras vistas -->
@@ -2184,6 +2195,14 @@ html.lm-still .home.editing .hw:not(.hw-slot) { animation: none; outline: 2px da
       <div class="acts"><button class="btn" type="button" id="pa-cancel">Voltar</button><button class="btn primary" type="submit">Adicionar</button></div>
     </form>
     <div class="acts" id="pcs-acts"><button class="btn" type="button" id="pcs-addbtn">Adicionar PC</button><button class="btn primary" type="button" id="pcs-close">Fechar</button></div>
+  </div>
+</div>
+<div class="overlay hidden" id="hw-gal">
+  <div class="dialog" role="dialog" aria-labelledby="hw-gal-h">
+    <h1 id="hw-gal-h">Adicionar widget</h1>
+    <p id="hw-gal-sub"></p>
+    <div class="wd-pills" id="hw-gal-list"></div>
+    <div class="acts"><button class="btn" type="button" id="hw-gal-list-go">Organizar por lista</button><button class="btn primary" type="button" id="hw-gal-x">Fechar</button></div>
   </div>
 </div>
 <div class="overlay hidden" id="lay">
@@ -5173,7 +5192,8 @@ function homeBuild() {
     requestAnimationFrame(() => { root.scrollLeft = want * root.clientWidth; });
   }
   root.classList.toggle("editing", ed.on); $("t-inicio").classList.toggle("editing", ed.on);
-  $("home-edit").textContent = ed.on ? "OK" : "Editar"; $("home-edit").classList.toggle("primary", ed.on);
+  $("home-edit").textContent = ed.on ? "OK" : "Editar"; $("home-edit").classList.toggle("primary", ed.on); $("home-add").classList.toggle("hidden", !ed.on);
+  if (ed.on) edDecor();
   if (hwRO) { hwRO.disconnect(); root.querySelectorAll(".hw[data-w]").forEach((e) => hwRO.observe(e)); }
   homeDots(paged && homePk.pages > 1 ? homePk.pages : 0, paged ? Math.min((homePk?.pages || 1) - 1, Math.max(0, +homePg()[mode] || 0)) : 0);
   homeUpd();
@@ -5317,8 +5337,9 @@ function edScroller() { for (let e = $("home"); e && e !== document.body; e = e.
 function edOn() {
   if (ed.on) return; ed.on = true; ed.mode = homeMode(); buzz(15);
   const root = $("home"); root.classList.add("editing"); $("t-inicio").classList.add("editing");
-  $("home-edit").textContent = "OK"; $("home-edit").classList.add("primary");
+  $("home-edit").textContent = "OK"; $("home-edit").classList.add("primary"); $("home-add").classList.remove("hidden");
   if (homePk) edReconcile(homeList, false, false);
+  edDecor();
 }
 function edOff() {
   if (!ed.on) return; edCancel(); ed.on = false; buzz(8); homeBuild();
@@ -5404,7 +5425,7 @@ function edEnd(ok) {
   const d = ed.drag; ed.press = null; if (!d) return;
   ed.drag = null; clearTimeout(d.et); cancelAnimationFrame(d.raf); ed.sup = Date.now() + 400;
   if (ok && d.prev) {
-    const fin = HG.settle(d.prev, ed.mode).list; homeList = fin; homeSave(ed.mode, fin); edReconcile(fin, false, true);
+    const fin = HG.settle(d.prev, ed.mode).list; homeList = fin; homeSave(ed.mode, fin); edReconcile(fin, false, true); edDecor();
   } else edReconcile(homeList, false, true);
   const to = d.el.getBoundingClientRect(), done = () => { d.fl.remove(); d.el.classList.remove("hw-slot"); };
   if (edStill()) return done();
@@ -5429,8 +5450,46 @@ window.addEventListener("pointerup", edUp(true)); window.addEventListener("point
 $("home").addEventListener("pointerdown", edDown);
 $("home").addEventListener("contextmenu", (e) => { if (ed.on || ed.press) e.preventDefault(); });
 $("home").addEventListener("touchmove", (e) => { if (ed.drag) e.preventDefault(); }, { passive: false });
-$("home").addEventListener("click", (e) => { if ((ed.on || Date.now() < ed.sup) && !e.target.closest(".hw-x, .hw-sz")) { e.preventDefault(); e.stopPropagation(); } }, true);
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && ed.on) { if (ed.drag) edEnd(false); else edOff(); } });
+$("home").addEventListener("click", (e) => { if (ed.on && edClick(e)) { e.preventDefault(); e.stopPropagation(); return; } if (ed.on || Date.now() < ed.sup) { e.preventDefault(); e.stopPropagation(); } }, true);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && ed.on && $("hw-gal").classList.contains("hidden")) { if (ed.drag) edEnd(false); else edOff(); } });
+// ---- controles de cada widget no modo edição: "−" remove (com Desfazer), P·A·L·G troca o tamanho no próprio widget; "+" abre a galeria
+function edDecor() {
+  const root = $("home");
+  root.querySelectorAll(".hw-ed").forEach((x) => x.remove());
+  for (const it of homeList) {
+    const el = root.querySelector(`.hw[data-w="${it.id}"]`), c = HOME_W[it.id]; if (!el || !c) continue;
+    const sz = c.sizes.length < 2 ? "" : `<div class="hw-sz" role="group" aria-label="Tamanho de ${esc(c.name)}">${[...c.sizes].map((z) =>
+      `<button type="button" data-ed="sz" data-z="${z}" aria-pressed="${z === it.size}" aria-label="${SZ_NAME[z]} (${SZ[z][0]}×${SZ[z][1]})"${z === it.size || HG.resize(homeList, it.id, z, ed.mode) ? "" : " disabled"}>${z}</button>`).join("")}</div>`;
+    el.insertAdjacentHTML("beforeend", `<div class="hw-ed" aria-hidden="false"><button type="button" class="hw-x" data-ed="rm" aria-label="Remover ${esc(c.name)}">${ic("circle-minus")}</button>${sz}</div>`);
+  }
+}
+function edApply(nl) { homeList = nl; homeSave(ed.mode, nl); homeBuild(); }
+function edClick(e) {
+  const b = e.target.closest("[data-ed]"); if (!b || !ed.on || b.disabled) return false;
+  const id = b.closest(".hw[data-w]")?.dataset.w, it = homeList.find((w) => w.id === id); if (!it) return true;
+  buzz(8);
+  if (b.dataset.ed === "rm") {
+    const prev = homeList.map((w) => ({ ...w })), mode = ed.mode;
+    edApply(HG.remove(homeList, id, mode));
+    undoToast(`${HOME_W[id].name} removido`, () => { if (ed.mode !== mode || homeList.some((w) => w.id === id)) return; const r = HG.settle(prev, mode); if (r.over.length) return toast("Sem espaço para desfazer", "bad"); edApply(r.list); });
+  } else if (b.dataset.z !== it.size) { const nl = HG.resize(homeList, id, b.dataset.z, ed.mode); if (nl) edApply(nl); }
+  return true;
+}
+const edAddSize = (id) => { const w = HOME_W[id], by = [...w.sizes].sort((a, b) => SZ[a][0] * SZ[a][1] - SZ[b][0] * SZ[b][1]); return [w.def, ...by.filter((z) => z !== w.def)].find((z) => HG.add(homeList, id, z, ed.mode)); };
+function edGalRender() {
+  const out = Object.keys(HOME_W).filter((id) => !homeList.some((w) => w.id === id));
+  $("hw-gal-sub").textContent = out.length ? "Toque para pôr na tela. Entra no primeiro espaço livre." : "Todos os widgets já estão na tela.";
+  $("hw-gal-list").innerHTML = out.map((id) => `<button class="wd-pill" data-add="${id}"${edAddSize(id) ? "" : " disabled"}>${ic("circle-plus")}<span>${esc(HOME_W[id].name)}</span></button>`).join("");
+}
+$("home-add").onclick = () => { buzz(8); edGalRender(); $("hw-gal").classList.remove("hidden"); };
+$("hw-gal-x").onclick = () => $("hw-gal").classList.add("hidden");
+$("hw-gal-list-go").onclick = () => { $("hw-gal").classList.add("hidden"); edOff(); showView("widgets"); };
+$("hw-gal-list").onclick = (e) => {
+  const b = e.target.closest("[data-add]"); if (!b || b.disabled) return;
+  const id = b.dataset.add, z = edAddSize(id); if (!z) return;
+  const nl = HG.add(homeList, id, z, ed.mode, homePk ? Math.min(edPage(), Math.max(0, HG.pagesUsed(homeList) - 1)) : 0); if (!nl) return;
+  buzz(8); $("hw-gal").classList.add("hidden"); edApply(nl);
+};
 $("home-edit").onclick = () => { if (ed.on) edOff(); else { if (!homeList.length) return showView("widgets"); edOn(); } };
 $("wd-done").onclick = () => { buzz(8); showView("inicio"); };
 
