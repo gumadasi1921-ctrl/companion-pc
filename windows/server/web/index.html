@@ -1876,6 +1876,9 @@ html.lm-still .home.editing .hw:not(.hw-slot) { animation: none; outline: 2px da
 .cl-go { flex: none; min-width: 44px; min-height: 44px; padding: 0 8px; background: none; border: 0; font: inherit; font-size: 12px; font-weight: 700; color: var(--accent, var(--p)); cursor: pointer; }
 .cl-emp { color: var(--p3t); padding: 14px 0; }
 .cl-foot { display: flex; align-items: center; gap: 8px; margin-top: 6px; } .cl-foot .btn { min-height: 44px; flex: none; }
+button.cal-mt { display: block; position: relative; padding: 0; background: none; border: 0; color: inherit; font: inherit; font-size: 12px; font-weight: 700; line-height: 14px; text-align: left; text-transform: capitalize; cursor: pointer; }
+button.cal-mt::after { content: ""; position: absolute; left: 0; right: 0; top: -15px; bottom: -15px; }
+.cal-mini { touch-action: pan-y; }
 .cl-note { margin: 0; font-size: 12px; line-height: 16px; color: var(--p3t); }
 @container (min-width: 600px) {
   .cl { flex-direction: row; align-items: stretch; height: 100%; min-height: 0; gap: 16px; }
@@ -5540,11 +5543,12 @@ function calList(d, z, pg) {
     return `<div class="cal-g" data-n="${esc(g.n)}">${g.head ? `<div class="cal-dh">${esc(g.n)}</div>` : ""}${rows.join("")}<div class="cal-more${rest > 0 ? " on" : ""}">${rest > 0 ? "+" + rest : ""}</div></div>`;
   }).join("") + '<div class="cal-tail"></div>';
 }
-function calMini(d, today) {
-  const idx = calIdx(d), y = +today.slice(0, 4), m = +today.slice(5, 7), dim = new Date(Date.UTC(y, m, 0)).getUTCDate(), f = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
-  let h = `<div class="cal-mt">${CAL_MO[m - 1]} ${y}</div><div class="cal-mm">` + ["D", "S", "T", "Q", "Q", "S", "S"].map((x) => `<span class="cal-mw">${x}</span>`).join("") + '<span class="cal-md"></span>'.repeat(f);
+function calMini(d, today, off = 0) {   // off = meses a partir do mês de hoje (deslizar no widget); só dados reais: mês ainda não lido = grade sem pontinhos
+  const [y, m] = clShift(+today.slice(0, 4), +today.slice(5, 7), off), e = off ? clGet(y, m) : null;
+  const idx = !off ? calIdx(d) : e ? calIdx(e.obj) : new Map(), dim = new Date(Date.UTC(y, m, 0)).getUTCDate(), f = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
+  let h = `<button type="button" class="cal-mt" data-cal-home aria-label="${CAL_MO[m - 1]} ${y}${off ? ". Tocar para voltar a hoje" : ""}">${CAL_MO[m - 1]} ${y}${off && !e ? " …" : ""}</button><div class="cal-mm" data-swipe="month">` + ["D", "S", "T", "Q", "Q", "S", "S"].map((x) => `<span class="cal-mw">${x}</span>`).join("") + '<span class="cal-md"></span>'.repeat(f);
   for (let k = 1; k <= dim; k++) {
-    const iso = today.slice(0, 8) + String(k).padStart(2, "0");
+    const iso = y + "-" + String(m).padStart(2, "0") + "-" + String(k).padStart(2, "0");
     h += `<span class="cal-md${iso === today ? " today" : ""}${(idx.get(iso) || []).length ? " has" : ""}"><b>${k}</b></span>`;
   }
   return h + "</div>";
@@ -5625,6 +5629,12 @@ function clGo(n) {   // n = meses; 0 = hoje
   const dir = n || (y * 12 + m > cl.y * 12 + cl.m ? 1 : -1);
   clSlide($("cl-grid"), dir, () => { cl.y = y; cl.m = m; cl.sel = y === +t.slice(0, 4) && m === +t.slice(5, 7) ? t : clKey(y, m) + "-01"; clRender(); });
 }
+function calWGo(hw, off) {   // widget Calendário: mês deslocado (off em meses a partir de hoje; 0 = hoje)
+  const t = clToday(), [y, m] = clShift(+t.slice(0, 4), +t.slice(5, 7), off), cur = hw._off || 0;
+  if (off === cur || !clInRange(y, m)) return;
+  buzz(6);
+  clSlide(hw.querySelector(".cal-mini"), off > cur ? 1 : -1, () => { hw._off = off; HOME_W.calendar.upd(hw); });
+}
 function clOpen(action, p) {
   buzz(); toast("Abrindo no PC…", "ok");
   send(action, p).then(() => { cl.openAt = Date.now(); }).catch((e) => { if (e.message !== "offline") toast(e.message, "bad"); });
@@ -5662,7 +5672,7 @@ function calSwEnd(e) {
   document.addEventListener("click", stop, true); setTimeout(() => document.removeEventListener("click", stop, true), 60);
   if (e.type === "pointerup" && Math.abs(dx) > 40) {
     const dir = dx < 0 ? 1 : -1, hw = t.closest(".hw");
-    if (hw) { /* widget: ligado no commit seguinte */ } else clGo(dir);
+    if (hw) calWGo(hw, (hw._off || 0) + dir); else clGo(dir);
   }
 }
 document.addEventListener("pointerup", calSwEnd); document.addEventListener("pointercancel", calSwEnd);
@@ -5702,7 +5712,7 @@ Object.assign(HOME_W, {
       const today = calIso(calNow()), t = calNow();
       if (z === "P") return setHtml(hk(el, "p"), calPHtml(d, today));
       if (z === "A") setHtml(hk(el, "hd"), `<b class="cal-dn">${t.getUTCDate()}</b><span><em class="cal-wd">${CAL_WD[t.getUTCDay()]}</em><i>${CAL_MO[t.getUTCMonth()]}</i></span>`);
-      else setHtml(hk(el, "mini"), calMini(d, today));
+      else setHtml(hk(el, "mini"), calMini(d, today, el._off || 0));
       setHtml(hk(el, "list"), calList(d, z, !!el.closest(".pager")));
     },
   },
@@ -6284,6 +6294,8 @@ $("home").addEventListener("click", (e) => {
     if (a.dataset.a === "play" && m) { const u = a.querySelector("use"); u.setAttribute("href", m.status === "playing" ? "#ic-play" : "#ic-pause"); }   // otimista
     return act("media." + (a.dataset.a === "play" ? "play_pause" : a.dataset.a));
   }
+  const ch = e.target.closest("[data-cal-home]");
+  if (ch) { const hw = ch.closest(".hw"); if (hw) calWGo(hw, 0); return; }
   const cj = e.target.closest("[data-cal-join]");
   if (cj) { buzz(); return void send("agenda.join", { id: cj.dataset.calJoin }).then(() => toast("Aberto no PC", "ok")).catch((er) => { if (er.message !== "offline") toast(er.message, "bad"); }); }
   if (e.target.closest("[data-ag=join]")) return agJoin();
