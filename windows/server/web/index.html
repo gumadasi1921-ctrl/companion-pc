@@ -1576,6 +1576,9 @@ body.pc-col #pc-chip3 { display: inline-flex; align-self: center; }
 header .host { display: none; }
 .bkp-i { display: block; width: 100%; text-align: left; margin: 0 0 8px; min-height: 44px; }
 .pcrow { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+#lay-prev-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 12px; }
+.lay-pg { min-height: 44px; cursor: pointer; } .lay-pg input { width: 22px; height: 22px; flex: none; } .lay-pg small { display: block; color: var(--p3t, var(--text-3)); }
+#lay-prev-ign { font-size: 13px; color: var(--p3t, var(--text-3)); overflow-wrap: anywhere; }
 .pcpick { flex: 1; min-width: 0; min-height: 44px; display: flex; align-items: center; gap: 10px; text-align: left; padding: 6px 12px; border: 1px solid var(--p3); border-radius: var(--r-btn, 2px); color: var(--p); }
 .pcpick.on { border-color: var(--accent-fill, var(--p)); box-shadow: inset 0 0 0 1px var(--accent-fill, var(--p)); }
 .pcpick b { font-weight: 600; }
@@ -2400,17 +2403,24 @@ html.lm-still .home.editing .hw:not(.hw-slot) { animation: none; outline: 2px da
     <div id="lay-share" class="hidden">
       <label>Código deste layout<textarea class="fi" id="lay-code" rows="4" readonly spellcheck="false"></textarea></label>
       <div class="acts"><button class="btn" type="button" id="lay-copy">Copiar código</button><button class="btn" type="button" id="lay-save">Salvar arquivo</button></div>
-      <p>O código leva só o tema, o destaque e os widgets: nunca token, endereço de PC nem caminho. Se você colar num mensageiro, ele passa por esse serviço. Prefira AirDrop ou o arquivo.</p>
+      <p id="lay-share-p">O código leva só o tema, o destaque e os widgets: nunca token, endereço de PC nem caminho. Se você colar num mensageiro, ele passa por esse serviço. Prefira AirDrop ou o arquivo.</p>
       <div class="acts"><button class="btn primary" type="button" id="lay-share-x">Voltar</button></div>
     </div>
     <div id="lay-imp" class="hidden">
-      <label>Cole o código<textarea class="fi" id="lay-imp-text" rows="4" spellcheck="false" autocapitalize="off" placeholder="PCL1.…"></textarea></label>
+      <label>Cole o código<textarea class="fi" id="lay-imp-text" rows="4" spellcheck="false" autocapitalize="off" placeholder="PCL2.… ou PCL1.…"></textarea></label>
       <label>ou abra um arquivo<input class="fi" id="lay-imp-file" type="file" accept=".json,application/json"></label>
       <label>Nome (opcional)<input class="fi" id="lay-imp-name" maxlength="30" placeholder="o do layout importado"></label>
       <div class="acts"><button class="btn" type="button" id="lay-imp-x">Voltar</button><button class="btn primary" type="button" id="lay-imp-ok">Importar</button></div>
     </div>
+    <div id="lay-prev" class="hidden">
+      <p id="lay-prev-h">O que vai mudar</p>
+      <div id="lay-prev-list"></div>
+      <p id="lay-prev-ign" class="hidden"></p>
+      <div class="acts"><button class="btn" type="button" id="lay-prev-x">Voltar</button><button class="btn primary" type="button" id="lay-prev-ok">Importar</button></div>
+    </div>
+    <div class="acts hidden" id="lay-undo-row"><button class="btn" type="button" id="lay-undo">Desfazer importação</button></div>
     <p id="lay-msg" role="status"></p>
-    <div class="acts" id="lay-acts"><button class="btn" type="button" id="lay-new">Novo a partir do atual</button><button class="btn" type="button" id="lay-impbtn">Importar</button><button class="btn primary" type="button" id="lay-close">Fechar</button></div>
+    <div class="acts" id="lay-acts"><button class="btn" type="button" id="lay-new">Novo a partir do atual</button><button class="btn" type="button" id="lay-all">Exportar tudo</button><button class="btn" type="button" id="lay-impbtn">Importar</button><button class="btn primary" type="button" id="lay-close">Fechar</button></div>
   </div>
 </div>
 <div class="overlay hidden" id="bkp">
@@ -2890,6 +2900,10 @@ const HG = (() => {
   return { SZ, GRID, PAGES, MODES, dims, settle, fromOrder, gravity, move, resize, add, remove: removeIn, order, pagesUsed, has };
 })();
 /* HG:end */
+/* KEYS:begin */
+// Lista fechada do estado do aparelho: UMA fonte para o backup no PC (BK) e para a exportação/importação completa (PCL2, FULL). Espelha devbackup.KEYS (teste confere).
+const DEVKEYS = Object.freeze(["theme", "variant", "mode", "accent", "crt", "home", "homepg", "tab", "views", "nav", "layouts", "mascot", "alerts", "snd", "vib", "wake", "dock", "idleMode", "land", "sens", "scrFast", "micFab", "micfab", "lumepos", "dotaOpen", "deckAuto", "pcnotif", "wmode", "tkmode"]);
+/* KEYS:end */
 /* LAY:begin */
 function makeLayouts(store, rid, now, defaults) {
   const KEYS = ["theme", "variant", "mode", "accent", "crt", "home", "homepg", "tab", "views", "nav"];
@@ -2980,7 +2994,7 @@ function makeLayouts(store, rid, now, defaults) {
   const b64 = (str) => { const bytes = new TextEncoder().encode(str); let bin = ""; for (const b of bytes) bin += String.fromCharCode(b); return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
   const unb64 = (t) => { const bin = atob(t.replace(/-/g, "+").replace(/_/g, "/")); return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))); };
   const api = {
-    KEYS, SHARE, MAX, MAX_NAME, validData, NAV: { IDS: NAV_IDS, CAP: NAV_CAP, def: navDef, norm: validNav },
+    KEYS, SHARE, MAX, MAX_NAME, validData, validOne, b64, unb64, NAV: { IDS: NAV_IDS, CAP: NAV_CAP, def: navDef, norm: validNav },
     init() { const s = state(); write(s); return s; },
     list() { const s = state(); return s.list.map((p) => ({ id: p.id, name: p.name, active: p.id === s.active, isDefault: p.id === "default" })); },
     active() { const s = state(); const p = find(s, s.active); return { id: p.id, name: p.name, isDefault: p.id === "default" }; },
@@ -3056,8 +3070,130 @@ function makeLayouts(store, rid, now, defaults) {
   return api;
 }
 /* LAY:end */
+/* PCX:begin */
+// Exportar/importar o estado COMPLETO do aparelho (PCL2). Usa a mesma lista fechada do backup (DEVKEYS); nunca token, PCs, devid, credenciais nem histórico.
+function makeFull(store, KEYS, lay, defaults, now) {
+  const PREFIX = "PCL2.", MAX_CODE = 32768, EXCLUDE = ["layouts"];
+  const LAYOUT_DEFAULTS = defaults || {};
+  const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
+  const SHARED = KEYS.filter((k) => !EXCLUDE.includes(k));
+  const G0 = [
+    { id: "home", label: "Início", keys: ["home", "homepg"] },
+    { id: "menu", label: "Menu", keys: ["nav"] },
+    { id: "look", label: "Aparência", keys: ["theme", "variant", "mode", "accent", "crt"] },
+    { id: "idle", label: "Tela de espera", keys: ["idleMode", "dock", "wake", "land"] },
+    { id: "lume", label: "Lume e avisos", keys: ["mascot", "lumepos", "alerts", "pcnotif", "snd", "vib", "micFab", "micfab"] },
+  ];
+  const used = new Set(G0.flatMap((g) => g.keys));
+  const GROUPS = G0.map((g) => ({ ...g, keys: g.keys.filter((k) => SHARED.includes(k)) })).filter((g) => g.keys.length)
+    .concat([{ id: "other", label: "Outros", keys: SHARED.filter((k) => !used.has(k)) }]);   // chave nova da lista cai em Outros
+  const BOOL = ["snd", "vib", "wake", "micFab", "dotaOpen", "deckAuto", "pcnotif", "scrFast", "land"];
+  const AL_B = ["net", "download", "export", "misplaced", "trello", "monday", "gpu", "cpu", "ram"], AL_V = ["gpuV", "cpuV", "ramV"];
+  const unit = (n) => typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1;
+  const posMap = (v) => {
+    if (!isObj(v)) return undefined; const o = {};
+    for (const m of Object.keys(v).slice(0, 4)) if (/^[pl]$/.test(m) && isObj(v[m]) && unit(v[m].x) && unit(v[m].y)) o[m] = { x: v[m].x, y: v[m].y };
+    return Object.keys(o).length ? o : undefined;
+  };
+  const mascotLite = (v) => {   // só skin + cfg (ajustes e lembretes); medidores e histórico do Lume ficam de fora
+    if (!isObj(v) || !isObj(v.cfg)) return undefined;
+    const skin = typeof v.skin === "string" && /^[a-z0-9_-]{1,24}$/.test(v.skin) ? v.skin : "lume";
+    let cfg; try { cfg = JSON.parse(JSON.stringify(v.cfg)); } catch { return undefined; }
+    if (JSON.stringify(cfg).length > 4000) return undefined;
+    return { v: 1, skin, cfg };
+  };
+  function valid(k, v) {
+    if (BOOL.includes(k)) return typeof v === "boolean" ? v : undefined;
+    switch (k) {
+      case "dock": return Number.isInteger(v) && v >= 1 && v <= 240 ? v : undefined;
+      case "sens": return typeof v === "number" && Number.isFinite(v) && v >= 0.5 && v <= 4 ? v : undefined;
+      case "idleMode": return ["cycle", "clock", "off"].includes(v) ? v : undefined;
+      case "wmode": return ["week", "month"].includes(v) ? v : undefined;
+      case "tkmode": return ["list", "foco"].includes(v) ? v : undefined;
+      case "micfab": case "lumepos": return posMap(v);
+      case "alerts": {
+        if (!isObj(v)) return undefined; const o = {};
+        for (const a of AL_B) if (typeof v[a] === "boolean") o[a] = v[a];
+        for (const a of AL_V) if (typeof v[a] === "number" && Number.isFinite(v[a]) && v[a] >= 1 && v[a] <= 100) o[a] = v[a];
+        return o;
+      }
+      case "mascot": return mascotLite(v);
+      default: return lay.validOne(k, v);
+    }
+  }
+  const cur = (k) => { const v = store.get(k, null); return v === null ? null : valid(k, v) === undefined ? null : valid(k, v); };
+  function pack() {
+    const d = {};
+    for (const k of SHARED) {
+      let v = store.get(k, null); v = v === null ? undefined : valid(k, v);
+      if (v === undefined && k in LAYOUT_DEFAULTS) v = valid(k, LAYOUT_DEFAULTS[k]);   // o que o aparelho nunca mexeu sai com o valor padrão
+      if (v !== undefined) d[k] = v;
+    }
+    return { name: lay.active().name, data: d };
+  }
+  const code = () => { const k = pack(); return PREFIX + lay.b64(JSON.stringify({ v: 2, n: k.name, d: k.data })); };
+  const file = () => { const k = pack(); return JSON.stringify({ companion_layout: 2, name: k.name, data: k.data }, null, 1); };
+  const isFull = (text) => {
+    const t = String(text == null ? "" : text).trim();
+    if (t.startsWith(PREFIX)) return true;
+    if (t[0] !== "{") return false;
+    try { const o = JSON.parse(t); return isObj(o) && o.companion_layout === 2; } catch { return false; }
+  };
+  function parse(text) {
+    const t = String(text == null ? "" : text).trim();
+    if (!t) throw new Error("Cole o código ou abra um arquivo de layout");
+    if (t.length > MAX_CODE) throw new Error("Esse conteúdo é grande demais para ser um layout");
+    let raw;
+    try {
+      if (t.startsWith(PREFIX)) { const o = JSON.parse(lay.unb64(t.slice(PREFIX.length))); if (!isObj(o) || o.v !== 2) throw 0; raw = { name: o.n, data: o.d }; }
+      else { const o = JSON.parse(t); if (!isObj(o) || o.companion_layout !== 2) throw 0; raw = { name: o.name, data: o.data }; }
+      if (!isObj(raw.data)) throw 0;
+    } catch { throw new Error("Isso não parece um layout completo do Companion PC"); }
+    const data = {}, ignored = [];
+    for (const k of Object.keys(raw.data).slice(0, 80)) {
+      const label = String(k).replace(/[^A-Za-z0-9_]/g, "").slice(0, 24) || "?";
+      if (!SHARED.includes(k)) { ignored.push({ k: label, why: "não faz parte do layout" }); continue; }
+      const v = valid(k, raw.data[k]);
+      if (v === undefined) ignored.push({ k: label, why: "valor inválido" }); else data[k] = v;
+    }
+    if (!Object.keys(data).length) throw new Error("Esse layout está vazio ou inválido");
+    const name = typeof raw.name === "string" ? raw.name.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 30) : "";
+    return { name: name || "Importado", data, ignored };
+  }
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  function preview(parsed) {   // "o que vai mudar": só grupos que vieram no código; changed = chaves que diferem do estado atual
+    return GROUPS.map((g) => {
+      const ks = g.keys.filter((k) => k in parsed.data);
+      return { id: g.id, label: g.label, keys: ks, changed: ks.filter((k) => !same(parsed.data[k], k === "mascot" ? mascotLite(store.get(k, null)) : cur(k))).length };
+    }).filter((g) => g.keys.length);
+  }
+  const setKey = (k, v) => {
+    if (k === "mascot") { const old = store.get("mascot", null); store.set("mascot", isObj(old) && old.v === 1 ? { ...old, skin: v.skin, cfg: v.cfg } : v); }
+    else store.set(k, v);
+  };
+  function snapshot() { const s = {}; for (const k of KEYS) { const v = store.get(k, null); if (v !== null) s[k] = v; } return s; }
+  function apply(parsed, ids) {
+    try { lay.flush(); } catch {}
+    const picked = GROUPS.filter((g) => ids.includes(g.id));
+    if (!picked.length) throw new Error("Marque pelo menos um grupo");
+    store.set("impundo", { at: now(), snap: snapshot() });   // cópia do estado de antes (Desfazer importação)
+    let n = 0;
+    for (const g of picked) for (const k of g.keys) if (k in parsed.data) { setKey(k, parsed.data[k]); n++; }
+    try { lay.sync(); } catch {}
+    return n;
+  }
+  const undoInfo = () => { const u = store.get("impundo", null); return isObj(u) && typeof u.at === "number" && isObj(u.snap) ? { at: u.at } : null; };
+  function undo() {
+    const u = store.get("impundo", null); if (!undoInfo()) throw new Error("Não há importação para desfazer");
+    for (const k of KEYS) { if (k in u.snap) store.set(k, u.snap[k]); else store.del(k); }
+    store.del("impundo"); try { lay.sync(); } catch {}
+  }
+  return { PREFIX, GROUPS, SHARED, pack, code, file, isFull, parse, preview, apply, undo, undoInfo, snapshot };
+}
+/* PCX:end */
 const LAY = makeLayouts(store, () => Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => b.toString(16).padStart(2, "0")).join(""), () => Date.now(),
   { theme: "modern", variant: "green", mode: "auto", accent: "blue", crt: true });
+const FULL = makeFull(store, DEVKEYS, LAY, { theme: "modern", variant: "green", mode: "auto", accent: "blue", crt: true }, () => Date.now());
 if (!window.PCC_PANEL) {
   LAY.hook(); LAY.init();
   addEventListener("pagehide", () => LAY.flush());
@@ -3413,12 +3549,12 @@ pcPaint();
 // ---------------------------------------------------------------- layouts: gerenciar (Ajustes › Aparência e editor de widgets)
 let layOpt = null;   // id do layout com as opções abertas
 function layPaint() { const n = LAY.active().name; $("lay-cur").textContent = n; $("wd-lay-n").textContent = n; $("wd-lay").setAttribute("aria-label", `Layout: ${n}. Trocar de layout`); }
-function layMode(m) {   // list | form | share | imp
-  for (const [id, on] of [["lay-list", m === "list"], ["lay-form", m === "form"], ["lay-share", m === "share"], ["lay-imp", m === "imp"], ["lay-acts", m === "list"], ["lay-sub", m === "list"]]) $(id).classList.toggle("hidden", !on);
+function layMode(m) {   // list | form | share | imp | prev
+  for (const [id, on] of [["lay-list", m === "list"], ["lay-form", m === "form"], ["lay-share", m === "share"], ["lay-imp", m === "imp"], ["lay-prev", m === "prev"], ["lay-acts", m === "list"], ["lay-sub", m === "list"], ["lay-undo-row", m === "list" && !!FULL.undoInfo()]]) $(id).classList.toggle("hidden", !on);
   $("lay-msg").textContent = "";
 }
 function layRender() {
-  layPaint();
+  layPaint(); $("lay-undo-row").classList.toggle("hidden", !FULL.undoInfo());
   $("lay-list").innerHTML = LAY.list().map((x) => layOpt === x.id
     ? `<div class="pcedit">${x.isDefault ? `<b>${esc(x.name)}</b>` : `<input class="fi" id="ly-name" maxlength="30" value="${esc(x.name)}" aria-label="Nome do layout"><button class="btn sm" data-ly="ren" data-id="${x.id}">Renomear</button>`}<button class="btn sm" data-ly="dup" data-id="${x.id}">Duplicar</button><button class="btn sm" data-ly="share" data-id="${x.id}">Compartilhar</button>${x.isDefault ? "" : `<button class="btn sm danger" data-ly="del" data-id="${x.id}">Apagar</button>`}<button class="btn sm" data-ly="close">Fechar</button></div>`
     : `<div class="pcrow"><button class="pcpick${x.active ? " on" : ""}" data-ly="pick" data-id="${x.id}"><span><b>${esc(x.name)}</b>${x.isDefault ? "<small>vale para todos os PCs</small>" : ""}</span><span class="pcst">${x.active ? "em uso" : ""}</span></button><button class="btn sm" data-ly="opt" data-id="${x.id}" aria-label="Opções de ${esc(x.name)}">Opções</button></div>`).join("");
@@ -3442,11 +3578,32 @@ $("lay-list").onclick = (e) => {
         const rm = LAY.remove(id); layOpt = null; layRender();
         undoToast("Layout apagado", () => { LAY.restore(rm); layRender(); }, "Desfazer", null, 6000); break;
       }
-      case "share": layOpt = null; $("lay-code").value = LAY.code(id); layMode("share"); setTimeout(() => $("lay-code").select(), 30); layShareId = id; break;
+      case "share": layOpt = null; $("lay-share-p").textContent = LAY_SHARE_P; $("lay-code").value = LAY.code(id); layMode("share"); setTimeout(() => $("lay-code").select(), 30); layShareId = id; break;
     }
   } catch (err) { layErr(err); }
 };
-let layShareId = null;
+let layShareId = null, layPending = null;
+const layDt = (t) => { const d = new Date(t), z = (n) => String(n).padStart(2, "0"); return `${z(d.getDate())}/${z(d.getMonth() + 1)} ${z(d.getHours())}:${z(d.getMinutes())}`; };
+const LAY_SHARE_P = "O código leva só o tema, o destaque e os widgets: nunca token, endereço de PC nem caminho. Se você colar num mensageiro, ele passa por esse serviço. Prefira AirDrop ou o arquivo.";
+const LAY_FULL_P = "O código completo leva Início, menu, aparência, tela de espera, Lume, avisos e ajustes do aparelho: nunca token, endereço de PC, identificação do aparelho nem histórico. Prefira AirDrop ou o arquivo.";
+$("lay-all").onclick = () => { buzz(8); try { layShareId = "__full"; $("lay-code").value = FULL.code(); $("lay-share-p").textContent = LAY_FULL_P; layMode("share"); setTimeout(() => $("lay-code").select(), 30); } catch (err) { layErr(err); } };
+$("lay-undo").onclick = () => { try { FULL.undo(); location.reload(); } catch (err) { layErr(err); } };
+function layPreview(parsed) {
+  layPending = parsed;
+  $("lay-prev-list").innerHTML = FULL.preview(parsed).map((g) => `<label class="pcrow lay-pg"><input type="checkbox" data-pg="${g.id}" checked><span><b>${esc(g.label)}</b><small>${g.changed ? `${g.changed} ${g.changed === 1 ? "ajuste muda" : "ajustes mudam"}` : "já está assim"}</small></span></label>`).join("");
+  const ig = parsed.ignored;
+  $("lay-prev-ign").classList.toggle("hidden", !ig.length);
+  $("lay-prev-ign").textContent = ig.length ? `Ignorado (${ig.length}): ` + ig.slice(0, 8).map((x) => `${x.k} (${x.why})`).join(", ") + (ig.length > 8 ? "…" : "") : "";
+  layMode("prev");
+}
+$("lay-prev-x").onclick = () => { layPending = null; layMode("imp"); };
+$("lay-prev-ok").onclick = () => {
+  try {
+    const ids = Array.from($("lay-prev-list").querySelectorAll("input:checked"), (i) => i.dataset.pg);
+    FULL.apply(layPending, ids); try { sessionStorage.setItem("pcc.impdone", "1"); } catch {}
+    location.reload();
+  } catch (err) { layErr(err); }
+};
 $("lay-new").onclick = () => { $("lay-name").value = ""; layMode("form"); setTimeout(() => $("lay-name").focus(), 30); };
 $("lay-form-x").onclick = () => { layMode("list"); layRender(); };
 $("lay-form").onsubmit = (e) => { e.preventDefault(); try { LAY.create($("lay-name").value); layMode("list"); layRender(); toast("Layout criado a partir do atual", "ok"); } catch (err) { layErr(err); } };
@@ -3457,7 +3614,7 @@ $("lay-copy").onclick = async () => {
 };
 $("lay-save").onclick = () => {
   try {
-    const text = LAY.file(layShareId), name = (LAY.list().find((x) => x.id === layShareId) || {}).name || "layout";
+    const full = layShareId === "__full", text = full ? FULL.file() : LAY.file(layShareId), name = full ? "completo" : (LAY.list().find((x) => x.id === layShareId) || {}).name || "layout";
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
     a.download = "layout-" + name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + ".json";
     document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); toast("Arquivo salvo", "ok");
@@ -3467,13 +3624,15 @@ $("lay-impbtn").onclick = () => { $("lay-imp-text").value = ""; $("lay-imp-file"
 $("lay-imp-x").onclick = () => { layMode("list"); layRender(); };
 $("lay-imp-file").onchange = (e) => {
   const f = e.target.files && e.target.files[0]; if (!f) return;
-  if (f.size > 8192) { $("lay-msg").textContent = "Esse arquivo é grande demais para ser um layout."; e.target.value = ""; return; }
+  if (f.size > 32768) { $("lay-msg").textContent = "Esse arquivo é grande demais para ser um layout."; e.target.value = ""; return; }
   const r = new FileReader(); r.onload = () => { $("lay-imp-text").value = String(r.result || ""); }; r.readAsText(f);
 };
 $("lay-imp-ok").onclick = () => {
-  try { const x = LAY.import($("lay-imp-text").value, $("lay-imp-name").value.trim() || null); layMode("list"); layRender(); toast(`Importado: ${x.name}`, "ok"); } catch (err) { layErr(err); }
+  try { if (FULL.isFull($("lay-imp-text").value)) { layPreview(FULL.parse($("lay-imp-text").value)); return; }   // PCL2: prévia "O que vai mudar"
+    const x = LAY.import($("lay-imp-text").value, $("lay-imp-name").value.trim() || null); layMode("list"); layRender(); toast(`Importado: ${x.name}`, "ok"); } catch (err) { layErr(err); }
 };
 layPaint();
+try { if (sessionStorage.getItem("pcc.impdone") && FULL.undoInfo()) { sessionStorage.removeItem("pcc.impdone"); setTimeout(() => undoToast("Layout importado", () => { try { FULL.undo(); location.reload(); } catch {} }, "Desfazer importação", null, 10000), 600); } } catch {}
 
 // ---------------------------------------------------------------- seções e vistas
 // 5 seções na barra (Início, Controle, Botões, Tarefas, Mais). "mais" é uma lista que leva às demais vistas;
@@ -7511,10 +7670,10 @@ bindSwitch("sw-dotaopen", "dotaOpen");
 bindSwitch("sw-snd", "snd", () => snd("ok"));
 bindSwitch("sw-pcnotif", "pcnotif", () => { if (ws && welcome.features?.notif) subNotif(); });
 /* BKP:begin */
-// Backup do estado do aparelho NO PC (devbackup.py). Só as chaves da lista fechada (espelha devbackup.KEYS); nunca token,
+// Backup do estado do aparelho NO PC (devbackup.py). Só as chaves da lista fechada DEVKEYS (espelha devbackup.KEYS); nunca token,
 // pcs (endereços), pend, panel nem chaves por PC. devid/devname/bklast/bkskip ficam fora do backup (são deste aparelho).
 const BK = (() => {
-  const KEYS = ["theme", "variant", "mode", "accent", "crt", "home", "homepg", "tab", "views", "nav", "layouts", "mascot", "alerts", "snd", "vib", "wake", "dock", "idleMode", "land", "sens", "scrFast", "micFab", "micfab", "lumepos", "dotaOpen", "deckAuto", "pcnotif", "wmode", "tkmode"];
+  const KEYS = DEVKEYS;   // lista única (bloco KEYS): o backup e a exportação completa usam a mesma
   // "personalizou?": o que o app grava sozinho na 1ª abertura (tab, views, layouts só com o Padrão) e a memória de navegação NÃO contam
   const PERS = ["theme", "variant", "mode", "accent", "crt", "home", "nav", "mascot", "alerts", "snd", "vib", "wake", "dock", "idleMode", "land", "sens", "scrFast", "micFab", "micfab", "lumepos", "dotaOpen", "deckAuto", "pcnotif"];
   const DELAY = 8000;
