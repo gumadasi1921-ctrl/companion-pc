@@ -403,6 +403,32 @@ body.crt .isvg { filter: drop-shadow(0 0 3px var(--glow)); }
 .overlay { position: fixed; inset: 0; background: var(--scrim); display: grid; place-items: center; z-index: 40; padding: 16px; }
 .dialog { background: var(--bg); border: 1px solid var(--p); padding: 18px; width: min(440px, 100%); max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); overflow-y: auto; border-radius: 2px; box-shadow: 0 0 0 4px var(--bg), 0 0 0 5px var(--p3); }
 .dialog.wide { width: min(540px, 100%); }
+/* Notificação em destaque (folha): embaixo em pé no celular, cartão centralizado no deitado/tablet */
+#nsheet { position: fixed; inset: 0; z-index: 48; display: flex; align-items: flex-end; justify-content: center; background: var(--scrim); }
+#nsheet.hidden { display: none; }
+.ns-card { width: min(560px, 100%); max-height: min(86vh, 100vh - 24px); max-height: min(86dvh, 100dvh - 24px); display: flex; flex-direction: column; background: var(--surface-2, var(--bg)); color: var(--p);
+  border: 1px solid var(--separator, var(--p3)); border-bottom: 0; border-radius: var(--r-card, 2px) var(--r-card, 2px) 0 0; padding: 0 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  transform: translateY(var(--ns-y, 0px)); transition: transform .2s ease; }
+.ns-card.drag { transition: none; }
+.ns-drag { touch-action: none; cursor: grab; padding-top: 8px; flex: none; }
+.ns-grab { width: 40px; height: 5px; border-radius: 3px; background: var(--p3t, var(--p3)); opacity: .55; margin: 0 auto 8px; }
+.ns-head { display: flex; align-items: center; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--separator, var(--p4)); }
+.ns-av { flex: none; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font: 700 18px/1 var(--mono, monospace); background: var(--ns-c, var(--p3)); color: #fff; text-shadow: none; }
+.ns-app { flex: 1; min-width: 0; font-weight: 600; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ns-time { flex: none; color: var(--p3t); font-size: 13px; }
+.ns-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px 0 4px; user-select: text; -webkit-user-select: text; }
+.ns-t { font-weight: 700; font-size: 18px; line-height: 1.25; margin: 0 0 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ns-x { font-size: 16px; line-height: 1.4; color: var(--p2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.ns-note { font-size: 12px; color: var(--p3t); margin-top: 8px; }
+.ns-note:empty, .ns-x:empty { display: none; }
+.ns-acts { flex: none; display: flex; gap: 8px; justify-content: flex-end; padding-top: 10px; }
+.ns-acts .btn { min-height: 44px; min-width: 96px; }
+.hnt[data-ni], .hnt[data-fi], .lb-t[data-ni], .toast.tap { cursor: pointer; }
+@media (min-width: 601px), (max-height: 560px) {
+  #nsheet { align-items: center; padding: 12px; }
+  .ns-card { border-bottom: 1px solid var(--separator, var(--p3)); border-radius: var(--r-card, 2px); max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); }
+}
+@media (prefers-reduced-motion: reduce) { .ns-card { transition: none; } }
 .dialog h1 { font: 30px/1 var(--display); margin: 0 0 12px; font-weight: 400; }
 .dialog p { color: var(--p2); margin: 0 0 14px; font-size: 14px; }
 .dialog label { display: block; font-size: 13px; color: var(--p2); margin-bottom: 10px; }
@@ -2395,6 +2421,14 @@ html.lm-still .home.editing .hw:not(.hw-slot) { animation: none; outline: 2px da
 <div id="idle-catch" class="hidden"><div class="dk-hint">Toque para voltar</div></div>
 <div class="toast hidden" id="toast"></div>
 <div class="toast undo hidden" id="utoast" role="status"><span id="ut-msg"></span><button id="ut-btn">Desfazer</button><button id="ut-btn2" class="hidden"></button></div>
+<div id="nsheet" class="hidden" role="dialog" aria-modal="true" aria-labelledby="ns-app">
+  <div class="ns-card" id="ns-card">
+    <div class="ns-drag" id="ns-drag"><div class="ns-grab"></div>
+      <div class="ns-head"><span class="ns-av" id="ns-av" aria-hidden="true"></span><span class="ns-app" id="ns-app"></span><span class="ns-time" id="ns-time"></span></div></div>
+    <div class="ns-body" id="ns-body"><div class="ns-t" id="ns-t"></div><div class="ns-x" id="ns-x"></div><div class="ns-note" id="ns-note"></div></div>
+    <div class="ns-acts"><button class="btn" id="ns-close" type="button">Fechar</button><button class="btn primary hidden" id="ns-go" type="button"></button></div>
+  </div>
+</div>
 <div class="overlay hidden" id="focus-list"><div class="dialog"><h1>Durante o foco</h1><div id="fl-body"></div><div class="acts"><button class="btn primary" id="fl-ok">Fechar</button></div></div></div>
 <textarea id="kbd" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
 
@@ -3077,9 +3111,14 @@ var lumeCap = null;   // roteador do Lume: enquanto um aviso do PC é tratado, o
 function toast(msg, kind = "") {
   if (kind === "ok" || kind === "bad") snd(kind === "ok" ? "ok" : "err");
   if (lumeCap) { lumeCap.msg ||= msg; return; }
-  const t = $("toast"); t.textContent = msg; t.className = "toast " + kind;
+  const t = $("toast"); t.textContent = msg; t.className = "toast " + kind; t._n = null; t.removeAttribute("role");
   clearTimeout(toastT); toastT = setTimeout(() => t.classList.add("hidden"), 2200);
 }
+function toastNotif(rec) {   // o toast que acabou de aparecer é de uma notificação do PC: tocar abre a folha (fica mais tempo na tela)
+  const t = $("toast"); if (!rec || t.classList.contains("hidden")) return;
+  t._n = rec; t.classList.add("tap"); t.setAttribute("role", "button"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.add("hidden"), 4500);
+}
+$("toast").addEventListener("click", () => { const t = $("toast"), r = t._n; if (r) { t.classList.add("hidden"); nsOpen(r); } });
 
 // ---------------------------------------------------------------- conexão
 let ws = null, welcome = {}, nextId = 1, retry = 0, retryT = null, wasOnline = false;
@@ -3211,7 +3250,7 @@ function onMsg(m) {
       if (m.kind === "pomo.done") { pomoDone(m); return; }
       if (m.kind === "reminder") { remEvent(m); return; }
       if (m.kind === "agenda.soon") { agNotice(m); return; }
-      if (m.kind === "notif") { homeNotifPush(m); snd("note"); notify(`${m.app}: ${m.title}`, m.body, "pcn-" + m.app); return; }
+      if (m.kind === "notif") { const rec = homeNotifPush(m); snd("note"); notify(`${m.app}: ${m.title}`, m.body, "pcn-" + m.app); if (!lumeCap) toastNotif(rec); return; }
       if (m.kind === "steam.done" && prefs.alerts.download) { snd("note"); notify("Download da Steam concluído", m.name, "steam-" + m.appid); toast("Steam: " + m.name + " terminou de baixar", "ok"); return; }
       if (m.kind === "download" && prefs.alerts.download) notify("Download concluído", m.name + (m.size ? ` · ${fmtBytes(m.size)}` : ""), "dl");
       if (m.kind === "export" && prefs.alerts.export) exportNotice(m);
@@ -4894,7 +4933,8 @@ const legend = (c, name, val) => `<span class="hleg"><i style="background:var(${
 const NA = '<div class="hw-na">Indisponível neste PC</div>';
 const clientColor = (i) => `--chart-${(i % 5) + 1}`;
 const homeNotif = [];
-function homeNotifPush(m) { homeNotif.unshift({ app: m.app || "", title: m.title || "", body: m.body || "", go: m.go || "", time: new Date().toTimeString().slice(0, 5) }); homeNotif.length = Math.min(homeNotif.length, 8); homeUpd("notif"); }
+let nsSeq = 0;
+function homeNotifPush(m) { const r = { id: ++nsSeq, app: m.app || "", title: m.title || "", body: m.body || "", go: m.go || "", time: new Date().toTimeString().slice(0, 5), ts: Date.now() }; homeNotif.unshift(r); homeNotif.length = Math.min(homeNotif.length, 8); homeUpd("notif"); return r; }
 const homeData = { work: null, week: null, hist: null, t: { work: 0, hist: 0 }, busy: false };
 
 Object.assign(HOME_W, {
@@ -5087,10 +5127,10 @@ Object.assign(HOME_W, {
       else if (el.dataset.z === "P") {   // pequeno: o último aviso inteiro (app, hora, título e o corpo nas linhas que couberem) e quantos vieram antes
         const n = homeNotif[0], lst = hk(el, "list");
         setHtml(lst, n ? `<div class="hnt-a"><b>${esc(n.app)}</b></div><div class="pq-ti">${esc(n.title)}</div>${n.body ? `<div class="pq-bo" data-lc>${esc(n.body)}</div>` : ""}` : '<div class="hw-na">Nenhum aviso desde que o app abriu</div>');
-        const go = n?.go || ""; lst.classList.toggle("hnt", !!go); if (go) { lst.dataset.go = go; lst.setAttribute("role", "button"); lst.tabIndex = 0; } else { delete lst.dataset.go; lst.removeAttribute("role"); lst.removeAttribute("tabindex"); }
+        lst.classList.toggle("hnt", !!n); if (n) { lst.dataset.ni = n.id; lst.setAttribute("role", "button"); lst.tabIndex = 0; lst.setAttribute("aria-label", `Abrir aviso de ${n.app}`); } else { delete lst.dataset.ni; lst.removeAttribute("role"); lst.removeAttribute("tabindex"); lst.removeAttribute("aria-label"); }
         setText(hk(el, "t"), n?.time || ""); setText(hk(el, "more"), n && homeNotif.length > 1 ? `+${homeNotif.length - 1} ${homeNotif.length === 2 ? "anterior" : "anteriores"}` : ""); return;
       }
-      else h = homeNotif.slice(0, el.closest(".pager") && !"P".includes(el.dataset.z) ? (el.dataset.z === "L" ? 2 : 8) : { P: 1, L: 1, A: 3, G: 3 }[el.dataset.z]).map((n) => `<div class="hnt"${n.go ? ` data-go="${esc(n.go)}" role="button" tabindex="0"` : ""}><div class="hnt-a"><b>${esc(n.app)}</b><span>${esc(n.time)}</span></div><div class="hnt-b">${esc([n.title, n.body].filter(Boolean).join(" · "))}</div></div>`).join("")
+      else h = homeNotif.slice(0, el.closest(".pager") && !"P".includes(el.dataset.z) ? (el.dataset.z === "L" ? 2 : 8) : { P: 1, L: 1, A: 3, G: 3 }[el.dataset.z]).map((n) => `<div class="hnt" data-ni="${n.id}" role="button" tabindex="0"><div class="hnt-a"><b>${esc(n.app)}</b><span>${esc(n.time)}</span></div><div class="hnt-b">${esc([n.title, n.body].filter(Boolean).join(" · "))}</div></div>`).join("")
         || '<div class="hw-na">Nenhum aviso desde que o app abriu</div>';
       setHtml(hk(el, "list"), h);
       if (el.dataset.z === "P") { setText(hk(el, "t"), ""); setText(hk(el, "more"), ""); }
@@ -6630,7 +6670,7 @@ function lumeEvent(m, run) {
   if (!type || !lumeCanBalloon(type)) return run();
   lumeCap = {}; let cap; try { run(); } finally { cap = lumeCap; lumeCap = null; }
   if (type === "trello" || type === "monday") { if (cap.msg) lumeSay({ src: "pc", text: m.title || cap.msg, act: cap.fn, label: cap.label }); return; }   // só a contagem do título; nome de card nunca no balão
-  if (type === "notif") lumeSay({ src: "pc", title: m.app || "", text: [m.title, m.body].filter(Boolean).join(" · ") });
+  if (type === "notif") lumeSay({ src: "pc", title: m.app || "", text: [m.title, m.body].filter(Boolean).join(" · "), sheet: homeNotif[0] || null });
   else if (cap.msg) lumeSay({ src: "pc", text: cap.msg, act: cap.fn, label: cap.label, alt: cap.alt });
 }
 function lumeSay(o) {
@@ -6642,7 +6682,7 @@ function lumeSay(o) {
 function lumeBalDraw() {
   const o = LB.cur, el = $("lume-bal"), pc = PCL.active();
   const chip = o.src === "pc" ? `<span class="lb-pc"><i style="background:${PC_COLORS[pc.color] || "#888"}"></i>${esc(pc.name)}</span>` : '<span class="lb-pc">Lume</span>';
-  el.innerHTML = `<div class="lb-h">${chip}${LB.q.length ? `<em>+${LB.q.length}</em>` : ""}<button class="lb-x" data-lb="x" aria-label="Dispensar">×</button></div>${o.title ? `<b>${esc(o.title)}</b>` : ""}<div class="lb-t" data-lb="t">${esc(o.text)}</div>` +
+  el.innerHTML = `<div class="lb-h">${chip}${LB.q.length ? `<em>+${LB.q.length}</em>` : ""}<button class="lb-x" data-lb="x" aria-label="Dispensar">×</button></div>${o.title ? `<b>${esc(o.title)}</b>` : ""}<div class="lb-t" data-lb="t"${o.sheet ? ` data-ni="${o.sheet.id}" role="button" aria-label="Ver o aviso completo"` : ""}>${esc(o.text)}</div>` +
     (o.act ? `<button class="lb-a" data-lb="a">${esc(o.label || "Abrir")}</button>` : "") + (o.alt ? `<button class="lb-a" data-lb="b">${esc(o.alt[0])}</button>` : "");
   lumeBalPlace();
 }
@@ -6667,6 +6707,7 @@ $("lume-bal").addEventListener("click", (e) => {
   const b = e.target.closest("[data-lb]"); if (!b) return; buzz(8);
   const o = LB.cur; if (!o) return;
   if (b.dataset.lb === "x") return lumeBalClose(false);
+  if (b.dataset.lb === "t" && o.sheet) { const r = o.sheet; lumeBalClose(true); nsOpen(r); return; }
   const f = b.dataset.lb === "b" ? o.alt[1] : o.act; lumeBalClose(true); if (f) try { f(); } catch {}
 });
 
@@ -7161,14 +7202,52 @@ function focusSummary(m) {
   undoToast(m.text, showFocusList, "Ver lista", null, 8000);
 }
 function showFocusList() {
-  $("fl-body").innerHTML = focusItems.length ? focusItems.map((n) => `<div class="hnt"><div class="hnt-a"><b>${esc(n.app)}</b><span>${esc(n.time)}</span></div><div class="hnt-b">${esc([n.title, n.body].filter(Boolean).join(" · "))}</div></div>`).join("") : "<p>Nada para mostrar.</p>";
+  $("fl-body").innerHTML = focusItems.length ? focusItems.map((n, i) => `<div class="hnt" data-fi="${i}" role="button" tabindex="0"><div class="hnt-a"><b>${esc(n.app)}</b><span>${esc(n.time)}</span></div><div class="hnt-b">${esc([n.title, n.body].filter(Boolean).join(" · "))}</div></div>`).join("") : "<p>Nada para mostrar.</p>";
   $("focus-list").classList.remove("hidden");
 }
 $("fl-ok").onclick = () => $("focus-list").classList.add("hidden");
+// ---- Notificação em destaque: texto completo (o que o PC mandou), rolagem, seleção de texto; fecha por toque fora, arrastar para baixo, Esc ou Fechar.
+// Ações = as que a notificação já tem (go: abrir a tela de origem). O PC resume o texto (título ≤ 120, corpo ≤ 300 caracteres): a folha mostra tudo o que chegou e avisa quando bate o limite.
+const NS = { rec: null, from: null, y0: null, dy: 0 }, NS_GO = { tasks: "Abrir Tarefas", work: "Abrir Trabalho", "focus-list": "Ver lista" };
+function nsOpen(r) {
+  if (!r) return; NS.rec = r; NS.from = document.activeElement;
+  const hue = [...(r.app || "?")].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
+  const av = $("ns-av"); av.textContent = ([...(r.app || "?")][0] || "?").toUpperCase(); av.style.setProperty("--ns-c", `hsl(${hue} 45% 38%)`);
+  setText($("ns-app"), r.app || "Aviso"); setText($("ns-time"), nsWhen(r));
+  setText($("ns-t"), r.title || ""); setText($("ns-x"), r.body || "");
+  const cut = (r.title || "").length >= 120 || (r.body || "").length >= 300;
+  setText($("ns-note"), cut ? "O PC envia o texto resumido (até 120 caracteres no título e 300 no corpo)." : "");
+  const g = $("ns-go"); g.classList.toggle("hidden", !r.go); g.textContent = NS_GO[r.go] || "Abrir";
+  $("ns-body").scrollTop = 0; $("ns-card").style.removeProperty("--ns-y"); $("nsheet").classList.remove("hidden"); $("ns-close").focus({ preventScroll: true });
+}
+function nsWhen(r) {
+  if (!r.ts) return r.time || "";
+  const d = new Date(r.ts), hm = r.time || d.toTimeString().slice(0, 5), today = new Date().toDateString() === d.toDateString();
+  return today ? `Hoje, ${hm}` : `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}, ${hm}`;
+}
+function nsClose() { if ($("nsheet").classList.contains("hidden")) return; $("nsheet").classList.add("hidden"); const f = NS.from; NS.rec = null; NS.from = null; try { f && f.isConnected && f.focus({ preventScroll: true }); } catch {} }
+$("ns-close").onclick = nsClose;
+$("ns-go").onclick = () => { const g = NS.rec && NS.rec.go; nsClose(); if (g === "focus-list") showFocusList(); else if (g) showView(g); };
+$("nsheet").addEventListener("click", (e) => { if (e.target === $("nsheet")) nsClose(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("nsheet").classList.contains("hidden")) { e.stopPropagation(); nsClose(); } }, true);
+(function nsDrag() {
+  const h = $("ns-drag"), c = $("ns-card");
+  h.addEventListener("pointerdown", (e) => { NS.y0 = e.clientY; NS.dy = 0; c.classList.add("drag"); try { h.setPointerCapture(e.pointerId); } catch {} });
+  h.addEventListener("pointermove", (e) => { if (NS.y0 == null) return; NS.dy = Math.max(0, e.clientY - NS.y0); c.style.setProperty("--ns-y", NS.dy + "px"); });
+  const end = () => { if (NS.y0 == null) return; NS.y0 = null; c.classList.remove("drag"); if (NS.dy > 70) nsClose(); else c.style.removeProperty("--ns-y"); };
+  h.addEventListener("pointerup", end); h.addEventListener("pointercancel", end);
+})();
+function nsFrom(el) {   // elemento tocado → registro (widget/balão: data-ni; lista do foco: data-fi)
+  if (el.dataset.ni) return homeNotif.find((x) => x.id === +el.dataset.ni) || null;
+  if (el.dataset.fi) { const n = focusItems[+el.dataset.fi]; return n ? { id: 0, app: n.app || "", title: n.title || "", body: n.body || "", go: "", time: n.time || "", ts: 0 } : null; }
+  return null;
+}
 document.addEventListener("click", (e) => {
-  const g = e.target.closest?.(".hnt[data-go]"); if (!g) return;
-  if (g.dataset.go === "focus-list") showFocusList(); else showView(g.dataset.go);
+  const g = e.target.closest?.("[data-ni], [data-fi]"); if (!g) return;
+  if (g.closest("#lume-bal")) return;   // o balão tem o próprio tratamento
+  nsOpen(nsFrom(g));
 });
+document.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target.matches?.(".hnt[data-ni], .hnt[data-fi]")) { e.preventDefault(); nsOpen(nsFrom(e.target)); } });
 function checkAlerts(s) {
   const chk = (k, val, label, unit) => {
     if (!prefs.alerts[k] || val == null) return;
