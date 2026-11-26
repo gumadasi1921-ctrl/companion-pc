@@ -28,6 +28,7 @@ Nomes de arquivo, clientes e jobs não vão para o log.
 import ctypes
 import json
 import logging
+import unicodedata
 import ntpath
 import os
 import re
@@ -35,6 +36,8 @@ import time
 from ctypes import wintypes
 from datetime import date, datetime, timedelta
 from pathlib import Path
+
+from trello import split_name  # regra fixa "CLIENTE - JOB" (um só lugar)
 
 log = logging.getLogger("companion")
 
@@ -93,6 +96,12 @@ def prev_month(ym):
 # --------------------------------------------------------------------------
 # Título da janela -> (arquivo, caminho)
 # --------------------------------------------------------------------------
+def norm_key(v):
+    """Chave de comparação de nome de cliente/job: sem maiúsculas, acentos nem espaços repetidos (só igualdade, nunca "parecido")."""
+    s = unicodedata.normalize("NFKD", str(v or ""))
+    return " ".join("".join(ch for ch in s if not unicodedata.combining(ch)).casefold().split())
+
+
 def parse_title(exe, title):
     """(nome do arquivo ou None, caminho completo ou None). Nada além do que está no título."""
     title = (title or "").strip()
@@ -952,6 +961,45 @@ class WorkTracker:
                         job = j
                 break
         return client, job
+
+    def card_match(self, card_name, cat=None):
+        """Nome de card "CLIENTE - JOB" -> {"client": cliente do Trabalho (grafia do catálogo) | None, "job": job do catálogo | None}.
+        Só igualdade normalizada; sem casamento = None ("sem cliente"), nunca adivinha."""
+        cl, jb = split_name(card_name)
+        out = {"client": None, "job": None}
+        if cl is None:
+            return out
+        key, jk = norm_key(cl), norm_key(jb)
+        for c, jobs in (cat if cat is not None else self.catalog()).items():
+            if norm_key(c) == key:
+                out["client"] = c
+                out["job"] = next((j for j in jobs if norm_key(j) == jk), None)
+                break
+        return out
+
+    def with_done(self, res, names):
+        """Semana/Mês + cards concluídos (nomes) por cliente: cada linha de cliente ganha `done`; cliente só com feitos (sem horas) vira linha com
+        s=0; sem casamento entra em `done_other`. Só igualdade normalizada; o tempo (s) nunca muda."""
+        if not names:
+            return {**res, "done_total": 0, "done_other": 0}
+        cat = self.catalog()
+        by, other = {}, 0
+        for n in names:
+            c = self.card_match(n, cat)["client"]
+            if c is None:
+                other += 1
+            else:
+                by[norm_key(c)] = (c, by.get(norm_key(c), (c, 0))[1] + 1)
+        rows, seen = [], set()
+        for r in res.get("clients", []):
+            k = norm_key(r.get("client"))
+            seen.add(k)
+            n = 0 if r.get("unidentified") else by.get(k, (None, 0))[1]
+            rows.append({**r, "done": n} if n else r)
+        for k, (c, n) in by.items():
+            if k not in seen:
+                rows.append({"client": c, "s": 0, "prev_s": 0, "unidentified": False, "jobs": [], "done": n})
+        return {**res, "clients": rows, "done_total": len(names), "done_other": other}
 
     def catalog(self):
         """{cliente: [jobs]} dos que já existem: pastas das raízes (2 níveis), histórico e regras."""

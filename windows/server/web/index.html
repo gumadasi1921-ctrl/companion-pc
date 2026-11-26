@@ -567,6 +567,7 @@ select.sel { flex: none; padding: 6px 8px; border: 1px solid var(--p3); backgrou
 .wdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: baseline; }
 .wunid { color: var(--unid); }  /* "Não identificado": âmbar de aviso (o do tema âmbar), como o amarelo do painel */
 .wjobrow { font-size: 14px; padding-left: 8px; }
+.wdone { color: var(--tr-done, var(--ok)); font-weight: 700; font-variant-numeric: tabular-nums; } .wdone-o { margin-top: 6px; }
 .wjob { cursor: pointer; }
 #t-work .btn:disabled { opacity: .35; }
 .wfile { font-size: 13px; color: var(--p2); padding: 1px 0 1px 10px; }
@@ -4009,6 +4010,9 @@ async function loadGamesExtra() {
     libData = lib || []; renderLib(); renderWeek(h);
   } catch { libT = 0; }
 }
+// Trello concluído por cliente (regra "CLIENTE - JOB" feita no PC; sem casamento = "Sem cliente"); só aparece com Trello ligado
+const wDone = (c) => (c.done ? ` <span class="wdone" title="Cards do Trello em Aprovar neste período">✓ ${c.done}</span>` : "");
+const wDoneOther = (r) => (r && r.done_other ? `<div class="hsub1 wdone-o">Sem cliente: ${r.done_other} ${r.done_other === 1 ? "card concluído" : "cards concluídos"} no Trello</div>` : "");
 function renderWeek(h) {
   if (!h) return;
   const max = Math.max(3600, ...h.days.map((d) => d.s));
@@ -4077,9 +4081,10 @@ function renderWork() {
   const APPC = { Photoshop: "#31A8FF", Illustrator: "#FF9A00", Premiere: "#9999FF", "After Effects": "#CF96FD", CapCut: "#14C3B5" };
   const files = (fs) => fs.map((f) => `<div class="row wfile"><span>${gic(w.app_icons?.[f.app])}<i class="wdot" style="background:${APPC[f.app] || "var(--p3)"}"></i>${esc(f.app)} · ${esc(f.file)}</span><span>${humanDur(f.s)}</span></div>`).join("");
   $("w-week-jobs").innerHTML = w.clients.length ? w.clients.map((c, i) => `<div class="toprow wjob${c.unidentified ? " wunid" : ""}" data-i="${i}">
-    <div class="row"><span>${esc(c.client)}</span><span>${humanDur(c.s)}</span></div><div class="bar"><i style="width:${(c.s / top) * 100}%"></i></div>
+    <div class="row"><span>${esc(c.client)}</span><span>${c.s ? humanDur(c.s) : ""}${wDone(c)}</span></div><div class="bar"><i style="width:${(c.s / top) * 100}%"></i></div>
     ${workOpen.has(c.client) ? c.jobs.map((j) => (c.unidentified ? "" : `<div class="row wjobrow"><span>${esc(j.job)}</span><span>${humanDur(j.s)}</span></div>`) + files(j.files)).join("") : ""}</div>`).join("")
     : '<div class="empty">Nenhum tempo nesta semana</div>';
+  $("w-week-jobs").insertAdjacentHTML("beforeend", wDoneOther(w));
   hydrateIcons($("w-week-jobs"));
 }
 $("w-week-jobs").onclick = (e) => {
@@ -4123,9 +4128,10 @@ function renderMonth() {
     ? `${m.days_worked} dia${m.days_worked === 1 ? "" : "s"} com trabalho` + (m.prev_total_s ? ` · mês anterior (${wmName(m.prev)}): ${humanDur(m.prev_total_s)}` : "") : "";
   const top = m.clients[0]?.s || 1;
   $("wm-clients").innerHTML = m.clients.length ? m.clients.map((c, i) => `<div class="toprow wjob${c.unidentified ? " wunid" : ""}" data-i="${i}">
-    <div class="row"><span>${esc(c.client)}</span><span>${humanDur(c.s)}${wmDelta(c.s, c.prev_s)}</span></div><div class="bar"><i style="width:${(c.s / top) * 100}%"></i></div>
+    <div class="row"><span>${esc(c.client)}</span><span>${c.s ? humanDur(c.s) + wmDelta(c.s, c.prev_s) : ""}${wDone(c)}</span></div><div class="bar"><i style="width:${(c.s / top) * 100}%"></i></div>
     ${workOpen.has("m:" + c.client) && !c.unidentified ? c.jobs.map((j) => `<div class="row wjobrow"><span>${esc(j.job)}</span><span>${humanDur(j.s)}</span></div>`).join("") : ""}</div>`).join("")
     : '<div class="empty">Nenhum tempo neste mês</div>';
+  $("wm-clients").insertAdjacentHTML("beforeend", wDoneOther(m));
 }
 $("wm-clients").onclick = (e) => {
   const r = e.target.closest("[data-i]"); const name = r && wmData?.clients[+r.dataset.i]?.client; if (name == null) return;
@@ -7615,6 +7621,19 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
         toast("Ligação desfeita. O tempo continua no histórico.", { undo: async () => { try { await call("work_link_restore", { entries: r.removed }); await loadLinks(); } catch (e) { fail(e); } } });
       } catch (e) { fail(e); }
     };
+    // Sugestões pelo nome "CLIENTE - JOB": só quando cliente E job existem no Trabalho (igualdade sem maiúsculas/acentos); ligar é sempre um clique seu
+    const sugLinked = (c) => links.some((l) => l.card === c.short || (l.client.toLowerCase() === (c.client || "").toLowerCase() && l.job.toLowerCase() === (c.job || "").toLowerCase()));
+    const linkSug = async (c) => { try { await call("work_link_set", { client: c.client, job: c.job, card: c.short }); await loadLinks(); toast("Ligado: " + c.client + " › " + c.job); } catch (e) { fail(e); } };
+    function suggestBox(on) {
+      const sug = on && tcards ? tcards.filter((c) => c.client && c.job && !sugLinked(c)) : [];
+      const noCl = on && tcards ? tcards.filter((c) => !c.client).length : 0;
+      if (!sug.length && !noCl) return null;
+      return h("div", { style: "margin-top:8px" }, sug.length ? h("div", { class: "pn-faint" }, "Sugeridos pelo nome (CLIENTE - JOB):") : null,
+        sug.slice(0, 8).map((c) => h("div", { class: "pn-li" }, h("div", { class: "pn-txt", style: "cursor:default" }, h("div", {}, c.name), h("div", { class: "pn-faint" }, c.client + " › " + c.job)),
+          h("button", { class: "pn-btn", type: "button", "aria-label": "Ligar " + c.name, onclick: () => linkSug(c) }, "Ligar"))),
+        sug.length > 8 ? h("div", { class: "pn-faint" }, "+" + (sug.length - 8) + " sugestões") : null,
+        noCl ? h("div", { class: "pn-faint" }, noCl + (noCl === 1 ? " card sem cliente reconhecido" : " cards sem cliente reconhecido") + " (nome sem “ - ” ou cliente que não existe no Trabalho)") : null);
+    }
     function renderLinks() {
       const name = (l) => (tcards && (tcards.find((c) => c.short === l.card) || {}).name) || l.card_name || l.card;
       const times = (l) => "hoje " + fmtDur(l.today_s) + " · semana " + fmtDur(l.week_s) + " · total " + fmtDur(l.total_s);
@@ -7623,6 +7642,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
         h("div", { class: "pn-txt", style: "cursor:default" }, h("div", {}, name(l)), h("div", { class: "pn-faint" }, l.client + " › " + l.job + " · " + times(l))),
         h("button", { class: "pn-btn", type: "button", "aria-label": "Desligar " + name(l), onclick: () => unlink(l) }, "Desligar")))
         : h("div", { class: "pn-empty" }, on ? "Nenhum cliente/job ligado a um card." : "Ligue o Trello em Ajustes para poder ligar cards.")),
+        suggestBox(on) || "",
         h("div", { class: "pn-foot" }, h("button", { class: "pn-btn", type: "button", disabled: !on || !(tcards && tcards.length), onclick: () => openLink(KT) }, "Ligar ao card do Trello…"),
           tstat && tstat.state === "bad_cred" ? h("span", { class: "pn-warn" }, "Credencial do Trello inválida") : null));
     }
@@ -7704,7 +7724,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
         h("p", { class: "pn-faint" }, m.days_worked + " dia" + (m.days_worked === 1 ? "" : "s") + " com trabalho" + (diff == null ? "" : " · " + (diff >= 0 ? "+" : "−") + fmtDur(Math.abs(diff)) + " em relação a " + mName(m.prev))),
         cal, dayBox),
         h("div", { class: "pn-list", style: "margin-top:10px" }, !m.clients.length ? h("div", { class: "pn-empty" }, "Nenhum tempo neste mês") : m.clients.map((c) =>
-          h("details", { class: "pn-d", "data-k": c.client, open: open.has(c.client) }, h("summary", { class: c.unidentified ? "pn-warn" : "" }, h("b", {}, c.client), delta(c.s, c.prev_s), h("span", { class: "pn-t" }, fmtDur(c.s))),
+          h("details", { class: "pn-d", "data-k": c.client, open: open.has(c.client) }, h("summary", { class: c.unidentified ? "pn-warn" : "" }, h("b", {}, c.client), c.s ? delta(c.s, c.prev_s) : null, c.done ? h("span", { class: "pn-t", title: "Cards do Trello em Aprovar neste período" }, "✓ " + c.done + (c.s ? " · " : "")) : null, h("span", { class: "pn-t" }, c.s ? fmtDur(c.s) : "")),
             c.unidentified ? null : c.jobs.map((j) => h("div", { class: "pn-fl" }, h("span", {}, j.job), delta(j.s, j.prev_s), h("span", { class: "pn-t" }, fmtDur(j.s))))))));
     }
     const addRoot = async () => {
@@ -7738,6 +7758,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
         h("button", { class: "pn-btn", type: "button", onclick: csv }, "Exportar CSV")),
         h("p", { class: "pn-faint" }, w.days.map((x) => x.d + " " + fmtDur(x.s)).join("   ")));
       const open = new Set([...tree.querySelectorAll("details[open]")].map((d) => d.dataset.k));
+      const noCl = (r) => (r && r.done_other ? h("div", { class: "pn-faint", style: "margin-top:6px" }, "Sem cliente: " + r.done_other + (r.done_other === 1 ? " card concluído" : " cards concluídos") + " no Trello") : null);
       tree.replaceChildren(h("div", { class: "pn-list" }, !w.clients.length ? h("div", { class: "pn-empty" }, "Nenhum tempo nesta semana") : w.clients.map((c) => {
         const files = (fs, cls) => fs.map((f) => h("div", { class: "pn-fl " + cls }, h("span", {}, f.file), appTag(f.app), h("span", { class: "pn-t" }, fmtDur(f.s))));
         const ufiles = (fs) => fs.map((f) => {
@@ -7749,8 +7770,8 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
         });
         const kids = c.unidentified ? c.jobs.flatMap((j) => ufiles(j.files)) :
           c.jobs.map((j) => h("details", { class: "pn-d", "data-k": c.client + "\u0000" + j.job, open: open.has(c.client + "\u0000" + j.job) }, h("summary", {}, h("span", {}, j.job), h("span", { class: "pn-t" }, fmtDur(j.s))), files(j.files, "")));
-        return h("details", { class: "pn-d", "data-k": c.client, open: open.has(c.client) }, h("summary", { class: c.unidentified ? "pn-warn" : "" }, h("b", {}, c.client), h("span", { class: "pn-t" }, fmtDur(c.s))), kids);
-      })));
+        return h("details", { class: "pn-d", "data-k": c.client, open: open.has(c.client) }, h("summary", { class: c.unidentified ? "pn-warn" : "" }, h("b", {}, c.client), c.done ? h("span", { class: "pn-t", title: "Cards do Trello em Aprovar neste período" }, "✓ " + c.done + (c.s ? " · " : "")) : null, h("span", { class: "pn-t" }, c.s ? fmtDur(c.s) : "")), kids);
+      })), noCl(w));
       drawBar();
     }
     const selKey = (f) => f.app + "\u0000" + f.file;

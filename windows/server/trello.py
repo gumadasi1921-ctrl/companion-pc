@@ -601,6 +601,10 @@ class Trello:
                 out[day] = out.get(day, 0) + 1
         return out
 
+    def done_names(self, first, last):
+        """Nomes dos cards contados como feitos entre duas datas (AAAA-MM-DD, inclusive): vem do histórico completo, sem o limite de 62 dias do celular."""
+        return [v.get("name", "") for day, _k, v in self._counted() if first <= day <= last]
+
     def done_list(self, limit=8):
         rows = sorted(self._counted(), key=lambda r: (r[0], r[1]), reverse=True)
         return [{"id": k, "name": v.get("name", ""), "board": v.get("board", ""), "day": d,

@@ -594,9 +594,9 @@ ACTIONS = {
     "file.open_folder": lambda p: UPLOADS.open_folder(),
     # tempo de trabalho (work.py): roda na fila de disco, como todo o resto do WORK
     "work.get": lambda p: _wi(WORK.get()),
-    "work.week": lambda p: _wi(WORK.week(p.get("offset", 0))),
+    "work.week": lambda p: _wi(_wdone(WORK.week(p.get("offset", 0)))),
     "work.csv": lambda p: work_csv(p.get("offset", 0)),
-    "work.month": lambda p: _wi(WORK.month(p.get("ym"), notes=False)),   # celular: só os totais, sem notas
+    "work.month": lambda p: _wi(_wdone(WORK.month(p.get("ym"), notes=False))),   # celular: só os totais, sem notas
     "trello.get": lambda p: trello_get(p),
     "trello.open": lambda p: trello_open(p),
     "monday.get": lambda p: monday_get(p),
@@ -912,16 +912,16 @@ PAIR = pair.Pairing()
 PANEL_OPS = {
     "pair_new": PAIR.new, "pair_state": PAIR.state, "pair_close": PAIR.close,   # só memória: sem fila de disco
     "work_get": lambda: _wi(io_call(WORK.get)),
-    "work_week": lambda offset: _wi(io_call(WORK.week, offset)),
+    "work_week": lambda offset: _wi(io_call(lambda: _wdone(WORK.week(offset)))),
     "work_csv": lambda offset: io_call(WORK.csv, offset),
-    "work_month": lambda ym: _wi(io_call(WORK.month, ym)),
+    "work_month": lambda ym: _wi(io_call(lambda: _wdone(WORK.month(ym)))),
     "work_month_csv": lambda ym: io_call(work_month_csv, ym),
     "work_note_set": lambda day, text: io_call(WORK.note_set, day, text),
     "work_links_get": lambda: io_call(WORK.links_get),
     "work_link_set": lambda client, job, card, name: io_call(work_link_set, client, job, card, name),
     "work_link_delete": lambda ids: io_call(WORK.link_delete, ids),
     "work_link_restore": lambda entries: io_call(WORK.link_restore, entries),
-    "trello_cards": lambda: io_call(lambda: {"cards": TRELLO.all_cards(), "status": TRELLO.status()}),
+    "trello_cards": lambda: io_call(trello_cards_op),
     "work_mlinks_get": lambda: io_call(WORK.mlinks_get),
     "work_mlink_set": lambda client, job, item: io_call(work_mlink_set, client, job, item),
     "work_mlink_delete": lambda ids: io_call(WORK.mlink_delete, ids),
@@ -1997,6 +1997,22 @@ def work_app_icons():
 
 def _wi(res):
     return {**res, "app_icons": work_app_icons()} if isinstance(res, dict) else res
+
+
+def _wdone(res):
+    """Semana/Mês: acrescenta os cards do Trello concluídos no período, por cliente do Trabalho (regra "CLIENTE - JOB", igualdade sem
+    maiúsculas/acentos/espaços; sem casamento = done_other). Só leitura do histórico; sem Trello ligado não muda nada."""
+    if not isinstance(res, dict) or not res.get("start") or not res.get("end") or not TRELLO.enabled():
+        return res
+    return WORK.with_done(res, TRELLO.done_names(res["start"], res["end"]))
+
+
+def trello_cards_op():
+    cards, cat = TRELLO.all_cards(), WORK.catalog()
+    for c in cards:
+        m = WORK.card_match(c["name"], cat)
+        c["client"], c["job"] = m["client"], m["job"]      # sugestão de ligação pelo nome (o painel pergunta antes de ligar)
+    return {"cards": cards, "status": TRELLO.status()}
 
 
 def _work_step():
