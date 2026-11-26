@@ -69,6 +69,8 @@ class Fake(http.server.BaseHTTPRequestHandler):
         if path.startswith("/__od/"):      # OpenDota falso: on|off (off = sem conexão, a tela mostra a última cópia)
             STATE["od_off"] = path.rsplit("/", 1)[1] == "off"
             return self.send(200, b"ok")
+        if path.startswith("/matches/") and not STATE["od_off"]:
+            return self.send(200, (FIX / "od-match.json").read_bytes(), "application/json")
         if path in OD_ROUTES:
             if STATE["od_off"]:
                 return self.send(503)
@@ -105,6 +107,11 @@ def main():
         "token": token, "panel_token": panel,
         "web": {"host": "127.0.0.1", "port": port, "adb_reverse": False, "adb_path": ""},
         "dota": {"bridge": f"http://127.0.0.1:{bport}/companion/v1/state", "auto_open": False, "steam_id": "1"}}), encoding="utf-8")
+    # itens das partidas já "lidos" (o servidor real lê 3 por ciclo de 10 min; a prévia pula a espera): cache semeado
+    ids = [116, 48, 63, 147, 139, 156, 1, 44]
+    seed = {"v": 1, "account": 1, "sec": {}, "consts": {}, "calls": {"day": "", "n": 0},
+            "matches": {str(9000000000 + n): {"i": [ids[(n + k) % 8] if (n + k) % 7 else None for k in range(6)], "nt": 44 if n % 2 else None, "n": 1} for n in range(1, 6)}}
+    (srv / "dota-od.json").write_text(json.dumps(seed), encoding="utf-8")
     (tmp / "stop").write_text("apague este arquivo para encerrar")
     import os
     import urllib.request

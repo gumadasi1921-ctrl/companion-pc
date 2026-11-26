@@ -17,5 +17,41 @@
   "dname": "X",
   "cost": 1,
   "img": null
+ },
+ "black_king_bar": {
+  "id": 116,
+  "dname": "Black King Bar",
+  "cost": 1000,
+  "img": "/apps/dota2/images/dota_react/items/black_king_bar.png?t=1"
+ },
+ "travel_boots": {
+  "id": 48,
+  "dname": "Travel Boots",
+  "cost": 1000,
+  "img": "/apps/dota2/images/dota_react/items/travel_boots.png?t=1"
+ },
+ "power_treads": {
+  "id": 63,
+  "dname": "Power Treads",
+  "cost": 1000,
+  "img": "/apps/dota2/images/dota_react/items/power_treads.png?t=1"
+ },
+ "manta": {
+  "id": 147,
+  "dname": "Manta",
+  "cost": 1000,
+  "img": "/apps/dota2/images/dota_react/items/manta.png?t=1"
+ },
+ "butterfly": {
+  "id": 139,
+  "dname": "Butterfly",
+  "cost": 1000,
+  "img": "/apps/dota2/images/dota_react/items/butterfly.png?t=1"
+ },
+ "satanic": {
+  "id": 156,
+  "dname": "Satanic",
+  "cost": 1000,
+  "img": "/apps/dota2/images/dota_react/items/satanic.png?t=1"
  }
 }
