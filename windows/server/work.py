@@ -991,7 +991,7 @@ class WorkTracker:
             c = self.card_match(n, cat)["client"]
             if c is None:
                 other += 1
-                other_cards.append({"name": n, "stage": "done"})
+                other_cards.append({"name": n, "stage": "done", **({"day": day} if day else {})})
             else:
                 k = norm_key(c)
                 by[k] = (c, by.get(k, (c, 0, 0))[1] + 1, by.get(k, (c, 0, 0))[2])

@@ -1706,6 +1706,48 @@ html.lm-still .home.editing .hw:not(.hw-slot) { animation: none; outline: 2px da
 .trk-r { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; } .trk-r:empty { display: none; }
 .trk-d { font-size: 11px; font-weight: 600; line-height: 16px; padding: 0 6px; border-radius: 999px; border: 1px solid var(--separator, var(--p3)); color: var(--text-2, var(--p2)); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .trk-d.late { color: var(--alert, #f87168); border-color: currentColor; background: color-mix(in srgb, var(--alert, #f87168) 14%, transparent); }
+/* Trabalho (estilo Tempo de Uso): faixa de resumo, Agora, gráfico empilhado por cliente, lista por cliente */
+:root[data-theme="modern"] { --wc0: #4C9AFF; --wc1: #BF5AF2; --wc2: #FF6482; --wc3: #64D2FF; --wc4: #FFD60A; --wc5: #AC8E68; --wc6: #7D7AFF; --wc7: #30B0C7; }
+:root[data-theme="modern"][data-scheme="light"] { --wc0: #0A60D6; --wc1: #8E3FC8; --wc2: #D63060; --wc3: #0B7FA6; --wc4: #9A7B00; --wc5: #7F6544; --wc6: #4B49C9; --wc7: #13808F; }
+:root[data-theme="fallout"] { --wc0: var(--p); --wc1: color-mix(in srgb, var(--p) 82%, var(--bg)); --wc2: color-mix(in srgb, var(--p) 66%, var(--bg)); --wc3: color-mix(in srgb, var(--p) 52%, var(--bg)); --wc4: color-mix(in srgb, var(--p) 40%, var(--bg)); --wc5: color-mix(in srgb, var(--p) 30%, var(--bg)); --wc6: color-mix(in srgb, var(--p) 22%, var(--bg)); --wc7: color-mix(in srgb, var(--p) 16%, var(--bg)); }
+#t-work.on { display: flex; flex-direction: column; gap: 10px; }
+.wk-top, .wk-body { flex: none; display: grid; gap: 10px; min-width: 0; }
+.wk-ctl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; } .wk-ctl .seg { flex: none; width: 168px; }
+.wk-nav { display: flex; align-items: center; gap: 4px; min-width: 0; } .wk-nav b { min-width: 84px; text-align: center; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.wk-nav .btn { min-width: 44px; min-height: 44px; font-size: 20px; }
+.wk-sum { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
+.wk-g { border: 1px solid var(--p4); background: var(--panel); border-radius: var(--r-card, 12px); padding: 6px 10px 8px; min-width: 0; }
+.wk-gl { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2, var(--p2)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wk-gn { display: flex; gap: 12px; min-width: 0; } .wk-gn > div { display: flex; flex-direction: column; min-width: 0; }
+.wk-gn b { font-size: 24px; line-height: 1.1; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; } .wk-gn span { font-size: 11px; color: var(--text-2, var(--p2)); white-space: nowrap; }
+.wk-gn .wk-ok b { color: var(--tr-done); } .wk-gn .wk-run b { color: var(--tr-run); }
+.wk-left { display: grid; gap: 10px; align-content: start; min-width: 0; } .wk-right { min-width: 0; }
+.wk-st { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--tr-done); } .wk-file { font-size: 12px; color: var(--text-2, var(--p2)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .wk-now { padding: 8px 12px; } .wk-csvl:empty { display: none; } .wk-csvl { margin-top: 6px; }
+.wk-cd { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--separator, var(--p4)); min-width: 0; }
+.wk-plot { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(44px, 1fr); gap: 4px; height: clamp(96px, 24vh, 190px); margin-top: 2px; }
+.wk-col { display: grid; grid-template-rows: 16px minmax(0, 1fr) auto auto; justify-items: center; min-width: 0; min-height: 44px; padding: 0 1px; border-radius: 8px; text-align: center; color: var(--text-2, var(--p2)); }
+.wk-col.sel { background: color-mix(in srgb, var(--accent, var(--p)) 16%, transparent); outline: 1px solid var(--accent, var(--p)); } .wk-col.today .wk-l { color: var(--text, var(--p)); font-weight: 700; }
+.wk-n em { font-style: normal; display: inline-block; min-width: 16px; height: 16px; line-height: 16px; padding: 0 4px; border-radius: 8px; font-size: 10px; font-weight: 700; background: var(--tr-done); color: #fff; font-variant-numeric: tabular-nums; }
+.wk-bw { position: relative; width: 100%; } .wk-bar { position: absolute; left: 18%; right: 18%; bottom: 0; display: flex; flex-direction: column-reverse; border-radius: 4px 4px 2px 2px; overflow: hidden; gap: 1px; background: var(--bg); }
+.wk-bar i { display: block; min-height: 1px; } .wk-l { font-size: 12px; font-weight: 600; text-transform: capitalize; line-height: 14px; } .wk-col small { font-size: 10px; line-height: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wk-fh { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; font-size: 13px; font-weight: 700; } .wk-fh .btn { min-height: 44px; }
+.wk-row { padding: 6px 0 8px; border-top: 1px solid var(--separator, var(--p4)); min-width: 0; } .wk-row:first-child { border-top: 0; }
+.wk-rh { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; text-align: left; min-width: 0; } .wk-rh:disabled { opacity: 1; cursor: default; } .wk-rh.static { min-height: 28px; }
+.wk-sw { flex: none; width: 10px; height: 10px; border-radius: 3px; } .wk-cn { flex: 1 1 auto; min-width: 0; font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+.wk-h { flex: none; font-size: 14px; color: var(--text-2, var(--p2)); font-variant-numeric: tabular-nums; }
+.wk-fb { height: 4px; border-radius: 2px; background: var(--p4); overflow: hidden; margin: 0 0 6px; } .wk-fb i { display: block; height: 100%; border-radius: 2px; }
+.wk-tags { display: flex; flex-wrap: wrap; gap: 4px 12px; } .wk-tk { display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; } .wk-tk.ok { color: var(--tr-done); } .wk-tk.run { color: var(--tr-run); }
+.wk-body2 { margin-top: 6px; display: grid; gap: 2px; } .wk-jn { min-width: 0; overflow-wrap: anywhere; } .wk-hint { font-size: 12px; color: var(--text-2, var(--p2)); padding: 2px 0 4px; }
+.wk-oc { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 3px 0; } .wk-oc .trn { flex: 1 1 auto; }
+.wk-row.wunid .wk-cn, .wk-row.wunid .wk-h { color: var(--unid); }
+@container (min-width: 600px) {
+  #t-work.on { overflow: hidden; gap: 8px; }
+  .wk-top { grid-template-columns: auto minmax(0, 1fr); align-items: center; }
+  .wk-sum { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wk-ctl { display: grid; gap: 2px; justify-items: stretch; } .wk-ctl .seg { width: 100%; }
+  .wk-body { flex: 1 1 0; min-height: 0; grid-template-columns: minmax(360px, 1fr) minmax(0, 1fr); }
+  .wk-left, .wk-right { min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+}
 .trk-nb { font-size: 10px; line-height: 14px; font-weight: 600; padding: 0 5px; border-radius: 999px; border: 1px dashed var(--text-3, var(--p3t)); color: var(--text-3, var(--p3t)); white-space: nowrap; } .z-P .trk-nb { display: none; }
 .trk-dots { display: inline-flex; gap: 3px; } .trk-dots i { width: 8px; height: 8px; border-radius: 50%; }
 .trw { display: flex; flex-direction: column; min-width: 0; }
@@ -1886,27 +1928,23 @@ html.lm-still .home.editing .hw:not(.hw-slot) { animation: none; outline: 2px da
 
   <!-- STATUS > Trabalho (tempo no Photoshop, Premiere e After Effects) -->
   <section class="tab" id="t-work">
-    <div class="game">
-      <div style="display:grid; gap:10px; align-content:start">
-        <div class="card"><h3><span>Agora</span></h3><div class="sub wnow" id="w-now"></div></div>
-        <div class="card"><h3><span>Hoje</span></h3><div class="gtime" id="w-today">–</div><div id="w-today-jobs"></div></div>
+    <div class="wk-top">
+      <div class="wk-ctl">
+        <div class="seg" id="w-seg" role="group" aria-label="Período"><button data-wm="week" aria-pressed="true">Semana</button><button data-wm="month" aria-pressed="false">Mês</button></div>
+        <div class="wk-nav"><button class="btn sm" id="w-prev" aria-label="Período anterior">‹</button><b id="w-range">Esta semana</b><button class="btn sm" id="w-next" aria-label="Período seguinte">›</button><button class="btn sm" id="w-csv" title="Exportar a semana em CSV">CSV</button></div>
       </div>
-      <div id="w-right" style="display:grid; gap:10px; align-content:start; min-width:0">
-      <div class="seg" id="w-seg" role="group" aria-label="Período"><button data-wm="week" aria-pressed="true">Semana</button><button data-wm="month" aria-pressed="false">Mês</button></div>
-      <div class="card hidden" id="w-mcard"><h3><span id="wm-range">Este mês</span><span id="wm-total"></span></h3>
-        <div class="brow" style="margin-top:0"><button class="btn sm" id="wm-prev">&lt; anterior</button><button class="btn sm" id="wm-next">próximo &gt;</button></div>
-        <div class="sub" id="wm-cmp"></div>
-        <div class="sub hidden" id="wm-md"></div>
-        <div class="sub hidden" id="wm-tr"></div>
-        <div id="wm-clients" style="margin-top:10px"></div></div>
-      <div class="card" id="w-wcard"><h3><span id="w-range">Esta semana</span><span id="w-total"></span></h3>
-        <div class="brow" style="margin-top:0"><button class="btn sm" id="w-prev">&lt; anterior</button><button class="btn sm" id="w-next">próxima &gt;</button></div>
-        <div class="sub hidden" id="w-md"></div>
-        <div class="sub hidden" id="w-tr"></div>
-        <div class="week" id="w-days"></div>
-        <div id="w-week-jobs" style="margin-top:10px"></div>
-        <div class="brow"><button class="btn sm" id="w-csv">Exportar CSV</button><span id="w-csv-link"></span></div></div>
+      <div class="wk-sum" id="wk-sum"></div>
+    </div>
+    <div class="wk-body">
+      <div class="wk-left">
+        <div class="card wk-now"><div class="sub wnow" id="w-now"></div><div id="wk-card"></div></div>
+        <div class="card wk-chart"><h3><span id="wk-ct">Horas por dia</span><span id="w-total"></span></h3>
+          <div class="wk-plot" id="wk-plot"></div>
+          <div class="sub" id="wk-cmp"></div>
+          <div class="sub hidden" id="w-md"></div><div class="sub hidden" id="wm-md"></div>
+          <div class="wk-csvl" id="w-csv-link"></div></div>
       </div>
+      <div class="wk-right"><div id="wk-list"></div></div>
     </div>
   </section>
 
@@ -4058,48 +4096,124 @@ async function loadWork(force) {
     renderWork();
   } catch { workT = 0; }
 }
-function renderWork() {
-  const d = workData; if (!d) return;
-  const n = d.now, now = $("w-now");
-  now.classList.toggle("wunid", !!n?.app && !n.identified);
-  const nowTxt = !n?.app ? "Nenhum programa monitorado em foco no PC"
-    : `${n.counting ? "Contando" : "Parado (ninguém mexendo no PC)"}: ${n.app} · ${n.identified ? `${n.client} › ${n.job}` : n.client} · ${n.file}`;
-  const nowIc = n?.app ? d.app_icons?.[n.app] || "" : "";
-  if (now._k !== nowTxt + "|" + nowIc) {            // só refaz quando muda (o ícone não pisca a cada leitura)
-    now._k = nowTxt + "|" + nowIc;
-    now.textContent = nowTxt;
-    if (nowIc) { now.insertAdjacentHTML("afterbegin", gic(nowIc)); hydrateIcons(now); }
-  }
-  $("w-today").textContent = humanDur(d.today_s);
-  $("w-today-jobs").innerHTML = d.today.length ? d.today.map((r) => `<div class="row${r.unidentified ? " wunid" : ""}"><span>${esc(r.client)}</span><span>${humanDur(r.s)}</span></div>`).join("")
-    : `<div class="empty">${d.roots.length ? "Nada contado hoje" : "Nenhuma pasta de clientes: escolha no painel do PC (aba Trabalho)"}</div>`;
-  const w = workWeek; if (!w) return;
-  const dm = (s) => s.slice(8, 10) + "/" + s.slice(5, 7);
-  $("w-range").textContent = w.offset === 0 ? "Esta semana" : `${dm(w.start)} a ${dm(w.end)}`;
-  $("w-total").textContent = w.total_s ? humanDur(w.total_s) : "";
-  mdWork(); trWork();
-  $("w-next").disabled = w.offset >= 0;
-  const max = Math.max(3600, ...w.days.map((x) => x.s));
-  $("w-days").innerHTML = w.days.map((x) => `<div class="wk${x.today ? " today" : ""}" title="${humanDur(x.s)}">
-    <small>${x.s >= 3600 ? Math.round(x.s / 360) / 10 + "h" : x.s >= 60 ? Math.round(x.s / 60) + "m" : ""}</small>
-    <i style="height:${Math.round((x.s / max) * 62)}px"></i>${x.d}</div>`).join("");
-  const top = w.clients[0]?.s || 1;
-  const APPC = { Photoshop: "#31A8FF", Illustrator: "#FF9A00", Premiere: "#9999FF", "After Effects": "#CF96FD", CapCut: "#14C3B5" };
-  const files = (fs) => fs.map((f) => `<div class="row wfile"><span>${gic(w.app_icons?.[f.app])}<i class="wdot" style="background:${APPC[f.app] || "var(--p3)"}"></i>${esc(f.app)} · ${esc(f.file)}</span><span>${humanDur(f.s)}</span></div>`).join("");
-  $("w-week-jobs").innerHTML = w.clients.length ? w.clients.map((c, i) => `<div class="toprow wjob${c.unidentified ? " wunid" : ""}" data-i="${i}">
-    <div class="row"><span>${esc(c.client)}</span><span>${c.s ? humanDur(c.s) : ""}${wDone(c)}</span></div><div class="bar"><i style="width:${(c.s / top) * 100}%"></i></div>
-    ${workOpen.has(c.client) ? c.jobs.map((j) => (c.unidentified ? "" : `<div class="row wjobrow"><span>${esc(j.job)}</span><span>${humanDur(j.s)}</span></div>`) + files(j.files)).join("") : ""}</div>`).join("")
-    : '<div class="empty">Nenhum tempo nesta semana</div>';
-  $("w-week-jobs").insertAdjacentHTML("beforeend", wDoneOther(w));
-  hydrateIcons($("w-week-jobs"));
+// ---- Trabalho (estilo Tempo de Uso): faixa Hoje/Período (horas · prontos · em execução), Agora (+ card ligado), gráfico empilhado por cliente e
+// lista por cliente. Horas = work.get/week/month; Trello = trData + o que o PC compôs em week/month (done, running, done_days, cards_other).
+let workMode = store.get("wmode", "week"), wmYm = null, wmData = null, wkSel = null;
+const wmName = (ym) => { const [y, m] = ym.split("-"); return new Date(+y, +m - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }); };
+const wmShift = (ym, d) => { const [y, m] = ym.split("-").map(Number), t = new Date(y, m - 1 + d, 1); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}`; };
+const wmNow = () => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}`; };
+const wkKey = (v) => String(v || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+const wkCol = (name, unid) => { if (unid) return "var(--unid)"; let h = 0; for (const ch of wkKey(name)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return `var(--wc${h % 8})`; };
+const wkH = (s) => (s >= 3600 ? (Math.round(s / 360) / 10).toString().replace(".", ",") + "h" : s >= 60 ? Math.round(s / 60) + "min" : "0h");
+const wkTr = () => (trData && trData.on && ["ok", "net_error"].includes(trData.state) ? trData : null);
+const wkP = () => (workMode === "month" ? wmData : workWeek);
+const wkCur = (p) => (workMode === "month" ? p.month === wmNow() : p.offset === 0);
+const wkDM = (s) => s.slice(8, 10) + "/" + s.slice(5, 7);
+function wkSum(p) {
+  const d = workData, tr = wkTr(), cur = wkCur(p), run = tr ? trSum(tr) : null;
+  const g = (label, hs, done, running) => `<div class="wk-g"><div class="wk-gl">${label}</div><div class="wk-gn"><div><b>${hs}</b><span>horas</span></div>`
+    + (tr && done != null ? `<div class="wk-ok"><b>${done}</b><span>${done === 1 ? "pronto" : "prontos"}</span></div>` : "")
+    + (tr && running != null ? `<div class="wk-run"><b>${running}</b><span>em execução</span></div>` : "") + "</div></div>";
+  const dayDone = tr ? tr.done.today : null;
+  return g("Hoje", wkH(d.today_s), dayDone, run)
+    + g(workMode === "month" ? wmName(p.month) : cur ? "Esta semana" : wkDM(p.start) + " a " + wkDM(p.end), wkH(p.total_s),
+      p.done_total != null ? p.done_total : cur && tr ? tr.done[workMode === "month" ? "month" : "week"] : null, cur ? run : null);
 }
-$("w-week-jobs").onclick = (e) => {
-  const r = e.target.closest("[data-i]"); if (!r || !workWeek) return;
-  const name = workWeek.clients[+r.dataset.i]?.client; if (name == null) return;
-  workOpen.has(name) ? workOpen.delete(name) : workOpen.add(name); renderWork();
+function wkNow() {
+  const d = workData, n = d.now, el = $("w-now");
+  el.classList.toggle("wunid", !!n?.app && !n.identified);
+  const ic = n?.app ? d.app_icons?.[n.app] || "" : "";
+  const html = !n?.app ? `<div class="wk-st">Agora</div><div>Nenhum programa monitorado em foco no PC</div>`
+    : `<div><span class="wk-st">Agora · ${n.counting ? "contando" : "parado"}</span> ${esc(n.app)}</div>${n.identified ? `<div><b>${esc(n.client)}</b> › ${esc(n.job)}</div>` : `<div>${esc(n.client)}</div>`}<div class="wk-file">${esc(n.file)}</div>`;
+  if (el._k !== html + "|" + ic) { el._k = html + "|" + ic; el.innerHTML = html; if (ic) { el.insertAdjacentHTML("afterbegin", gic(ic)); hydrateIcons(el); } }
+  const tr = wkTr(), it = n?.identified && tr ? Object.values(tr.groups).flat().find((x) => x.link && wkKey(x.link.client) === wkKey(n.client) && wkKey(x.link.job) === wkKey(n.job)) : null;
+  setHtml($("wk-card"), it ? `<div class="wk-cd"><i class="trd" style="--c:var(--tr-run)"></i>${trNm(it.name)}<span class="trk-r">${trBadge(it, false)}</span></div>` : "");
+}
+// barras: semana = 7 dias; mês = semanas (alvo de toque ≥ 44 px). Cada barra leva horas por cliente e os feitos por cliente.
+function wkBars(p) {
+  const dd = p.done_days || {}, add = (m, k, v) => { m[k] = (m[k] || 0) + v; };
+  if (workMode !== "month") return p.days.map((x) => ({ key: "d:" + x.date, full: "Dia " + wkDM(x.date) + " (" + x.d + ")", lab: x.d, sub: wkH(x.s), s: x.s, by: x.by_client || [], done: dd[x.date] || {}, today: x.today, days: [x.date] }));
+  const weeks = [];
+  for (const x of p.days) {
+    if (!weeks.length || x.wd === 0) weeks.push({ days: [], s: 0, by: {}, done: {}, today: false });
+    const w = weeks[weeks.length - 1];
+    w.days.push(x.date); w.s += x.s; w.today = w.today || x.today;
+    for (const c of x.by_client || []) add(w.by, c.client, c.s);
+    for (const [k, v] of Object.entries(dd[x.date] || {})) add(w.done, k, v);
+  }
+  return weeks.map((w) => ({ key: "w:" + w.days[0], full: "Semana de " + wkDM(w.days[0]) + " a " + wkDM(w.days[w.days.length - 1]), lab: (+w.days[0].slice(8)) + (w.days.length > 1 ? "–" + (+w.days[w.days.length - 1].slice(8)) : ""), sub: wkH(w.s), s: w.s,
+    by: Object.entries(w.by).map(([client, s]) => ({ client, s })).sort((a, b) => b.s - a.s), done: w.done, today: w.today, days: w.days }));
+}
+function wkChart(p, bars) {
+  const tr = wkTr(), unid = (p.clients.find((c) => c.unidentified) || {}).client, max = Math.max(1800, ...bars.map((b) => b.s));
+  $("wk-ct").textContent = workMode === "month" ? "Horas por semana" : "Horas por dia";
+  setHtml($("wk-plot"), bars.map((b) => {
+    const n = Object.values(b.done).reduce((a, c) => a + c, 0), sel = wkSel === b.key;
+    return `<button class="wk-col${b.today ? " today" : ""}${sel ? " sel" : ""}" type="button" data-bar="${esc(b.key)}" aria-pressed="${sel}" aria-label="${esc(b.lab)}: ${wkH(b.s)}${tr && n ? `, ${n} prontos` : ""}">`
+      + `<span class="wk-n">${tr && n ? `<em>${n}</em>` : ""}</span><span class="wk-bw"><span class="wk-bar" style="height:${b.s ? Math.max(3, Math.round((b.s / max) * 100)) : 0}%">`
+      + b.by.map((c) => `<i style="flex:${c.s};background:${wkCol(c.client, c.client === unid)}"></i>`).join("") + `</span></span><span class="wk-l">${esc(b.lab)}</span><small>${esc(b.sub)}</small></button>`;
+  }).join(""));
+  $("wk-plot").classList.toggle("wk-month", workMode === "month");
+  $("wk-cmp").textContent = workMode === "month" ? (p.total_s || p.prev_total_s ? `${p.days_worked} dia${p.days_worked === 1 ? "" : "s"} com trabalho` + (p.prev_total_s ? ` · mês anterior (${wmName(p.prev)}): ${humanDur(p.prev_total_s)}` : "") : "") : "";
+}
+const wkNoJob = (j) => (j === "—" ? "(sem job)" : j);
+const APPC = { Photoshop: "#31A8FF", Illustrator: "#FF9A00", Premiere: "#9999FF", "After Effects": "#CF96FD", CapCut: "#14C3B5" };
+function wkRow(c, top, tr, p) {
+  const open = c.unidentified ? workOpen.has("wk:" + c.client) : workOpen.has("wk:" + c.client), col = wkCol(c.client, c.unidentified);
+  const tags = (tr && c.done ? `<span class="wk-tk ok"><i class="trd" style="--c:var(--tr-done)"></i>${c.done} ${c.done === 1 ? "pronto" : "prontos"}</span>` : "") + (tr && c.running ? `<span class="wk-tk run"><i class="trd" style="--c:var(--tr-run)"></i>${c.running} em execução</span>` : "");
+  const files = (fs) => (fs || []).map((f) => `<div class="row wfile"><span>${gic(p.app_icons?.[f.app])}<i class="wdot" style="background:${APPC[f.app] || "var(--p3)"}"></i>${esc(f.app)} · ${esc(f.file)}</span><span>${humanDur(f.s)}</span></div>`).join("");
+  const body = !open || !c.jobs ? "" : c.unidentified ? `<div class="wk-hint">Atribua estes arquivos a um cliente no painel do PC (aba Trabalho).</div>` + c.jobs.map((j) => files(j.files)).join("")
+    : c.jobs.map((j) => `<div class="row wjobrow"><span class="wk-jn"><b>${esc(c.client)}</b> - ${esc(wkNoJob(j.job))}</span><span>${humanDur(j.s)}</span></div>` + files(j.files)).join("");
+  return `<div class="wk-row${c.unidentified ? " wunid" : ""}${open ? " open" : ""}"><button class="wk-rh" type="button" data-c="${esc(c.client)}" aria-expanded="${open}"${c.jobs ? "" : " disabled"}>`
+    + `<i class="wk-sw" style="background:${col}"></i><b class="wk-cn">${esc(c.client)}</b><span class="wk-h">${c.s ? humanDur(c.s) : "sem horas"}</span></button>`
+    + `<div class="wk-fb"><i style="width:${top ? Math.max(c.s ? 2 : 0, Math.round((c.s / top) * 100)) : 0}%;background:${col}"></i></div>${tags ? `<div class="wk-tags">${tags}</div>` : ""}${body ? `<div class="wk-body2">${body}</div>` : ""}</div>`;
+}
+function wkList(p, bars) {
+  const tr = wkTr(), f = wkSel ? bars.find((b) => b.key === wkSel) : null, cur = wkCur(p);
+  let rows;
+  if (!f) rows = p.clients.map((c) => c);
+  else {
+    const unid = (p.clients.find((c) => c.unidentified) || {}).client, byc = Object.fromEntries(p.clients.map((c) => [wkKey(c.client), c]));
+    const m = new Map(f.by.map((c) => [wkKey(c.client), { client: c.client, s: c.s, unidentified: c.client === unid }]));
+    for (const [k, v] of Object.entries(f.done)) if (k && !m.has(wkKey(k))) m.set(wkKey(k), { client: k, s: 0 });
+    rows = [...m.values()].map((r) => ({ ...r, done: f.done[r.client] || 0, running: f.today ? (byc[wkKey(r.client)] || {}).running || 0 : 0 }));
+    for (const c of p.clients) if (f.today && c.running && !m.has(wkKey(c.client))) rows.push({ client: c.client, s: 0, running: c.running, done: 0 });
+  }
+  rows = rows.slice().sort((a, b) => (b.unidentified ? 1 : 0) - (a.unidentified ? 1 : 0) || b.s - a.s || (b.done || 0) - (a.done || 0));
+  const top = Math.max(0, ...rows.filter((r) => !r.unidentified).map((r) => r.s), ...rows.filter((r) => r.unidentified).map((r) => r.s));
+  const days = f ? new Set(f.days) : null;
+  const oth = (p.cards_other || []).filter((c) => (c.stage === "run" ? !f || f.today : !f || (c.day && days.has(c.day))));
+  const head = f ? `<div class="wk-fh"><span>${esc(f.full)}</span><button class="btn sm" type="button" data-clear>Limpar filtro</button></div>` : "";
+  let html = head + rows.map((c) => wkRow(c, top, tr, p)).join("") + (rows.length ? "" : `<div class="empty">${f ? "Nenhum tempo neste " + (workMode === "month" ? "período" : "dia") : workMode === "month" ? "Nenhum tempo neste mês" : "Nenhum tempo nesta semana"}</div>`);
+  if (tr && oth.length) {
+    const nd = oth.filter((c) => c.stage === "done").length, nr = oth.length - nd;
+    html += `<div class="wk-row wk-oth"><div class="wk-rh static"><i class="wk-sw" style="background:var(--text-3, var(--p3t))"></i><b class="wk-cn">Sem cliente</b><span class="wk-h">sem horas</span></div>`
+      + `<div class="wk-tags">${nd ? `<span class="wk-tk ok"><i class="trd" style="--c:var(--tr-done)"></i>${nd} ${nd === 1 ? "pronto" : "prontos"}</span>` : ""}${nr ? `<span class="wk-tk run"><i class="trd" style="--c:var(--tr-run)"></i>${nr} em execução</span>` : ""}</div>`
+      + `<div class="wk-body2">${oth.map((c) => `<div class="wk-oc"><i class="trd" style="--c:var(${c.stage === "run" ? "--tr-run" : "--tr-done"})"></i>${trNm(c.name)}</div>`).join("")}</div></div>`;
+  }
+  setHtml($("wk-list"), html);
+  hydrateIcons($("wk-list"));
+}
+function renderWork() {
+  const d = workData, p = wkP(); if (!d) return;
+  $("w-range").textContent = workMode === "month" ? (p ? wmName(p.month) : "Este mês") : !p ? "Esta semana" : p.offset === 0 ? "Esta semana" : wkDM(p.start) + " a " + wkDM(p.end);
+  $("w-prev").disabled = workMode === "month" ? !!p && p.month <= "2020-01" : workOff <= -104;
+  $("w-next").disabled = workMode === "month" ? !p || p.month >= wmNow() : workOff >= 0;
+  $("w-csv").classList.toggle("hidden", workMode === "month");
+  if (!p) { setHtml($("wk-sum"), ""); wkNow(); return; }
+  $("w-total").textContent = p.total_s ? humanDur(p.total_s) : "";
+  const bars = wkBars(p);
+  if (wkSel && !bars.some((b) => b.key === wkSel)) wkSel = null;
+  setHtml($("wk-sum"), wkSum(p)); wkNow(); wkChart(p, bars); wkList(p, bars); mdWork();
+}
+$("wk-plot").onclick = (e) => { const b = e.target.closest("[data-bar]"); if (!b) return; buzz(6); wkSel = wkSel === b.dataset.bar ? null : b.dataset.bar; renderWork(); };
+$("wk-list").onclick = (e) => {
+  if (e.target.closest("[data-clear]")) { wkSel = null; return renderWork(); }
+  const r = e.target.closest(".wk-rh[data-c]"); if (!r) return;
+  const k = "wk:" + r.dataset.c; workOpen.has(k) ? workOpen.delete(k) : workOpen.add(k); renderWork();
 };
-$("w-prev").onclick = () => { if (workOff > -104) { workOff--; $("w-csv-link").textContent = ""; buzz(8); loadWork(true); } };
-$("w-next").onclick = () => { if (workOff < 0) { workOff++; $("w-csv-link").textContent = ""; buzz(8); loadWork(true); } };
+$("w-prev").onclick = () => { buzz(8); wkSel = null; $("w-csv-link").textContent = ""; if (workMode === "month") { wmYm = wmShift(wmYm || wmNow(), -1); loadMonth(); } else if (workOff > -104) { workOff--; loadWork(true); } };
+$("w-next").onclick = () => { buzz(8); wkSel = null; $("w-csv-link").textContent = ""; if (workMode === "month") { if ((wmYm || wmNow()) < wmNow()) { wmYm = wmShift(wmYm || wmNow(), 1); loadMonth(); } } else if (workOff < 0) { workOff++; loadWork(true); } };
 // CSV da semana mostrada: link temporário (15 min) do PC; tocar no link baixa no celular
 $("w-csv").onclick = async () => {
   buzz(8);
@@ -4108,43 +4222,16 @@ $("w-csv").onclick = async () => {
     $("w-csv-link").innerHTML = `<a class="btn sm" href="${esc(PCL.url(r.url))}" download="${esc(r.name)}">Baixar ${esc(r.name)}</a>`;
   } catch (er) { toast(er.message, "bad"); }
 };
-// Mês (só leitura): totais por cliente e job, comparados com o mês anterior
-let workMode = store.get("wmode", "week"), wmYm = null, wmData = null;
-const wmName = (ym) => { const [y, m] = ym.split("-"); return new Date(+y, +m - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }); };
-const wmShift = (ym, d) => { const [y, m] = ym.split("-").map(Number), t = new Date(y, m - 1 + d, 1); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}`; };
-const wmNow = () => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}`; };
 function workModeShow() {
-  $("w-wcard").classList.toggle("hidden", workMode !== "week"); $("w-mcard").classList.toggle("hidden", workMode !== "month");
   for (const b of $("w-seg").children) { const on = b.dataset.wm === workMode; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); }
+  wkSel = null;
   if (workMode === "month") loadMonth();
+  renderWork();
 }
 async function loadMonth() {
   if (!ws || ws.readyState !== 1 || !welcome.features?.work) return;
-  try { wmData = await send("work.month", { ym: wmYm || wmNow() }); wmYm = wmData.month; renderMonth(); } catch {}
+  try { wmData = await send("work.month", { ym: wmYm || wmNow() }); wmYm = wmData.month; renderWork(); } catch {}
 }
-const wmDelta = (cur, prev) => (prev > 0 ? ` <small class="${cur >= prev ? "wm-up" : "wm-dn"}">${cur >= prev ? "+" : "−"}${humanDur(Math.abs(cur - prev))}</small>` : "");
-function renderMonth() {
-  const m = wmData; if (!m) return;
-  $("wm-range").textContent = wmName(m.month);
-  $("wm-total").textContent = m.total_s ? humanDur(m.total_s) : "";
-  mdWork(); trWork();
-  $("wm-next").disabled = m.month >= wmNow();
-  $("wm-prev").disabled = m.month <= "2020-01";
-  $("wm-cmp").textContent = m.total_s || m.prev_total_s
-    ? `${m.days_worked} dia${m.days_worked === 1 ? "" : "s"} com trabalho` + (m.prev_total_s ? ` · mês anterior (${wmName(m.prev)}): ${humanDur(m.prev_total_s)}` : "") : "";
-  const top = m.clients[0]?.s || 1;
-  $("wm-clients").innerHTML = m.clients.length ? m.clients.map((c, i) => `<div class="toprow wjob${c.unidentified ? " wunid" : ""}" data-i="${i}">
-    <div class="row"><span>${esc(c.client)}</span><span>${c.s ? humanDur(c.s) + wmDelta(c.s, c.prev_s) : ""}${wDone(c)}</span></div><div class="bar"><i style="width:${(c.s / top) * 100}%"></i></div>
-    ${workOpen.has("m:" + c.client) && !c.unidentified ? c.jobs.map((j) => `<div class="row wjobrow"><span>${esc(j.job)}</span><span>${humanDur(j.s)}</span></div>`).join("") : ""}</div>`).join("")
-    : '<div class="empty">Nenhum tempo neste mês</div>';
-  $("wm-clients").insertAdjacentHTML("beforeend", wDoneOther(m));
-}
-$("wm-clients").onclick = (e) => {
-  const r = e.target.closest("[data-i]"); const name = r && wmData?.clients[+r.dataset.i]?.client; if (name == null) return;
-  const k = "m:" + name; workOpen.has(k) ? workOpen.delete(k) : workOpen.add(k); renderMonth();
-};
-$("wm-prev").onclick = () => { buzz(8); wmYm = wmShift(wmYm || wmNow(), -1); loadMonth(); };
-$("wm-next").onclick = () => { if ((wmYm || wmNow()) < wmNow()) { buzz(8); wmYm = wmShift(wmYm || wmNow(), 1); loadMonth(); } };
 $("w-seg").onclick = (e) => { const b = e.target.closest("[data-wm]"); if (!b) return; buzz(8); workMode = b.dataset.wm; store.set("wmode", workMode); workModeShow(); };
 workModeShow();
 setInterval(() => { if (vis("work")) { loadWork(); if (workMode === "month") loadMonth(); } }, 5000);
@@ -4169,7 +4256,7 @@ function renderTasks(d) {
 let trData = null, trT = 0;
 const TR_GROUPS = [["overdue", "Atrasados"], ["today", "Hoje"], ["tomorrow", "Amanhã"], ["week", "Esta semana"], ["later", "Depois"], ["none", "Sem prazo"]];
 const TR_COL = { green: "#4bce97", yellow: "#e2b203", orange: "#faa53d", red: "#f87168", purple: "#9f8fef", blue: "#579dff", sky: "#6cc3e0", lime: "#94c748", pink: "#e774bb", black: "#8590a2" };
-function trelloSet(d) { if (!d || typeof d !== "object" || !d.groups) return; trData = d; trRender(); trWork(); homeUpd("trello"); lumeDone("tr", d); }
+function trelloSet(d) { if (!d || typeof d !== "object" || !d.groups) return; trData = d; trRender(); trWork(); homeUpd("trello"); lumeDone("tr", d); if (vis("work")) renderWork(); }
 async function trelloLoad() { trT = Date.now(); try { trelloSet(await send("trello.get", { refresh: true })); } catch { trT = 0; } }
 const trDue = (c) => (c.due ? c.due.slice(8) + "/" + c.due.slice(5, 7) + (c.time && c.time !== "00:00" ? " " + c.time : "") : "");
 const trSpent = (c) => (c.spent && (c.spent.total_s || c.spent.today_s) ? `<div class="trc-t">Tempo: hoje ${humanDur(c.spent.today_s)} · semana ${humanDur(c.spent.week_s)} · total ${humanDur(c.spent.total_s)}</div>` : "");
