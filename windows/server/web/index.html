@@ -169,6 +169,7 @@ nav button {
 }
 nav button.on { background: var(--p); color: var(--bg); text-shadow: none; }
 .rail-top { display: none; }
+.nav-scroll { display: contents; }   /* em pé: transparente para a barra de abas; no trilho vira a área que rola */
 
 .subtabs { grid-area: subtabs; display: flex; gap: 2px; padding: 8px 12px 0; overflow-x: auto; scrollbar-width: none; }
 .subtabs::-webkit-scrollbar { display: none; }
@@ -465,6 +466,14 @@ body.crt .isvg { filter: drop-shadow(0 0 3px var(--glow)); }
     grid-template-areas: "nav banner" "nav header" "nav subtabs" "nav main"; }
   nav { flex-direction: column; border-top: 0; border-right: 1px solid var(--p3); padding: 0 0 0 env(safe-area-inset-left, 0px); }
   nav button { flex: 1; max-height: 76px; font-size: 18px; padding: 0 4px; }
+  nav { overflow: hidden; }
+  .rail-top { flex: none; }
+  .nav-scroll { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--nf-t, 0px), #000 calc(100% - var(--nf-b, 0px)), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 var(--nf-t, 0px), #000 calc(100% - var(--nf-b, 0px)), transparent 100%); }
+  .nav-scroll::-webkit-scrollbar { display: none; }
+  .nav-scroll > button { flex: 1 0 auto; }
+  nav button.nav-more { flex: none; max-height: none; min-height: 52px; border-top: 1px solid var(--p4); }
   .rail-top { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0 8px; font: 22px/1 var(--display); color: var(--p2); border-bottom: 1px solid var(--p4); }
   main { padding-right: env(safe-area-inset-right, 0px); }
   .toast { bottom: 16px; left: calc(50% + var(--rail) / 2); }
@@ -648,7 +657,8 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 /* barra lateral (tela larga), nos dois temas */
 @media (min-width: 1000px) and (min-height: 600px) and (orientation: landscape) {
   :root[data-theme] { --rail: calc(220px + env(safe-area-inset-left, 0px)); }
-  nav { overflow-y: auto; padding-right: 8px; }
+  nav { padding-right: 8px; }
+  .nav-scroll > button, .nav-scroll > .nav-label { flex: none; }
   nav button { display: flex; align-items: center; flex: none; max-height: none; min-height: 44px; flex-direction: row; justify-content: flex-start; gap: 12px; padding: 0 12px; text-align: left; }
   nav button[data-sec="mais"] { display: none !important; }
   nav .nm { display: flex !important; }
@@ -676,6 +686,8 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
   :root[data-theme="modern"] { --rail: calc(92px + env(safe-area-inset-left, 0px)); }
   :root[data-theme="modern"] nav { padding: 8px 8px 8px calc(8px + env(safe-area-inset-left, 0px)); min-height: 0; }
   :root[data-theme="modern"] nav button { flex: 1; max-height: 76px; }
+  :root[data-theme="modern"] .nav-scroll { gap: 4px; }
+  :root[data-theme="modern"] nav button.nav-more { margin-top: 4px; border-top: 1px solid var(--separator); border-radius: 14px; }
   :root[data-theme="modern"] .rail-top { padding: 4px 0 6px; font: 600 15px/1 var(--font); }
 }
 @media (min-width: 1000px) and (min-height: 600px) and (orientation: landscape) {
@@ -1413,8 +1425,9 @@ header .hchip::after { content: ""; position: absolute; inset: -10px -8px; }
 #nav-list .wd-nm small { display: block; }
 /* celular deitado: o trilho usa a altura toda (botões dividem o espaço, sem teto de 76 px) e o topo fica compacto (chip do PC, ponto e hora em 2 linhas) */
 @media (orientation: landscape) and (max-height: 560px) {
-  nav { overflow-y: auto; }
   nav button, :root[data-theme="modern"] nav button { flex: 1 1 0; max-height: none; min-height: 44px; }
+  .nav-scroll > button, :root[data-theme="modern"] .nav-scroll > button { flex: 1 0 44px; }
+  nav button.nav-more, :root[data-theme="modern"] nav button.nav-more { flex: none; min-height: 48px; }
   .rail-top, :root[data-theme="modern"] .rail-top { display: grid; grid-template-columns: auto auto; justify-content: center; align-items: center; column-gap: 5px; row-gap: 2px; padding: 4px 0; }
   .rail-top .pcchip.rail { grid-column: 1 / -1; justify-self: center; }
 }
@@ -3599,17 +3612,32 @@ function navBuild() {
   navBar = cfg.order.filter((id) => !cfg.hidden.includes(id)).slice(0, LAY.NAV.CAP);
   const rest = cfg.order.filter((id) => !navBar.includes(id)), nav = $("nav"), bdg = (id) => (id === "tasks" ? '<b class="badge tk-b hidden"></b>' : "");
   [...nav.children].forEach((c) => { if (!c.classList.contains("rail-top")) c.remove(); });
+  // itens (e, na barra larga, o grupo "Mais") ficam no .nav-scroll, que rola no trilho; o botão Mais fica fora, fixo no rodapé
   nav.insertAdjacentHTML("beforeend",
-    navBar.map((id) => `<button data-nid="${id}">${navIc(NAVM[id][2], "ni")}<span>${NAVM[id][0]}</span>${bdg(id)}</button>`).join("") +
-    (rest.length ? `<button data-nid="mais" data-sec="mais">${navIc("ellipsis", "ni")}<span>Mais</span></button>
-      <div class="nav-label nm-label">Mais</div>` + rest.map((id) => `<button class="nm" data-nid="${id}">${navIc(NAVM[id][2], "ni")}<span>${NAVM[id][1]}</span>${bdg(id)}</button>`).join("") : ""));
+    '<div class="nav-scroll">' + navBar.map((id) => `<button data-nid="${id}">${navIc(NAVM[id][2], "ni")}<span>${NAVM[id][0]}</span>${bdg(id)}</button>`).join("") +
+    (rest.length ? '<div class="nav-label nm-label">Mais</div>' + rest.map((id) => `<button class="nm" data-nid="${id}">${navIc(NAVM[id][2], "ni")}<span>${NAVM[id][1]}</span>${bdg(id)}</button>`).join("") : "") + "</div>" +
+    (rest.length ? `<button class="nav-more" data-nid="mais" data-sec="mais">${navIc("ellipsis", "ni")}<span>Mais</span></button>` : ""));
+  const sc = nav.querySelector(".nav-scroll"); sc.addEventListener("scroll", navFade, { passive: true }); if (window.ResizeObserver) new ResizeObserver(navFade).observe(sc);
   $("more-list").innerHTML = rest.map((id) => `<button class="mrow" data-nid="${id}">${navIc(NAVM[id][2], "mi")}<span>${NAVM[id][1]}</span>${bdg(id)}</button>`).join("");
   navBadge(); navMark(prefs.tab);
 }
+function navFade() {   // fade em cima/embaixo só no trilho (no .nav-scroll com display: contents não há rolagem) quando ainda há itens fora da vista
+  const s = document.querySelector("#nav .nav-scroll"); if (!s) return;
+  const rail = getComputedStyle(s).display !== "contents", t = rail && s.scrollTop > 2, b = rail && s.scrollTop + s.clientHeight < s.scrollHeight - 2;
+  s.style.setProperty("--nf-t", t ? "22px" : "0px"); s.style.setProperty("--nf-b", b ? "22px" : "0px");
+}
+function navReveal() {   // o item ativo rola para a vista (só no trilho)
+  const s = document.querySelector("#nav .nav-scroll"), a = s && s.querySelector("button.on"); if (!a || getComputedStyle(s).display === "contents") return;
+  const r = a.getBoundingClientRect(), c = s.getBoundingClientRect(), m = 24;
+  if (r.top < c.top + m) s.scrollTop += r.top - c.top - m; else if (r.bottom > c.bottom - m) s.scrollTop += r.bottom - c.bottom + m;
+  navFade();
+}
+addEventListener("resize", () => { navFade(); navReveal(); });
 function navMark(name) {   // marca o item da barra da vista atual (Mais acende quando a vista não está na barra)
   const it = navItemOf(name);
   document.body.classList.toggle("onbar", navBar.includes(it));   // a tela ativa já aparece no trilho: o título dela pode sair no deitado
   document.querySelectorAll("nav [data-nid]").forEach((b) => b.classList.toggle("on", b.dataset.nid === it || (b.dataset.nid === "mais" && (name === "more" || (!!it && !navBar.includes(it))))));
+  navReveal(); navFade();
 }
 function navGo(id) {
   buzz(8);
