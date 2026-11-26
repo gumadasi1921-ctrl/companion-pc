@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "windows" / "ser
 import alerts  # noqa: E402
 import extras  # noqa: E402
 import pomodoro  # noqa: E402
+import watchers  # noqa: E402
 
 
 class Clock:
@@ -353,6 +354,32 @@ class FocusTests(unittest.TestCase):
             path.write_text(json.dumps(data), encoding="utf-8")
             q = pomodoro.Pomodoro(Path(d))
             self.assertEqual((q.cfg["focus_min"], q.cfg["focus_mode"], q.cfg["focus_except"]), (30, True, []))
+
+
+class NotifPayload(unittest.TestCase):
+    def test_curta_sem_campos_extras(self):
+        p = watchers.notif_payload("Outlook", ["Oi", "corpo curto"])
+        self.assertEqual(p, {"app": "Outlook", "title": "Oi", "body": "corpo curto"})
+
+    def test_sem_texto_usa_o_app(self):
+        self.assertEqual(watchers.notif_payload("Windows", []), {"app": "Windows", "title": "Windows", "body": ""})
+
+    def test_resumo_igual_ao_de_antes_e_completo_com_quebras(self):
+        body = ["linha um", "linha dois " + "x" * 400, "linha tres"]
+        p = watchers.notif_payload("Slack", ["T" * 150] + body)
+        self.assertEqual(p["title"], "T" * 120)
+        self.assertEqual(p["body"], " ".join(body)[:300])
+        self.assertNotIn("\n", p["body"])
+        self.assertEqual(p["title_full"], "T" * 150)
+        self.assertEqual(p["body_full"], "\n".join(body))
+
+    def test_corpo_so_com_quebra_ganha_completo(self):
+        p = watchers.notif_payload("A", ["t", "a", "b"])
+        self.assertEqual((p["body"], p["body_full"], "title_full" in p), ("a b", "a\nb", False))
+
+    def test_teto_de_4000(self):
+        p = watchers.notif_payload("A", ["T" * 9000, "b" * 9000])
+        self.assertEqual((len(p["title_full"]), len(p["body_full"]), len(p["title"]), len(p["body"])), (4000, 4000, 120, 300))
 
 
 if __name__ == "__main__":

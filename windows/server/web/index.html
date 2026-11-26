@@ -4962,7 +4962,7 @@ const NA = '<div class="hw-na">Indisponível neste PC</div>';
 const clientColor = (i) => `--chart-${(i % 5) + 1}`;
 const homeNotif = [];
 let nsSeq = 0;
-function homeNotifPush(m) { const r = { id: ++nsSeq, app: m.app || "", title: m.title || "", body: m.body || "", go: m.go || "", time: new Date().toTimeString().slice(0, 5), ts: Date.now() }; homeNotif.unshift(r); homeNotif.length = Math.min(homeNotif.length, 8); homeUpd("notif"); return r; }
+function homeNotifPush(m) { const r = { id: ++nsSeq, app: m.app || "", title: m.title || "", body: m.body || "", go: m.go || "", time: new Date().toTimeString().slice(0, 5), ts: Date.now(), tfull: m.title_full || "", bfull: m.body_full || "" }; homeNotif.unshift(r); homeNotif.length = Math.min(homeNotif.length, 8); homeUpd("notif"); return r; }
 const homeData = { work: null, week: null, hist: null, t: { work: 0, hist: 0 }, busy: false };
 
 Object.assign(HOME_W, {
@@ -7242,9 +7242,10 @@ function nsOpen(r) {
   const hue = [...(r.app || "?")].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
   const av = $("ns-av"); av.textContent = ([...(r.app || "?")][0] || "?").toUpperCase(); av.style.setProperty("--ns-c", `hsl(${hue} 45% 38%)`);
   setText($("ns-app"), r.app || "Aviso"); setText($("ns-time"), nsWhen(r));
-  setText($("ns-t"), r.title || ""); setText($("ns-x"), r.body || "");
-  const cut = (r.title || "").length >= 120 || (r.body || "").length >= 300;
-  setText($("ns-note"), cut ? "O PC envia o texto resumido (até 120 caracteres no título e 300 no corpo)." : "");
+  const T = r.tfull || r.title || "", B = r.bfull || r.body || "";   // widget/toast/balão mostram o resumo; a folha, o texto completo que o PC mandou
+  setText($("ns-t"), T); setText($("ns-x"), B);
+  const cut = T.length >= 4000 || B.length >= 4000;
+  setText($("ns-note"), cut ? "Texto cortado em 4000 caracteres." : "");
   const g = $("ns-go"); g.classList.toggle("hidden", !r.go); g.textContent = NS_GO[r.go] || "Abrir";
   $("ns-body").scrollTop = 0; $("ns-card").style.removeProperty("--ns-y"); $("nsheet").classList.remove("hidden"); $("ns-close").focus({ preventScroll: true });
 }

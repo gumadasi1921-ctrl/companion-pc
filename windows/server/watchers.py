@@ -56,6 +56,24 @@ class Ping:
 # --------------------------------------------------------------------------
 # Notificações do Windows (Central de notificações) -> celular
 # --------------------------------------------------------------------------
+FULL_MAX = 4000   # teto de segurança do texto completo (título e corpo, cada um)
+
+
+def notif_payload(app, texts):
+    """Resumo (title ≤120, body ≤300, uma linha) para widget/toast/balão + texto completo
+    (title_full/body_full, quebras de linha preservadas, ≤4000) só quando difere do resumo."""
+    texts = [str(t) for t in (texts or [])]
+    title = texts[0] if texts else app
+    body = "\n".join(texts[1:])
+    out = {"app": app, "title": title[:120], "body": " ".join(texts[1:])[:300]}
+    tf, bf = title[:FULL_MAX], body[:FULL_MAX]
+    if tf != out["title"]:
+        out["title_full"] = tf
+    if bf != out["body"]:
+        out["body_full"] = bf
+    return out
+
+
 class WinNotifications:
     def __init__(self):
         self.available = None
@@ -109,8 +127,7 @@ class WinNotifications:
                         texts = [t.text for t in b.get_text_elements()] if b else []
                     except Exception:  # noqa: BLE001
                         pass
-                    await push({"app": app, "title": (texts[0] if texts else app)[:120],
-                                "body": " ".join(texts[1:])[:300]})
+                    await push(notif_payload(app, texts))
                 self.seen, self.primed = cur, True
             except Exception:  # noqa: BLE001
                 log.exception("notificações do Windows")
