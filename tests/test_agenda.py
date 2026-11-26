@@ -305,5 +305,110 @@ class AgendaTests(unittest.TestCase):
         self.assertEqual(agenda.valid_url(" https://calendar.google.com/calendar/ical/x/private-abc/basic.ics "), "https://calendar.google.com/calendar/ical/x/private-abc/basic.ics")
 
 
+class CalTests(unittest.TestCase):
+    """`cal` (widget Calendário): janela do mês, dia inteiro só aqui, dia local do PC, link por id, virada de dia."""
+    def setUp(self):
+        self._d = tempfile.TemporaryDirectory()
+        self.base = Path(self._d.name)
+        self.clk = Clock(NOW)   # 25/11/2026 09:00 em São Paulo
+        self.cfg = {"url": "https://calendar.google.com/x/basic.ics", "on": True, "notify_min": 5}
+        self.feed = ""
+
+    def tearDown(self):
+        self._d.cleanup()
+
+    def mk(self):
+        a = agenda.Agenda(self.base, lambda: self.cfg, fetch=lambda u: self.feed, clock=self.clk, local_tz=SP)
+        a.refresh()
+        return a
+
+    def cal(self, a):
+        return a.state()["cal"]["items"]
+
+    def test_janela_do_mes_inclui_passado_de_hoje_e_o_que_vem(self):
+        self.feed = ics(ev("UID:a", "SUMMARY:Dia 2", "DTSTART;TZID=America/Sao_Paulo:20261102T100000", "DTEND;TZID=America/Sao_Paulo:20261102T110000"),
+                        ev("UID:b", "SUMMARY:Hoje cedo", "DTSTART;TZID=America/Sao_Paulo:20261125T070000", "DTEND;TZID=America/Sao_Paulo:20261125T080000"),
+                        ev("UID:c", "SUMMARY:Dezembro 3", "DTSTART;TZID=America/Sao_Paulo:20261203T100000", "DTEND;TZID=America/Sao_Paulo:20261203T110000"),
+                        ev("UID:d", "SUMMARY:Longe", "DTSTART;TZID=America/Sao_Paulo:20261215T100000", "DTEND;TZID=America/Sao_Paulo:20261215T110000"),
+                        ev("UID:e", "SUMMARY:Mes passado", "DTSTART;TZID=America/Sao_Paulo:20261031T100000", "DTEND;TZID=America/Sao_Paulo:20261031T110000"))
+        a = self.mk()
+        c = a.state()["cal"]
+        self.assertEqual([i["title"] for i in c["items"]], ["Dia 2", "Hoje cedo", "Dezembro 3"])   # 3/dez = hoje+8; 15/dez e 31/out ficam fora
+        self.assertEqual((c["today"], c["tz"]), ("2026-11-25", -180))
+        self.assertEqual([i["title"] for i in a.state()["upcoming"]], ["Dezembro 3"])   # o aviso/"Próxima reunião" não mudou: só o que ainda não passou (14 dias)
+        self.assertEqual(a.state()["next"]["title"], "Dezembro 3")
+
+    def test_dia_inteiro_so_no_cal_e_nunca_em_items(self):
+        self.feed = ics(ev("UID:f", "SUMMARY:Feriado", "DTSTART;VALUE=DATE:20261125", "DTEND;VALUE=DATE:20261126"),
+                        ev("UID:g", "SUMMARY:Viagem", "DTSTART;VALUE=DATE:20261126", "DTEND;VALUE=DATE:20261129"),
+                        ev("UID:h", "SUMMARY:Sem fim", "DTSTART;VALUE=DATE:20261127"))
+        a = self.mk()
+        self.assertEqual(a.items, [])
+        self.assertIsNone(a.state()["next"])
+        c = self.cal(a)
+        self.assertEqual([(i["title"], i["day"], i["days"], i["allday"]) for i in c],
+                         [("Feriado", "2026-11-25", 1, True), ("Viagem", "2026-11-26", 3, True), ("Sem fim", "2026-11-27", 1, True)])
+
+    def test_dia_inteiro_recorrente_exdate_e_excecao(self):
+        self.feed = ics(ev("UID:r", "SUMMARY:Semanal", "DTSTART;VALUE=DATE:20261102", "DTEND;VALUE=DATE:20261103", "RRULE:FREQ=WEEKLY;BYDAY=MO",
+                           "EXDATE;VALUE=DATE:20261116"),
+                        ev("UID:r", "SUMMARY:Semanal movida", "RECURRENCE-ID;VALUE=DATE:20261123", "DTSTART;VALUE=DATE:20261124", "DTEND;VALUE=DATE:20261125"),
+                        ev("UID:r", "SUMMARY:x", "STATUS:CANCELLED", "RECURRENCE-ID;VALUE=DATE:20261130", "DTSTART;VALUE=DATE:20261130"))
+        a = self.mk()
+        self.assertEqual([(i["title"], i["day"]) for i in self.cal(a)],
+                         [("Semanal", "2026-11-02"), ("Semanal", "2026-11-09"), ("Semanal movida", "2026-11-24")])   # 16 removido, 23 movido, 30 cancelado
+
+    def test_dia_do_pc_perto_da_meia_noite_e_fuso(self):
+        # 23:30 em São Paulo do dia 25 = 02:30 UTC do dia 26: o `day` é o do PC
+        self.feed = ics(ev("UID:n", "SUMMARY:Noite", "DTSTART:20261126T023000Z", "DTEND:20261126T033000Z"),
+                        ev("UID:o", "SUMMARY:Atravessa", "DTSTART;TZID=America/Sao_Paulo:20261125T233000", "DTEND;TZID=America/Sao_Paulo:20261126T013000"))
+        a = self.mk()
+        self.assertEqual([(i["title"], i["day"]) for i in self.cal(a)], [("Atravessa", "2026-11-25"), ("Noite", "2026-11-25")])   # começa no dia em que começa
+
+    def test_recorrencia_e_horario_de_verao_no_cal(self):
+        ny = ZoneInfo("America/New_York")
+        t = ics(ev("UID:r", "SUMMARY:x", "DTSTART;TZID=America/New_York:20260302T090000", "DTEND;TZID=America/New_York:20260302T100000", "RRULE:FREQ=WEEKLY;BYDAY=MO"))
+        self.feed = t
+        self.clk.t = ep(datetime(2026, 3, 10, 12, 0, tzinfo=ny))
+        a = agenda.Agenda(self.base, lambda: self.cfg, fetch=lambda u: self.feed, clock=self.clk, local_tz=ny)
+        a.refresh()
+        its = a.state()["cal"]["items"]
+        self.assertEqual([i["day"] for i in its], ["2026-03-02", "2026-03-09", "2026-03-16", "2026-03-23", "2026-03-30"])
+        self.assertEqual({datetime.fromtimestamp(i["start"], ny).hour for i in its}, {9})   # hora local constante atravessando a virada de 8/mar
+        self.assertEqual(a.state()["cal"]["tz"], -240)
+
+    def test_link_por_id_vale_para_item_do_cal_e_url_nao_vaza(self):
+        self.feed = ics(ev("UID:p", "SUMMARY:Ja passou", "DTSTART;TZID=America/Sao_Paulo:20261125T070000", "DTEND;TZID=America/Sao_Paulo:20261125T080000",
+                           "X-GOOGLE-CONFERENCE:https://meet.google.com/abc-defg-hij"),
+                        ev("UID:q", "SUMMARY:Dia inteiro", "DTSTART;VALUE=DATE:20261125", "URL:https://zoom.us/j/99"))
+        a = self.mk()
+        c = self.cal(a)
+        self.assertEqual([i["join"] for i in c], [True, True])
+        self.assertEqual({a.link_for(i["id"]) for i in c}, {"https://meet.google.com/abc-defg-hij", "https://zoom.us/j/99"})
+        blob = json.dumps(a.state())
+        self.assertNotIn("meet.google.com", blob)
+        self.assertNotIn("calendar.google.com", blob)
+
+    def test_persistencia_e_desligado(self):
+        self.feed = ics(ev("UID:f", "SUMMARY:Feriado", "DTSTART;VALUE=DATE:20261125"))
+        self.mk()
+        b = agenda.Agenda(self.base, lambda: self.cfg, fetch=lambda u: self.feed, clock=self.clk, local_tz=SP)
+        self.assertEqual([i["title"] for i in self.cal(b)], ["Feriado"])
+        self.cfg = {"url": "", "on": False}
+        self.assertEqual(self.cal(b), [])   # desligado = nada
+
+    def test_virou_o_dia_relê_sem_esperar_5_min(self):
+        self.feed = ics(ev("UID:a", "SUMMARY:x", "DTSTART;TZID=America/Sao_Paulo:20261125T100000", "DTEND;TZID=America/Sao_Paulo:20261125T110000"))
+        a = self.mk()
+        self.clk.t += 120
+        self.assertFalse(a.due(True))
+        self.clk.t = ep(datetime(2026, 11, 26, 0, 5, tzinfo=SP))
+        self.assertTrue(a.due(True))   # dia mudou e passou o intervalo de nova tentativa
+        a.refresh()
+        self.assertEqual(a.state()["cal"]["today"], "2026-11-26")
+        self.clk.t += 90
+        self.assertFalse(a.due(True))
+
+
 if __name__ == "__main__":
     unittest.main()
