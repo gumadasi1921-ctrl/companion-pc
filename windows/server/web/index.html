@@ -1467,6 +1467,15 @@ header .hchip::after { content: ""; position: absolute; inset: -10px -8px; }
 .lb-x { min-width: 44px; min-height: 44px; margin: -14px -12px -14px 0; padding: 0; background: none; border: 0; color: inherit; font-size: 20px; }
 .lb-t { overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .lb-a { margin: 8px 6px 0 0; min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--accent, var(--p)); background: none; color: var(--accent, var(--p)); font: inherit; }
+.lb-ch, .lb-sec { display: flex; gap: 6px; margin-top: 8px; }
+.lb-ch { flex-direction: column; gap: 4px; }
+.lb-ch button, .lb-sec button { min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--accent, var(--p)); background: none; color: var(--accent, var(--p)); font: inherit; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-sec { margin-top: 6px; } .lb-sec button { flex: 1; text-align: center; border-color: var(--separator, var(--p3)); color: var(--p3t); }
+.lb-ch + .lb-sec { margin-top: 6px; }
+#lume-bal .lb-t:has(+ .lb-ch) { -webkit-line-clamp: 4; }
+#lk-sheet { position: fixed; z-index: 47; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(340px, calc(100vw - 16px)); padding: 10px 12px; border-radius: 16px; background: var(--surface-2, var(--bg)); color: var(--text, var(--p)); border: 1px solid var(--separator, var(--p3)); box-shadow: 0 6px 24px rgba(0,0,0,.4); font-size: 14px; line-height: 1.3; }
+#lk-sheet.hidden { display: none; }
+.wk-pick { min-height: 44px; margin-top: 6px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--accent, var(--p)); background: none; color: var(--accent, var(--p)); font: inherit; }
 #lume-menu { position: fixed; left: 0; top: 0; z-index: 38; display: flex; flex-direction: column; min-width: 190px; padding: 6px; border-radius: 14px; background: var(--surface-2, var(--bg)); border: 1px solid var(--separator, var(--p3)); box-shadow: 0 6px 24px rgba(0,0,0,.4); }
 #lume-menu button { min-height: 44px; padding: 0 12px; text-align: left; background: none; border: 0; color: var(--text, var(--p)); font: inherit; border-radius: 10px; }
 #lume-menu button:active { background: rgba(128,128,128,.22); }
@@ -2457,6 +2466,7 @@ html.lm-still .home.editing .hw:not(.hw-slot) { animation: none; outline: 2px da
 </div><div class="dk-hint">Toque para voltar</div></div>
 <div id="idle-catch" class="hidden"><div class="dk-hint">Toque para voltar</div></div>
 <div class="toast hidden" id="toast"></div>
+<div id="lk-sheet" class="hidden" role="dialog" aria-label="Ligar card do Trello"></div>
 <div class="toast undo hidden" id="utoast" role="status"><span id="ut-msg"></span><button id="ut-btn">Desfazer</button><button id="ut-btn2" class="hidden"></button></div>
 <div id="nsheet" class="hidden" role="dialog" aria-modal="true" aria-labelledby="ns-app">
   <div class="ns-card" id="ns-card">
@@ -2564,7 +2574,7 @@ const lumeSvg = (skin, cls = "") => `<svg class="lm ${cls}" viewBox="0 0 120 120
 function makeMascot(store, now) {
   const KEY = "mascot", FLOOR = 30, KEEP = 14, SAY_GAP = 15 * 60, LOG_MAX = 200;
   const RATE = { water: 0.5, sat: 0.2, energy: 0.2 };   // pontos por minuto ativo
-  const ROUTES = ["notif", "export", "alert", "pomo", "trello", "monday", "steam", "download", "focus", "agenda", "lunch"];
+  const ROUTES = ["notif", "export", "alert", "pomo", "trello", "monday", "steam", "download", "focus", "agenda", "lunch", "linkcard"];
   const WATER_LINES = ["Que tal um copo d'água?", "Hora de um golinho d'água?", "Uma água cairia bem agora.", "Vamos beber água juntos?", "Seu copo está esperando.", "Pausa rápida: água!"];
   const pad = (n) => String(n).padStart(2, "0");
   const ymd = (t) => { const d = new Date(t * 1000); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
@@ -3279,6 +3289,7 @@ function onMsg(m) {
     case "weather": wxSet(m.d); break;
     case "steam": steamSet(m.d); break;
     case "trello": trelloSet(m.d); break;
+    case "linkask": linkAskSet(m.d); break;
     case "monday": mondaySet(m.d); break;
     case "reminders": remSet(m.d); break;
     case "agenda": agSet(m.d); break;
@@ -3287,6 +3298,7 @@ function onMsg(m) {
       if (m.kind === "pomo.done") { pomoDone(m); return; }
       if (m.kind === "reminder") { remEvent(m); return; }
       if (m.kind === "agenda.soon") { agNotice(m); return; }
+      if (m.kind === "work.autolink") { linkAutoNotice(m); return; }
       if (m.kind === "notif") { const rec = homeNotifPush(m); snd("note"); notify(`${m.app}: ${m.title}`, m.body, "pcn-" + m.app); if (!lumeCap) toastNotif(rec); return; }
       if (m.kind === "steam.done" && prefs.alerts.download) { snd("note"); notify("Download da Steam concluído", m.name, "steam-" + m.appid); toast("Steam: " + m.name + " terminou de baixar", "ok"); return; }
       if (m.kind === "download" && prefs.alerts.download) notify("Download concluído", m.name + (m.size ? ` · ${fmtBytes(m.size)}` : ""), "dl");
@@ -4242,7 +4254,8 @@ function wkNow() {
     : `<div><span class="wk-st">Agora · ${n.counting ? "contando" : "parado"}</span> ${esc(n.app)}</div>${n.identified ? `<div><b>${esc(n.client)}</b> › ${esc(n.job)}</div>` : `<div>${esc(n.client)}</div>`}<div class="wk-file">${esc(n.file)}</div>`;
   if (el._k !== html + "|" + ic) { el._k = html + "|" + ic; el.innerHTML = html; if (ic) { el.insertAdjacentHTML("afterbegin", gic(ic)); hydrateIcons(el); } }
   const tr = wkTr(), it = n?.identified && tr ? Object.values(tr.groups).flat().find((x) => x.link && wkKey(x.link.client) === wkKey(n.client) && wkKey(x.link.job) === wkKey(n.job)) : null;
-  setHtml($("wk-card"), it ? `<div class="wk-cd"><i class="trd" style="--c:var(--tr-run)"></i>${trNm(it.name)}<span class="trk-r">${trBadge(it, false)}</span></div>` : "");
+  const ask = !it && LK.q && n?.identified && wkKey(n.client) === wkKey(LK.q.client);   // pergunta pendente deste job: o balão pode ter passado
+  setHtml($("wk-card"), it ? `<div class="wk-cd"><i class="trd" style="--c:var(--tr-run)"></i>${trNm(it.name)}<span class="trk-r">${trBadge(it, false)}</span></div>` : ask ? `<button class="wk-pick" data-lkopen>Escolher card</button>` : "");
 }
 // barras: semana = 7 dias; mês = semanas (alvo de toque ≥ 44 px). Cada barra leva horas por cliente e os feitos por cliente.
 function wkBars(p) {
@@ -6717,7 +6730,7 @@ function rmTap(it, b) {
 // ---- balão do Lume + roteador de avisos: o aviso do PC é apresentado UMA vez, como balão ou como toast (Ajustes › Lume, por tipo).
 // Os efeitos do handler (lista de notificações, som, vibração, notificação do sistema) continuam iguais; só o toast é desviado (lumeCap).
 const LB = { q: [], cur: null, t: 0 };
-const LU_TYPE = { notif: "notif", "steam.done": "steam", download: "download", export: "export", alert: "alert", "pomo.done": "pomo", "trello.digest": "trello", "monday.digest": "monday", "focus.summary": "focus", "agenda.soon": "agenda" };
+const LU_TYPE = { notif: "notif", "steam.done": "steam", download: "download", export: "export", alert: "alert", "pomo.done": "pomo", "trello.digest": "trello", "monday.digest": "monday", "focus.summary": "focus", "agenda.soon": "agenda", "work.autolink": "linkcard" };
 const lumeCanBalloon = (type) => lumeOn() && !lumeHidden() && !document.hidden && LM.cfg().route[type] === "b" && (type !== "trello" || LM.cfg().trello.on);
 function lumeEvent(m, run) {
   const type = LU_TYPE[m.kind];
@@ -6728,7 +6741,7 @@ function lumeEvent(m, run) {
   else if (cap.msg) lumeSay({ src: "pc", text: cap.msg, act: cap.fn, label: cap.label, alt: cap.alt });
 }
 function lumeSay(o) {
-  o.text = String(o.text || "").slice(0, 140); if (o.title) o.title = String(o.title).slice(0, 28);
+  o.text = String(o.text || "").slice(0, o.choices ? 180 : 140); if (o.title) o.title = String(o.title).slice(0, 28);
   if (!o.text) return;
   if (LB.cur) { if (LB.q.length < 3) LB.q.push(o); lumeBalDraw(); return; }
   lumeBalShow(o);
@@ -6737,6 +6750,8 @@ function lumeBalDraw() {
   const o = LB.cur, el = $("lume-bal"), pc = PCL.active();
   const chip = o.src === "pc" ? `<span class="lb-pc"><i style="background:${PC_COLORS[pc.color] || "#888"}"></i>${esc(pc.name)}</span>` : '<span class="lb-pc">Lume</span>';
   el.innerHTML = `<div class="lb-h">${chip}${LB.q.length ? `<em>+${LB.q.length}</em>` : ""}<button class="lb-x" data-lb="x" aria-label="Dispensar">×</button></div>${o.title ? `<b>${esc(o.title)}</b>` : ""}<div class="lb-t" data-lb="t"${o.sheet ? ` data-ni="${o.sheet.id}" role="button" aria-label="Ver o aviso completo"` : ""}>${esc(o.text)}</div>` +
+    (o.choices ? `<div class="lb-ch">${o.choices.map((c, i) => `<button data-lb="c${i}" title="${esc(c.label)}">${esc(c.label)}</button>`).join("")}</div>` : "") +
+    (o.sec ? `<div class="lb-sec">${o.sec.map((c, i) => `<button data-lb="s${i}">${esc(c.label)}</button>`).join("")}</div>` : "") +
     (o.act ? `<button class="lb-a" data-lb="a">${esc(o.label || "Abrir")}</button>` : "") + (o.alt ? `<button class="lb-a" data-lb="b">${esc(o.alt[0])}</button>` : "");
   lumeBalPlace();
 }
@@ -6762,11 +6777,59 @@ $("lume-bal").addEventListener("click", (e) => {
   const o = LB.cur; if (!o) return;
   if (b.dataset.lb === "x") return lumeBalClose(false);
   if (b.dataset.lb === "t" && o.sheet) { const r = o.sheet; lumeBalClose(true); nsOpen(r); return; }
-  const f = b.dataset.lb === "b" ? o.alt[1] : o.act; lumeBalClose(true); if (f) try { f(); } catch {}
+  const cs = /^([cs])(\d)$/.exec(b.dataset.lb), f = cs ? (cs[1] === "c" ? o.choices : o.sec)[+cs[2]].fn : b.dataset.lb === "b" ? o.alt[1] : o.act; lumeBalClose(true); if (f) try { f(); } catch {}
 });
 
+// ---- Ligar card do Trello: o servidor pergunta (qid + até 3 cards do cliente); aqui só se apresenta e se manda qid + card de volta.
+// Foco rodando = segura e entrega na pausa; Lume dormindo/escondido ou rota "Aviso comum" = folha #lk-sheet com os mesmos botões.
+const LK = { q: null, shown: null };
+const lkAns = (op, extra) => send("work.link_" + op, Object.assign({ qid: LK.q && LK.q.id }, extra)).catch(() => toast("Não consegui ligar o card", "warn"));
+function lkParts(q) {
+  const fn = (c) => () => lkAns("pick", { card: c.short }).then(() => toast("Card ligado", "ok"));
+  return { text: `Você está em ${q.client}${q.file ? ` (arquivo ${q.file.length > 32 ? q.file.slice(0, 31) + "…" : q.file})` : ""}. É qual card?`,
+    choices: q.cards.map((c) => ({ label: c.name, fn: fn(c) })),
+    sec: [{ label: "Nenhum", fn: () => lkAns("none") }, { label: "Depois", fn: () => lkAns("later") }] };
+}
+function lkSheetHide() { const e = $("lk-sheet"); e.classList.add("hidden"); e.innerHTML = ""; }
+function lkSheetShow(q) {
+  const o = lkParts(q), e = $("lk-sheet"); e._o = o;
+  e.innerHTML = `<div class="lb-t">${esc(o.text)}</div><div class="lb-ch">${o.choices.map((c, i) => `<button data-lk="c${i}" title="${esc(c.label)}">${esc(c.label)}</button>`).join("")}</div><div class="lb-sec">${o.sec.map((c, i) => `<button data-lk="s${i}">${esc(c.label)}</button>`).join("")}</div>`;
+  e.classList.remove("hidden");
+}
+$("lk-sheet").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-lk]"), o = $("lk-sheet")._o; if (!b || !o) return;
+  const m = /^([cs])(\d)$/.exec(b.dataset.lk); if (!m) return; buzz(8);
+  const f = (m[1] === "c" ? o.choices : o.sec)[+m[2]].fn; lkSheetHide(); try { f(); } catch {}
+});
+function linkAskPresent(q) {
+  LK.shown = q.id;
+  if (lumeOn() && !lumeHidden() && !document.hidden && LM.cfg().route.linkcard === "b") {
+    lkSheetHide(); const o = lkParts(q);
+    if (LB.cur) lumeBalClose(false);
+    return lumeSay({ src: "lume", text: o.text, choices: o.choices, sec: o.sec, ms: 40000 });
+  }
+  lkSheetShow(q);
+}
+function linkAskTry() {
+  const q = LK.q;
+  if (!q || LK.shown === q.id || document.hidden || lumeFocus() || LB.cur) return;
+  if (lumeOn() && LM.silenced(Date.now() / 1000)) return;
+  linkAskPresent(q);
+}
+function linkAskSet(d) {
+  LK.q = d && d.id && Array.isArray(d.cards) ? d : null;
+  if (!LK.q) { LK.shown = null; lkSheetHide(); if (LB.cur && LB.cur.choices) lumeBalClose(false); }
+  else linkAskTry();
+  if (workData && vis("work")) wkNow();
+}
+function linkAutoNotice(m) {
+  const t = `Liguei ${m.client} - ${m.job} ao card do Trello`;
+  undoToast(t, () => send("work.link_undo", { id: m.id }).then(() => toast("Ligação desfeita", "ok"), () => toast("Não consegui desfazer", "warn")), "Desfazer", null, 9000);
+}
+document.addEventListener("click", (e) => { const b = e.target.closest("[data-lkopen]"); if (b && LK.q) { LK.shown = null; linkAskPresent(LK.q); } });
+
 // ---- Ajustes › Lume (tudo no aparelho)
-const LU_ROUTES = { notif: "Notificações do PC", export: "Arquivo exportado", alert: "Arquivo fora do lugar", pomo: "Pomodoro", trello: "Trello", monday: "monday", steam: "Download da Steam", download: "Download concluído", focus: "Resumo do foco", agenda: "Aviso de reunião", lunch: "Lembrete de almoço" };
+const LU_ROUTES = { notif: "Notificações do PC", export: "Arquivo exportado", alert: "Arquivo fora do lugar", pomo: "Pomodoro", trello: "Trello", monday: "monday", steam: "Download da Steam", download: "Download concluído", focus: "Resumo do foco", agenda: "Aviso de reunião", lunch: "Lembrete de almoço", linkcard: "Ligar card do Trello" };
 function lumeSetRender() {
   const slots = document.querySelectorAll("[data-lume]"); if (!slots.length) return;
   const c = LM.cfg(), sw = (k, on, lab) => `<button class="switch${on ? " on" : ""}" data-lk="${k}" data-t="sw" aria-pressed="${on}" aria-label="${lab}"></button>`;
@@ -6859,6 +6922,7 @@ function lumeLunch(t, d) {
   lumeLunchSay({ text: LM.text("lunch", d, t), id: "lunch", act: go, label: "Vou agora", alt: n < 2 ? ["Daqui a 15 min", () => LM.lunchLater(Date.now() / 1000)] : null });
 }
 async function lumeTick() {
+  linkAskTry();
   const asleep = lumeOn() && LM.sleeping() && !vis("mascot");   // dormindo: só o almoço fala, como toast
   if (!lumeOn() || LU.busy || document.hidden || LB.cur || (lumeHidden() && !asleep)) return;
   const t = Date.now() / 1000, work = lumeOnline() && welcome.features?.work && LU.work ? LU.work : null;
