@@ -1,0 +1,46 @@
+{
+ "provider": {
+  "name": "Dota 2",
+  "appid": 570,
+  "version": 47,
+  "timestamp": 1795280000
+ },
+ "auth": {
+  "token": "TOKEN"
+ },
+ "map": {
+  "name": "start",
+  "matchid": "8000000001",
+  "game_time": 30,
+  "clock_time": -60,
+  "daytime": true,
+  "nightstalker_night": false,
+  "game_state": "DOTA_GAMERULES_STATE_HERO_SELECTION",
+  "paused": false,
+  "win_team": "none",
+  "customgamename": "",
+  "ward_purchase_cooldown": 0
+ },
+ "player": {
+  "steamid": "76561197960265729",
+  "accountid": "1",
+  "name": "Eu",
+  "activity": "playing",
+  "kills": 3,
+  "deaths": 1,
+  "assists": 7,
+  "last_hits": 55,
+  "denies": 4,
+  "kill_streak": 2,
+  "commands_issued": 100,
+  "team_name": "radiant",
+  "gold": 900,
+  "gold_reliable": 100,
+  "gold_unreliable": 800,
+  "gpm": 410,
+  "xpm": 520
+ },
+ "hero": {
+  "id": 0
+ }
+}
