@@ -8596,6 +8596,29 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
       render();
     };
     const upPick = async () => { try { const f = await call("pick_folder", {}, 600000); if (!f) return; await call("config_save", { changes: { repo_dir: f } }); await load(); up.chk = null; } catch (e) { fail(e); } };
+    // Backups dos aparelhos (devbackup.py): o painel só lista (nome, data, versões) e apaga; nunca vê o conteúdo
+    const dbk = { list: null, loading: false, ask: null };
+    const dbkLoad = async () => { dbk.loading = true; try { dbk.list = await call("devbk_list"); } catch (e) { dbk.list = []; } dbk.loading = false; render(); };
+    const dbkWhen = (t) => new Date(t * 1000).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+    const dbkDel = async (ref, at) => {
+      const key = ref + ":" + (at == null ? "" : at);
+      if (dbk.ask !== key) { dbk.ask = key; render(); return; }
+      dbk.ask = null;
+      try { await call("devbk_delete", at == null ? { ref } : { ref, at }); } catch (e) { fail(e); }
+      dbkLoad();
+    };
+    function dbkCard() {
+      if (dbk.list === null && !dbk.loading) dbkLoad();
+      const l = dbk.list || [];
+      return h("div", { class: "pn-card" },
+        h("div", { class: "pn-faint" }, "Cópia automática dos ajustes de cada aparelho (tema, layout do Início, barra, Lume). Ficam as 5 últimas versões. Aqui você só vê o nome e a data e pode apagar; o conteúdo não aparece."),
+        l.length ? l.map((d) => h("div", { style: "margin-top:10px" },
+          h("div", { class: "pn-row" }, h("div", { class: "pn-grow" }, h("div", {}, d.name), h("div", { class: "pn-faint" }, "Última cópia " + dbkWhen(d.at) + " · " + d.versions.length + (d.versions.length === 1 ? " versão" : " versões"))),
+            h("button", { class: "pn-btn danger", type: "button", "aria-label": "Apagar todas as cópias de " + d.name, onclick: () => dbkDel(d.ref, null) }, dbk.ask === d.ref + ":" ? "Confirmar: apagar tudo" : "Apagar tudo")),
+          d.versions.map((v) => h("div", { class: "pn-row", style: "margin-top:4px" }, h("div", { class: "pn-grow pn-faint" }, dbkWhen(v.at)),
+            h("button", { class: "pn-btn", type: "button", "aria-label": "Apagar a versão de " + dbkWhen(v.at), onclick: () => dbkDel(d.ref, v.at) }, dbk.ask === d.ref + ":" + v.at ? "Confirmar" : "Apagar"))))) :
+          h("div", { class: "pn-dim", style: "margin-top:8px" }, dbk.loading ? "Carregando…" : "Nenhum aparelho enviou cópia ainda."));
+    }
     function aboutCard() {
       const i = up.info || {}, c = up.chk, busy = !!up.busy;
       const when = i.at ? new Date(i.at * 1000).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "";
@@ -8667,6 +8690,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
           h("button", { class: "pn-btn sq", type: "button", "aria-label": "Editar " + s.name, onclick: () => { editSc = { index: i, data: { name: s.name, open: s.open, args: s.args || "" } }; render(); } }, ic("edit")),
           h("button", { class: "pn-btn sq danger", type: "button", "aria-label": "Remover " + s.name, onclick: () => { vals.shortcuts.splice(i, 1); render(); } }, ic("trash")))) : h("div", { class: "pn-empty" }, "Nenhum programa.")),
         editSc ? scForm() : h("div", { class: "pn-foot" }, h("button", { class: "pn-btn", type: "button", onclick: () => { editSc = { index: null, data: {} }; render(); } }, "Adicionar programa…")),
+        h("div", { class: "pn-h" }, "Backups dos aparelhos"), dbkCard(),
         h("div", { class: "pn-h" }, "Sobre"), aboutCard(),
         h("div", { class: "pn-h" }, "Rede (só leitura)"), h("div", { class: "pn-card pn-dim" }, "IP " + (net.ip || "?") + "  ·  porta " + net.port + "  ·  " + net.mode),
         h("div", { class: "pn-foot", style: "margin-top:20px" }, h("button", { class: "pn-btn primary", type: "button", disabled: !d.length, onclick: save }, "Salvar alterações"),
