@@ -80,6 +80,7 @@ import multipc
 import audio_profiles
 import backup
 import dota
+import devbackup
 import dota_img
 import extras
 import icons
@@ -1062,6 +1063,8 @@ PANEL_WS = {   # nome -> função(params dict); as de gravação rodam na fila d
     "config_get": lambda p: PANEL_OPS["config_get"](),
     "config_save": lambda p: PANEL_OPS["config_save"](_need(p, "changes", dict)),
     "backup_run": lambda p: PANEL_OPS["backup_run"](),
+    "devbk_list": lambda p: io_call(DEVBK.list_all),
+    "devbk_delete": lambda p: io_call(DEVBK.delete, _need(p, "ref", str), p.get("at")),
     "trello_test": lambda p: trello_test(p),
     "trello_boards": lambda p: trello_boards(p),
     "agenda_test": lambda p: agenda_test(p),
@@ -1217,6 +1220,7 @@ ASYNC_ACTIONS = {
     "pomo.config": lambda p: pomo_run("config", p),
     "agenda.get": lambda p: agenda_get(p),
     "agenda.join": lambda p: agenda_join(p),
+    **{f"devbk.{n}": (lambda p, n=n: on_io(devbk_op, n, p)) for n in ("save", "info", "get")},
     **{f"reminders.{n}": (lambda p, n=n: rem_run(n, p)) for n in ("get", "add", "edit", "remove", "restore", "done", "snooze", "clear")},
     "timer.start": lambda p: TIMER.start(p.get("action"), p.get("minutes")),
     "timer.cancel": lambda p: timer_cancel(),
@@ -1426,7 +1430,7 @@ def welcome_payload():
         "features": {"media": pc_info.HAS_MEDIA, "volume": pc_info.HAS_VOLUME, "mixer": pc_info.HAS_VOLUME,
                      "screen": True, "clipboard": True, "files": True, "deck": True,
                      "mic": pc_info.HAS_VOLUME, "timer": True, "deck_auto": True, "macro": True,
-                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True, "trello": True, "monday": True, "reminders": True, "agenda": True,
+                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True, "trello": True, "monday": True, "reminders": True, "agenda": True, "devbk": True,
                      "dota": True},
     }
 
@@ -1582,7 +1586,7 @@ def release_held():
 
 sent_art: dict = {}
 # não vão para o log: repetitivas ou com conteúdo pessoal (texto digitado/copiado)
-QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "mouse.scroll", "key.text", "clip.set", "clip.get", "file.chunk",
+QUIET_ACTIONS = {"devbk.save", "devbk.info", "devbk.get", "devbk_list", "devbk_delete", "games.history", "games.library", "notif.sub", "mouse.move", "mouse.scroll", "key.text", "clip.set", "clip.get", "file.chunk",
                  "screen.shot", "mixer.get", "audio.profiles", "audio.profile_save", "audio.profile_apply", "audio.profile_delete",  # nome do perfil
                  "steam.get",  # consultada a cada abertura da tela Jogos
                  "deck.get", "deck.save",  # deck.save: textos/macros dos botões
@@ -1655,6 +1659,18 @@ async def stats_loop(stats: Stats):
 MON = games.GameMonitor(CFG, BASE)
 WORK = work.WorkTracker(BASE, CFG.get("idle_min", 5))
 BACKUP = backup.Backup(BASE)
+DEVBK = devbackup.DeviceBackups(BASE)
+
+
+def devbk_op(name, p):
+    """Backup do estado do app (devbackup.py). Só o aparelho com o id inteiro grava/lê o seu; outro aparelho só por `ref`."""
+    if name == "save":
+        return DEVBK.save(p.get("id"), p.get("name"), p.get("data"))
+    if name == "info":   # o que existe: versões do próprio aparelho + backups de outros (nome/data/ref)
+        return {"own": DEVBK.own(p.get("id")), "others": DEVBK.others(p.get("id"))}
+    if name == "get":
+        return DEVBK.get(None if p.get("ref") else p.get("id"), p.get("ref"), p.get("at"))
+    raise ValueError("ação inválida")
 TRELLO = trello.Trello(BASE, lambda: CFG.get("trello"))
 MONDAY = monday.Monday(BASE, lambda: CFG.get("monday"))
 UPD = updater.Updater(BASE, lambda: CFG.get("repo_dir") or "", VERSION)
