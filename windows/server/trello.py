@@ -605,6 +605,14 @@ class Trello:
         """Nomes dos cards contados como feitos entre duas datas (AAAA-MM-DD, inclusive): vem do histórico completo, sem o limite de 62 dias do celular."""
         return [v.get("name", "") for day, _k, v in self._counted() if first <= day <= last]
 
+    def done_items(self, first, last):
+        """[(dia, nome)] dos feitos entre duas datas (para o Trabalho por dia)."""
+        return [(day, v.get("name", "")) for day, _k, v in self._counted() if first <= day <= last]
+
+    def running_names(self):
+        """Nomes dos meus cards em Em execução (última leitura)."""
+        return [c["name"] for c in self.cards if c.get("cat") == "running"]
+
     def done_list(self, limit=8):
         rows = sorted(self._counted(), key=lambda r: (r[0], r[1]), reverse=True)
         return [{"id": k, "name": v.get("name", ""), "board": v.get("board", ""), "day": d,
@@ -621,6 +629,8 @@ class Trello:
             dt = due_local(c["due"])
             item = {"short": c["short"], "name": c["name"], "board": c["board"], "list": c["list"], "labels": c["labels"],
                     "due": dt.date().isoformat() if dt else None, "time": dt.strftime("%H:%M") if dt else None}
+            if links and c["short"] in links:
+                item["link"] = links[c["short"]]       # {client, job} da ligação feita no painel (o celular mostra o card ao lado do programa em foco)
             if c.get("nobody"):
                 item["nobody"] = True      # card da lista do dia que ninguém assumiu
             if times and c["short"] in times:

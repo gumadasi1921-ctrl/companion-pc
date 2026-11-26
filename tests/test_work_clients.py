@@ -62,6 +62,46 @@ class Clients(unittest.TestCase):
         r0 = self.t.with_done(self.t.week(0, TODAY), [])
         self.assertEqual((r0["done_total"], r0["done_other"]), (0, 0))
 
+    def test_days_carry_by_client_for_the_stacked_chart(self):
+        self.t.days["2026-11-24"] = {"Top Market	Post 20	Photoshop	a.psd": 1200.0, "El Viejo	TV	Premiere	b.prproj": 3000.0}
+        w = self.t.week(0, TODAY)
+        d24 = next(x for x in w["days"] if x["date"] == "2026-11-24")
+        self.assertEqual(d24["by_client"], [{"client": "El Viejo", "s": 3000}, {"client": "Top Market", "s": 1200}])    # por horas
+        self.assertEqual(next(x for x in w["days"] if x["date"] == "2026-11-23")["by_client"], [])                      # dia vazio
+        self.assertEqual(sum(c["s"] for x in w["days"] for c in x["by_client"]), w["total_s"])                           # as horas fecham com o total
+        m = self.t.month("2026-11", TODAY)
+        md = next(x for x in m["days"] if x["date"] == "2026-11-24")
+        self.assertEqual([c["client"] for c in md["by_client"]], ["El Viejo", "Top Market"])
+        self.assertEqual(sum(c["s"] for x in m["days"] for c in x["by_client"]), m["total_s"])
+
+    def test_running_per_client_cards_other_and_done_days(self):
+        w = self.t.week(0, TODAY)
+        r = self.t.with_done(w, [("2026-11-24", "TOP MARKET - A"), ("2026-11-25", "EL VIEJO - B"), ("2026-11-25", "Kappa")],
+                             ["TOP MARKET - C", "EL VIEJO - D", "SEPARADOR", "NOVO - X"], done_days=True)
+        rows = {c["client"]: c for c in r["clients"]}
+        self.assertEqual((rows["Top Market"]["done"], rows["Top Market"]["running"], rows["El Viejo"]["running"]), (1, 1, 1))
+        self.assertEqual([(c["name"], c["stage"]) for c in r["cards_other"]], [("Kappa", "done"), ("SEPARADOR", "run"), ("NOVO - X", "run")])
+        self.assertEqual(r["done_days"], {"2026-11-24": {"Top Market": 1}, "2026-11-25": {"El Viejo": 1, "": 1}})
+        self.assertEqual(r["done_other"], 1)
+
+    def test_running_only_client_becomes_a_row_and_hours_never_change(self):
+        w = self.t.week(0, TODAY)
+        r = self.t.with_done(w, [], ["IMPERATRIZ - X"])
+        self.assertEqual(next(c for c in r["clients"] if c["client"] == "Imperatriz")["running"], 1)
+        self.assertEqual([c["s"] for c in r["clients"]], [c["s"] for c in w["clients"]])
+        self.assertNotIn("done_days", r)
+
+    def test_trello_state_carries_the_link_of_a_running_card(self):
+        import json
+        t = trello.Trello(Path(self._d.name), lambda: {}, lambda *a: [], lambda: 1795700000)
+        t.cards = [{"id": "c1", "short": "AAAAAAA1", "name": "TOP MARKET - POST 20", "board": "B", "board_id": "b", "list": "Em execução", "cat": "running", "due": None, "labels": []},
+                   {"id": "c2", "short": "BBBBBBB2", "name": "Outro", "board": "B", "board_id": "b", "list": "Em execução", "cat": "running", "due": None, "labels": []}]
+        st = t.state(links={"AAAAAAA1": {"client": "Top Market", "job": "Post 20"}})
+        items = [i for g in st["groups"].values() for i in g]
+        self.assertEqual({i["name"]: i.get("link") for i in items}, {"TOP MARKET - POST 20": {"client": "Top Market", "job": "Post 20"}, "Outro": None})
+        self.assertEqual(t.running_names(), ["TOP MARKET - POST 20", "Outro"])
+        self.assertEqual(t.done_items("2026-01-01", "2026-12-31"), [])
+
     def test_month_rows_keep_prev_s_and_trello_done_names_come_from_full_history(self):
         t = trello.Trello(Path(self._d.name), lambda: {}, lambda *a: [], lambda: 1795700000)
         t.done = {"c1": {"name": "TOP MARKET - POST 1", "src": "entered", "day": "2026-11-20"},

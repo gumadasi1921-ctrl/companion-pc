@@ -977,29 +977,58 @@ class WorkTracker:
                 break
         return out
 
-    def with_done(self, res, names):
-        """Semana/Mês + cards concluídos (nomes) por cliente: cada linha de cliente ganha `done`; cliente só com feitos (sem horas) vira linha com
-        s=0; sem casamento entra em `done_other`. Só igualdade normalizada; o tempo (s) nunca muda."""
-        if not names:
+    def with_done(self, res, names, running=(), done_days=False):
+        """Semana/Mês + cards do Trello por cliente. `names` = feitos no período (nomes, ou (dia, nome) para `done_days`); `running` = nomes dos
+        cards em execução. Cada linha de cliente ganha `done` e `running`; cliente só com cards vira linha s=0; sem casamento entra em
+        `done_other` e em `cards_other` (nome + etapa, sem corte). `done_days` = {dia: {cliente|"": n}}. As horas (s) nunca mudam."""
+        items = [(n if isinstance(n, tuple) else (None, n)) for n in names]
+        running = list(running)
+        if not items and not running:
             return {**res, "done_total": 0, "done_other": 0}
         cat = self.catalog()
-        by, other = {}, 0
-        for n in names:
+        by, other, other_cards, days = {}, 0, [], {}
+        for day, n in items:
             c = self.card_match(n, cat)["client"]
             if c is None:
                 other += 1
+                other_cards.append({"name": n, "stage": "done"})
             else:
-                by[norm_key(c)] = (c, by.get(norm_key(c), (c, 0))[1] + 1)
+                k = norm_key(c)
+                by[k] = (c, by.get(k, (c, 0, 0))[1] + 1, by.get(k, (c, 0, 0))[2])
+            if day:
+                dd = days.setdefault(day, {})
+                key = c or ""
+                dd[key] = dd.get(key, 0) + 1
+        for n in running:
+            c = self.card_match(n, cat)["client"]
+            if c is None:
+                other_cards.append({"name": n, "stage": "run"})
+            else:
+                k = norm_key(c)
+                by[k] = (c, by.get(k, (c, 0, 0))[1], by.get(k, (c, 0, 0))[2] + 1)
         rows, seen = [], set()
         for r in res.get("clients", []):
             k = norm_key(r.get("client"))
             seen.add(k)
-            n = 0 if r.get("unidentified") else by.get(k, (None, 0))[1]
-            rows.append({**r, "done": n} if n else r)
-        for k, (c, n) in by.items():
+            _c, nd, nr = (None, 0, 0) if r.get("unidentified") else by.get(k, (None, 0, 0))
+            add = {}
+            if nd:
+                add["done"] = nd
+            if nr:
+                add["running"] = nr
+            rows.append({**r, **add} if add else r)
+        for k, (c, nd, nr) in by.items():
             if k not in seen:
-                rows.append({"client": c, "s": 0, "prev_s": 0, "unidentified": False, "jobs": [], "done": n})
-        return {**res, "clients": rows, "done_total": len(names), "done_other": other}
+                row = {"client": c, "s": 0, "prev_s": 0, "unidentified": False, "jobs": []}
+                if nd:
+                    row["done"] = nd
+                if nr:
+                    row["running"] = nr
+                rows.append(row)
+        out = {**res, "clients": rows, "done_total": len(items), "done_other": other, "cards_other": other_cards[:60]}
+        if done_days:
+            out["done_days"] = days
+        return out
 
     def catalog(self):
         """{cliente: [jobs]} dos que já existem: pastas das raízes (2 níveis), histórico e regras."""
@@ -1247,9 +1276,12 @@ class WorkTracker:
         today = today or date.today()
         mon, sun = self._week_bounds(offset, today)
         per_day = [0.0] * 7
+        day_cl = [{} for _ in range(7)]
         tree = {}
         for d, client, job, app, f, s in self._rows(mon, sun):
             per_day[(d - mon).days] += s
+            dc = day_cl[(d - mon).days]
+            dc[client] = dc.get(client, 0.0) + s
             c = tree.setdefault(client, {"s": 0.0, "jobs": {}})
             c["s"] += s
             j = c["jobs"].setdefault(job, {"s": 0.0, "files": {}})
@@ -1261,12 +1293,17 @@ class WorkTracker:
 
         return {"offset": int(offset), "start": mon.isoformat(), "end": sun.isoformat(), "total_s": int(sum(per_day)),
                 "days": [{"date": (mon + timedelta(days=i)).isoformat(), "d": WEEKDAYS[i], "s": int(v),
-                          "today": mon + timedelta(days=i) == today} for i, v in enumerate(per_day)],
+                          "today": mon + timedelta(days=i) == today, "by_client": self._by_client(day_cl[i])} for i, v in enumerate(per_day)],
                 "clients": [{"client": cn, "s": int(c["s"]), "unidentified": cn == UNIDENTIFIED,
                              "jobs": [{"job": jn, "s": int(j["s"]),
                                        "files": [{"app": a, "file": f, "s": int(s), "generic": is_generic(f)} for (a, f), s in by_s(j["files"])]}
                                       for jn, j in by_s(c["jobs"])]}
                             for cn, c in by_s(tree)]}
+
+    @staticmethod
+    def _by_client(d):
+        """{cliente: segundos} de um dia -> [{client, s}] por horas (só leitura; alimenta o gráfico empilhado do celular)."""
+        return [{"client": c, "s": int(v)} for c, v in sorted(d.items(), key=lambda kv: -kv[1]) if int(v) > 0]
 
     def csv(self, offset=0, today=None):
         """(nome do arquivo, bytes) da semana: data;cliente;job;app;arquivo;minutos, UTF-8 com BOM (Excel BR)."""
@@ -1290,26 +1327,29 @@ class WorkTracker:
     # -- histórico mensal e notas do dia (só leitura do histórico; nada é apagado) -----------------
     def _month_tree(self, ym):
         first, last = month_bounds(ym)
-        per_day, tree = {}, {}
+        per_day, tree, day_cl = {}, {}, {}
         for d, client, job, _app, _f, s_ in self._rows(first, last):
             per_day[d.isoformat()] = per_day.get(d.isoformat(), 0.0) + s_
+            dc = day_cl.setdefault(d.isoformat(), {})
+            dc[client] = dc.get(client, 0.0) + s_
             c = tree.setdefault(client, {"s": 0.0, "jobs": {}})
             c["s"] += s_
             c["jobs"][job] = c["jobs"].get(job, 0.0) + s_
-        return first, last, per_day, tree
+        return first, last, per_day, tree, day_cl
 
     def month(self, ym=None, today=None, notes=True):
         """Calendário e totais do mês (mesmas regras manuais/ignorados da semana) + comparação com o mês anterior."""
         ym = valid_month(ym, today)
-        first, last, per_day, tree = self._month_tree(ym)
+        first, last, per_day, tree, day_cl = self._month_tree(ym)
         pym = prev_month(ym)
-        _f, _l, pdays, ptree = self._month_tree(pym) if pym >= "2000-01" else (None, None, {}, {})
+        _f, _l, pdays, ptree, _pdc = self._month_tree(pym) if pym >= "2000-01" else (None, None, {}, {}, {})
         today = today or date.today()
         n = (last - first).days + 1
         days = []
         for i in range(n):
             d = first + timedelta(days=i)
-            e = {"date": d.isoformat(), "wd": d.weekday(), "s": int(per_day.get(d.isoformat(), 0)), "today": d == today}
+            e = {"date": d.isoformat(), "wd": d.weekday(), "s": int(per_day.get(d.isoformat(), 0)), "today": d == today,
+                 "by_client": self._by_client(day_cl.get(d.isoformat(), {}))}
             if notes and d.isoformat() in self.notes:
                 e["note"] = self.notes[d.isoformat()]
             days.append(e)

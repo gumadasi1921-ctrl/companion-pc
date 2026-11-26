@@ -611,7 +611,7 @@ ACTIONS = {
 
 def trello_state():
     """Na fila de disco (o histórico de trabalho só é lido ali): estado do Trello + tempo dos jobs ligados aos cards."""
-    return TRELLO.state(times=WORK.link_times())
+    return TRELLO.state(times=WORK.link_times(), links={x["card"]: {"client": x["client"], "job": x["job"]} for x in WORK.links})
 
 
 def work_link_set(client, job, card, _name=""):
@@ -2004,7 +2004,9 @@ def _wdone(res):
     maiúsculas/acentos/espaços; sem casamento = done_other). Só leitura do histórico; sem Trello ligado não muda nada."""
     if not isinstance(res, dict) or not res.get("start") or not res.get("end") or not TRELLO.enabled():
         return res
-    return WORK.with_done(res, TRELLO.done_names(res["start"], res["end"]))
+    now = time.strftime("%Y-%m-%d")
+    run = TRELLO.running_names() if res["start"] <= now <= res["end"] else []     # "em execução" é o agora: nunca atribuído a um período passado
+    return WORK.with_done(res, TRELLO.done_items(res["start"], res["end"]), run, done_days=True)
 
 
 def trello_cards_op():
