@@ -777,9 +777,8 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .htk-head .hring { width: 64px; height: 64px; }
 .htk-head .htk-n { font-size: 17px; font-weight: 700; color: var(--p); }
 /* Início em páginas (docs/DESIGN.md §6): celular deitado 3×2, tablet 4×3 (deslizar na horizontal); em pé: lista rolável, P lado a lado */
-.home.port { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: row dense; }
-.home.port .hw { grid-column: span 2; }
-.home.port .hw.z-P { grid-column: span 1; min-height: 100px; }
+.home.port { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(136px, auto); grid-auto-flow: row; }
+.home.port .hw { min-height: 0; }
 #t-inicio.paged.on { display: flex; flex-direction: column; overflow: hidden; }
 .home.pager { display: flex; flex: 1 1 auto; min-height: 0; gap: 0; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
 .home.pager::-webkit-scrollbar { display: none; }
@@ -1736,7 +1735,7 @@ header .host { display: none; }
   <!-- MAIS > Widgets do Início (também pelo botão Editar do Início) -->
   <section class="tab" id="t-widgets">
     <div class="home-head"><h2>Widgets do Início</h2><button class="btn sm primary" id="wd-done">Concluído</button></div>
-    <div class="wd-bar"><div class="seg" id="wd-dev" role="group" aria-label="Aparelho"><button data-dev="phone">Celular</button><button data-dev="tablet">Tablet</button></div><button class="btn sm" id="wd-lay" aria-label="Trocar de layout"><b id="wd-lay-n"></b></button></div>
+    <div class="wd-bar"><div class="seg" id="wd-dev" role="group" aria-label="Aparelho"><button data-dev="land">Deitado</button><button data-dev="port">Em pé</button><button data-dev="tablet">Tablet</button></div><button class="btn sm" id="wd-lay" aria-label="Trocar de layout"><b id="wd-lay-n"></b></button></div>
     <div class="wd-info" id="wd-info" role="status"></div>
     <h3 class="wd-h">Na tela, nesta ordem</h3>
     <div class="wd-list" id="wd-list"></div>
@@ -4400,11 +4399,10 @@ function quickClick(q) {
 
 // Tamanhos: P 1×1, A 1×2 (alto), L 2×1 (largo), G 2×2 (grande). Cada widget diz quais suporta (sizes), o tamanho ao adicionar (def)
 // e monta o HTML próprio de cada um em html(z); upd() só troca texto/atributos e tolera elementos que o tamanho não tem.
-const SZ = { P: [1, 1], A: [1, 2], L: [2, 1], G: [2, 2] };
+const SZ = HG.SZ;
 const SZ_NAME = { P: "Pequeno", A: "Alto", L: "Largo", G: "Grande" };
 const SZ_FALL = { P: "PALG", A: "ALPG", L: "LGAP", G: "GLAP" };   // se o tamanho salvo não existe para o widget: o mais parecido
-const HOME_GRID = { land: [3, 2], tablet: [4, 3] };               // colunas × linhas por página
-const HOME_PAGES = 3;
+const HOME_PAGES = HG.PAGES;               // grade por modo em HG.GRID: land 3×2, tablet 4×3, port 2 colunas que rolam
 // pequeno (1×1): CPU e GPU só em números
 function pqUpd(el, s) {
   setText(hk(el, "cpu"), Math.round(s.cpu) + "%");
@@ -5114,62 +5112,49 @@ const HOME_DEF = {
 };
 const szFix = (id, z) => { const ok = HOME_W[id].sizes; return ok.includes(z) ? z : [...SZ_FALL[SZ[z] ? z : HOME_W[id].def]].find((x) => ok.includes(x)); };
 const homeMode = () => (wideMQ.matches ? "tablet" : matchMedia("(orientation: landscape)").matches ? "land" : "port");
-const homeDev = () => (wideMQ.matches ? "tablet" : "phone");
-const homeGrid = (dev) => HOME_GRID[dev === "tablet" ? "tablet" : "land"];
+const homeDevOf = (mode) => (mode === "tablet" ? "tablet" : "phone");     // html(z, dev) dos widgets só conhece celular/tablet
+const homeDef = (mode) => HG.fromOrder(HOME_DEF[homeDevOf(mode)], mode).list;
 
-// Distribuição: cada widget, na ordem da lista, vai para o primeiro espaço livre (esquerda→direita, cima→baixo) da página 1;
-// se não cabe, tenta a 2 e a 3. O que não cabe em nenhuma volta em "sobra" (nunca acontece com layout válido).
-function homePack(list, cols, rows) {
-  const grids = [], at = {}, over = [];
-  for (const it of list) {
-    const [w, h] = SZ[it.size]; let placed = false;
-    for (let p = 0; p < HOME_PAGES && !placed; p++) {
-      const g = (grids[p] ||= Array.from({ length: rows }, () => Array(cols).fill(false)));
-      for (let r = 0; r + h <= rows && !placed; r++) for (let c = 0; c + w <= cols && !placed; c++) {
-        let free = true;
-        for (let y = r; y < r + h && free; y++) for (let x = c; x < c + w; x++) if (g[y][x]) { free = false; break; }
-        if (!free) continue;
-        for (let y = r; y < r + h; y++) for (let x = c; x < c + w; x++) g[y][x] = true;
-        at[it.id] = { page: p, c: c + 1, r: r + 1, w, h }; placed = true;
-      }
-    }
-    if (!placed) over.push(it.id);
-  }
-  const pages = Object.values(at).reduce((a, v) => Math.max(a, v.page + 1), 1);
-  return { at, over, pages };
-}
-const homeFits = (dev, list) => !homePack(list, ...homeGrid(dev)).over.length;
-
-// layout salvo (store "home"): v2 = {phone:[{id,size}], tablet:[…]}. v1 (antigo): celular = widgets altos ("A"); tablet: Grande → "G", Pequeno → "P".
-function homeLayout(dev) {
-  const raw = store.get("home", null), arr = raw && typeof raw === "object" && (raw.v === 1 || raw.v === 2) ? raw[dev] : null;
-  if (!Array.isArray(arr)) return HOME_DEF[dev];
+// layout salvo (store "home"): v3 = {land,port,tablet: [{id,size,page,c,r}]} (posição por widget, por orientação).
+// v2 (antigo) = {phone, tablet} só com a ordem: a posição sai da distribuição antiga (HG.fromOrder), nada se perde; só vira v3 no 1º ajuste.
+// v1: celular = widgets altos ("A"); tablet: Grande → "G", Pequeno → "P".
+function homeLayout(mode) {
+  const raw = store.get("home", null), v = raw && typeof raw === "object" ? raw.v : 0;
+  const arr = v === 3 ? raw[mode] : v === 1 || v === 2 ? raw[homeDevOf(mode)] : null;
+  if (!Array.isArray(arr)) return homeDef(mode);
   const seen = new Set(), out = [];
   for (const it of arr) {                       // item desconhecido, repetido ou torto: ignora
     const id = it && typeof it === "object" ? it.id : null;
     if (typeof id !== "string" || !Object.hasOwn(HOME_W, id) || seen.has(id)) continue;
-    const z = raw.v === 1 ? (dev === "tablet" ? (it.size === "L" ? "G" : "P") : "A") : SZ[it.size] ? it.size : HOME_W[id].def;
-    seen.add(id); out.push({ id, size: szFix(id, z) });
+    const z = v === 1 ? (mode === "tablet" ? (it.size === "L" ? "G" : "P") : "A") : SZ[it.size] ? it.size : HOME_W[id].def;
+    seen.add(id); out.push({ id, size: szFix(id, z), page: it.page, c: it.c, r: it.r });
   }
-  if ((arr.length && !out.length) || !homeFits(dev, out)) return HOME_DEF[dev];
-  return out;
+  if (arr.length && !out.length) return homeDef(mode);
+  const st = HG.settle(out, mode);
+  return st.over.length ? homeDef(mode) : st.list;
+}
+function homeSave(mode, list) {
+  const cur = { v: 3 }, strip = (l) => l.map((w) => ({ id: w.id, size: w.size, page: w.page, c: w.c, r: w.r }));
+  for (const m of HG.MODES) cur[m] = strip(m === mode ? list : homeLayout(m));
+  store.set("home", cur);
 }
 let homeList = [], homeCur = "phone", homePk = null;
 const homePg = () => { const o = store.get("homepg", {}); return o && typeof o === "object" ? o : {}; };
 function homeBuild() {
-  const root = $("home"), mode = homeMode(), dev = (homeCur = homeDev()), cell = ({ id, size }, st = "") => `<div class="card hw z-${size} sk" data-w="${id}" data-z="${size}"${st ? ` style="${st}"` : ""}>
+  const root = $("home"), mode = homeMode(), dev = (homeCur = homeDevOf(mode)), cell = ({ id, size }, st = "") => `<div class="card hw z-${size} sk" data-w="${id}" data-z="${size}"${st ? ` style="${st}"` : ""}>
     <div class="hw-sk" aria-hidden="true"><i></i><i></i><i></i></div><div class="hw-b">${HOME_W[id].html(size, dev)}</div></div>`;
-  homeList = homeLayout(dev); homePk = null;
+  const place = (w) => `grid-column:${w.c} / span ${SZ[w.size][0]};grid-row:${w.r} / span ${SZ[w.size][1]}`;
+  homeList = homeLayout(mode); homePk = null;
   const paged = mode !== "port" && homeList.length > 0;
   $("t-inicio").classList.toggle("paged", paged); pcPlace();
-  if (!homeList.length) { root.className = "home port"; root.innerHTML = '<div class="card hw"><div class="hw-na">Nenhum widget na tela.</div></div>'; }
-  else if (!paged) { root.className = "home port"; root.innerHTML = homeList.map((w) => cell(w)).join(""); }
+  if (!homeList.length) { root.className = "home port"; root.innerHTML = '<div class="card hw" style="grid-column:1 / -1"><div class="hw-na">Nenhum widget na tela.</div></div>'; }
+  else if (!paged) { root.className = "home port"; root.innerHTML = homeList.map((w) => cell(w, place(w))).join(""); }
   else {
-    const [C, R] = homeGrid(dev), pk = (homePk = homePack(homeList, C, R));
+    const [C, R] = HG.GRID[mode], pages = Math.max(1, HG.pagesUsed(homeList));
+    homePk = { pages };
     root.className = "home pager " + mode;
-    root.innerHTML = Array.from({ length: pk.pages }, (_, p) => `<div class="hpage" style="--c:${C};--r:${R}">${homeList.filter((w) => pk.at[w.id]?.page === p)
-      .map((w) => { const a = pk.at[w.id]; return cell(w, `grid-column:${a.c} / span ${a.w};grid-row:${a.r} / span ${a.h}`); }).join("")}</div>`).join("");
-    const want = Math.min(pk.pages - 1, Math.max(0, +homePg()[mode] || 0));
+    root.innerHTML = Array.from({ length: pages }, (_, p) => `<div class="hpage" style="--c:${C};--r:${R}">${homeList.filter((w) => w.page === p).map((w) => cell(w, place(w))).join("")}</div>`).join("");
+    const want = Math.min(pages - 1, Math.max(0, +homePg()[mode] || 0));
     root.scrollLeft = want * root.clientWidth;
     requestAnimationFrame(() => { root.scrollLeft = want * root.clientWidth; });
   }
@@ -5251,60 +5236,61 @@ async function homeFetch() {
 }
 
 // ---- Mais › Widgets do Início: lista ordenada, tamanho (seletor), página de cada um, pílulas "+", lotação, Desfazer e Restaurar
-const wd = { dev: "phone", list: [] };
-function homeSave(dev, list) {
-  const cur = { v: 2, phone: homeLayout("phone").map((w) => ({ ...w })), tablet: homeLayout("tablet").map((w) => ({ ...w })) };
-  cur[dev] = list.map((w) => ({ id: w.id, size: w.size })); store.set("home", cur);
-}
-const wdFits = (list) => homeFits(wd.dev, list);
-const wdAddSize = (id) => { const w = HOME_W[id], by = [...w.sizes].sort((a, b) => SZ[a][0] * SZ[a][1] - SZ[b][0] * SZ[b][1]); return [w.def, ...by.filter((z) => z !== w.def)].find((z) => wdFits([...wd.list, { id, size: z }])); };
-function wdShow() { wd.dev = homeDev(); wd.list = homeLayout(wd.dev).map((w) => ({ ...w })); wdRender(); }
-function wdCommit() { homeSave(wd.dev, wd.list); wdRender(); }
+const wd = { mode: "land", list: [] };
+const WD_MODE = { land: "Deitado", port: "Em pé", tablet: "Tablet" };
+const wdFits = (list) => !HG.settle(list, wd.mode).over.length;
+// "Organizar por lista": a ordem de leitura (página, linha, coluna) é a ordem da lista; mexer na lista reempacota pelo padrão.
+const wdAddSize = (id) => { const w = HOME_W[id], by = [...w.sizes].sort((a, b) => SZ[a][0] * SZ[a][1] - SZ[b][0] * SZ[b][1]); return [w.def, ...by.filter((z) => z !== w.def)].find((z) => HG.add(wd.list, id, z, wd.mode)); };
+function wdShow() { wd.mode = homeMode(); wd.list = homeLayout(wd.mode).map((w) => ({ ...w })); wdRender(); }
+function wdCommit(list) { if (list) wd.list = list; homeSave(wd.mode, wd.list); wdRender(); }
 function wdRender() {
-  const [C, R] = homeGrid(wd.dev), pk = homePack(wd.list, C, R), full = !wdFits([...wd.list, { id: "_novo", size: "P" }]);
-  document.querySelectorAll("#wd-dev button").forEach((b) => { b.classList.toggle("on", b.dataset.dev === wd.dev); b.setAttribute("aria-pressed", b.dataset.dev === wd.dev); });
-  $("wd-info").innerHTML = `<div>Páginas usadas: ${pk.pages} de ${HOME_PAGES} · ${C}×${R} espaços por página</div><div class="hbar"><i style="width:${(pk.pages / HOME_PAGES) * 100}%"></i></div>
-    <div class="wd-leg">P pequeno 1×1 · A alto 1×2 · L largo 2×1 · G grande 2×2</div>` +
+  const pages = Math.max(1, HG.pagesUsed(wd.list)), full = wd.mode !== "port" && !HG.add(wd.list, "_novo", "P", wd.mode);
+  document.querySelectorAll("#wd-dev button").forEach((b) => { b.classList.toggle("on", b.dataset.dev === wd.mode); b.setAttribute("aria-pressed", b.dataset.dev === wd.mode); });
+  const [C, R] = HG.GRID[wd.mode];
+  $("wd-info").innerHTML = (wd.mode === "port" ? `<div>${WD_MODE.port}: ${C} colunas, a tela rola</div>`
+    : `<div>Páginas usadas: ${pages} de ${HOME_PAGES} · ${C}×${R} espaços por página</div><div class="hbar"><i style="width:${(pages / HOME_PAGES) * 100}%"></i></div>`) +
+    `<div class="wd-leg">P pequeno 1×1 · A alto 1×2 · L largo 2×1 · G grande 2×2</div>` +
     (full ? '<div class="wd-full">Lotado: as 3 páginas estão cheias. Remova ou diminua um widget para adicionar outro.</div>' : "");
   $("wd-list").innerHTML = wd.list.length ? wd.list.map((w, i) => {
-    const c = HOME_W[w.id], a = pk.at[w.id];
+    const c = HOME_W[w.id];
     return `<div class="wd-row" data-i="${i}"><button class="wd-rm" data-op="rm" aria-label="Remover ${esc(c.name)}">${ic("circle-minus")}</button>
-      <div class="wd-nm">${ic(c.icon)}<span class="wd-n">${esc(c.name)}</span><small>${a ? "Página " + (a.page + 1) : "Não cabe"}</small></div>
+      <div class="wd-nm">${ic(c.icon)}<span class="wd-n">${esc(c.name)}</span><small>${wd.mode === "port" ? "Linha " + w.r : "Página " + (w.page + 1)}</small></div>
       <button data-op="up" aria-label="Subir ${esc(c.name)}"${i === 0 ? " disabled" : ""}>${ic("chevron-up")}</button>
       <button data-op="dn" aria-label="Descer ${esc(c.name)}"${i === wd.list.length - 1 ? " disabled" : ""}>${ic("chevron-down")}</button>
       <div class="wd-szr" role="group" aria-label="Tamanho de ${esc(c.name)}">${[...c.sizes].map((z) => {
-        const can = z === w.size || wdFits(wd.list.map((x, j) => (j === i ? { ...x, size: z } : x)));
+        const can = z === w.size || HG.resize(wd.list, w.id, z, wd.mode);
         return `<button data-op="sz" data-z="${z}" aria-pressed="${z === w.size}" aria-label="${SZ_NAME[z]} (${SZ[z][0]}×${SZ[z][1]})"${can ? "" : " disabled"}>${z}</button>`;
       }).join("")}</div></div>`;
   }).join("") : '<div class="wd-empty">Nenhum widget na tela.</div>';
   const out = Object.keys(HOME_W).filter((id) => !wd.list.some((w) => w.id === id));
   $("wd-pills").innerHTML = out.length ? out.map((id) => `<button class="wd-pill" data-add="${id}"${wdAddSize(id) ? "" : " disabled"}>${ic("circle-plus")}<span>${esc(HOME_W[id].name)}</span></button>`).join("") : '<div class="hw-na">Todos os widgets já estão na tela.</div>';
 }
-$("wd-dev").onclick = (e) => { const b = e.target.closest("[data-dev]"); if (!b) return; buzz(8); wd.dev = b.dataset.dev; wd.list = homeLayout(wd.dev).map((w) => ({ ...w })); wdRender(); };
+$("wd-dev").onclick = (e) => { const b = e.target.closest("[data-dev]"); if (!b) return; buzz(8); wd.mode = b.dataset.dev; wd.list = homeLayout(wd.mode).map((w) => ({ ...w })); wdRender(); };
 $("wd-list").onclick = (e) => {
   const b = e.target.closest("[data-op]"), row = e.target.closest(".wd-row"); if (!b || !row || b.disabled) return;
   const i = +row.dataset.i, w = wd.list[i]; buzz(8);
   if (b.dataset.op === "rm") {
-    wd.list.splice(i, 1); wdCommit();
-    undoToast(`${HOME_W[w.id].name} removido`, () => {
-      const nl = [...wd.list]; nl.splice(Math.min(i, nl.length), 0, w);
-      if (wd.list.some((x) => x.id === w.id) || !wdFits(nl)) return toast("Sem espaço para desfazer", "bad");
-      wd.list = nl; wdCommit();
-    });
+    const prev = wd.list.map((x) => ({ ...x }));
+    wdCommit(HG.remove(wd.list, w.id, wd.mode));
+    undoToast(`${HOME_W[w.id].name} removido`, () => { if (wd.list.some((x) => x.id === w.id)) return; wdCommit(prev); });
   } else if (b.dataset.op === "sz") {
     if (b.dataset.z === w.size) return;
-    w.size = b.dataset.z; wdCommit();
-  } else { const j = b.dataset.op === "up" ? i - 1 : i + 1; if (j >= 0 && j < wd.list.length) { [wd.list[i], wd.list[j]] = [wd.list[j], wd.list[i]]; wdCommit(); } }
+    const nl = HG.resize(wd.list, w.id, b.dataset.z, wd.mode); if (nl) wdCommit(nl);
+  } else {
+    const j = b.dataset.op === "up" ? i - 1 : i + 1; if (j < 0 || j >= wd.list.length) return;
+    const ids = wd.list.map((x) => ({ id: x.id, size: x.size })); [ids[i], ids[j]] = [ids[j], ids[i]];
+    wdCommit(HG.fromOrder(ids, wd.mode).list);
+  }
 };
 $("wd-pills").onclick = (e) => {
   const b = e.target.closest("[data-add]"); if (!b || b.disabled) return;
-  const size = wdAddSize(b.dataset.add); if (!size) return;
-  buzz(8); wd.list.push({ id: b.dataset.add, size }); wdCommit();
+  const id = b.dataset.add, size = wdAddSize(id); if (!size) return;
+  buzz(8); wdCommit(HG.add(wd.list, id, size, wd.mode));
 };
 $("wd-reset").onclick = () => {
   buzz(8); const prev = wd.list.map((w) => ({ ...w }));
-  wd.list = HOME_DEF[wd.dev].map((w) => ({ ...w })); wdCommit();
-  undoToast("Padrão restaurado", () => { wd.list = prev; wdCommit(); });
+  wdCommit(homeDef(wd.mode));
+  undoToast("Padrão restaurado", () => wdCommit(prev));
 };
 $("home-edit").onclick = () => { buzz(8); showView("widgets"); };
 $("wd-done").onclick = () => { buzz(8); showView("inicio"); };
