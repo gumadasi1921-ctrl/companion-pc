@@ -137,7 +137,7 @@ class ImageProxy:
         if not url or not url.startswith(("https://www.opendota.com/assets/images/dota2/rank_icons/", "https://avatars.steamstatic.com/")):
             return None
         try:
-            with self.cdn_opener(urllib.request.Request(url, headers={"Accept": "image/*"}), timeout=5) as resp:
+            with self.cdn_opener(urllib.request.Request(url, headers={"Accept": "image/*", "User-Agent": "companion-pc"}), timeout=5) as resp:
                 body = resp.read(MAX_IMAGE_BYTES + 1)
         except urllib.error.HTTPError:
             return None
