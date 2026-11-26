@@ -640,7 +640,8 @@ class Trello:
                 "ignored": self.ignored, "found": dict(self.found),
                 "todo": {"state": self.found.get("todo", "off"), "items": todo, "count": len(todo),
                          "day": today.day if self.cfg()["todo"]["mode"] == "today" else None},
-                "done": {**self.done_counts(today), "recent": self.done_list(), "by_day": self.done_by_day(today=today), "prior": prior}}
+                "done": {**self.done_counts(today), "recent": self.done_list(), "by_day": self.done_by_day(today=today), "prior": prior,
+                         "today_ids": [k for d, k, _v in self._counted() if d == today.isoformat()][:100]}}
 
     def all_cards(self):
         """Para o painel (busca ao ligar um card a um job): meus cards de Em execução e de Aprovar nos quadros do filtro."""

@@ -589,7 +589,8 @@ class Monday:
         return {"state": st["state"], "on": st["on"], "at": st["at"], "boards_bad": len(self.berr),
                 "hhmm": datetime.fromtimestamp(self.at, TZ).strftime("%H:%M") if self.at else None,
                 "today": today.isoformat(), "groups": groups, "counts": {g: len(groups[g]) for g in GROUPS},
-                "done": {**dc, "recent": self.done_list(), "by_day": self.done_by_day(today=today), "prior": prior}}
+                "done": {**dc, "recent": self.done_list(), "by_day": self.done_by_day(today=today), "prior": prior,
+                         "today_ids": [k for k, v in self.done.items() if v.get("src") in ("entered", "seen") and v.get("day") == today.isoformat()][:100]}}
 
     def all_items(self):
         """Para o painel (busca ao ligar um item a um job)."""

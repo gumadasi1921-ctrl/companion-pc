@@ -415,6 +415,20 @@ class TrelloTests(unittest.TestCase):
         self.assertEqual(self.t.status()["state"], "net_error")
         self.assertEqual(self.t.state()["todo"]["count"], 2)
 
+    def test_today_ids_only_cards_counted_today_never_prior_or_reopened(self):
+        self.t.refresh()
+        self.assertEqual(self.t.state()["done"]["today_ids"], [])                  # a1 já estava em Aprovar: anterior, nunca vai ao Lume
+        self.fake.cards.append(card("n1", "Novo", "b1", "l3"))
+        self.now[0] += 400
+        self.t.refresh()
+        self.assertEqual(self.t.state()["done"]["today_ids"], ["n1"])
+        self.fake.cards = [c for c in self.fake.cards if c["id"] != "n1"] + [card("n1", "Novo", "b1", "l2")]
+        self.now[0] += 400
+        self.t.refresh()
+        self.assertEqual(self.t.state()["done"]["today_ids"], [])                  # reaberto não conta
+        self.now[0] += 86400
+        self.assertEqual(self.t.state()["done"]["today_ids"], [])
+
     def test_done_is_permanent_when_card_leaves_aprovar_to_another_list(self):
         self.t.refresh()
         self.fake.cards.append(card("m5", "Finalizado", "b1", "l3"))

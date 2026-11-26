@@ -2546,6 +2546,12 @@ function makeMascot(store, now) {
       else return { ok: false, why: "ação desconhecida" };
       logAdd(t, kind, o.auto ? "auto" : undefined); save(); return { ok: true };
     },
+    done(src, d, t = now()) {   // feitos do Trello/monday: d.done.today_ids = cards/itens contados HOJE (dia do PC = d.today); o servidor nunca manda os "anteriores ao Companion"
+      const ids = d && d.today && d.done && Array.isArray(d.done.today_ids) ? d.done.today_ids : [];
+      let n = 0;
+      for (const id of ids.slice(0, 100)) if (this.act("task", t, { id: `${src}:${id}:${d.today}` }).ok) n++;   // mesma ação de tarefa concluída, uma vez por card e por dia
+      return n;
+    },
     view(t = now(), ctx = {}) {
       const w = needVal("water", t), s = needVal("sat", t), e = needVal("energy", t), mood = Math.round((w + s + e) / 3);
       const st = sleeping(t) ? "sleep" : ctx.focus ? "focus" : ctx.alert ? "alert" : ctx.party ? "party" : w < 55 ? "thirst" : s < 55 ? "hunger" : e < 45 ? "tired" : "happy";
@@ -4163,7 +4169,7 @@ function renderTasks(d) {
 let trData = null, trT = 0;
 const TR_GROUPS = [["overdue", "Atrasados"], ["today", "Hoje"], ["tomorrow", "Amanhã"], ["week", "Esta semana"], ["later", "Depois"], ["none", "Sem prazo"]];
 const TR_COL = { green: "#4bce97", yellow: "#e2b203", orange: "#faa53d", red: "#f87168", purple: "#9f8fef", blue: "#579dff", sky: "#6cc3e0", lime: "#94c748", pink: "#e774bb", black: "#8590a2" };
-function trelloSet(d) { if (!d || typeof d !== "object" || !d.groups) return; trData = d; trRender(); trWork(); homeUpd("trello"); }
+function trelloSet(d) { if (!d || typeof d !== "object" || !d.groups) return; trData = d; trRender(); trWork(); homeUpd("trello"); lumeDone("tr", d); }
 async function trelloLoad() { trT = Date.now(); try { trelloSet(await send("trello.get", { refresh: true })); } catch { trT = 0; } }
 const trDue = (c) => (c.due ? c.due.slice(8) + "/" + c.due.slice(5, 7) + (c.time && c.time !== "00:00" ? " " + c.time : "") : "");
 const trSpent = (c) => (c.spent && (c.spent.total_s || c.spent.today_s) ? `<div class="trc-t">Tempo: hoje ${humanDur(c.spent.today_s)} · semana ${humanDur(c.spent.week_s)} · total ${humanDur(c.spent.total_s)}</div>` : "");
@@ -4256,7 +4262,7 @@ function trelloDigest(m) {
 
 // ---- monday (somente leitura): meus itens "Em execução" por prazo + contagem do que entrou em "Aprovar"; toque abre o item no PC
 let mdData = null, mdT = 0;
-function mondaySet(d) { if (!d || typeof d !== "object" || !d.groups) return; mdData = d; mdRender(); mdWork(); homeUpd("monday"); }
+function mondaySet(d) { if (!d || typeof d !== "object" || !d.groups) return; mdData = d; mdRender(); mdWork(); homeUpd("monday"); lumeDone("md", d); }
 async function mondayLoad() { mdT = Date.now(); try { mondaySet(await send("monday.get", { refresh: true })); } catch { mdT = 0; } }
 const mdDue = (c) => (c.due ? c.due.slice(8) + "/" + c.due.slice(5, 7) + (c.time && c.time !== "00:00" ? " " + c.time : "") : "");
 const mdDM = (iso) => iso.slice(8, 10) + "/" + iso.slice(5, 7);
@@ -6328,6 +6334,7 @@ function lumeTasks(d) {   // tarefa concluída (tasks.get / toque na tarefa): pr
   if (LU.taskSeen) for (const id of done) if (!LU.taskSeen.has(id) && LM.act("task", Date.now() / 1000, { id }).ok && LM.cfg().tasks.on) lumeParty();
   LU.taskSeen = done;
 }
+function lumeDone(src, d) { try { if (LM.done(src, d, Date.now() / 1000) && LM.cfg().tasks.on) lumeParty(); } catch { /* sem Lume */ } }   // Trello/monday em Aprovar = tarefa concluída
 function lumeFocusDone() { LM.act("focus"); if (LM.cfg().pomo.on) lumeParty(); }
 function lumeWork(d) {   // work.stream do PC ativo: minutos contínuos; a sequência acabar depois de 30+ min = pausa de verdade
   const prev = LU.work;

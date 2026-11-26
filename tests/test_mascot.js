@@ -121,4 +121,16 @@ function fresh(initial) {
   for (let d = 1; d <= 20; d++) { clock = T(10, 0, d); M.act("water", clock); }
   const days = M.history(clock, 20).filter((x) => x.items.length).length; t("histórico guarda só 14 dias", days <= 14, true);
 }
+// ---- feitos do Trello/monday contam como tarefa concluída, uma vez por card e por dia
+{
+  clock = T(9); const { M } = fresh();
+  const d = { today: "2026-11-25", done: { today_ids: ["c1", "c2"] } };
+  t("2 cards em Aprovar hoje = 2 tarefas", [M.done("tr", d, clock), M.snacks()], [2, 2]);
+  t("ler o estado de novo não conta de novo", M.done("tr", d, clock), 0);
+  t("card novo conta", M.done("tr", { today: "2026-11-25", done: { today_ids: ["c1", "c2", "c3"] } }, clock), 1);
+  t("monday com o mesmo id é outro item", M.done("md", d, clock), 2);
+  t("sem today_ids (anteriores nunca vêm) não conta", [M.done("tr", { today: "2026-11-25", done: {} }, clock), M.done("tr", null, clock), M.done("tr", { done: { today_ids: ["z"] } }, clock)], [0, 0, 0]);
+  clock = T(9, 0, 26); t("dia seguinte: reentrada com nova data conta de novo", M.done("tr", { today: "2026-11-26", done: { today_ids: ["c1"] } }, clock), 1);
+}
+
 console.log(fail ? `\n${fail} FALHA(S)` : "\nTodos OK"); process.exit(fail ? 1 : 0);
