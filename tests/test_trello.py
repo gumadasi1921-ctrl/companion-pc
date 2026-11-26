@@ -70,6 +70,7 @@ class Fake:
     """fetch() falso que registra as chamadas."""
     def __init__(self):
         self.calls, self.fail, self.cards, self.boards, self.actions, self.embed = [], None, base_cards(), json.loads(json.dumps(BOARDS)), {}, True
+        self.others = []
 
     def lists(self, bid):
         return [{"id": k, "name": v, "pos": (i + 1) * 1000} for i, (k, v) in enumerate(self.boards[bid]["lists"].items())]
@@ -90,6 +91,10 @@ class Fake:
                     o["lists"] = self.lists(bid)
                 out.append(o)
             return out
+        if path.startswith("lists/") and path.endswith("/cards"):     # todos os cards abertos da lista (os meus + os dos outros/sem responsável)
+            lid = path.split("/")[1]
+            mine = [dict(c, idMembers=["me"]) for c in self.cards if c["idList"] == lid]
+            return json.loads(json.dumps(mine + [c for c in self.others if c["idList"] == lid]))
         if path.startswith("boards/") and path.endswith("/lists"):
             return self.lists(path.split("/")[1])
         if path.startswith("boards/") and path.endswith("/actions"):
@@ -300,7 +305,7 @@ class TrelloTests(unittest.TestCase):
 
     def test_today_mode_old_modes_still_work_and_clean_cfg(self):
         out = trello.clean_cfg({"on": True, "todo": {"mode": "today"}}, {"key": KEY, "token": TOKEN, "on": True})
-        self.assertEqual(out["todo"], {"mode": "today", "list_id": "", "position": 1})
+        self.assertEqual(out["todo"], {"mode": "today", "list_id": "", "position": 1, "scope": "all", "job_only": True})
         self.day_boards(["DIA 26 - QUINTA-FEIRA", "Outra"])
         self.now[0] = utc(2026, 11, 26, 15)
         self.cfg["todo"] = {"mode": "list", "list_id": "x1", "position": 1}
@@ -352,6 +357,63 @@ class TrelloTests(unittest.TestCase):
         self.assertEqual(row["label"], "entrou em Aprovar em 22/11")             # 01:30Z de 23/11 = 22:30 de 22/11 em Brasília
         d = self.t.state()["done"]
         self.assertEqual((d["today"], d["week"], d["month"]), (0, 0, 1))          # 22/11 foi domingo: semana passada (esta começa em 23/11)
+
+    def other(self, cid, name, lst="l0", members=()):
+        c = card(cid, name, "b1", lst, None)
+        c["idMembers"] = list(members)
+        return c
+
+    def test_a_fazer_all_cards_marks_unassigned_hides_separators_and_never_archived(self):
+        self.fake.others = [self.other("u1", "TOP MARKET - A4"), self.other("u2", "DE MANHÃ:"), self.other("u3", "----"), self.other("u4", "EL VIEJO - TV VERTICAL"),
+                            self.other("u5", "CDAVILA - POST", members=["ana"])]   # arquivados nem vêm da API (filter=open)
+        self.cfg["todo"] = {"mode": "list", "list_id": "l0", "position": 1}        # scope/job_only: padrão = todos + só CLIENTE - JOB
+        self.t.refresh()
+        st = self.t.state()["todo"]
+        names = {c["name"]: c.get("nobody", False) for c in st["items"]}
+        self.assertEqual(names, {"Fazer hoje": False, "Fazer hoje atrasado": False, "TOP MARKET - A4": True, "EL VIEJO - TV VERTICAL": True, "CDAVILA - POST": False})
+        self.assertEqual((st["count"], self.t.found["todo_hidden"]), (5, 2))
+        self.assertIn("lists/l0/cards", self.fake.calls)
+
+    def test_a_fazer_job_only_off_shows_separators_and_mine_scope_is_the_old_behavior(self):
+        self.fake.others = [self.other("u2", "DE MANHÃ:"), self.other("u1", "X - Y")]
+        self.cfg["todo"] = {"mode": "list", "list_id": "l0", "position": 1, "scope": "all", "job_only": False}
+        self.t.refresh()
+        self.assertEqual(sorted(c["name"] for c in self.t.state()["todo"]["items"]), ["DE MANHÃ:", "Fazer hoje", "Fazer hoje atrasado", "X - Y"])
+        self.cfg["todo"] = {"mode": "list", "list_id": "l0", "position": 1, "scope": "mine", "job_only": True}
+        self.fake.calls.clear()
+        self.now[0] += 400
+        self.t.refresh()
+        self.assertEqual(sorted(c["name"] for c in self.t.state()["todo"]["items"]), ["Fazer hoje", "Fazer hoje atrasado"])
+        self.assertNotIn("lists/l0/cards", self.fake.calls)
+
+    def test_a_fazer_my_card_without_dash_is_kept_and_running_stays_mine_only(self):
+        self.fake.cards.append(card("k1", "Kappa", "b1", "l0"))
+        self.fake.others = [self.other("u9", "OUTRO - EM EXECUCAO", lst="l2")]      # card de outro na lista Em execução: nunca entra
+        self.cfg["todo"] = {"mode": "list", "list_id": "l0", "position": 1}
+        self.t.refresh()
+        self.assertIn("Kappa", [c["name"] for c in self.t.state()["todo"]["items"]])
+        self.assertNotIn("OUTRO - EM EXECUCAO", self.all_names())
+        self.assertNotIn("lists/l2/cards", self.fake.calls)
+
+    def test_split_name_rule(self):
+        self.assertEqual(trello.split_name("TOP MARKET - POST 20 - EP 1"), ("TOP MARKET", "POST 20 - EP 1"))
+        for bad in ("Kappa", "- x", "x - ", "A-B", "DE MANHÃ:", ""):
+            self.assertEqual(trello.split_name(bad)[0], None)
+
+    def test_a_fazer_all_failure_keeps_last_reading(self):
+        self.cfg["todo"] = {"mode": "list", "list_id": "l0", "position": 1}
+        self.t.refresh()
+        orig = self.fake.__call__
+
+        def boom(path, params, key, token):
+            if path.startswith("lists/"):
+                raise trello.NetError("rede")
+            return orig(path, params, key, token)
+        self.t.fetch = boom
+        self.now[0] += 400
+        self.t.refresh()
+        self.assertEqual(self.t.status()["state"], "net_error")
+        self.assertEqual(self.t.state()["todo"]["count"], 2)
 
     def test_done_is_permanent_when_card_leaves_aprovar_to_another_list(self):
         self.t.refresh()
@@ -603,7 +665,7 @@ class TrelloTests(unittest.TestCase):
                          (KEY, TOKEN, "all", ["Em execução"], ["Aprovar"], "today"))   # sem escolha salva: lista de hoje pela data
         ok = trello.clean_cfg({"on": True, "scope": {"mode": "prefix", "prefixes": ["TIME |"], "workspace": " CONCEPT "}, "running": ["Em execução", "Fazendo"],
                                "approved": ["Aprovar"], "todo": {"mode": "position", "position": 1}}, cur)
-        self.assertEqual((ok["scope"]["prefixes"], ok["scope"]["workspace"], ok["running"], ok["todo"]), (["TIME |"], "CONCEPT", ["Em execução", "Fazendo"], {"mode": "position", "list_id": "", "position": 1}))
+        self.assertEqual((ok["scope"]["prefixes"], ok["scope"]["workspace"], ok["running"], ok["todo"]), (["TIME |"], "CONCEPT", ["Em execução", "Fazendo"], {"mode": "position", "list_id": "", "position": 1, "scope": "all", "job_only": True}))
         self.assertEqual(trello.clean_cfg({"on": True, "todo": {"mode": "list", "list_id": "l0"}}, cur)["todo"]["list_id"], "l0")
         for bad in ({"on": "sim"}, {"on": True, "x": 1}, {"on": True, "scope": {"mode": "prefix", "prefixes": []}}, {"on": True, "scope": {"mode": "pick", "ids": []}},
                     {"on": True, "scope": {"mode": "pick", "ids": ["../x"]}}, {"on": True, "scope": {"mode": "tudo"}}, {"on": True, "running": ["A"] * 6},

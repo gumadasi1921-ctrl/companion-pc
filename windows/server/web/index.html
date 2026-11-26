@@ -1705,6 +1705,7 @@ html.lm-still .home.editing .hw:not(.hw-slot) { animation: none; outline: 2px da
 .trk-r { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; } .trk-r:empty { display: none; }
 .trk-d { font-size: 11px; font-weight: 600; line-height: 16px; padding: 0 6px; border-radius: 999px; border: 1px solid var(--separator, var(--p3)); color: var(--text-2, var(--p2)); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .trk-d.late { color: var(--alert, #f87168); border-color: currentColor; background: color-mix(in srgb, var(--alert, #f87168) 14%, transparent); }
+.trk-nb { font-size: 10px; line-height: 14px; font-weight: 600; padding: 0 5px; border-radius: 999px; border: 1px dashed var(--text-3, var(--p3t)); color: var(--text-3, var(--p3t)); white-space: nowrap; } .z-P .trk-nb { display: none; }
 .trk-dots { display: inline-flex; gap: 3px; } .trk-dots i { width: 8px; height: 8px; border-radius: 50%; }
 .trw { display: flex; flex-direction: column; min-width: 0; }
 .hpage .hw .trw { flex: 1 1 0; min-height: 0; overflow: hidden; }
@@ -4166,7 +4167,7 @@ function trNm(name) {   // regra fixa "CLIENTE - JOB": parte no primeiro " - " (
   return i > 0 && cl && jb ? `<span class="trn two"><b>${esc(cl)}</b><span>${esc(jb)}</span></span>` : `<span class="trn"><b>${esc(s)}</b></span>`;
 }
 const trDots = (c) => { const l = (c.labels || []).slice(0, 4); return l.length ? `<span class="trk-dots">${l.map((x) => `<i title="${esc(x.n || "")}" style="background:${TR_COL[(x.c || "").split("_")[0]] || "var(--text-3, var(--p3t))"}"></i>`).join("")}</span>` : ""; };
-const trBadge = (c, late) => (c.due ? `<span class="trk-d${late ? " late" : ""}">${esc(trDue(c))}</span>` : "");
+const trBadge = (c, late) => (c.due ? `<span class="trk-d${late ? " late" : ""}">${esc(trDue(c))}</span>` : "") + (c.nobody ? '<span class="trk-nb" title="Ninguém assumiu este card">sem resp.</span>' : "");
 function trCard(c, late) {
   return `<div class="trc" data-short="${esc(c.short)}" role="button" tabindex="0"><div class="trc-r">${trNm(c.name)}<span class="trk-r">${trBadge(c, late)}${trDots(c)}</span></div>
     <div class="trc-m">${esc([c.board, c.list].filter(Boolean).join(" › "))}</div>${trSpent(c)}</div>`;
@@ -7936,12 +7937,13 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
       const c = tr.cfg || {}, sc = c.scope || { mode: "all", prefixes: [], ids: [], workspace: "" };
       trForm.on = !!tr.on; trForm.mode = sc.mode; trForm.prefix = (sc.prefixes || []).join("; "); trForm.ws = sc.workspace || ""; trForm.ids = [...(sc.ids || [])];
       trForm.running = [...(c.running || ["Em execução"])]; trForm.approved = [...(c.approved || ["Aprovar"])];
-      trForm.todo = { mode: "today", list_id: "", position: 1, ...(c.todo || {}) };
+      trForm.todo = { mode: "today", list_id: "", position: 1, scope: "all", job_only: true, ...(c.todo || {}) };
     };
     const trScope = () => ({ mode: trForm.mode, prefixes: trForm.prefix.split(";").map((x) => x.trim()).filter(Boolean), ids: trForm.ids, workspace: trForm.ws.trim() });
     const trSave = async () => {
       try {
         const t = trForm.todo, todo = t.mode === "list" ? { mode: "list", list_id: t.list_id } : t.mode === "position" ? { mode: "position", position: +t.position } : { mode: t.mode === "off" ? "off" : "today" };
+        Object.assign(todo, { scope: t.scope === "mine" ? "mine" : "all", job_only: t.job_only !== false });
         const ch = { trello: { on: trForm.on, ...(trForm.key.trim() ? { key: trForm.key.trim() } : {}), ...(trForm.token.trim() ? { token: trForm.token.trim() } : {}), scope: trScope(), running: trForm.running, approved: trForm.approved, todo } };
         await call("config_save", { changes: ch }); trForm.key = ""; trForm.token = ""; trForm.msg = "Salvo."; await load();
       } catch (e) { trForm.msg = e.message; render(); }
@@ -7980,6 +7982,11 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
           scoped.map((b) => h("optgroup", { label: b.name }, b.ordered.map((l) => h("option", { value: l.id, selected: l.id === t.list_id }, l.n + ". " + l.name)))))
           : h("div", { class: "pn-faint", style: "margin-top:6px" }, t.list_id ? "Lista salva. Abra “Quadros” e clique em Carregar para trocar." : "Abra “Quadros” e clique em Carregar para escolher.")) : null,
         seen ? h("div", { class: "pn-warn", role: "status" }, "Lista não encontrada nos quadros do filtro: o A fazer fica vazio até você escolher outra.") : null,
+        t.mode !== "off" ? h("div", { style: "margin-top:10px" },
+          h("div", { class: "pn-chips", role: "group", "aria-label": "Quais cards entram no A fazer" }, [["all", "Todos os cards abertos da lista"], ["mine", "Só os meus"]].map(([v, l]) => h("button", { class: "pn-btn" + (t.scope === v ? " primary" : ""), type: "button", "aria-pressed": t.scope === v, onclick: () => { t.scope = v; render(); } }, l))),
+          t.scope === "all" ? h("label", { class: "pn-row", style: "margin-top:6px" }, h("input", { type: "checkbox", checked: t.job_only !== false, "aria-label": "Só cards no padrão CLIENTE - JOB", onchange: (e) => { t.job_only = e.target.checked; render(); } }),
+            h("span", { class: "pn-grow" }, "Só cards no padrão CLIENTE - JOB (esconde separadores como “DE MANHÃ:”; os meus aparecem sempre)")) : null,
+          h("div", { class: "pn-faint", style: "margin-top:4px" }, t.scope === "all" ? "Cards que ninguém assumiu aparecem com “sem resp.”. Em execução e Pronto continuam só com os meus." : "Só os cards atribuídos a você.")) : null,
         t.mode === "position" ? h("div", { class: "pn-row", style: "margin-top:6px" }, h("label", { class: "pn-grow", for: "tr-pos" }, "Em cada quadro do filtro, a lista que está em"),
           h("select", { id: "tr-pos", class: "pn-in", onchange: (e) => { t.position = +e.target.value; render(); } }, Array.from({ length: 10 }, (_, i) => h("option", { value: i + 1, selected: +t.position === i + 1 }, (i + 1) + "ª lista")))) : null);
     }

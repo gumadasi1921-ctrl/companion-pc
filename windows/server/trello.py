@@ -29,13 +29,14 @@ TIMEOUT_S = 10
 REFRESH_S = 300          # automático, só com aparelho
 MANUAL_MIN_S = 60        # ao abrir Tarefas, no máximo 1x por minuto
 TODO_MODES, MAX_POSITION = ("off", "today", "list", "position"), 20
-TODO_DEFAULT = {"mode": "today", "list_id": "", "position": 1}     # padrão: a lista cujo nome começa com "DIA <dia de hoje>"
+TODO_DEFAULT = {"mode": "today", "list_id": "", "position": 1, "scope": "all", "job_only": True}     # padrão: lista "DIA <hoje>", todos os cards abertos, só no padrão CLIENTE - JOB
+TODO_SCOPES = ("mine", "all")
 SHORT_RX = re.compile(r"^[A-Za-z0-9]{8}$")
 CRED_RX = re.compile(r"^[A-Za-z0-9_-]{16,200}$")
 GROUPS = ("overdue", "today", "tomorrow", "week", "later", "none")
 CARD_FIELDS = "name,due,idBoard,idList,labels,shortLink,dateLastActivity"
 ID_RX = re.compile(r"^[A-Za-z0-9]{1,32}$")
-NOFOUND = {"boards": 0, "running": 0, "approved": 0, "todo": "off", "todo_clash": 0}
+NOFOUND = {"boards": 0, "running": 0, "approved": 0, "todo": "off", "todo_clash": 0, "todo_hidden": 0}
 MAX_NAMES, MAX_PREFIXES, MAX_IDS, MAX_NAME_LEN = 5, 5, 20, 60
 DEFAULT_RUNNING, DEFAULT_APPROVED = ["Em execução"], ["Aprovar"]
 SCOPE_MODES = ("all", "prefix", "pick")
@@ -153,13 +154,24 @@ def today_list_rx(day):
     return re.compile(r"^dia 0*%d(?:[\s-]|$)" % int(day))
 
 
+def split_name(name):
+    """Regra fixa "CLIENTE - JOB": o texto antes do primeiro " - " é o cliente e o resto é o job. Sem " - " (ou um dos lados vazio) = (None, nome)."""
+    s = str(name or "")
+    i = s.find(" - ")
+    cl, jb = s[:i].strip(), s[i + 3:].strip()
+    return (cl, jb) if i > 0 and cl and jb else (None, s.strip())
+
+
 def clean_todo(v, cur=None):
     """A fazer: today (lista "DIA <hoje>", padrão) | list (id da lista) | position (N-ésima lista aberta de cada quadro) | off."""
     if v is None:
         v = cur if isinstance(cur, dict) else {"mode": "today"}
-    if not isinstance(v, dict) or set(v) - {"mode", "list_id", "position"} or v.get("mode") not in TODO_MODES:
+    if not isinstance(v, dict) or set(v) - {"mode", "list_id", "position", "scope", "job_only"} or v.get("mode") not in TODO_MODES:
         raise ValueError("Trello: A fazer inválido")
-    out = {"mode": v["mode"], "list_id": "", "position": 1}
+    sc, jo = v.get("scope", (cur or {}).get("scope", "all") if isinstance(cur, dict) else "all"), v.get("job_only", (cur or {}).get("job_only", True) if isinstance(cur, dict) else True)
+    if sc not in TODO_SCOPES or not isinstance(jo, bool):
+        raise ValueError("Trello: A fazer inválido")
+    out = {"mode": v["mode"], "list_id": "", "position": 1, "scope": sc, "job_only": jo}
     if v["mode"] == "list":
         if not isinstance(v.get("list_id"), str) or not ID_RX.match(v["list_id"]):
             raise ValueError("Trello: escolha a lista do A fazer")
@@ -411,6 +423,17 @@ class Trello:
                 found["todo"] = "ok" if todo_ids else "missing"       # sem lista de hoje / lista escolhida sumiu / posição que nenhum quadro tem: nunca adivinha
                 found["todo_clash"] = sum(1 for i in todo_ids if norm(self.lists[i]["name"]) in run | apr)
             cards, ignored = [], 0
+
+            def mk(c, cat, lname, nobody=False):
+                return {"id": c["id"], "short": c["shortLink"], "name": str(c.get("name", ""))[:200], "board_id": c["idBoard"],
+                        "board": self.boards[c["idBoard"]]["name"], "list": lname, "cat": cat, "nobody": nobody,
+                        "due": c["due"] if isinstance(c.get("due"), str) else None,
+                        "labels": [{"n": str(lb.get("name", ""))[:40], "c": str(lb.get("color") or "")[:16]}
+                                   for lb in (c.get("labels") or []) if isinstance(lb, dict)][:8],
+                        "act": c.get("dateLastActivity") if isinstance(c.get("dateLastActivity"), str) else None}
+
+            def valid(c):
+                return SHORT_RX.match(str(c.get("shortLink", ""))) and ID_RX.match(str(c.get("id", ""))) and c.get("idBoard") in scoped
             for c in raw:
                 if c.get("idBoard") not in scoped:
                     continue
@@ -419,14 +442,24 @@ class Trello:
                 if cat is None:
                     ignored += 1
                     continue
-                if not SHORT_RX.match(str(c.get("shortLink", ""))) or not ID_RX.match(str(c.get("id", ""))):
+                if not valid(c):
                     continue
-                cards.append({"id": c["id"], "short": c["shortLink"], "name": str(c.get("name", ""))[:200], "board_id": c["idBoard"],
-                              "board": self.boards[c["idBoard"]]["name"], "list": lname, "cat": cat,
-                              "due": c["due"] if isinstance(c.get("due"), str) else None,
-                              "labels": [{"n": str(lb.get("name", ""))[:40], "c": str(lb.get("color") or "")[:16]}
-                                         for lb in (c.get("labels") or []) if isinstance(lb, dict)][:8],
-                              "act": c.get("dateLastActivity") if isinstance(c.get("dateLastActivity"), str) else None})
+                cards.append(mk(c, cat, lname))
+            hidden = 0
+            if todo_ids and cfg["todo"]["scope"] == "all":     # A fazer = todos os cards abertos da lista (os meus já vieram acima; Em execução e Pronto seguem só meus)
+                have = {c["id"] for c in cards}
+                for lid in sorted(todo_ids):
+                    extra = self.fetch(f"lists/{lid}/cards", {"filter": "open", "fields": CARD_FIELDS + ",idMembers"}, key, token)
+                    if not isinstance(extra, list):
+                        raise NetError("resposta")
+                    for c in extra:
+                        if not isinstance(c, dict) or c.get("id") in have or not valid(c):
+                            continue
+                        if cfg["todo"]["job_only"] and split_name(c.get("name"))[0] is None:     # separadores ("DE MANHÃ:", "----"): só cards CLIENTE - JOB
+                            hidden += 1
+                            continue
+                        cards.append(mk(c, "todo", self.lists[lid]["name"], nobody=not c.get("idMembers")))
+            found["todo_hidden"] = hidden
             self.cards, self.at, self.error, self.ignored, self.found = cards, now, None, ignored, found
             self.todo_day = today
             self.lists_used = {k: self._used(scoped, pick) for k, pick in
@@ -584,6 +617,8 @@ class Trello:
             dt = due_local(c["due"])
             item = {"short": c["short"], "name": c["name"], "board": c["board"], "list": c["list"], "labels": c["labels"],
                     "due": dt.date().isoformat() if dt else None, "time": dt.strftime("%H:%M") if dt else None}
+            if c.get("nobody"):
+                item["nobody"] = True      # card da lista do dia que ninguém assumiu
             if times and c["short"] in times:
                 item["spent"] = times[c["short"]]
             if c["cat"] == "todo":
