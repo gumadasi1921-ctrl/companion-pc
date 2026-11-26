@@ -2886,7 +2886,7 @@ function makeLayouts(store, rid, now, defaults) {
     }
     return out;
   };
-  // barra de navegação: {v:1, order:[todos os ids, por prioridade], hidden:[ids fora da barra]}; a barra mostra no máximo NAV_CAP itens (o resto fica em Mais)
+  // barra de navegação: {v:1, order:[todos os ids, por prioridade], hidden:[ids fora da barra]}; em pé a barra mostra os NAV_CAP primeiros itens visíveis (o resto fica em Mais); no trilho (deitado/tablet) aparecem todos os visíveis, rolando
   const NAV_IDS = ["inicio", "ctrl", "deck", "tasks", "dash", "media", "games", "dota", "work", "weather", "send", "power", "widgets", "sys", "mascot", "reminders"], NAV_CAP = 4;
   const navDef = () => ({ v: 1, order: NAV_IDS.slice(), hidden: NAV_IDS.slice(NAV_CAP) });
   const validNav = (n) => {
@@ -2897,7 +2897,6 @@ function makeLayouts(store, rid, now, defaults) {
     for (const id of n.hidden) if (typeof id === "string" && NAV_IDS.includes(id)) hide.add(id);
     let vis = order.filter((id) => !hide.has(id));
     if (!vis.length) { hide.delete(order[0]); vis = [order[0]]; }
-    vis.slice(NAV_CAP).forEach((id) => hide.add(id));
     return { v: 1, order, hidden: order.filter((id) => hide.has(id)) };
   };
   const validOne = (k, v) => {
@@ -3517,7 +3516,7 @@ function stVals() {
   const V = {
     pcname: PCL.active().name, pcs: PCL.active().name,
     look: prefs.theme === "fallout" ? "Fallout" : "Moderno · " + (modes[prefs.mode] || ""),
-    nav: navBar.length + " na barra", home: city, wx: city,
+    nav: (navCfg().order.length - navCfg().hidden.length) + " na barra", home: city, wx: city,
     alerts: al + " alertas ligados", al: al + " ligados", lume,
     pomo: pm.d ? "Foco " + pm.d.config.focus_min + " min" : "", work: pm.d ? "Foco " + pm.d.config.focus_min + " min" : "",
     device: innerWidth + "×" + innerHeight,
@@ -3598,7 +3597,7 @@ const NAVM = {   // id: [rótulo na barra, rótulo longo, ícone, vista de entra
   widgets: ["Widgets", "Widgets do Início", "layout-grid", "widgets"], mascot: ["Lume", "Lume", "heart", "mascot"], sys: ["Ajustes", "Ajustes", "sliders-horizontal", "sys"],
   reminders: ["Lembretes", "Lembretes", "bell", "reminders"],
 };
-let navBar = [];   // ids que estão na barra agora
+let navBar = [], navMode = false;   // ids que estão na barra agora; navMode = a barra foi montada para o trilho?
 const navCfg = () => LAY.NAV.norm(store.get("nav", null)) || LAY.NAV.def();
 const navItemOf = (v) => {   // vista → item da barra a que ela pertence
   if (v === "more") return null;
@@ -3609,7 +3608,8 @@ const navItemOf = (v) => {   // vista → item da barra a que ela pertence
 const navIc = (n, cls) => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-${n}"/></svg>`;
 function navBuild() {
   const cfg = navCfg();
-  navBar = cfg.order.filter((id) => !cfg.hidden.includes(id)).slice(0, LAY.NAV.CAP);
+  const all = cfg.order.filter((id) => !cfg.hidden.includes(id));
+  navMode = railMQ.matches; navBar = railMQ.matches ? all : all.slice(0, LAY.NAV.CAP);   // trilho (deitado/tablet): todos os visíveis, rolando; em pé: os 4 primeiros + Mais
   const rest = cfg.order.filter((id) => !navBar.includes(id)), nav = $("nav"), bdg = (id) => (id === "tasks" ? '<b class="badge tk-b hidden"></b>' : "");
   [...nav.children].forEach((c) => { if (!c.classList.contains("rail-top")) c.remove(); });
   // itens (e, na barra larga, o grupo "Mais") ficam no .nav-scroll, que rola no trilho; o botão Mais fica fora, fixo no rodapé
@@ -3632,7 +3632,7 @@ function navReveal() {   // o item ativo rola para a vista (só no trilho)
   if (r.top < c.top + m) s.scrollTop += r.top - c.top - m; else if (r.bottom > c.bottom - m) s.scrollTop += r.bottom - c.bottom + m;
   navFade();
 }
-addEventListener("resize", () => { navFade(); navReveal(); });
+addEventListener("resize", () => { if (typeof navMode !== "undefined" && navMode !== railMQ.matches) { navBuild(); showView(prefs.tab, true); } navFade(); navReveal(); });   // reserva do listener do railMQ (em pé 4 + Mais; deitado todos)
 function navMark(name) {   // marca o item da barra da vista atual (Mais acende quando a vista não está na barra)
   const it = navItemOf(name);
   document.body.classList.toggle("onbar", navBar.includes(it));   // a tela ativa já aparece no trilho: o título dela pode sair no deitado
@@ -3654,9 +3654,9 @@ $("nav").onclick = $("more-list").onclick = (e) => { const b = e.target.closest(
 function navRender() {
   const cfg = navCfg();
   $("nav-list").innerHTML = cfg.order.map((id, i) => {
-    const on = navBar.includes(id), n = NAVM[id][1];
+    const on = !cfg.hidden.includes(id), n = NAVM[id][1], pos = cfg.order.filter((x) => !cfg.hidden.includes(x)).indexOf(id);
     return `<div class="wd-row" data-id="${id}"><button class="switch${on ? " on" : ""}" data-nop="tg" aria-pressed="${on}" aria-label="${n} na barra"></button>
-      <div class="wd-nm">${navIc(NAVM[id][2], "hi")}<span class="wd-n">${n}</span><small>${on ? "Na barra" : "Em Mais"}</small></div>
+      <div class="wd-nm">${navIc(NAVM[id][2], "hi")}<span class="wd-n">${n}</span><small>${on ? (pos >= LAY.NAV.CAP ? "No trilho (em pé fica em Mais)" : "Na barra") : "Em Mais"}</small></div>
       <button data-nop="up" aria-label="Subir ${n}"${i === 0 ? " disabled" : ""}>${navIc("chevron-up", "hi")}</button>
       <button data-nop="dn" aria-label="Descer ${n}"${i === cfg.order.length - 1 ? " disabled" : ""}>${navIc("chevron-down", "hi")}</button></div>`;
   }).join("");
@@ -3671,8 +3671,8 @@ $("nav-list").onclick = (e) => {
   buzz(8);
   const cfg = navCfg(), id = row.dataset.id, i = cfg.order.indexOf(id), op = b.dataset.nop;
   if (op === "tg") {
-    if (navBar.includes(id)) { if (navBar.length <= 1) return toast("A barra precisa de pelo menos 1 item", "warn"); cfg.hidden.push(id); }
-    else { if (navBar.length >= LAY.NAV.CAP) return toast(`A barra comporta ${LAY.NAV.CAP} itens. Tire um antes`, "warn"); cfg.hidden = cfg.hidden.filter((x) => x !== id); }
+    if (!cfg.hidden.includes(id)) { if (cfg.order.length - cfg.hidden.length <= 1) return toast("A barra precisa de pelo menos 1 item", "warn"); cfg.hidden.push(id); }
+    else cfg.hidden = cfg.hidden.filter((x) => x !== id);
   } else {
     const j = op === "up" ? i - 1 : i + 1; if (j < 0 || j >= cfg.order.length) return;
     [cfg.order[i], cfg.order[j]] = [cfg.order[j], cfg.order[i]];
@@ -3683,7 +3683,7 @@ $("nav-list").onclick = (e) => {
 $("nav-reset").onclick = () => { buzz(8); navSave(null); toast("Barra de navegação restaurada", "ok"); };
 navBuild(); navRender();
 wideMQ.addEventListener("change", () => showView(prefs.tab));
-railMQ.addEventListener("change", () => showView(prefs.tab, true));
+railMQ.addEventListener("change", () => { navBuild(); showView(prefs.tab, true); });
 
 // ---------------------------------------------------------------- abertura (uma vez por carregamento)
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;

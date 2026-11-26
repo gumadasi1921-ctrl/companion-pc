@@ -100,7 +100,8 @@ const HOME = { v: 2, phone: [{ id: "now", size: "A" }, { id: "cpu", size: "P" }]
   t("id desconhecido/repetido some; faltantes entram no fim, em Mais", [a.order.length, a.order.slice(0, 2), a.hidden.includes("inicio"), a.hidden.includes("games")], [16, ["sys", "games"], true, true]);
   t("só 1 visível (sys) porque os faltantes ficam em Mais", a.order.filter((i) => !a.hidden.includes(i)), ["sys"]);
   const b = N.norm({ v: 1, order: N.IDS, hidden: [] });
-  t("passou do limite: só os 4 primeiros ficam na barra", b.order.filter((i) => !b.hidden.includes(i)), ["inicio", "ctrl", "deck", "tasks"]);
+  t("sem limite de 4: todos os itens visíveis continuam na barra (o trilho mostra todos; em pé a tela usa os 4 primeiros)", b.order.filter((i) => !b.hidden.includes(i)), N.IDS);
+  t("o padrão continua com 4 visíveis", (() => { const d = N.def(); return d.order.filter((i) => !d.hidden.includes(i)); })(), ["inicio", "ctrl", "deck", "tasks"]);
   const c = N.norm({ v: 1, order: N.IDS, hidden: N.IDS });
   t("nada visível: o primeiro volta (a barra nunca fica vazia)", c.order.filter((i) => !c.hidden.includes(i)), ["inicio"]);
   const { L: L2, store } = fresh({ theme: "modern" }); L2.init(); L2.hook();
