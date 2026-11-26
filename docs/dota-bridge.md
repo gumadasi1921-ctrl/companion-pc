@@ -209,3 +209,37 @@ slots 0–9 e `game-null` com campos `null`, e PNGs nos tamanhos reais) e uma c�
 ### Trilho de fases e fim de partida (etapa 4)
 
 Toda fase exceto `offline` mostra no topo um trilho `Menu · Escolha · Partida · Fim` (`draft` e `pregame` ficam em "Escolha"; no `pregame` o rótulo vira "Pré-jogo"). O passo atual vem só de `phase`; nada é estimado. No fim da partida (`postgame`) a tela mostra o resultado (faixa verde/vermelha) e, abaixo, o que a ponte mandou em `lobby` (MMR, hoje, últimas partidas, mais jogados). Menu sem `lobby` = "Sem dados do lobby ainda".
+
+
+## Sem o DotaCopilot (GSI direta + OpenDota)
+
+O DotaCopilot é opcional. A fonte de cada estado, em ordem (`dota.compose`, `companion.source` no estado): **1)** ponte do Copilot com fase real
+(`copilot`); **2)** GSI direta recente (`gsi`); **3)** ponte no ar com `offline` (menu pelo processo ou lobby dela); **4)** Dota aberto sem GSI = `menu`
+pelo processo (`process`); **5)** fechado = `offline` SEM `reason` (a tela diz "Dota fechado"). `lobby`, `hero.mine` e o resultado oficial que a fonte
+não trouxe vêm do OpenDota. Sem fonte o campo fica `null` e a tela esconde (build, ordem de skills, próximo item, timers, posição).
+
+### GSI (`windows/server/dota_gsi.py`)
+- Listener próprio só em `127.0.0.1:8771` (config `dota.gsi_port`; a porta do app é acessível pela rede e só fala GET). Só POST, corpo ≤ 256 KB,
+  token (`dota.gsi_token`, gerado na 1ª vez, só no config.json e no .cfg do Dota) conferido com `compare_digest`; recusa = 4xx, sem log do conteúdo.
+- Lê só: `auth.token`; `map.game_state/matchid/clock_time/daytime/win_team`; `player.steamid/team_name/kills/deaths/assists/last_hits/denies/gold/gpm/xpm`;
+  `hero.id/level`; `items.slot0..8/neutral0`. Payload > 35 s = sem dado (o Dota não manda GSI no menu principal).
+- Fases: preparação/seleção/estratégia/draft/carregamento = `draft`, `PRE_GAME` = `pregame`, `GAME_IN_PROGRESS` = `game`, `POST_GAME`/`DISCONNECT` =
+  `postgame`, sem `map` ou estado desconhecido = `menu`. `result.win` = `map.win_team == player.team_name` (outro valor = `null`).
+  Com Steam ID configurado, payload de outro `player.steamid` (replay/outra conta) ou sem steamid (espectador) não gera herói/live/resultado.
+- Painel › Ajustes › Dota › "Instalar integração do Dota": cria `…\dota 2 beta\game\dota\cfg\gamestate_integration\gamestate_integration_companion.cfg`
+  (achado pelas bibliotecas da Steam; senão o painel pede a pasta). Nunca sobrescreve arquivo que não seja nosso (marca `// Companion PC`). O Dota 2 só
+  lê a GSI com a opção de inicialização `-gamestateintegration` (o painel mostra; o Companion não mexe nas opções da Steam).
+
+### OpenDota (`windows/server/dota_od.py`)
+- Só GET sem chave e só o Steam ID público (`dota.steam_id`: 17 dígitos ou número de 32 bits, painel): `/players/{id}`, `/recentMatches`, `/heroes`, `/wl`,
+  `/constants/heroes`, `/constants/items`. Nada de escrita (nem `POST /request`), nada de STRATZ. O "resultado oficial" sai do `recentMatches` (que já
+  traz KDA, duração, GPM, XPM, dano e LH): depois do `postgame` procura a partida a cada 30 s por até 10 min e 20 chamadas; antes disso o app diz "aguardando".
+- Cache `dota-od.json` (atômico; corrompido vira `.bad-<data-hora>`): perfil/recentes/heróis/wl a cada 10 min só com aparelho; constantes a cada 7 dias.
+  Limite próprio de 500 chamadas/dia (grátis: 2000/dia, 60/min); erro = recuo de 1 min, 429 = 5 min; offline mostra a última cópia com a data (`lobby.stale`).
+- `lobby` no mesmo formato da ponte: `mmr = {value: null, estimated: false, medal}` (o OpenDota só dá a medalha), `today`/`streak` das próprias partidas
+  recentes, `recent` ≤ 10, `top_heroes` ≤ 5, mais `profile.name`, `record {win, lose}`, `source: "opendota"`, `fetched_at`, `stale`.
+  `companion.opendota = {configured, state: no_id|pending|ok|empty|error, error, fetched_at}` explica a tela vazia (perfil privado = `empty`).
+- Imagens: sem a ponte, o proxy `dota_img` busca o PNG no CDN da Valve (`cdn.cloudflare.steamstatic.com`) só para id JÁ conhecido nas constantes do OpenDota
+  e só caminho `/apps/dota2/images/…png` validado; nada de conta ou Steam ID vai junto; falhou = nome em texto. A ponte, quando no ar, vem primeiro.
+- Testes: `py -3 tests/test_dota_gsi.py`, `tests/test_dota_od.py`, `tests/test_dota_compose.py` (fixtures `tests/fixtures/gsi-*.json`, `od-*.json`) e ao vivo
+  `tests/test_dota_gsi_live.py` (cópia do servidor, OpenDota falso, POST de GSI de verdade). Prévia visual: `tests/dota_preview.py` (`/__set/down`, `/__gsi/<fase>`, `/__od/off`).

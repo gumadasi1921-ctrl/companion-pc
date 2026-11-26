@@ -1222,6 +1222,9 @@ select.sel { min-height: 44px; }
 .dota .dmsg { display: flex; flex-direction: column; gap: 6px; padding: 18px 16px; font-size: 17px; }
 .dota .dmsg small { color: var(--text-2, var(--p2)); font-size: 14px; }
 .dota .dbig { font: 700 40px/1 var(--display); font-variant-numeric: tabular-nums; }
+.dota .dbig.dmedal { font-size: 30px; }
+.dota .dsrc.old { color: var(--warning, var(--p)); }
+.dota .dofc { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
 .dota .dclock { font: 700 56px/1 var(--display); font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
 .dota .dname { font: 700 24px/1.15 var(--display); overflow-wrap: anywhere; }
 .dota .dname.sm { font-size: 19px; }
@@ -4163,13 +4166,19 @@ const dSec = (name, sig, html) => [name, String(sig), html];
 function dotaLobbyCols(l) {
   if (!l) return [];
   const cols = [], first = [], st = l.streak;
-  if (l.mmr) first.push(dSec("mmr", JSON.stringify(l.mmr), () => `<div class="card"><h3><span>MMR</span><span>${l.mmr.estimated ? "estimado" : "informado"}</span></h3><div class="dbig">${dNum(l.mmr.value)}</div>${l.mmr.medal ? `<div class="sub">${esc(l.mmr.medal)}</div>` : ""}</div>`));
-  if (l.today || (nn(st) && st !== 0)) first.push(dSec("today", JSON.stringify([l.today, st]), () => {
-    const streak = nn(st) && st !== 0 ? `<div class="sub">${dWin(st > 0, `${st} ${st === 1 ? "vitória seguida" : "vitórias seguidas"}`, `${-st} ${st === -1 ? "derrota seguida" : "derrotas seguidas"}`, "")}</div>` : "";
-    return `<div class="card"><h3><span>Hoje</span></h3>${l.today ? `<div class="dbig"><span class="dwin">${l.today.wins}V</span> – <span class="dloss">${l.today.losses}D</span></div>` : ""}${streak}</div>`;
+  if (l.mmr) first.push(dSec("mmr", JSON.stringify([l.mmr, l.profile, l.record]), () => {
+    const v = nn(l.mmr.value), nm = l.profile?.name;
+    return `<div class="card"><h3><span>${v ? "MMR" : "Medalha"}</span><span>${v ? (l.mmr.estimated ? "estimado" : "informado") : "OpenDota"}</span></h3><div class="dbig${v ? "" : " dmedal"}">${v ? dNum(l.mmr.value) : esc(l.mmr.medal || "–")}</div>${v && l.mmr.medal ? `<div class="sub">${esc(l.mmr.medal)}</div>` : ""}${nm ? `<div class="sub">${esc(nm)}</div>` : ""}</div>`;
   }));
+  else if (l.profile?.name || l.record) first.push(dSec("prof", JSON.stringify([l.profile, l.record]), () => `<div class="card"><h3><span>Perfil</span><span>OpenDota</span></h3>${l.profile?.name ? `<div class="dname sm">${esc(l.profile.name)}</div>` : ""}<div class="sub">Sem medalha pública</div></div>`));
+  if (l.today || (nn(st) && st !== 0)) first.push(dSec("today", JSON.stringify([l.today, st, l.record]), () => {
+    const streak = nn(st) && st !== 0 ? `<div class="sub">${dWin(st > 0, `${st} ${st === 1 ? "vitória seguida" : "vitórias seguidas"}`, `${-st} ${st === -1 ? "derrota seguida" : "derrotas seguidas"}`, "")}</div>` : "";
+    const rec = l.record && nn(l.record.win) ? `<div class="sub">Total: ${dNum(l.record.win)}V – ${dNum(l.record.lose)}D</div>` : "";
+    return `<div class="card"><h3><span>Hoje</span></h3>${l.today ? `<div class="dbig"><span class="dwin">${l.today.wins}V</span> – <span class="dloss">${l.today.losses}D</span></div>` : ""}${streak}${rec}</div>`;
+  }));
+  if (l.source === "opendota" && nn(l.fetched_at)) first.push(dSec("src", JSON.stringify([l.fetched_at, l.stale]), () => `<div class="dnote dsrc${l.stale ? " old" : ""}">OpenDota · ${l.stale ? "sem conexão, dados de " : "atualizado "}${esc(new Date(l.fetched_at * 1000).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }))}</div>`));
   if (first.length) cols.push({ c: "", s: first });
-  const recent = (l.recent || []).slice(0, 5), top = (l.top_heroes || []).slice(0, 5);
+  const recent = (l.recent || []).slice(0, 10), top = (l.top_heroes || []).slice(0, 5);
   if (recent.length) cols.push({ c: "", s: [dSec("recent", JSON.stringify(recent) + dota.k, () => `<div class="card"><h3><span>Últimas partidas</span></h3>${recent.map((m) => {
     const img = dId(m.hero_id) ? dImg("hero", m.hero_id, "portrait", m.hero, 64, 36, dResult(m.win)) : '<span class="dsp"></span>';
     const right = [nn(m.win) ? `<b>${dWin(m.win, "V", "D", "")}</b>` : "", dKda(m), nn(m.duration_s) ? humanDur(m.duration_s) : ""].filter(Boolean).join(" · ");
@@ -4195,6 +4204,13 @@ function dotaBuild(h, game, limit) {
     }).join("")}</div>`;
   }).join("");
   return `<div class="card"><h3><span>Build</span>${b.source ? `<span>${esc(b.source)}</span>` : ""}</h3>${src}${list}</div>`;
+}
+function dotaOfficial(o, cop) {
+  if (o) {
+    const bits = [dKda(o) && `KDA ${dKda(o)}`, nn(o.gpm) && `GPM ${o.gpm}`, nn(o.xpm) && `XPM ${o.xpm}`, nn(o.last_hits) && `${o.last_hits} LH`, nn(o.duration_s) && humanDur(o.duration_s)].filter(Boolean);
+    return `<div class="dofc"><div class="dnote">Resultado oficial · OpenDota</div><div class="sub wrap">${dWin(o.win, "Vitória", "Derrota", "")}${bits.length ? " · " + bits.join(" · ") : ""}</div></div>`;
+  }
+  return cop ? '<div class="dnote">Análise completa no DotaCopilot (no PC)</div>' : '<div class="dnote">Resultado oficial: aguardando o OpenDota (pode levar alguns minutos)</div>';
 }
 const dotaBuildSec = (h, game, limit) => dSec("build", JSON.stringify([h?.build, h?.position_source, h?.position, game, limit]) + dota.k, () => dotaBuild(h, game, limit));
 function dotaSkills(b) {
@@ -4243,15 +4259,25 @@ function dotaStrip(d, mode) {
   const id = mode === "end" && nn(r.hero_id) ? r.hero_id : h.hero_id, name = h.hero || "";
   const clock = nn(L?.clock_s), day = nn(L?.daytime);
   const pic = (w, hh, cls) => (dId(id) || name ? dImg("hero", id, "loadout", name, w, hh, cls) : "");
-  return dSec("hero", JSON.stringify([mode, d.phase, id, name, clock, day, !!h.mine, h.mine?.avg_kda, r.win, dKda(r), mode]) + dota.k, () => {
+  const cop = d.companion?.source === "copilot";
+  return dSec("hero", JSON.stringify([mode, d.phase, id, name, clock, day, !!h.mine, h.mine?.avg_kda, r.win, dKda(r), mode, cop, r.official]) + dota.k, () => {
     if (mode === "end") return `<div class="card dres ${dResult(r.win)}">${pic(132, 176, `ld ${dResult(r.win)}`)}<div class="dresx">
       <div class="dbig">${dWin(r.win, "Vitória", "Derrota", "Partida encerrada")}</div>${dKda(r) ? `<div class="dname">${dKda(r)}</div>` : ""}${name ? `<div class="sub">${esc(name)}</div>` : ""}
-      <div class="dnote">Análise completa no DotaCopilot (no PC)</div></div></div>`;
+      ${dotaOfficial(r.official, cop)}</div></div>`;
     const right = mode === "game"
       ? `<div class="dname sm">${esc(name || "Herói escolhido")}</div>${clock ? '<div class="dclock" role="timer" data-d="clock"></div>' : ""}${day ? '<div class="sub" data-d="day"></div>' : ""}`
       : `<div class="dname">${esc(name || "Herói escolhido")}</div>${h.mine ? '<div class="sub wrap" data-d="mine"></div>' : ""}${h.mine?.avg_kda ? '<div class="dnote" data-d="avgkda"></div>' : ""}${clock ? '<div class="row"><span>Relógio</span><span data-d="clock"></span></div>' : ""}`;
     return `<div class="card"><h3><span>Herói</span><span>${DOTA_PH[d.phase]}</span></h3><div class="dstrip">${pic(72, 96, "ld")}<div class="dstx">${right}</div></div></div>`;
   });
+}
+// sem lobby: diz o motivo real (nunca "ainda não enviou" do Copilot se ele nem existe)
+function dotaNoLobby(d) {
+  const od = d.companion?.opendota, src = d.companion?.source;
+  const [a, b] = src === "copilot" ? ["Sem dados do lobby ainda", "O DotaCopilot ainda não enviou MMR nem partidas recentes"]
+    : !od || od.state === "no_id" ? ["Sem perfil ainda", "Informe o Steam ID no painel do PC (Ajustes › Dota) para ver medalha e partidas"]
+    : od.state === "empty" ? ["Perfil sem partidas públicas", "No Dota, ligue “Expor dados públicos de partidas” (Opções › Social) e aguarde alguns minutos"]
+    : od.state === "error" ? ["OpenDota indisponível", "Sem conexão e sem cópia guardada; tentando de novo"] : ["Carregando o perfil…", "Buscando no OpenDota"];
+  return { c: "dfull", s: [dSec("nolobby", a + b, () => `<div class="card dmsg"><span>${esc(a)}</span><small>${esc(b)}</small></div>`)] };
 }
 const dMsg = (sig, html) => ({ cls: "", cols: [{ c: "dfull", s: [dSec("msg", sig, () => html)] }] });
 function dotaPlan0(d) {
@@ -4260,21 +4286,23 @@ function dotaPlan0(d) {
   const some = (arr) => arr.filter(Boolean);
   if (ph === "offline") {
     const msg = dSec("msg", d.reason || "", () => `<div class="card dmsg" role="status">${d.reason ? `<span>Abra o DotaCopilot para ver a partida</span><small>${esc(d.reason)}</small>` : "<span>Dota fechado</span><small>Abra o Dota para ver a partida</small>"}</div>`);
-    return { cls: "c3", cols: [{ c: "dfull", s: [msg] }, ...dotaLobbyCols(d.lobby)] };
+    const lob = dotaLobbyCols(d.lobby);
+    return { cls: "c3", cols: [{ c: "dfull", s: [msg] }, ...(lob.length || d.companion?.source === "copilot" ? lob : [dotaNoLobby(d)])] };
   }
   if (ph === "menu") {
     const lob = dotaLobbyCols(d.lobby);
-    return { cls: "c3", cols: [{ c: "dfull", s: [dSec("head", "menu", () => '<h2 class="dhead" role="status">No menu do Dota</h2>')] }, ...(lob.length ? lob : [{ c: "dfull", s: [dSec("nolobby", "x", () => '<div class="card dmsg"><span>Sem dados do lobby ainda</span><small>O DotaCopilot ainda não enviou MMR nem partidas recentes</small></div>')] }])] };
+    return { cls: "c3", cols: [{ c: "dfull", s: [dSec("head", "menu", () => '<h2 class="dhead" role="status">No menu do Dota</h2>')] }, ...(lob.length ? lob : [dotaNoLobby(d)])] };
   }
   if (ph === "draft" || ph === "pregame") {
     if (!h) return dMsg("pick", '<div class="card dmsg">Escolhendo o herói…</div>');
+    if (!h.build && d.companion?.source !== "copilot") return { cls: "", cols: [{ c: "", s: [dotaStrip(d, "pick")] }] };   // sem fonte de build: o card fica escondido
     return { cls: "c2", cols: [{ c: "", s: some([dotaStrip(d, "pick"), dotaSkills(h.build)]) }, { c: "", s: [dotaBuildSec(h, false, DOTA_IMG_MAX - 1)] }] };
   }
   if (ph === "game") {
     if (!L) return dMsg("run", '<div class="card dmsg">Partida em andamento</div>');
     const cols = [{ c: "", s: some([dotaStrip(d, "game"), dotaTimers(L.timers || {})]) }, { c: "", s: some([dotaKv(L), dotaInventory(L), dotaNext(L)]) }];
-    if (h) cols.push({ c: "", s: [dotaBuildSec(h, true, DOTA_IMG_MAX - 12)] });   // 1 herói + até 10 do inventário + 1 próximo item
-    return { cls: "c3", cols };
+    if (h && (h.build || d.companion?.source === "copilot")) cols.push({ c: "", s: [dotaBuildSec(h, true, DOTA_IMG_MAX - 12)] });   // 1 herói + até 10 do inventário + 1 próximo item
+    return { cls: cols.length === 2 ? "c2" : "c3", cols };
   }
   if (ph === "postgame") return { cls: "c3", cols: [{ c: "dfull", s: [dotaStrip(d, "end")] }, ...dotaLobbyCols(d.lobby)] };
   return dMsg("unk", '<div class="card dmsg">Estado desconhecido</div>');
@@ -5739,7 +5767,7 @@ function dotaWidgetPlan(d, z) {
   }
   const rec = (l?.recent || []).slice(0, 3).filter((m) => dId(m.hero_id));
   return { sig: JSON.stringify(["m", d.phase, d.reason, l?.mmr, l?.today, rec, k]),
-    html: (l?.mmr ? `<div class="dbig">${dNum(l.mmr.value)}</div><div class="sub">${esc(l.mmr.medal || "")}${l.mmr.estimated ? " · estimado" : ""}</div>` : "")
+    html: (l?.mmr ? (nn(l.mmr.value) ? `<div class="dbig">${dNum(l.mmr.value)}</div><div class="sub">${esc(l.mmr.medal || "")}${l.mmr.estimated ? " · estimado" : ""}</div>` : `<div class="dbig dmedal">${esc(l.mmr.medal || "–")}</div>`) : "")
       + (l?.today ? `<div class="row"><span>Hoje</span><span>${l.today.wins}V – ${l.today.losses}D</span></div>` : "")
       + (rec.length ? `<div class="dwm">${rec.map((m) => `<div class="dwmi">${dImg("hero", m.hero_id, "portrait", m.hero, 48, 27, dResult(m.win))}<small>${dKda(m)}</small></div>`).join("")}</div>` : "")
       + (d.phase === "offline" ? `<div class="hw-na">${esc(d.reason || "Dota fechado")}</div>` : "") };
@@ -5762,8 +5790,9 @@ Object.assign(HOME_W, {
       if (el.dataset.z === "P") {   // pequeno: relógio (partida) ou MMR em destaque, o herói (retrato do proxy, nome em texto se a imagem faltar) e KDA / hoje / medalha
         const L = d.live, mmr = d.lobby?.mmr?.value, inGame = d.phase === "game" && L && nn(L.clock_s), h = d.hero, l = d.lobby;
         setText(hk(el, "ph"), DOTA_PH[d.phase] || "Dota");
-        setText(hk(el, "big"), inGame ? dClock(L.clock_s + dAge()) : nn(mmr) ? dNum(mmr) : "–");
-        setText(hk(el, "cap"), inGame ? "partida" : nn(mmr) ? "MMR" : d.phase === "offline" ? d.reason || "Dota fechado" : "");
+        const medal = d.lobby?.mmr?.medal;
+        setText(hk(el, "big"), inGame ? dClock(L.clock_s + dAge()) : nn(mmr) ? dNum(mmr) : medal || "–");
+        setText(hk(el, "cap"), inGame ? "partida" : nn(mmr) ? "MMR" : medal ? "medalha" : d.phase === "offline" ? d.reason || "Dota fechado" : "");
         const rec = (l?.recent || []).slice(0, 3).filter((m) => dId(m.hero_id));
         setHtml(hk(el, "hero"), h?.hero ? `${dImg("hero", h.hero_id, "portrait", h.hero, 64, 36)}<div class="pq-hn"><b>${esc(h.hero)}</b>${d.phase === "game" && L && dKda(L) ? `<span>KDA ${dKda(L)}</span>` : ""}</div>`
           : rec.map((m) => `<span class="pq-rm">${dImg("hero", m.hero_id, "portrait", m.hero, 48, 27, dResult(m.win))}<small>${dKda(m)}</small></span>`).join(""));
@@ -8724,6 +8753,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
   function settingsView(main) {
     let orig = null, vals = null, net = null, editSc = null, bk = {}, tr = {}, up = { info: {}, chk: null, busy: "", msg: "", bad: false }, agp = {}, md = {}, mdForm = { token: "", on: false, boards: [], info: null, msg: "" }, agForm = { url: "", on: false, notify_min: 5, msg: "" }, trForm = { key: "", token: "", on: false, msg: "", mode: "all", prefix: "", ws: "", ids: [], running: ["Em execução"], approved: ["Aprovar"], todo: { mode: "today", list_id: "", position: 1 }, info: null, open: null };
     const body = h("div"), msg = h("span", { class: "pn-dim" });
+    let dp = null; const dForm = { steam: "", msg: "", bad: false };
     main.append(h("section", {}, h("h1", {}, "Ajustes"), h("p", { class: "pn-sub" }, "Opções do servidor no PC."), body));
     const KEYS = ["upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "idle_min", "notif_ignore", "shortcuts", "export_watch", "misplaced_min", "backup_dir", "pc_name", "remote_base", "allowed_origins", "repo_dir"];
     const dirty = () => KEYS.filter((k) => JSON.stringify(vals[k]) !== JSON.stringify(orig[k]));
@@ -8899,6 +8929,44 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
       catch (e) { agForm.msg = e.message; }
       render();
     };
+    // ---- Dota sem o DotaCopilot: Steam ID público (OpenDota) e a integração do jogo (GSI)
+    const dSay = (m, bad) => { dForm.msg = m; dForm.bad = !!bad; render(); };
+    const dRefresh = async () => { try { dp = await call("dota_status"); } catch { /* mantém o anterior */ } render(); };
+    const dSaveId = async () => { try { dp = await call("dota_set_steam", { steam_id: dForm.steam.trim() }); dSay("Steam ID salvo. O perfil é buscado quando o celular conectar."); } catch (e) { dSay(e.message, true); } };
+    const dOdNow = async () => { try { const r = await call("dota_od_refresh", {}, 60000); dp = r; dSay(r.wait ? "Aguarde " + r.wait + " s para atualizar de novo." : r.changed ? "Atualizado." : "Nada novo (sem conexão ou limite diário)."); } catch (e) { dSay(e.message, true); } };
+    const dInstall = async () => {
+      try {
+        let r = await call("dota_gsi_install", {});
+        if (r.need_folder) {
+          const f = await call("pick_folder", {}, 600000); if (!f) { dSay("Não achei o Dota 2 nas bibliotecas da Steam. Escolha a pasta “dota 2 beta”.", true); return; }
+          r = await call("dota_gsi_install", { folder: f });
+        }
+        dp = r; dSay("Integração instalada. Falta só a opção de inicialização (abaixo) e reiniciar o Dota.");
+      } catch (e) { dSay(e.message, true); }
+    };
+    function dotaCard() {
+      if (!dp) return h("div", { class: "pn-card" }, h("div", { class: "pn-dim" }, "Conectando…"));
+      const od = dp.od || {}, g = dp.gsi || {}, when = (t) => t ? new Date(t * 1000).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "";
+      const odLine = !od.configured ? "Sem Steam ID: a aba Dota não mostra perfil nem partidas."
+        : od.state === "ok" ? "OpenDota ok · última leitura " + when(od.fetched_at) + " · " + od.calls_today + "/" + od.calls_max + " chamadas hoje"
+        : od.state === "empty" ? "Perfil sem partidas públicas. No Dota ligue “Expor dados públicos de partidas” e aguarde alguns minutos."
+        : od.state === "error" ? "OpenDota indisponível (" + (od.error || "erro") + ")" + (od.fetched_at ? " · mostrando a cópia de " + when(od.fetched_at) : "") : "Aguardando a primeira leitura (só com o celular conectado).";
+      const gLine = !g.listening ? "Receptor da integração parado (porta " + g.port + " indisponível)."
+        : g.last_age != null ? "Recebendo dados do Dota (último há " + Math.round(g.last_age) + " s)."
+        : g.installed ? "Instalada. Nenhum dado recebido ainda: abra o Dota com a opção de inicialização abaixo." : g.found ? "Ainda não instalada." : "Dota 2 não encontrado nas bibliotecas da Steam.";
+      return h("div", { class: "pn-card" },
+        h("div", { class: "pn-faint" }, "A aba Dota funciona sem o DotaCopilot: perfil e partidas vêm do OpenDota (só o Steam ID público, somente leitura) e a partida ao vivo vem da integração oficial do jogo. Com o DotaCopilot aberto, os dados dele têm prioridade."),
+        h("div", { class: "pn-form", style: "margin-top:8px" }, h("label", { for: "dt-id" }, "Steam ID"), h("input", { id: "dt-id", class: "pn-in", type: "text", inputmode: "numeric", autocomplete: "off", spellcheck: "false", maxlength: "20",
+          placeholder: "17 dígitos (SteamID64) ou número de 32 bits", value: dForm.steam, oninput: (e) => { dForm.steam = e.target.value; } })),
+        h("div", { class: "pn-foot" }, h("button", { class: "pn-btn primary", type: "button", onclick: dSaveId }, "Salvar"), h("button", { class: "pn-btn", type: "button", disabled: !od.configured, onclick: dOdNow }, "Atualizar agora"),
+          h("span", { class: "pn-faint", role: "status" }, dForm.msg)),
+        h("div", { class: "pn-faint", style: "margin-top:6px" }, odLine),
+        h("div", { class: "pn-row", style: "margin-top:12px" }, h("div", { class: "pn-grow" }, h("div", {}, "Integração do jogo (GSI)"), h("div", { class: "pn-faint", role: "status" }, gLine)),
+          h("button", { class: "pn-btn" + (g.installed ? "" : " primary"), type: "button", onclick: dInstall }, g.installed ? "Reinstalar" : "Instalar integração do Dota")),
+        h("div", { class: "pn-faint", style: "margin-top:6px" }, "Cria o arquivo gamestate_integration_companion.cfg na pasta do Dota. Depois, na Steam: Dota 2 › Propriedades › Opções de inicialização, escreva ",
+          h("b", {}, dp.launch_option), " e reinicie o jogo. Para desligar, apague o arquivo."),
+        dp.copilot ? h("div", { class: "pn-faint", style: "margin-top:6px" }, "DotaCopilot detectado: ele continua valendo quando tem dados.") : null);
+    }
     function agendaCard() {
       const at = agp.at ? new Date(agp.at * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
       const line = !agp.has_url ? "Sem endereço salvo." : !agp.on ? "Desligada."
@@ -9062,6 +9130,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
             bk.ok ? "Último backup: " + new Date(bk.at * 1000).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) + " (" + bk.files + " arquivos)"
               : bk.ok === false ? "O último backup falhou (" + (bk.error || "erro") + "). Nova tentativa em até 1 h." : "Nenhum backup feito ainda."),
             h("button", { class: "pn-btn", type: "button", disabled: !orig.backup_dir || vals.backup_dir !== orig.backup_dir, onclick: async () => { try { bk = await call("backup_run", {}, 60000); render(); toast(bk.ok ? "Backup feito." : "O backup falhou.", { bad: !bk.ok }); } catch (e) { fail(e); } } }, "Fazer backup agora"))),
+        h("div", { class: "pn-h" }, "Dota"), dotaCard(),
         h("div", { class: "pn-h" }, "Agenda (somente leitura)"), agendaCard(),
         h("div", { class: "pn-h" }, "Trello (somente leitura)"), trelloCard(),
         h("div", { class: "pn-h" }, "monday (somente leitura)"), mondayCard(),
@@ -9092,7 +9161,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
     }
     const load = async () => {
       try { try { up.info = await call("update_info"); } catch (e) { /* ok */ }
-      const c = await call("config_get"); net = c.net; bk = c.backup || {}; tr = c.trello || {}; trFill(); md = c.monday || {}; mdForm.on = !!md.on; mdForm.boards = clone(md.boards_cfg || []); agp = c.agenda || {}; agForm.on = !!agp.on; agForm.notify_min = agp.notify_min || 5; orig = {}; KEYS.forEach((k) => { orig[k] = clone(c[k]); }); vals = clone(orig); editSc = null; render(); } catch (e) { fail(e); }
+      const c = await call("config_get"); net = c.net; bk = c.backup || {}; tr = c.trello || {}; trFill(); md = c.monday || {}; mdForm.on = !!md.on; mdForm.boards = clone(md.boards_cfg || []); try { dp = await call("dota_status"); dForm.steam = dp.steam_id || ""; } catch { dp = null; } agp = c.agenda || {}; agForm.on = !!agp.on; agForm.notify_min = agp.notify_min || 5; orig = {}; KEYS.forEach((k) => { orig[k] = clone(c[k]); }); vals = clone(orig); editSc = null; render(); } catch (e) { fail(e); }
     };
     return { start: load, stop() {} };
   }

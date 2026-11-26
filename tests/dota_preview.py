@@ -4,7 +4,8 @@ loadout 448x678, item 88x64) + uma CÓPIA do servidor em pasta temporária, em p
   py -3 tests/dota_preview.py [porta_do_app=8800] [porta_da_ponte=8801]
 Imprime a URL do app (com o token de teste). Trocar a fase da ponte: GET http://127.0.0.1:<ponte>/__set/<fase>
 (offline|menu|draft|pregame|game|postgame|down = ponte fora do ar) e, no app, a tela Dota consulta de novo ao abrir.
-/__missing/<id,id> faz a ponte responder 404 nas imagens desses heróis (e /__missing/ limpa). Encerra com Ctrl+C
+/__gsi/<menu|draft|pregame|game|postgame|off> manda a GSI do Dota (sem Copilot: use /__set/down) e /__od/<on|off> liga/desliga o OpenDota
+falso (perfil do fixture od-*.json; imagens de herói/item vêm do CDN real da Valve). /__missing/<id,id> faz a ponte responder 404 nas imagens desses heróis (e /__missing/ limpa). Encerra com Ctrl+C
 ou apagando o arquivo "stop" da pasta temporária impressa."""
 import http.server
 import io
@@ -25,7 +26,9 @@ SRC = ROOT.parent / "windows" / "server"
 FIX = ROOT / "fixtures"
 PHASES = ("offline", "menu", "draft", "pregame", "game", "postgame")
 SIZES = {"icon": (32, 32), "portrait": (128, 72), "loadout": (448, 678), "item": (88, 64)}
-STATE = {"phase": "menu", "missing": set(), "state": None}
+STATE = {"phase": "menu", "missing": set(), "state": None, "gsi": None, "od_off": False}
+OD_ROUTES = {"/players/1": "od-player", "/players/1/recentMatches": "od-recent", "/players/1/heroes": "od-heroes", "/players/1/wl": "od-wl",
+             "/constants/heroes": "od-constants-heroes", "/constants/items": "od-constants-items"}
 
 
 def png(kind, ident):
@@ -59,6 +62,17 @@ class Fake(http.server.BaseHTTPRequestHandler):
         if path.startswith("/__set/"):
             STATE["phase"] = path.rsplit("/", 1)[1]
             return self.send(200, b"ok")
+        if path.startswith("/__gsi/"):     # GSI falsa: menu|draft|pregame|game|postgame|off (reenviada a cada 5 s pelo main)
+            v = path.rsplit("/", 1)[1]
+            STATE["gsi"] = None if v == "off" else v
+            return self.send(200, b"ok")
+        if path.startswith("/__od/"):      # OpenDota falso: on|off (off = sem conexão, a tela mostra a última cópia)
+            STATE["od_off"] = path.rsplit("/", 1)[1] == "off"
+            return self.send(200, b"ok")
+        if path in OD_ROUTES:
+            if STATE["od_off"]:
+                return self.send(503)
+            return self.send(200, (FIX / f"{OD_ROUTES[path]}.json").read_bytes(), "application/json")
         if path.startswith("/__missing/"):
             STATE["missing"] = {x for x in path.rsplit("/", 1)[1].split(",") if x}
             return self.send(200, b"ok")
@@ -68,6 +82,8 @@ class Fake(http.server.BaseHTTPRequestHandler):
             return self.send(200, (FIX / f"dota-{STATE['phase']}.json").read_bytes(), "application/json")
         parts = path.split("/")                      # ['', 'companion', 'v1', 'img', 'hero'|'item', id]
         if len(parts) == 6 and parts[3] == "img":
+            if STATE["phase"] == "down":          # ponte fora do ar: as imagens vêm do CDN da Valve (OpenDota/constants)
+                return self.send(503)
             if parts[5] in STATE["missing"]:
                 return self.send(404)
             kind = "item" if parts[4] == "item" else dict(p.split("=") for p in query.split("&") if "=" in p).get("kind", "portrait")
@@ -88,14 +104,27 @@ def main():
     (srv / "config.json").write_text(json.dumps({
         "token": token, "panel_token": panel,
         "web": {"host": "127.0.0.1", "port": port, "adb_reverse": False, "adb_path": ""},
-        "dota": {"bridge": f"http://127.0.0.1:{bport}/companion/v1/state", "auto_open": False}}), encoding="utf-8")
+        "dota": {"bridge": f"http://127.0.0.1:{bport}/companion/v1/state", "auto_open": False, "steam_id": "1"}}), encoding="utf-8")
     (tmp / "stop").write_text("apague este arquivo para encerrar")
-    p = subprocess.Popen([sys.executable, "companion_server.py", "--console"], cwd=srv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    import os
+    import urllib.request
+    env = {**os.environ, "COMPANION_OD_BASE": f"http://127.0.0.1:{bport}", "COMPANION_GSI_PORT": str(bport + 1)}
+    p = subprocess.Popen([sys.executable, "companion_server.py", "--console"], cwd=srv, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     print(f"APP http://127.0.0.1:{port}/#t={token}", flush=True)
     print(f"PONTE http://127.0.0.1:{bport}  TMP {tmp}", flush=True)
     try:
+        n = 0
         while (tmp / "stop").exists() and p.poll() is None:
             time.sleep(1)
+            n += 1
+            if STATE["gsi"] and n % 5 == 0:      # a GSI do Dota é reenviada (heartbeat); sem isso o servidor a dá por velha em 35 s
+                try:
+                    tok = json.loads((srv / "config.json").read_text(encoding="utf-8"))["dota"]["gsi_token"]
+                    d = json.loads((FIX / f"gsi-{STATE['gsi']}.json").read_text(encoding="utf-8"))
+                    d["auth"]["token"] = tok
+                    urllib.request.urlopen(urllib.request.Request(f"http://127.0.0.1:{bport + 1}/", json.dumps(d).encode(), method="POST"), timeout=3).close()
+                except Exception:  # noqa: BLE001
+                    pass
     except KeyboardInterrupt:
         pass
     finally:
