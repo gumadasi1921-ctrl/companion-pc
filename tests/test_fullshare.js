@@ -17,7 +17,7 @@ function dev(initial = {}) {
 const HOME = { v: 3, land: [{ id: "now", size: "A", page: 0, c: 1, r: 1 }, { id: "cpu", size: "P", page: 0, c: 2, r: 1 }], port: [{ id: "tasks", size: "L" }], tablet: [{ id: "dota", size: "G", page: 1, c: 1, r: 1 }] };
 const FULLSTATE = {
   theme: "fallout", variant: "amber", mode: "dark", accent: "pink", crt: false, home: HOME, homepg: { land: 1 }, tab: "games", views: { ctrl: "mouse" },
-  nav: { v: 1, order: ["games", "inicio", "ctrl", "deck", "tasks", "dash", "media", "dota", "work", "weather", "send", "power", "widgets", "sys", "mascot", "reminders"], hidden: ["sys", "power"] },
+  nav: { v: 1, order: ["games", "inicio", "ctrl", "deck", "tasks", "dash", "media", "dota", "work", "weather", "send", "power", "widgets", "sys", "mascot", "reminders", "calendar"], hidden: ["sys", "power", "calendar"] },
   mascot: { v: 1, skin: "lume", cfg: { lunch: { on: true, at: "12:30", days: "all" } }, water_at: 99, snack: 7, born: 1 },
   alerts: { net: false, gpu: true, gpuV: 70 }, snd: false, vib: false, wake: false, dock: 5, idleMode: "clock", land: true, sens: 2.5, scrFast: false,
   micFab: false, micfab: { p: { x: 0.2, y: 0.5 }, l: { x: 0.9, y: 0.1 } }, lumepos: { p: { x: 1, y: 0.4 } }, dotaOpen: false, deckAuto: false, pcnotif: false, wmode: "month", tkmode: "foco",
@@ -48,7 +48,7 @@ const SECRETS = { token: "SEGREDO", pcs: { list: [{ base: "https://x", token: "T
   t("prévia tem os 6 grupos", prev.map((g) => g.label), ["Início", "Menu", "Aparência", "Tela de espera", "Lume e avisos", "Outros"]);
   t("prévia conta mudanças (aparência)", prev.find((g) => g.id === "look").changed, 5);
   b.F.apply(p, prev.map((g) => g.id));
-  const exp = { ...FULLSTATE, nav: { ...FULLSTATE.nav, hidden: ["power", "sys"] } }; delete exp.mascot;   // nav é normalizado (hidden na ordem do menu)
+  const exp = { ...FULLSTATE, nav: { ...FULLSTATE.nav, hidden: ["power", "sys", "calendar"] } }; delete exp.mascot;   // nav é normalizado (hidden na ordem do menu)
   for (const k of Object.keys(exp)) t("mesmo valor: " + k, b.store.get(k, null), exp[k]);
   t("mascote importado só skin+cfg", b.store.get("mascot", null), { v: 1, skin: "lume", cfg: FULLSTATE.mascot.cfg });
   t("não trouxe token/pcs/devid", ["token", "pcs", "devid", "devname", "pend"].filter((k) => b.store.get(k, null) !== null), []);

@@ -93,11 +93,11 @@ const HOME = { v: 2, phone: [{ id: "now", size: "A" }, { id: "cpu", size: "P" }]
 // ---- barra de navegação (chave nav): validação, limite da barra, compartilhar e migração
 {
   const { L } = fresh(); const N = L.NAV, def = N.def();
-  t("padrão: 4 na barra, o resto em Mais", [def.order.filter((i) => !def.hidden.includes(i)), def.hidden.length], [["inicio", "ctrl", "deck", "tasks"], 12]);
+  t("padrão: 4 na barra, o resto em Mais", [def.order.filter((i) => !def.hidden.includes(i)), def.hidden.length], [["inicio", "ctrl", "deck", "tasks"], 13]);
   t("padrão passa pela validação sem mudar", N.norm(def), def);
   t("lixo vira null", [N.norm(null), N.norm("x"), N.norm({ v: 2, order: [], hidden: [] }), N.norm({ v: 1, order: "a", hidden: [] })], [null, null, null, null]);
   const a = N.norm({ v: 1, order: ["sys", "xx", "sys", 5, "games"], hidden: ["games", "zz"] });
-  t("id desconhecido/repetido some; faltantes entram no fim, em Mais", [a.order.length, a.order.slice(0, 2), a.hidden.includes("inicio"), a.hidden.includes("games")], [16, ["sys", "games"], true, true]);
+  t("id desconhecido/repetido some; faltantes entram no fim, em Mais", [a.order.length, a.order.slice(0, 2), a.hidden.includes("inicio"), a.hidden.includes("games")], [17, ["sys", "games"], true, true]);
   t("só 1 visível (sys) porque os faltantes ficam em Mais", a.order.filter((i) => !a.hidden.includes(i)), ["sys"]);
   const b = N.norm({ v: 1, order: N.IDS, hidden: [] });
   t("sem limite de 4: todos os itens visíveis continuam na barra (o trilho mostra todos; em pé a tela usa os 4 primeiros)", b.order.filter((i) => !b.hidden.includes(i)), N.IDS);

@@ -1855,6 +1855,32 @@ html.lm-still .home.editing .hw:not(.hw-slot) { animation: none; outline: 2px da
 .cal-emp { font-size: 12px; color: var(--text-2, var(--p2)); }
 .cal-more, .cal-tail { display: none; height: 18px; line-height: 18px; font-size: 11px; font-weight: 700; color: var(--text-2, var(--p2)); padding-left: 2px; font-variant-numeric: tabular-nums; } .cal-more.on, .cal-tail.on { display: block; }
 .z-P .cal-j, .z-P .cal-t small { display: none; }
+/* Calendário (aba): mês grande + lista do dia. Deitado/tablet (>= 600 px): mês à esquerda, lista à direita, cada lado rola sozinho */
+.cl { display: flex; flex-direction: column; gap: 12px; min-height: 100%; }
+.cl-m { display: flex; flex-direction: column; min-width: 0; }
+.cl-bar { display: flex; align-items: center; gap: 6px; min-height: 44px; }
+.cl-bar b { flex: 1; min-width: 0; text-align: center; font-size: 17px; text-transform: capitalize; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-bar .btn { min-width: 44px; min-height: 44px; }
+.cl-wd, .cl-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; }
+.cl-wd span { font-size: 12px; line-height: 20px; font-weight: 600; color: var(--p3t); }
+.cl-grid { grid-auto-rows: minmax(44px, 1fr); flex: 1 1 auto; touch-action: pan-y; -webkit-user-select: none; user-select: none; }
+.cl-c { position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 44px; padding: 0; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
+.cl-c b { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; font-weight: 500; font-variant-numeric: tabular-nums; }
+.cl-c.today b { background: var(--alert, #f87168); color: #fff; font-weight: 700; }
+.cl-c.sel b { box-shadow: 0 0 0 2px var(--accent, var(--p)); }
+.cl-c.has::after { content: ""; position: absolute; left: 50%; bottom: 2px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--accent, var(--p)); }
+.cl-d { display: flex; flex-direction: column; min-width: 0; gap: 4px; }
+.cl-dh { display: flex; align-items: center; gap: 8px; min-height: 44px; } .cl-dh b { flex: 1; min-width: 0; font-size: 15px; }
+.cl-row { display: flex; align-items: center; gap: 4px; border-top: 1px solid var(--separator, var(--p4)); } .cl-row .cal-c { flex: 1 1 auto; padding: 6px 0; } .cl-row .cal-e { border-top: 0; }
+.cl-row .cal-n { font-size: 14px; line-height: 18px; } .cl-row .cal-ad { margin: 4px 0; }
+.cl-go { flex: none; min-width: 44px; min-height: 44px; padding: 0 8px; background: none; border: 0; font: inherit; font-size: 12px; font-weight: 700; color: var(--accent, var(--p)); cursor: pointer; }
+.cl-emp { color: var(--p3t); padding: 14px 0; }
+.cl-foot { display: flex; align-items: center; gap: 8px; margin-top: 6px; } .cl-foot .btn { min-height: 44px; flex: none; }
+.cl-note { margin: 0; font-size: 12px; line-height: 16px; color: var(--p3t); }
+@container (min-width: 600px) {
+  .cl { flex-direction: row; align-items: stretch; height: 100%; min-height: 0; gap: 16px; }
+  .cl-m, .cl-d { flex: 1 1 0; min-height: 0; } .cl-d { overflow-y: auto; }
+}
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -2031,6 +2057,22 @@ html.lm-still .home.editing .hw:not(.hw-slot) { animation: none; outline: 2px da
       <div class="rem-acts"><button type="button" class="btn danger hidden" id="rem-del">Apagar</button><span style="flex:1"></span><button type="button" class="btn" id="rem-cancel">Cancelar</button><button class="btn primary" id="rem-save">Salvar</button></div>
     </form>
     <div id="rem-list"><div class="tk-sk"><i></i><i></i><i></i></div></div>
+  </section>
+
+  <!-- CALENDÁRIO (só leitura; "Novo evento"/"Abrir" pedem ao PC que abra o Google Agenda) -->
+  <section class="tab" id="t-calendar">
+    <div class="cl">
+      <div class="cl-m">
+        <div class="cl-bar"><button class="btn" type="button" id="cl-prev" aria-label="Mês anterior">‹</button><b id="cl-title" aria-live="polite"></b><button class="btn" type="button" id="cl-next" aria-label="Próximo mês">›</button><button class="btn" type="button" id="cl-today">Hoje</button></div>
+        <div class="cl-wd" aria-hidden="true"><span>D</span><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span></div>
+        <div class="cl-grid" id="cl-grid" data-swipe="month" role="group" aria-label="Dias do mês"></div>
+      </div>
+      <div class="cl-d">
+        <div class="cl-dh"><b id="cl-dlabel"></b><button class="btn primary" type="button" id="cl-new">Novo evento</button></div>
+        <div id="cl-dlist"></div>
+        <div class="cl-foot"><button class="btn" type="button" id="cl-refresh">Atualizar</button><p class="cl-note" id="cl-note">O Google Agenda pode levar alguns minutos para mostrar mudanças. Depois de abrir o Google no PC, o Companion relê sozinho em cerca de 2 min.</p></div>
+      </div>
+    </div>
   </section>
 
   <!-- RÁDIO > Tocando -->
@@ -2935,7 +2977,7 @@ function makeLayouts(store, rid, now, defaults) {
     return out;
   };
   // barra de navegação: {v:1, order:[todos os ids, por prioridade], hidden:[ids fora da barra]}; em pé a barra mostra os NAV_CAP primeiros itens visíveis (o resto fica em Mais); no trilho (deitado/tablet) aparecem todos os visíveis, rolando
-  const NAV_IDS = ["inicio", "ctrl", "deck", "tasks", "dash", "media", "games", "dota", "work", "weather", "send", "power", "widgets", "sys", "mascot", "reminders"], NAV_CAP = 4;
+  const NAV_IDS = ["inicio", "ctrl", "deck", "tasks", "dash", "media", "games", "dota", "work", "weather", "send", "power", "widgets", "sys", "mascot", "reminders", "calendar"], NAV_CAP = 4;
   const navDef = () => ({ v: 1, order: NAV_IDS.slice(), hidden: NAV_IDS.slice(NAV_CAP) });
   const validNav = (n) => {
     if (!isObj(n) || n.v !== 1 || !Array.isArray(n.order) || !Array.isArray(n.hidden) || n.order.length > 40 || n.hidden.length > 40) return null;
@@ -3644,7 +3686,7 @@ const SECTIONS = {
   deck: [["deck", "Botões"]],
   tasks: [["tasks", "Tarefas"]],
   mais: [["more", "Mais"], ["dash", "Sistema"], ["media", "Tocando"], ["mix", "Mixer"], ["games", "Jogos"], ["dota", "Dota"], ["work", "Trabalho"], ["weather", "Tempo"],
-    ["send", "Arquivos"], ["power", "Energia"], ["widgets", "Widgets do Início"], ["mascot", "Lume"], ["reminders", "Lembretes"], ["sys", "Ajustes"]],
+    ["send", "Arquivos"], ["power", "Energia"], ["widgets", "Widgets do Início"], ["mascot", "Lume"], ["reminders", "Lembretes"], ["calendar", "Calendário"], ["sys", "Ajustes"]],
 };
 const GROUPS = { ctrl: ["mouse", "screen"], radio: ["media", "mix"] };
 const SPLIT = { ctrl: "minmax(0,1fr) minmax(0,1.7fr)", radio: "minmax(0,1fr) minmax(0,1.1fr)" };
@@ -3692,6 +3734,7 @@ function showView(name, temp) {
   if (vis("mascot")) lumeRender();
   if (vis("widgets")) wdShow();
   if (vis("reminders")) remLoad();
+  if (vis("calendar")) clShow();
   if (vis("sys")) stOpen();
   pcPlace();
   try { lumePaint(); } catch {}
@@ -3792,7 +3835,7 @@ const NAVM = {   // id: [rótulo na barra, rótulo longo, ícone, vista de entra
   games: ["Jogos", "Jogos", "gamepad-2", "games"], dota: ["Dota", "Dota", "gamepad", "dota"], work: ["Trabalho", "Trabalho", "briefcase", "work"],
   weather: ["Tempo", "Tempo", "cloud-sun", "weather"], send: ["Arquivos", "Arquivos", "folder-open", "send"], power: ["Energia", "Energia", "log-out", "power"],
   widgets: ["Widgets", "Widgets do Início", "layout-grid", "widgets"], mascot: ["Lume", "Lume", "heart", "mascot"], sys: ["Ajustes", "Ajustes", "sliders-horizontal", "sys"],
-  reminders: ["Lembretes", "Lembretes", "bell", "reminders"],
+  reminders: ["Lembretes", "Lembretes", "bell", "reminders"], calendar: ["Calendário", "Calendário", "calendar", "calendar"],
 };
 let navBar = [], navMode = false;   // ids que estão na barra agora; navMode = a barra foi montada para o trilho?
 const navCfg = () => LAY.NAV.norm(store.get("nav", null)) || LAY.NAV.def();
@@ -5424,7 +5467,7 @@ Object.assign(HOME_W, {
 const ag = { d: null, off: 0 };
 const agNow = () => Date.now() + ag.off;
 const agHM = (t) => new Date(t * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-function agSet(d) { if (!d || typeof d !== "object") return; ag.d = d; ag.off = (+d.now || 0) * 1000 - Date.now(); homeUpd("agenda"); }
+function agSet(d) { if (!d || typeof d !== "object") return; ag.d = d; ag.off = (+d.now || 0) * 1000 - Date.now(); homeUpd("agenda"); if (clSync()) { homeUpd("calendar"); if (vis("calendar")) clRender(); } }
 function agCount(nx) {
   if (nx.now) return "agora";
   const m = Math.ceil((nx.start * 1000 - agNow()) / 60000);
@@ -5512,6 +5555,117 @@ function calPHtml(d, today) {
     : `<div class="cal-pe"><span class="cal-bar"></span><div><small>${ev.allday ? "dia inteiro" : (calLive(ev) ? "agora · " : "") + calHM(ev.start) + "–" + calHM(ev.end > ev.start ? ev.end : ev.start)}</small><b>${esc(ev.title)}</b></div></div>`;
   return `<div class="cal-wd">${CAL_WD[t.getUTCDay()]}</div><div class="cal-dn">${t.getUTCDate()}</div>${e}`;
 }
+// ---- Calendário: meses (aba e widget), gesto de deslizar e abrir o Google Agenda NO PC (o servidor monta e abre o link; o celular só manda a data/o id)
+const clCache = new Map(), clBusy = new Set();   // "AAAA-MM" -> {items, obj:{cal:{items}}, err?}; zerado quando a agenda relê
+const cl = { y: 0, m: 0, sel: "", sig: "", openAt: 0, ready: false };
+const clKey = (y, m) => y + "-" + String(m).padStart(2, "0");
+const clToday = () => calIso(calNow());
+function clShift(y, m, n) { const k = y * 12 + (m - 1) + n; return [Math.floor(k / 12), (k % 12) + 1]; }
+function clInRange(y, m) { const t = clToday(), k = y * 12 + (m - 1) - (+t.slice(0, 4) * 12 + (+t.slice(5, 7) - 1)); return k >= -12 && k <= 24; }
+function clSync() { const s = ag.d ? ag.d.state + "|" + (ag.d.at || 0) : ""; if (s === cl.sig) return false; cl.sig = s; clCache.clear(); return true; }
+function clGet(y, m) {
+  const e = clCache.get(clKey(y, m));
+  if (e) return e;
+  if (!clBusy.has(clKey(y, m)) && ag.d && ag.d.state !== "off" && ws && ws.readyState === 1 && clInRange(y, m)) clLoad(y, m);
+  return null;
+}
+async function clLoad(y, m) {
+  const k = clKey(y, m), sig = cl.sig; clBusy.add(k);
+  let e;
+  try { const r = await send("agenda.month", { year: y, month: m }); e = { items: Array.isArray(r && r.items) ? r.items : [], err: "" }; }
+  catch (er) { e = { items: [], err: er.message === "offline" ? "" : er.message }; }
+  clBusy.delete(k);
+  if (sig !== cl.sig) return;   // a agenda releu no meio do caminho: esta resposta é velha
+  e.obj = { cal: { items: e.items } }; clCache.set(k, e);
+  if (vis("calendar")) clRender();
+  homeUpd("calendar");
+}
+function clShow() {
+  if (!ag.d) { clRender(); return; }
+  const t = clToday();
+  if (!cl.ready || !cl.y) { cl.y = +t.slice(0, 4); cl.m = +t.slice(5, 7); cl.sel = t; cl.ready = true; }
+  clRender();
+}
+function clRender() {
+  if (!$("cl-grid")) return;
+  const d = ag.d, feat = !welcome.features || welcome.features.agenda;
+  if (!d || !cl.y) { setHtml($("cl-grid"), ""); setHtml($("cl-dlist"), '<div class="tk-sk"><i></i><i></i></div>'); return; }
+  const e = clGet(cl.y, cl.m), today = clToday(), idx = e ? calIdx(e.obj) : new Map();
+  const f = new Date(Date.UTC(cl.y, cl.m - 1, 1)).getUTCDay(), dim = new Date(Date.UTC(cl.y, cl.m, 0)).getUTCDate();
+  let h = '<span class="cl-c"></span>'.repeat(f);
+  for (let k = 1; k <= dim; k++) {
+    const iso = clKey(cl.y, cl.m) + "-" + String(k).padStart(2, "0"), n = (idx.get(iso) || []).length;
+    h += `<button type="button" class="cl-c${iso === today ? " today" : ""}${iso === cl.sel ? " sel" : ""}${n ? " has" : ""}" data-cl-d="${iso}" aria-pressed="${iso === cl.sel}" aria-label="${k} de ${CAL_MO[cl.m - 1]}${n ? ", " + n + (n === 1 ? " evento" : " eventos") : ""}"><b>${k}</b></button>`;
+  }
+  setHtml($("cl-grid"), h); setText($("cl-title"), CAL_MO[cl.m - 1] + " " + cl.y);
+  $("cl-prev").disabled = !clInRange(...clShift(cl.y, cl.m, -1)); $("cl-next").disabled = !clInRange(...clShift(cl.y, cl.m, 1));
+  const sd = new Date(cl.sel + "T00:00:00Z");
+  const dl = cl.sel === today ? "Hoje · " + sd.getUTCDate() + " de " + CAL_MO[sd.getUTCMonth()] : CAL_WD[sd.getUTCDay()] + ", " + sd.getUTCDate() + " de " + CAL_MO[sd.getUTCMonth()];
+  setText($("cl-dlabel"), dl[0].toUpperCase() + dl.slice(1));
+  const a = idx.get(cl.sel) || [];
+  setHtml($("cl-dlist"), !feat ? '<div class="cl-emp">Atualize o Companion no PC para ver o calendário</div>' : !e ? (d.state === "off" ? '<div class="cl-emp">' + esc(calMsg(d, "")) + "</div>" : '<div class="tk-sk"><i></i><i></i></div>')
+    : e.err ? '<div class="cl-emp">' + esc(e.err) + "</div>"
+    : a.length ? a.map((x) => `<div class="cl-row">${calRow(x)}<button type="button" class="cl-go" data-cl-open="${esc(x.id)}" aria-label="Abrir no Google Agenda: ${esc(x.title)}">Google</button></div>`).join("")
+    : '<div class="cl-emp">' + esc(calMsg(d, "Nenhum evento neste dia")) + "</div>");
+  setText($("cl-note"), "O Google Agenda pode levar alguns minutos para mostrar mudanças. Depois de abrir o Google no PC, o Companion relê sozinho em cerca de 2 min." + (d.at ? " Última leitura às " + agHM(d.at) + "." : ""));
+  if (e) for (const n of [-1, 1]) { const [y, m] = clShift(cl.y, cl.m, n); if (clInRange(y, m)) clGet(y, m); }   // vizinhos já prontos para o deslizar
+}
+function clSlide(el, dir, swap) {   // anima só transform: sai para um lado, troca o conteúdo e entra do outro
+  if (!el || !el.animate || edStill() || el._sl) { swap(); return; }
+  el._sl = true;
+  const o = el.animate([{ transform: "translateX(0)" }, { transform: `translateX(${-dir * 48}px)` }], { duration: 110, easing: "ease-in", fill: "forwards" });
+  let done = false;   // o fim da animação pode não vir (aba em segundo plano, painel de teste): o prazo garante a troca
+  const go = () => { if (done) return; done = true; swap(); el.animate([{ transform: `translateX(${dir * 48}px)` }, { transform: "translateX(0)" }], { duration: 150, easing: "ease-out" }); o.cancel(); el._sl = false; };
+  o.onfinish = go; setTimeout(go, 220);
+}
+function clGo(n) {   // n = meses; 0 = hoje
+  const t = clToday();
+  const [y, m] = n ? clShift(cl.y, cl.m, n) : [+t.slice(0, 4), +t.slice(5, 7)];
+  if (!clInRange(y, m) || (y === cl.y && m === cl.m && !n && cl.sel === t)) return;
+  const dir = n || (y * 12 + m > cl.y * 12 + cl.m ? 1 : -1);
+  clSlide($("cl-grid"), dir, () => { cl.y = y; cl.m = m; cl.sel = y === +t.slice(0, 4) && m === +t.slice(5, 7) ? t : clKey(y, m) + "-01"; clRender(); });
+}
+function clOpen(action, p) {
+  buzz(); toast("Abrindo no PC…", "ok");
+  send(action, p).then(() => { cl.openAt = Date.now(); }).catch((e) => { if (e.message !== "offline") toast(e.message, "bad"); });
+}
+async function clRefresh(manual) {
+  if (!ws || ws.readyState !== 1) return;
+  const before = ag.d && ag.d.at;
+  try { const r = await send("agenda.get", { refresh: true }); if (r && typeof r === "object") agSet(r); if (manual) toast(ag.d && ag.d.at !== before ? "Calendário atualizado" : "Nada novo ainda (o PC lê no máximo 1 vez por minuto)", "ok"); }
+  catch (e) { if (manual && e.message !== "offline") toast(e.message, "bad"); }
+}
+$("cl-prev").onclick = () => { buzz(6); clGo(-1); }; $("cl-next").onclick = () => { buzz(6); clGo(1); }; $("cl-today").onclick = () => { buzz(6); clGo(0); };
+$("cl-new").onclick = () => clOpen("agenda.new", { day: cl.sel }); $("cl-refresh").onclick = () => { buzz(6); clRefresh(true); };
+$("cl-grid").addEventListener("click", (e) => { const b = e.target.closest("[data-cl-d]"); if (b) { buzz(6); cl.sel = b.dataset.clD; clRender(); } });
+$("cl-dlist").addEventListener("click", (e) => { const b = e.target.closest("[data-cl-open]"); if (b) clOpen("agenda.open", { id: b.dataset.clOpen }); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && (vis("calendar") || Date.now() - cl.openAt < 600000)) clRefresh(false); });
+// deslizar para o lado no mês (aba e mini-mês do widget): o gesto horizontal fica aqui (touch-action: pan-y não deixa a página do Início rolar);
+// fora do mini-mês o Início continua trocando de página. Durante a edição dos widgets o gesto não existe.
+const calSw = { t: null, id: -1, x0: 0, y0: 0, lock: false };
+document.addEventListener("pointerdown", (e) => {
+  const t = e.target.closest && e.target.closest("[data-swipe=month]");
+  if (!t || (e.pointerType === "mouse" && e.button !== 0) || t.closest(".home.editing")) return;
+  Object.assign(calSw, { t, id: e.pointerId, x0: e.clientX, y0: e.clientY, lock: false });
+});
+document.addEventListener("pointermove", (e) => {
+  if (!calSw.t || e.pointerId !== calSw.id) return;
+  const dx = e.clientX - calSw.x0, dy = e.clientY - calSw.y0;
+  if (!calSw.lock && Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.5) calSw.lock = true;
+  if (calSw.lock) calSw.t.style.transform = `translateX(${Math.max(-60, Math.min(60, dx * 0.4))}px)`;
+});
+function calSwEnd(e) {
+  const s = calSw; if (!s.t || e.pointerId !== s.id) return;
+  const t = s.t, dx = e.clientX - s.x0; s.t = null; t.style.transform = "";
+  if (!s.lock) return;
+  const stop = (ev) => { ev.stopPropagation(); ev.preventDefault(); };   // o arrasto não vira toque num dia
+  document.addEventListener("click", stop, true); setTimeout(() => document.removeEventListener("click", stop, true), 60);
+  if (e.type === "pointerup" && Math.abs(dx) > 40) {
+    const dir = dx < 0 ? 1 : -1, hw = t.closest(".hw");
+    if (hw) { /* widget: ligado no commit seguinte */ } else clGo(dir);
+  }
+}
+document.addEventListener("pointerup", calSwEnd); document.addEventListener("pointercancel", calSwEnd);
 Object.assign(HOME_W, {
   agenda: {
     name: "Próxima reunião", icon: "history", sizes: "PALG", def: "A",
