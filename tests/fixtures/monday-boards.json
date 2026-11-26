@@ -1,0 +1,10 @@
+{"boards": [
+ {"id": "1001", "name": "Projetos Acme",
+  "columns": [
+   {"id": "status", "title": "Status", "type": "status", "settings_str": "{\"labels\":{\"0\":\"Em execução\",\"1\":\"Aprovar\",\"2\":\"Parado\"}}"},
+   {"id": "pessoas", "title": "Responsável", "type": "people", "settings_str": "{}"},
+   {"id": "prazo", "title": "Prazo", "type": "date", "settings_str": "{}"},
+   {"id": "texto", "title": "Notas", "type": "text", "settings_str": "{}"}],
+  "groups": [{"id": "g_run", "title": "Fazendo"}, {"id": "g_ok", "title": "Aprovar"}]},
+ {"id": "1002", "name": "Pessoal", "columns": [], "groups": []}
+]}

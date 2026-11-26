@@ -787,6 +787,82 @@ class WorkTracker:
         times = self.link_times(today)
         return [{**x, **times.get(x["card"], {"today_s": 0, "week_s": 0, "total_s": 0})} for x in self.links]
 
+    # -- Ligações job ↔ item do monday (work_rules.json, "mlinks"): mesmo molde das do Trello, com o id numérico do item ----
+    @staticmethod
+    def _mlink_ok(x):
+        return (isinstance(x, dict) and isinstance(x.get("id"), str) and isinstance(x.get("client"), str) and x["client"]
+                and isinstance(x.get("job"), str) and isinstance(x.get("item"), str) and re.fullmatch(r"[0-9]{1,20}", x["item"])
+                and isinstance(x.get("item_name", ""), str))
+
+    def mlink_set(self, client, job, item, item_name=""):
+        """Liga o job ao item (troca a ligação anterior do job e a do item). Devolve {"link", "replaced"} para o desfazer."""
+        if not isinstance(item, str) or not re.fullmatch(r"[0-9]{1,20}", item):
+            raise ValueError("item inválido")
+        client = self._clean_name(client, "cliente")
+        job = self._clean_name(job, "job", optional=True) or NO_JOB
+        client, job = self._canon(client, job)
+        key = self._jkey(client, job)
+        replaced = [x for x in self.mlinks if self._jkey(x["client"], x["job"]) == key or x["item"] == item]
+        keep = [x for x in self.mlinks if x not in replaced]
+        if len(keep) >= MAX_RULES:
+            raise ValueError("limite de ligações atingido")
+        entry = {"id": self._new_id(), "client": client, "job": job, "item": item, "item_name": CTRL.sub("", str(item_name or ""))[:200],
+                 "created_at": datetime.now().isoformat(timespec="seconds")}
+        old = self.mlinks
+        self.mlinks = keep + [entry]
+        try:
+            self._save_rules()
+        except OSError:
+            self.mlinks = old
+            raise ValueError("não consegui gravar a ligação") from None
+        return {"link": entry, "replaced": replaced}
+
+    def mlink_delete(self, ids):
+        ids = {ids} if isinstance(ids, str) else set(ids or [])
+        gone = [x for x in self.mlinks if x["id"] in ids]
+        if gone:
+            old = self.mlinks
+            self.mlinks = [x for x in self.mlinks if x["id"] not in ids]
+            try:
+                self._save_rules()
+            except OSError:
+                self.mlinks = old
+                raise ValueError("não consegui gravar") from None
+        return {"removed": gone}
+
+    def mlink_restore(self, entries):
+        if not isinstance(entries, list) or len(entries) > 20:
+            raise ValueError("nada para restaurar")
+        add = [x for x in entries if self._mlink_ok(x)]
+        for x in add:
+            self.mlinks = [y for y in self.mlinks if y["id"] != x["id"] and y["item"] != x["item"] and self._jkey(y["client"], y["job"]) != self._jkey(x["client"], x["job"])]
+            self.mlinks.append({k: x[k] for k in ("id", "client", "job", "item", "item_name", "created_at") if k in x})
+        self._save_rules()
+        return {"restored": len(add)}
+
+    def mlink_times(self, today=None):
+        """{id do item: {today_s, week_s, total_s}} dos jobs ligados (lido do histórico; regras/ignorados valem)."""
+        if not self.mlinks:
+            return {}
+        today = today or date.today()
+        mon = today - timedelta(days=today.weekday())
+        by_job = {self._jkey(x["client"], x["job"]): x["item"] for x in self.mlinks}
+        out = {x["item"]: {"today_s": 0.0, "week_s": 0.0, "total_s": 0.0} for x in self.mlinks}
+        for d, client, job, _a, _f, s_ in self._rows(date(2000, 1, 1), today):
+            it = by_job.get(self._jkey(client, job))
+            if it:
+                t = out[it]
+                t["total_s"] += s_
+                if d >= mon:
+                    t["week_s"] += s_
+                if d == today:
+                    t["today_s"] += s_
+        return {c: {k: int(v) for k, v in t.items()} for c, t in out.items()}
+
+    def mlinks_get(self, today=None):
+        times = self.mlink_times(today)
+        return [{**x, **times.get(x["item"], {"today_s": 0, "week_s": 0, "total_s": 0})} for x in self.mlinks]
+
     # -- Regras manuais (work_rules.json) ------------------------------------------
     # rules   [{id, file, app|None, client, job, created_at}]  vale sempre (nome de arquivo NÃO genérico)
     # once    [{id, file, app, client, job, from, to, created_at}]  atribuição pontual de um período (qualquer nome)
@@ -795,7 +871,7 @@ class WorkTracker:
     def _load_rules(self):
         def ok(d):
             return isinstance(d, dict) and all(isinstance(d.get(k, []), list) and all(isinstance(x, dict) for x in d.get(k, []))
-                                               for k in ("rules", "once", "ignored", "links"))
+                                               for k in ("rules", "once", "ignored", "links", "mlinks"))
         p = self.rules_path
         try:
             d = json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
@@ -812,6 +888,7 @@ class WorkTracker:
         d = d or {}
         self.rules, self.once, self.ignored = (list(d.get(k, [])) for k in ("rules", "once", "ignored"))
         self.links = [x for x in d.get("links", []) if self._link_ok(x)]   # ligações job ↔ card do Trello
+        self.mlinks = [x for x in d.get("mlinks", []) if self._mlink_ok(x)]   # ligações job ↔ item do monday
         self._reindex_rules()
 
     def _reindex_rules(self):
@@ -820,7 +897,8 @@ class WorkTracker:
             self._rule_idx[(str(r.get("file", "")).casefold(), (r.get("app") or "").casefold())] = r
 
     def _save_rules(self):
-        _save_json(self.rules_path, {"version": 1, "rules": self.rules, "once": self.once, "ignored": self.ignored, "links": self.links})
+        _save_json(self.rules_path, {"version": 1, "rules": self.rules, "once": self.once, "ignored": self.ignored, "links": self.links,
+                                      "mlinks": self.mlinks})
         self._reindex_rules()
 
     @staticmethod

@@ -92,6 +92,7 @@ import pomodoro
 import reminders
 import tasks
 import trello
+import monday
 import updater
 import weather
 import work
@@ -598,6 +599,8 @@ ACTIONS = {
     "work.month": lambda p: _wi(WORK.month(p.get("ym"), notes=False)),   # celular: só os totais, sem notas
     "trello.get": lambda p: trello_get(p),
     "trello.open": lambda p: trello_open(p),
+    "monday.get": lambda p: monday_get(p),
+    "monday.open": lambda p: monday_open(p),
     # tarefas (tasks.py): o celular só vê e marca/desmarca
     "tasks.get": lambda p: TASKS.get(),
     "tasks.toggle": lambda p: TASKS.toggle(p["id"]),
@@ -649,6 +652,60 @@ def trello_test(p):
         raise ValueError("Não consegui falar com o Trello agora") from None
 
 
+def monday_state():
+    """Na fila de disco: estado do monday + tempo dos jobs ligados aos itens."""
+    return MONDAY.state(times=WORK.mlink_times())
+
+
+def work_mlink_set(client, job, item, _name=""):
+    if not MONDAY.has_item(item):
+        raise ValueError("esse item não está entre os seus itens do monday")
+    return WORK.mlink_set(client, job, item, MONDAY.item_name(item))
+
+
+def monday_get(p):
+    if p.get("refresh"):
+        MONDAY.refresh_manual()
+    return monday_state()
+
+
+def monday_open(p):
+    """Abre o item no navegador do PC: só id que está no cache e URL https de *.monday.com devolvida pela própria API."""
+    iid = p.get("id")
+    url = MONDAY.item_url(iid) if MONDAY.has_item(iid) else None
+    if not url:
+        raise ValueError("item desconhecido")
+    os.startfile(url)
+    return {"ok": True}
+
+
+def _monday_token(p):
+    cur = CFG.get("monday") if isinstance(CFG.get("monday"), dict) else {}
+    tok = monday.valid_token(p["token"]) if isinstance(p.get("token"), str) and p["token"].strip() else cur.get("token", "")
+    if not tok:
+        raise ValueError("Informe o token do monday")
+    return tok
+
+
+def _monday_err(fn):
+    try:
+        return fn()
+    except monday.CredError:
+        raise ValueError("Token inválido (o monday recusou)") from None
+    except monday.NetError:
+        raise ValueError("Não consegui falar com o monday agora") from None
+
+
+def monday_test(p):
+    tok = _monday_token(p)
+    return {"name": _monday_err(lambda: MONDAY.test(tok))}
+
+
+def monday_boards(p):
+    tok = _monday_token(p)
+    return {"boards": _monday_err(lambda: MONDAY.boards_info(tok))}
+
+
 def work_month_csv(ym):
     name, data = WORK.csv_month(ym)
     return {"name": name, "url": extras.dl_register(name, data=data, ctype="text/csv; charset=utf-8")}
@@ -664,7 +721,7 @@ def work_csv(offset):
 # config.json editado pelo painel do PC: um conjunto fechado de opções
 # --------------------------------------------------------------------------
 CONFIG_EDITABLE = {"upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "notif_ignore", "shortcuts",
-                   "idle_min", "export_watch", "misplaced_min", "backup_dir", "trello", "pc_name", "allowed_origins", "remote_base", "repo_dir", "agenda"}
+                   "idle_min", "export_watch", "misplaced_min", "backup_dir", "trello", "pc_name", "allowed_origins", "remote_base", "repo_dir", "agenda", "monday"}
 CONFIG_RESTART = {"upload_dir", "downloads_dir"}  # lidas só na abertura do servidor
 SHORTCUT_ID = re.compile(r"^[a-z0-9_-]{1,40}$")
 _CTRL = re.compile(r"[\x00-\x1f\x7f]")
@@ -735,6 +792,8 @@ def clean_config_value(key, v):
         if v["on"] and not (out["key"] and out["token"]):
             raise ValueError("Informe a API key e o token para ligar o Trello")
         return out
+    if key == "monday":   # token em branco = mantém o salvo; nunca volta ao painel nem ao celular
+        return monday.clean_cfg(v, CFG.get("monday") if isinstance(CFG.get("monday"), dict) else {})
     if key == "agenda":   # url em branco = mantém a salva; a URL secreta nunca volta ao painel nem ao celular
         if not isinstance(v, dict) or set(v) - {"url", "on", "notify_min"} or not isinstance(v.get("on"), bool):
             raise ValueError("Agenda: formato inválido")
@@ -786,6 +845,7 @@ def config_save(changes):
         cur = json.loads(CFG_PATH.read_text(encoding="utf-8"))
         changed = sorted(k for k, v in clean.items() if cur.get(k) != v)
         old_trello = dict(cur.get("trello") or {})
+        old_monday = dict(cur.get("monday") or {})
         if not changed:
             return {"changed": [], "restart": False}
         shutil.copy2(CFG_PATH, CFG_PATH.with_name("config.json.bak-" + time.strftime("%Y%m%d-%H%M%S")))
@@ -798,6 +858,8 @@ def config_save(changes):
         WORK.set_idle_min(clean["idle_min"])
     if "trello" in changed and any(old_trello.get(k) != clean["trello"].get(k) for k in ("key", "token")):
         TRELLO.reset()     # credencial nova: tenta de novo e esquece os dados da conta anterior
+    if "monday" in changed and (old_monday.get("token") != clean["monday"].get("token") or old_monday.get("boards") != clean["monday"].get("boards")):
+        MONDAY.reset()     # token ou quadros novos: tenta de novo e esquece a leitura anterior (o histórico de Aprovar fica)
     if set(changed) & {"shortcuts", "allow_power", "pc_name"} and LOOP[0]:
         asyncio.run_coroutine_threadsafe(push_welcome(), LOOP[0])
     log.info("config.json: alterado pelo painel (%s)", ", ".join(changed))
@@ -810,7 +872,7 @@ def config_get():
     fallback = {"upload_dir": DEFAULT_CFG["upload_dir"], "downloads_dir": DEFAULT_CFG["downloads_dir"],
                 "allow_power": DEFAULT_CFG["allow_power"], "shutdown_delay_s": DEFAULT_CFG["shutdown_delay_s"],
                 "notif_ignore": [], "shortcuts": [], "idle_min": 5,
-                "export_watch": {"folders": [], "on": True}, "misplaced_min": alerts.DEFAULT_MISPLACED_MIN, "backup_dir": "", "trello": {}, "pc_name": "", "allowed_origins": [], "remote_base": "", "repo_dir": "", "agenda": {}}
+                "export_watch": {"folders": [], "on": True}, "misplaced_min": alerts.DEFAULT_MISPLACED_MIN, "backup_dir": "", "trello": {}, "pc_name": "", "allowed_origins": [], "remote_base": "", "repo_dir": "", "agenda": {}, "monday": {}}
     out = {}
     for k in CONFIG_EDITABLE:
         v = CFG.get(k)
@@ -819,6 +881,8 @@ def config_get():
     out["idle_min"] = round(WORK.idle_s / 60)
     out["backup"] = BACKUP.status()
     out["agenda"] = AGENDA.status()    # idem: só "tem URL?" e o estado
+    mc = CFG.get("monday") if isinstance(CFG.get("monday"), dict) else {}
+    out["monday"] = {**MONDAY.status(), "boards_cfg": json.loads(json.dumps(mc.get("boards") or []))}   # sem token
     out["trello"] = TRELLO.status()    # só "tem key/token?" e o estado: as credenciais nunca saem do config.json
     out["net"] = {"ip": lan_ip(), "port": WEB["port"],
                   "mode": "só cabo (127.0.0.1)" if WEB["host"] in ("127.0.0.1", "localhost") else "rede local + cabo"}
@@ -845,6 +909,11 @@ PANEL_OPS = {
     "work_link_delete": lambda ids: io_call(WORK.link_delete, ids),
     "work_link_restore": lambda entries: io_call(WORK.link_restore, entries),
     "trello_cards": lambda: io_call(lambda: {"cards": TRELLO.all_cards(), "status": TRELLO.status()}),
+    "work_mlinks_get": lambda: io_call(WORK.mlinks_get),
+    "work_mlink_set": lambda client, job, item: io_call(work_mlink_set, client, job, item),
+    "work_mlink_delete": lambda ids: io_call(WORK.mlink_delete, ids),
+    "work_mlink_restore": lambda entries: io_call(WORK.mlink_restore, entries),
+    "monday_items": lambda: io_call(lambda: {"items": MONDAY.all_items(), "status": MONDAY.status()}),
     "work_add_root": lambda folder: io_call(WORK.add_root, folder),
     "work_remove_root": lambda folder: io_call(WORK.remove_root, folder),
     "work_reclass_preview": lambda: io_call(WORK.reclass_preview, timeout=60),  # reindexa as raízes
@@ -961,6 +1030,13 @@ PANEL_WS = {   # nome -> função(params dict); as de gravação rodam na fila d
     "work_link_delete": lambda p: PANEL_OPS["work_link_delete"](p.get("ids") if "ids" in p else _need(p, "id", str)),
     "work_link_restore": lambda p: PANEL_OPS["work_link_restore"](_need(p, "entries", list)),
     "trello_cards": lambda p: PANEL_OPS["trello_cards"](),
+    "work_mlinks_get": lambda p: PANEL_OPS["work_mlinks_get"](),
+    "work_mlink_set": lambda p: PANEL_OPS["work_mlink_set"](_need(p, "client", str), p.get("job") or "", _need(p, "item", str)),
+    "work_mlink_delete": lambda p: PANEL_OPS["work_mlink_delete"](p.get("ids") if "ids" in p else _need(p, "id", str)),
+    "work_mlink_restore": lambda p: PANEL_OPS["work_mlink_restore"](_need(p, "entries", list)),
+    "monday_items": lambda p: PANEL_OPS["monday_items"](),
+    "monday_test": lambda p: monday_test(p),
+    "monday_boards": lambda p: monday_boards(p),
     "work_add_root": lambda p: PANEL_OPS["work_add_root"](_need(p, "folder", str)),
     "work_remove_root": lambda p: PANEL_OPS["work_remove_root"](_need(p, "folder", str)),
     "work_assign_preview": lambda p: PANEL_OPS["work_assign_preview"](_need(p, "items", list), _need(p, "offset", int)),
@@ -1336,7 +1412,7 @@ def welcome_payload():
         "features": {"media": pc_info.HAS_MEDIA, "volume": pc_info.HAS_VOLUME, "mixer": pc_info.HAS_VOLUME,
                      "screen": True, "clipboard": True, "files": True, "deck": True,
                      "mic": pc_info.HAS_VOLUME, "timer": True, "deck_auto": True, "macro": True,
-                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True, "trello": True, "reminders": True, "agenda": True,
+                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True, "trello": True, "monday": True, "reminders": True, "agenda": True,
                      "dota": True},
     }
 
@@ -1434,6 +1510,7 @@ async def session(ws, peer, kind, xff=None):
     await pomo_send([json.dumps({"t": "pomo", "d": await pomo_state()})], only=ws)
     await rem_send(only=ws)
     await trello_send(only=ws)
+    await monday_send(only=ws)
     await agenda_send(only=ws)
     if DOTA.state is not None:
         await dota_send(DOTA.state, only=ws)
@@ -1509,7 +1586,8 @@ QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "m
                  "work_week", "work_csv", "work_month", "work_month_csv", "work_note_set", "work_add_root", "work_remove_root", "work_assign_preview", "work_assign",
                  "work_ignore", "work_rules_get", "work_rule_delete", "work_unignore", "config_get", "config_save", "open_focus", "backup_run", "trello_test",
                  "update_info", "update_check", "update_apply", "update_rollback", "agenda_test", "agenda.get", "agenda.join",
-                 "trello.get", "trello.open", "work_links_get", "work_link_set", "work_link_delete", "work_link_restore", "trello_cards"}
+                 "trello.get", "trello.open", "work_links_get", "work_link_set", "work_link_delete", "work_link_restore", "trello_cards",
+                 "monday.get", "monday.open", "monday_test", "monday_boards", "monday_items", "work_mlinks_get", "work_mlink_set", "work_mlink_delete", "work_mlink_restore"}
 
 
 async def now_payload():
@@ -1564,6 +1642,7 @@ MON = games.GameMonitor(CFG, BASE)
 WORK = work.WorkTracker(BASE, CFG.get("idle_min", 5))
 BACKUP = backup.Backup(BASE)
 TRELLO = trello.Trello(BASE, lambda: CFG.get("trello"))
+MONDAY = monday.Monday(BASE, lambda: CFG.get("monday"))
 UPD = updater.Updater(BASE, lambda: CFG.get("repo_dir") or "", VERSION)
 RESTART_FN = [None]   # a bandeja registra aqui o reinício seguro (código 75 -> o supervisor religa)
 
@@ -1618,6 +1697,41 @@ async def trello_loop():
                     await phones_send({"t": "event", "kind": "trello.digest", **d})
         except Exception as e:  # noqa: BLE001
             log.warning("trello_loop: %s", type(e).__name__)
+        await asyncio.sleep(20)
+
+
+_monday_sig = [None]
+
+
+async def monday_send(only=None, force=False):
+    """Empurra o estado aos celulares só quando muda (não faz nada se o monday está desligado e vazio)."""
+    msg = json.dumps({"t": "monday", "d": await on_io(monday_state)}, ensure_ascii=False)
+    sig = hash(msg)
+    if not only and not force and sig == _monday_sig[0]:
+        return
+    if not only:
+        _monday_sig[0] = sig
+    for ws in ([only] if only else list(clients)):
+        try:
+            await ws.send(msg)
+        except ConnectionClosed:
+            clients.discard(ws)
+
+
+async def monday_loop():
+    """A cada 5 min, só com aparelho conectado (parado sem aparelho)."""
+    while True:
+        try:
+            if MONDAY.due(bool(clients)):
+                await on_io(MONDAY.refresh)
+            await monday_send()
+            if phone_connected() and MONDAY.enabled():
+                d = await on_io(MONDAY.digest)
+                if d:
+                    log.info("aviso do monday enviado")   # sem nomes de itens
+                    await phones_send({"t": "event", "kind": "monday.digest", **d})
+        except Exception as e:  # noqa: BLE001
+            log.warning("monday_loop: %s", type(e).__name__)
         await asyncio.sleep(20)
 
 
@@ -2449,6 +2563,7 @@ async def main():
     spawn("work", work_loop)
     spawn("backup", backup_loop)
     spawn("trello", trello_loop)
+    spawn("monday", monday_loop)
     spawn("agenda", agenda_loop)
     spawn("adb", adb_loop)
     spawn("downloads", downloads_loop)
