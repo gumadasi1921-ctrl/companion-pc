@@ -24,7 +24,7 @@ from dota_gsi import steam64, STEAM64_BASE
 
 log = logging.getLogger("companion.dota.od")
 
-BASE = "https://api.opendota.com/api"
+BASE = os.environ.get("COMPANION_OD_BASE") or "https://api.opendota.com/api"   # a variável é só dos testes
 CDN_HOST = "https://cdn.cloudflare.steamstatic.com"
 TTL_S = 600
 CONST_TTL_S = 7 * 86400
@@ -340,7 +340,7 @@ class OpenDota:
     def img_path(self, kind, ident):
         """Caminho da imagem no CDN da Valve para um id JÁ conhecido (hero icon|portrait|loadout, ou item); senão None."""
         if kind == "item":
-            for it in (self.data["consts"].get("items") or {}).get("d", {}).values():
+            for it in list(((self.data["consts"].get("items") or {}).get("d", {})).values()):
                 if it["id"] == ident:
                     return it["img"]
             return None
@@ -388,7 +388,7 @@ class OpenDota:
         out["top_heroes"] = [{"hero_id": h["hero_id"], "hero": self.hero_name(h["hero_id"]), "matches": h["games"],
                               "winrate": round(h["win"] / h["games"], 3) if h["win"] is not None else None}
                              for h in (top or [])[:5]]
-        ats = [e["at"] for k, e in self.data["sec"].items()]
+        ats = [e["at"] for e in list(self.data["sec"].values())]
         out["fetched_at"] = min(ats) if ats else None
         out["stale"] = bool(self.error) or (bool(ats) and self.clock() - min(ats) > 2 * TTL_S)
         return out
@@ -404,7 +404,7 @@ class OpenDota:
             state = "empty"      # perfil privado ou sem partidas públicas
         else:
             state = "ok"
-        ats = [e["at"] for e in self.data["sec"].values()]
+        ats = [e["at"] for e in list(self.data["sec"].values())]
         return {"configured": bool(acc), "state": state, "error": self.error, "fetched_at": min(ats) if ats else None,
                 "calls_today": self.calls_today(), "calls_max": DAILY_MAX,
                 "blocked_s": max(0, int(self.blocked_until - self.clock()))}

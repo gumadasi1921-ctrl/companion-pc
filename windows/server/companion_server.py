@@ -82,7 +82,9 @@ import audio_profiles
 import backup
 import dota
 import devbackup
+import dota_gsi
 import dota_img
+import dota_od
 import extras
 import icons
 import games
@@ -1075,6 +1077,10 @@ PANEL_WS = {   # nome -> função(params dict); as de gravação rodam na fila d
     "agenda_test": lambda p: agenda_test(p),
     "update_info": lambda p: update_op("info"), "update_check": lambda p: update_op("check"),
     "update_apply": lambda p: update_op("apply"), "update_rollback": lambda p: update_op("rollback"),
+    "dota_status": lambda p: dota_panel(),
+    "dota_set_steam": lambda p: dota_set_steam(p.get("steam_id")),
+    "dota_gsi_install": lambda p: dota_gsi_install(p.get("folder") if isinstance(p.get("folder"), str) and p.get("folder") else None),
+    "dota_od_refresh": lambda p: dota_od_refresh(),
     "open_focus": lambda p: os.startfile("ms-settings:quietmomentshome"),   # só abre a tela do Windows; o Foco é do usuário
 }
 PANEL_ASYNC = {"pick_folder": lambda p: asyncio.to_thread(pick_folder),
@@ -1542,8 +1548,7 @@ async def session(ws, peer, kind, xff=None):
     await trello_send(only=ws)
     await monday_send(only=ws)
     await agenda_send(only=ws)
-    if DOTA.state is not None:
-        await dota_send(DOTA.state, only=ws)
+    await dota_send(dota_final(), only=ws)
     await weather_send(WEATHER.state(), only=ws)
     if STEAMDL.polled:
         await steam_send(STEAMDL.state(), only=ws)
@@ -1607,6 +1612,7 @@ QUIET_ACTIONS = {"work.link_pick", "work.link_none", "work.link_later", "work.li
                  "tasks.get", "tasks.toggle",  # texto das tarefas
                  "export.link", "export.reveal",  # nome de arquivo de cliente
                  "dota.get",  # consultada a cada abertura da tela Dota
+                 "dota_status", "dota_set_steam", "dota_gsi_install", "dota_od_refresh",  # Steam ID e pasta do Dota (painel)
                  "weather.get", "weather.search", "weather.set_place", "weather.refresh",  # cidade escolhida / texto digitado
                  "pomo.get", "pomo.start", "pomo.pause", "pomo.resume", "pomo.skip", "pomo.reset", "pomo.config",
                  "reminders.get", "reminders.add", "reminders.edit", "reminders.remove", "reminders.restore", "reminders.done", "reminders.snooze", "reminders.clear",   # texto dos lembretes
@@ -2270,7 +2276,35 @@ DOTA = dota.DotaBridge(CFG.get("dota"))
 ICONS = icons.Icons(Path(__file__).resolve().with_name("icon-cache"), lambda: CFG["token"])
 pc_info.ICON_REGISTER = ICONS.register
 games.ICON_REGISTER = ICONS.register
-IMG = dota_img.ImageProxy(Path(__file__).resolve().with_name("dota-img"), lambda: CFG["token"], lambda: DOTA.cfg.get("bridge"))
+
+
+def dota_cfg():
+    return CFG["dota"] if isinstance(CFG.get("dota"), dict) else {}
+
+
+def dota_persist(**kv):
+    """Grava só chaves de "dota" no config.json (atômico, sem mexer no resto) e no CFG em memória."""
+    with _cfg_lock:
+        cur = json.loads(CFG_PATH.read_text(encoding="utf-8"))
+        d = cur.get("dota") if isinstance(cur.get("dota"), dict) else dict(dota.DEFAULT_CFG)
+        d.update(kv)
+        cur["dota"] = d
+        tmp = CFG_PATH.with_name("config.json.tmp")
+        tmp.write_text(json.dumps(cur, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(CFG_PATH)
+    if not isinstance(CFG.get("dota"), dict):
+        CFG["dota"] = {}
+    CFG["dota"].update(kv)
+
+
+if not dota_cfg().get("gsi_token"):
+    dota_persist(gsi_token=dota_gsi.new_token())     # token da GSI: só no config.json e no .cfg do Dota, nunca em log/celular
+# Dota sem o Copilot: OpenDota (cache em disco, só o Steam ID público) + GSI direta (listener só em 127.0.0.1)
+OD = dota_od.OpenDota(BASE / "dota-od.json", lambda: dota_cfg().get("steam_id", ""))
+GSIS = dota_gsi.GSI(lambda: dota_cfg().get("gsi_token"), lambda: dota_cfg().get("steam_id", ""))
+GSI_LIS = [None]
+IMG = dota_img.ImageProxy(Path(__file__).resolve().with_name("dota-img"), lambda: CFG["token"], lambda: DOTA.cfg.get("bridge"),
+                          cdn_path=OD.img_path)
 
 
 def dota_open():
@@ -2283,6 +2317,12 @@ def dota_proc():
     """(aberto, início da sessão em epoch s) do Dota segundo o games.py."""
     cur = MON.current
     return (dota_open(), cur.get("start") if cur and dota_open() else None)
+
+
+def dota_final():
+    """Estado para os aparelhos: ponte do Copilot (se tiver dado) > GSI > processo; lobby/herói/resultado complementados pelo OpenDota."""
+    run, started = dota_proc()
+    return dota.compose(DOTA.state, bool(DOTA.up), GSIS.state(OD), OD, OD, run, started, {k: v for k, v in OD.status().items() if k in ("configured", "state", "error", "fetched_at")})   # sem contadores que mudam sozinhos
 
 
 def dota_msg(state):
@@ -2300,26 +2340,98 @@ async def dota_send(state, only=None):
 
 async def dota_get():
     """Ação dota.get: estado atual (consulta a ponte agora, na fila de disco)."""
-    state = await on_io(DOTA.poll, *dota_proc())
-    return {"d": state, "auto_open": DOTA.auto_open, "img_key": IMG.key()}
+    await on_io(DOTA.poll, *dota_proc())
+    return {"d": dota_final(), "auto_open": DOTA.auto_open, "img_key": IMG.key()}
 
 
 async def dota_loop():
-    """Consulta a ponte na fila de disco: 1×/s com o Dota aberto, a cada 10 s fechado, parado sem aparelho.
-    Os aparelhos só recebem quando o estado muda."""
+    """Junta as fontes e empurra só quando o estado muda: ponte do Copilot (1×/s com o Dota aberto, a cada 10 s fechado),
+    GSI (chega sozinha), OpenDota (thread própria, com cache e limite). Parado sem aparelho."""
     sent = None
     while True:
         try:
             if not clients:
                 sent = None  # quem conectar recebe o estado no session()
-            elif DOTA.due(dota_open()):
-                state = await on_io(DOTA.poll, *dota_proc())
+            else:
+                if DOTA.due(dota_open()):
+                    await on_io(DOTA.poll, *dota_proc())
+                g = GSIS.state()
+                if g and g.get("result") and g["result"].get("match_id"):
+                    OD.watch_match(g["result"]["match_id"])    # pós-jogo: procura a partida oficial (30 s, até 10 min)
+                if OD.due(True):
+                    await asyncio.to_thread(OD.refresh)         # fora da fila de disco: pode levar alguns segundos
+                state = dota_final()
                 if not dota.same(state, sent):
                     await dota_send(state)
                     sent = state
         except Exception:  # noqa: BLE001
             log.exception("dota_loop")
         await asyncio.sleep(0.5)
+
+
+def gsi_port():
+    return int(os.environ.get("COMPANION_GSI_PORT") or dota_cfg().get("gsi_port") or dota_gsi.DEFAULT_PORT)
+
+
+async def gsi_serve():
+    """Listener da GSI do Dota (127.0.0.1 só). Porta ocupada = tenta de novo a cada 30 s."""
+    lis = dota_gsi.GsiListener(GSIS, gsi_port())
+    GSI_LIS[0] = lis
+    while True:
+        try:
+            await lis.start()
+            break
+        except OSError:
+            log.warning("integração do Dota: porta %s indisponível", lis.port)
+            await asyncio.sleep(30)
+    while True:     # o listener fica de pé enquanto o servidor roda
+        await asyncio.sleep(3600)
+
+
+def dota_find():
+    """Pasta game/dota do Dota 2: a salva (escolhida no painel) ou a achada pelas bibliotecas da Steam."""
+    d = str(dota_cfg().get("dota_dir") or "")
+    if d and Path(d, "cfg").is_dir():
+        return Path(d)
+    sp = games._reg(games.winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam", "SteamPath")
+    return dota_gsi.find_dota(games.steam_libraries(sp)) if sp and os.path.isdir(sp) else None
+
+
+def dota_panel():
+    """Painel › Ajustes › Dota: nunca devolve o token."""
+    f, lis = dota_find(), GSI_LIS[0]
+    st = dota_gsi.status(f, gsi_port(), dota_cfg().get("gsi_token", ""))
+    return {"steam_id": str(dota_cfg().get("steam_id", "")), "steam_ok": bool(dota_od.account_id(dota_cfg().get("steam_id", ""))),
+            "dota_dir": str(f) if f else "", "gsi": {**st, "port": gsi_port(), "listening": bool(lis and lis.server),
+                                                     "last_age": GSIS.last_age(), "count": GSIS.count, "rejected": lis.bad if lis else 0},
+            "od": OD.status(), "copilot": bool(DOTA.up), "launch_option": "-gamestateintegration"}
+
+
+def dota_set_steam(v):
+    v = str(v or "").strip()
+    if v and not dota_gsi.steam64(v):
+        raise ValueError("Steam ID inválido: use os 17 dígitos (SteamID64) ou o número de 32 bits")
+    dota_persist(steam_id=v)
+    return dota_panel()
+
+
+def dota_gsi_install(folder=None):
+    if folder:
+        d = dota_gsi.resolve_dota(folder)
+        if not d:
+            raise ValueError("essa pasta não parece ser a do Dota 2 (procurei a pasta game/dota/cfg)")
+    else:
+        d = dota_find()
+        if not d:
+            return {"need_folder": True, **dota_panel()}
+    dota_gsi.install(d, gsi_port(), dota_cfg().get("gsi_token", ""))
+    dota_persist(dota_dir=str(d))
+    return {**dota_panel(), "installed_now": True}
+
+
+def dota_od_refresh():
+    changed, wait = OD.refresh_manual()
+    return {**dota_panel(), "changed": changed, "wait": wait}
 
 
 WEATHER = weather.Weather(BASE, CFG["weather"])
@@ -2695,6 +2807,7 @@ async def main():
     spawn("now", now_loop)
     spawn("games", games_loop)
     spawn("dota", dota_loop)
+    spawn("dota_gsi", gsi_serve)
     spawn("weather", weather_loop)
     spawn("steam", steam_loop)
     spawn("work", work_loop)

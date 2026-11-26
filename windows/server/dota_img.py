@@ -31,6 +31,7 @@ MAX_IMAGE_BYTES = 1024 * 1024      # a maior (loadout 448x678) tem ~270 KB
 TIMEOUT_S = 2.0
 DOWN_FOR_S = 10
 BROWSER_MAX_AGE = 604800           # 7 dias
+CDN_HOST = "https://cdn.cloudflare.steamstatic.com"
 PNG = b"\x89PNG\r\n\x1a\n"
 KEY_LABEL = b"dota-img-v1"
 _ID = re.compile(r"[0-9]{1,10}")
@@ -47,7 +48,8 @@ def _reply(status, body=b"", ctype="text/plain; charset=utf-8", cache="no-store"
 
 
 class ImageProxy:
-    def __init__(self, cache_dir, token, bridge_url, opener=None, clock=time.monotonic, cache_max=CACHE_MAX_BYTES):
+    def __init__(self, cache_dir, token, bridge_url, opener=None, clock=time.monotonic, cache_max=CACHE_MAX_BYTES,
+                 cdn_path=None, cdn_opener=None):
         self.cache_dir = Path(cache_dir)
         self._token = token            # função: devolve o token atual
         self._bridge_url = bridge_url  # função: devolve a URL do estado da ponte (config "dota.bridge")
@@ -55,6 +57,11 @@ class ImageProxy:
         self.clock = clock
         self.cache_max = cache_max
         self.down_until = 0.0
+        # sem o Copilot: imagem estática do CDN da Valve, só para id JÁ conhecido (cdn_path(kind, id) = caminho validado do
+        # OpenDota/constants, ou None) e só https do host fixo; nada de conta ou Steam ID vai junto
+        self.cdn_path = cdn_path
+        self.cdn_opener = cdn_opener or urllib.request.build_opener().open
+        self.cdn_down_until = 0.0
         self.lock = threading.Lock()
 
     def key(self):
@@ -95,13 +102,36 @@ class ImageProxy:
             return self._ok(cached)
         fetched = self._fetch(remote)
         if isinstance(fetched, tuple):   # erro: 404 da ponte (não guarda) ou 502
-            return fetched
+            cdn = self._cdn(name)
+            if cdn is None:
+                return fetched
+            fetched = cdn
         self._store(name, fetched)
         return self._ok(fetched)
 
     @staticmethod
     def _ok(body):
         return 200, "image/png", body, {"Cache-Control": f"max-age={BROWSER_MAX_AGE}", "X-Content-Type-Options": "nosniff"}
+
+    def _cdn(self, name):
+        """PNG do CDN da Valve para o arquivo pedido, ou None (sem fonte/erro: vale a resposta de erro da ponte)."""
+        if self.cdn_path is None or self.clock() < self.cdn_down_until:
+            return None
+        m = re.fullmatch(r"hero-([0-9]+)-(icon|portrait|loadout)\.png|item-([0-9]+)\.png", name)
+        if not m:
+            return None
+        path = self.cdn_path("item", int(m.group(3))) if m.group(3) else self.cdn_path(m.group(2), int(m.group(1)))
+        if not path or not path.startswith("/apps/dota2/images/") or ".." in path or "?" in path:
+            return None
+        try:
+            with self.cdn_opener(urllib.request.Request(CDN_HOST + path, headers={"Accept": "image/png"}), timeout=4) as resp:
+                body = resp.read(MAX_IMAGE_BYTES + 1)
+        except urllib.error.HTTPError:
+            return None
+        except (urllib.error.URLError, http.client.HTTPException, OSError, ValueError, TimeoutError):
+            self.cdn_down_until = self.clock() + DOWN_FOR_S
+            return None
+        return body if len(body) <= MAX_IMAGE_BYTES and body.startswith(PNG) else None
 
     # ---------------------------------------------------------------- disco
     def _read_cache(self, name):

@@ -14,7 +14,8 @@ import urllib.request
 
 log = logging.getLogger("companion.dota")
 
-DEFAULT_CFG = {"bridge": "http://127.0.0.1:32123/companion/v1/state", "auto_open": True}
+DEFAULT_CFG = {"bridge": "http://127.0.0.1:32123/companion/v1/state", "auto_open": True,
+               "steam_id": "", "gsi_port": 8771, "gsi_token": "", "dota_dir": ""}
 TIMEOUT_S = 0.3
 MAX_BYTES = 512 * 1024
 PHASES = ("offline", "menu", "draft", "pregame", "game", "postgame")
@@ -41,6 +42,42 @@ def with_process(data, bridge_up, running, started):
     out["companion"] = {"dota_running": bool(running),
                         "dota_started": int(started) if running and started else None,
                         "menu_from_process": menu}
+    return out
+
+
+def compose(bridge, up, gsi, od, lookup, running, started, od_status=None):
+    """Estado final para os aparelhos. Prioridade (o Copilot é opcional): 1) ponte do Copilot com fase real; 2) GSI direta
+    (recente); 3) ponte no ar (menu pelo processo ou offline com o lobby dela); 4) Dota aberto sem GSI = menu pelo processo;
+    5) fechado = offline sem motivo (a tela diz "Dota fechado"). lobby ausente vem do OpenDota (od = OpenDota ou None);
+    hero.mine e o resultado oficial também. Nada é estimado: sem fonte o campo fica null."""
+    bridge = bridge or offline()
+    bc = bridge.get("companion") or {}
+    from_bridge = bool(up) and bridge.get("phase") != "offline" and not bc.get("menu_from_process")
+    if from_bridge:
+        out, src = dict(bridge), "copilot"
+    elif gsi:
+        out, src = dict(gsi), "gsi"
+    elif up:
+        out, src = dict(bridge), "copilot"
+    elif running:
+        out, src = {**offline(), "phase": "menu"}, "process"
+        out.pop("reason", None)
+    else:
+        out, src = {**offline(), "reason": None}, None
+    out.pop("companion", None)
+    if out.get("lobby") is None and od is not None:
+        out["lobby"] = od.lobby()
+    h = out.get("hero")
+    if isinstance(h, dict) and h.get("mine") is None and od is not None and h.get("hero_id"):
+        out["hero"] = {**h, "mine": od.hero_mine(h["hero_id"])}
+    r = out.get("result")
+    off = getattr(od, "official", None) if od is not None else None
+    if isinstance(r, dict) and off and r.get("match_id") == off.get("match_id"):
+        out["result"] = {**r, "official": {k: off.get(k) for k in ("win", "k", "d", "a", "duration_s", "gpm", "xpm", "last_hits", "hero_damage", "source")}}
+    out["companion"] = {"dota_running": bool(running),
+                        "dota_started": int(started) if running and started else None,
+                        "menu_from_process": src == "process" or bool(bc.get("menu_from_process")) and src == "copilot",
+                        "source": src, "opendota": od_status}
     return out
 
 

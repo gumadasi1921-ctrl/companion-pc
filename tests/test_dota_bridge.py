@@ -176,17 +176,20 @@ async def live(fake):
         check(f"dota.get com a ponte em {p}", got == FIXTURES[p], "(Dota aberto neste PC)" if r and r["d"]["d"]["companion"]["dota_running"] else "")
     CURRENT["d"] = FIXTURES["menu"]
     await req(phone, "dota.get")
+    # o OpenDota de teste aponta para uma porta fechada: espera a única mudança "erro de rede" antes de medir o resto
+    await recv_until(phone, lambda m: m.get("t") == "dota" and (m["d"].get("companion", {}).get("opendota") or {}).get("error"), 8)
     # só updated_at mudou: não reenvia
     CURRENT["d"] = {**FIXTURES["menu"], "updated_at": FIXTURES["menu"]["updated_at"] + 9}
     m, _ = await recv_until(phone, is_dota, 11)
-    check("sem mudança (só updated_at) não envia", m is None)
+    check("sem mudança (só updated_at) não envia", m is None, json.dumps(m)[-300:] if m else "")
     CURRENT["d"] = FIXTURES["game"]
     m, _ = await recv_until(phone, is_dota, 11)
     check("mudou para game: envia", bool(m) and m["d"]["phase"] == "game")
     fake.shutdown()
     fake.server_close()
     m, _ = await recv_until(phone, is_dota, 11)
-    check("ponte fora do ar: offline com o motivo", bool(m) and m["d"]["phase"] == "offline" and m["d"].get("reason") == "DotaCopilot fechado")
+    # sem o Copilot (e sem GSI) o estado final é "offline" SEM motivo: a tela diz "Dota fechado" (ou menu, se o Dota estiver aberto)
+    check("ponte fora do ar: offline sem motivo", bool(m) and m["d"]["phase"] in ("offline", "menu") and m["d"].get("reason") is None)
     await phone.close()
 
 
@@ -201,7 +204,9 @@ def main():
         "token": TOKEN, "panel_token": PANEL,
         "web": {"host": "127.0.0.1", "port": PORT, "adb_reverse": False, "adb_path": ""},
         "dota": {"bridge": f"http://127.0.0.1:{BRIDGE_PORT}/companion/v1/state", "auto_open": True}}), encoding="utf-8")
-    p = subprocess.Popen([sys.executable, "companion_server.py", "--console"], cwd=srv,
+    import os
+    env = {**os.environ, "COMPANION_OD_BASE": "http://127.0.0.1:9", "COMPANION_GSI_PORT": "8798"}   # sem rede real, porta de teste
+    p = subprocess.Popen([sys.executable, "companion_server.py", "--console"], cwd=srv, env=env,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         for _ in range(40):
@@ -221,7 +226,8 @@ def main():
               f"{len(lines)} linhas")
         check("log sem conteúdo da ponte", "Invoker" not in log and "Blink" not in log and "dota.get" not in log)
         check("log sem token", TOKEN not in log and PANEL not in log)
-        check("log sem erro", "Traceback" not in log and " ERROR " not in log)
+        bad = [ln for ln in log.splitlines() if "ERROR" in ln or "Traceback" in ln]
+        check("log sem erro", not bad, " | ".join(bad)[:500])
         print("\n".join(lines))
         return 1 if fails else 0
     finally:
