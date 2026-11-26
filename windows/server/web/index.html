@@ -1652,6 +1652,18 @@ header .host { display: none; }
 .ag-short { display: none; } #home-ag { cursor: default; }
 .ag-ttl { font-size: 15px; font-weight: 600; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 .ag-join { min-height: 44px; width: 100%; } .ag-join.hidden, #ags-b.hidden { display: none; } .ag-t { font-size: 18px; } .z-L .ag-l { display: flex; align-items: center; gap: 12px; } .z-L .ag-l .ag-mid { flex: 1; min-width: 0; } .z-L .ag-l .ag-join { width: auto; flex: none; min-width: 96px; }
+
+/* Modo edição do Início: tremor só em transform; sem movimento (reduzir movimento/Economia) = contorno tracejado */
+@keyframes hwjig { from { transform: rotate(-.45deg); } to { transform: rotate(.45deg); } }
+.home.editing .hw { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; cursor: grab; }
+.home.editing .hw:not(.hw-slot) { animation: hwjig .26s ease-in-out infinite alternate; }
+.home.editing .hw:nth-child(2n):not(.hw-slot) { animation-duration: .3s; animation-direction: alternate-reverse; }
+.home.editing .hw-b, .home.editing .hw-sk { pointer-events: none; }
+.hw.hw-slot { opacity: .35; outline: 2px dashed var(--accent, var(--p)); outline-offset: -3px; animation: none !important; }
+#hw-layer.hpage { display: block; position: fixed; left: 0; top: 0; width: 0; height: 0; overflow: visible; z-index: 60; pointer-events: none; }
+#hw-layer .hw-fl { transform: scale(1.04); opacity: .96; box-shadow: 0 12px 32px rgba(0, 0, 0, .5); animation: none; }
+@media (prefers-reduced-motion: reduce) { .home.editing .hw:not(.hw-slot) { animation: none; outline: 2px dashed var(--p3); outline-offset: -3px; } }
+html.lm-still .home.editing .hw:not(.hw-slot) { animation: none; outline: 2px dashed var(--p3); outline-offset: -3px; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -2609,16 +2621,16 @@ const HG = (() => {
   }
   const hit = (a, b) => { const [aw, ah] = wh(a), [bw, bh] = wh(b); return a.page === b.page && a.c < b.c + bw && b.c < a.c + aw && a.r < b.r + bh && b.r < a.r + ah; };
   // Põe `it` (já com o tamanho novo) em tgt; quem estava no caminho vai para o 1º espaço livre. null = não cabe.
-  function put(list, it, tgt, mode) {
+  function put(list, it, tgt, mode, keep) {
     const d = dims(mode), [w, h] = wh(it);
     const m = { ...clean(it), page: Math.max(0, Math.min(d.pages - 1, tgt.page | 0)), c: Math.max(1, Math.min(d.C - w + 1, tgt.c | 0)), r: Math.max(1, Math.min(d.R - h + 1, tgt.r | 0)) };
     const g = grid(mode); mark(g, m);
     const out = [m], disp = [];
     for (const x of order(list.filter((y) => y.id !== it.id))) { if (hit(m, x)) disp.push(x); else { mark(g, x); out.push(x); } }
     for (const x of disp) { const [xw, xh] = wh(x), s = spot(g, xw, xh); if (!s) return null; const n = { ...x, ...s }; mark(g, n); out.push(n); }
-    return order(renum(gravity(out, mode)));
+    return keep ? order(gravity(out, mode)) : order(renum(gravity(out, mode)));   // keep: durante o arraste as páginas não mudam de número (só ao soltar)
   }
-  const move = (list, id, tgt, mode) => { const it = list.find((x) => x.id === id); return it ? put(list, it, tgt, mode) : null; };
+  const move = (list, id, tgt, mode, keep) => { const it = list.find((x) => x.id === id); return it ? put(list, it, tgt, mode, keep) : null; };
   const resize = (list, id, size, mode) => { const it = list.find((x) => x.id === id); return it && SZ[size] ? put(list, { ...it, size }, it, mode) : null; };
   function add(list, id, size, mode, page = 0) {
     if (list.some((x) => x.id === id) || !SZ[size]) return null;
@@ -5139,18 +5151,20 @@ function homeSave(mode, list) {
   store.set("home", cur);
 }
 let homeList = [], homeCur = "phone", homePk = null;
+const ed = { on: false, mode: "land", drag: null, press: null, sup: 0 };   // modo edição do Início (gestos mais abaixo)
 const homePg = () => { const o = store.get("homepg", {}); return o && typeof o === "object" ? o : {}; };
 function homeBuild() {
   const root = $("home"), mode = homeMode(), dev = (homeCur = homeDevOf(mode)), cell = ({ id, size }, st = "") => `<div class="card hw z-${size} sk" data-w="${id}" data-z="${size}"${st ? ` style="${st}"` : ""}>
     <div class="hw-sk" aria-hidden="true"><i></i><i></i><i></i></div><div class="hw-b">${HOME_W[id].html(size, dev)}</div></div>`;
   const place = (w) => `grid-column:${w.c} / span ${SZ[w.size][0]};grid-row:${w.r} / span ${SZ[w.size][1]}`;
+  if (ed.on && ed.mode !== mode) ed.on = false;   // girou o aparelho: sai da edição
   homeList = homeLayout(mode); homePk = null;
   const paged = mode !== "port" && homeList.length > 0;
   $("t-inicio").classList.toggle("paged", paged); pcPlace();
   if (!homeList.length) { root.className = "home port"; root.innerHTML = '<div class="card hw" style="grid-column:1 / -1"><div class="hw-na">Nenhum widget na tela.</div></div>'; }
   else if (!paged) { root.className = "home port"; root.innerHTML = homeList.map((w) => cell(w, place(w))).join(""); }
   else {
-    const [C, R] = HG.GRID[mode], pages = Math.max(1, HG.pagesUsed(homeList));
+    const [C, R] = HG.GRID[mode], used = HG.pagesUsed(homeList), pages = Math.max(1, used) + (ed.on && used < HOME_PAGES ? 1 : 0);   // editando: uma página vazia no fim para soltar
     homePk = { pages };
     root.className = "home pager " + mode;
     root.innerHTML = Array.from({ length: pages }, (_, p) => `<div class="hpage" style="--c:${C};--r:${R}">${homeList.filter((w) => w.page === p).map((w) => cell(w, place(w))).join("")}</div>`).join("");
@@ -5158,6 +5172,8 @@ function homeBuild() {
     root.scrollLeft = want * root.clientWidth;
     requestAnimationFrame(() => { root.scrollLeft = want * root.clientWidth; });
   }
+  root.classList.toggle("editing", ed.on); $("t-inicio").classList.toggle("editing", ed.on);
+  $("home-edit").textContent = ed.on ? "OK" : "Editar"; $("home-edit").classList.toggle("primary", ed.on);
   if (hwRO) { hwRO.disconnect(); root.querySelectorAll(".hw[data-w]").forEach((e) => hwRO.observe(e)); }
   homeDots(paged && homePk.pages > 1 ? homePk.pages : 0, paged ? Math.min((homePk?.pages || 1) - 1, Math.max(0, +homePg()[mode] || 0)) : 0);
   homeUpd();
@@ -5292,10 +5308,133 @@ $("wd-reset").onclick = () => {
   wdCommit(homeDef(wd.mode));
   undoToast("Padrão restaurado", () => wdCommit(prev));
 };
-$("home-edit").onclick = () => { buzz(8); showView("widgets"); };
+// ---- Modo edição do Início (estilo iOS): segurar um widget (ou "Editar") → tremem; arrastar com prévia, os outros abrem espaço;
+// na borda a página vira; soltar grava a posição. Pointer Events (toque e mouse). Só translate/transform/opacity animam;
+// movimento reduzido/Economia = sem tremor e sem deslocamento animado (contorno tracejado no lugar).
+const edStill = () => REDUCED || document.documentElement.classList.contains("lm-still");
+const edPage = () => { const r = $("home"); return Math.max(0, Math.round(r.scrollLeft / Math.max(1, r.clientWidth))); };
+function edScroller() { for (let e = $("home"); e && e !== document.body; e = e.parentElement) { const o = getComputedStyle(e).overflowY; if ((o === "auto" || o === "scroll") && e.scrollHeight > e.clientHeight + 1) return e; } return document.scrollingElement; }
+function edOn() {
+  if (ed.on) return; ed.on = true; ed.mode = homeMode(); buzz(15);
+  const root = $("home"); root.classList.add("editing"); $("t-inicio").classList.add("editing");
+  $("home-edit").textContent = "OK"; $("home-edit").classList.add("primary");
+  if (homePk) edReconcile(homeList, false, false);
+}
+function edOff() {
+  if (!ed.on) return; edCancel(); ed.on = false; buzz(8); homeBuild();
+}
+function edCancel() {
+  const d = ed.drag; if (!d) { ed.press = null; return; }
+  clearTimeout(d.et); cancelAnimationFrame(d.raf); d.fl.remove(); d.el.classList.remove("hw-slot"); ed.drag = null; ed.press = null;
+  edReconcile(homeList, false, false);
+}
+// põe cada widget no lugar da lista (página, coluna, linha); cria páginas que faltam; trim = tira as vazias. animate = desliza os que mudaram (FLIP em `translate`).
+function edReconcile(list, animate, trim) {
+  const root = $("home"), els = new Map([...root.querySelectorAll(".hw[data-w]")].map((e) => [e.dataset.w, e])), paged = !!homePk;
+  const first = new Map(); if (animate && !edStill()) for (const [id, e] of els) first.set(id, [e.parentElement, e.getBoundingClientRect()]);
+  if (paged) {
+    const [C, R] = HG.GRID[ed.mode], used = HG.pagesUsed(list), need = Math.max(1, used) + (ed.on && used < HOME_PAGES ? 1 : 0);
+    while (root.children.length < need) { const pg = document.createElement("div"); pg.className = "hpage"; pg.style.cssText = `--c:${C};--r:${R}`; root.appendChild(pg); }
+    for (const it of list) { const e = els.get(it.id), pg = root.children[it.page]; if (e && pg && e.parentElement !== pg) pg.appendChild(e); }
+  }
+  for (const it of list) { const e = els.get(it.id); if (e) { e.style.gridColumn = `${it.c} / span ${SZ[it.size][0]}`; e.style.gridRow = `${it.r} / span ${SZ[it.size][1]}`; } }
+  if (paged && trim) {
+    const need = Math.max(1, HG.pagesUsed(list)) + (ed.on && HG.pagesUsed(list) < HOME_PAGES ? 1 : 0);
+    while (root.children.length > need && !root.lastElementChild.querySelector(".hw")) root.lastElementChild.remove();
+    homePk.pages = root.children.length;
+    homeDots(homePk.pages > 1 ? homePk.pages : 0, Math.min(homePk.pages - 1, edPage()));
+  }
+  if (animate && !edStill()) for (const [id, [par, r0]] of first) {
+    const e = els.get(id); if (!e || e === ed.drag?.el || e.parentElement !== par) continue;
+    const r1 = e.getBoundingClientRect(), dx = r0.left - r1.left, dy = r0.top - r1.top;
+    if (Math.abs(dx) > 1 || Math.abs(dy) > 1) e.animate([{ translate: `${dx}px ${dy}px` }, { translate: "0 0" }], { duration: 220, easing: "cubic-bezier(.2,.8,.2,1)" });
+  }
+}
+function edLayer() {
+  let l = $("hw-layer");
+  if (!l) { l = document.createElement("div"); l.id = "hw-layer"; l.className = "hpage"; l.setAttribute("aria-hidden", "true"); document.body.appendChild(l); }
+  return l;
+}
+function edStart(e) {
+  const p = ed.press; if (!p || ed.drag) return;
+  const el = p.el, r = el.getBoundingClientRect(), fl = el.cloneNode(true);
+  fl.classList.add("hw-fl"); fl.classList.remove("hw-slot"); fl.removeAttribute("id"); fl.querySelectorAll("[id]").forEach((x) => x.removeAttribute("id"));
+  fl.style.cssText = `position:absolute;left:0;top:0;margin:0;width:${r.width}px;height:${r.height}px;translate:${r.left}px ${r.top}px;grid-area:auto`;
+  edLayer().appendChild(fl); el.classList.add("hw-slot");
+  ed.drag = { id: el.dataset.w, el, fl, ox: e.clientX - r.left, oy: e.clientY - r.top, list: homeList.map((w) => ({ ...w })), prev: null, key: "", dir: 0, et: 0, raf: 0, lx: e.clientX, ly: e.clientY, tgt: "", pid: p.pid };
+  buzz(10); edTick(); edTarget();
+}
+function edTick() {                       // rolagem automática em pé (perto do topo/rodapé) enquanto arrasta
+  const d = ed.drag; if (!d) return;
+  if (!homePk) {
+    const sc = edScroller(), vh = innerHeight, y = d.ly, z = 70; let v = 0;
+    if (y < z + 40) v = -Math.ceil(((z + 40 - y) / z) * 14); else if (y > vh - z) v = Math.ceil(((y - (vh - z)) / z) * 14);
+    if (v) { const b = sc.scrollTop; sc.scrollTop += v; if (sc.scrollTop !== b) edTarget(); }
+  }
+  d.raf = requestAnimationFrame(edTick);
+}
+function edTarget() {
+  const d = ed.drag; if (!d) return; const root = $("home"), x = d.lx - d.ox, y = d.ly - d.oy; let tgt;
+  if (homePk) {
+    const pg = Math.min(root.children.length - 1, edPage()), pe = root.children[pg], pr = pe.getBoundingClientRect(), cs = getComputedStyle(pe);
+    const gx = parseFloat(cs.columnGap) || 0, gy = parseFloat(cs.rowGap) || 0, [C, R] = HG.GRID[ed.mode];
+    tgt = { page: pg, c: Math.round((x - pr.left) / ((pr.width - gx * (C - 1)) / C + gx)) + 1, r: Math.round((y - pr.top) / ((pr.height - gy * (R - 1)) / R + gy)) + 1 };
+  } else {
+    const rr = root.getBoundingClientRect(), cs = getComputedStyle(root), gx = parseFloat(cs.columnGap) || 0, gy = parseFloat(cs.rowGap) || 0;
+    const rows = cs.gridTemplateRows.split(" ").map(parseFloat).filter((n) => n >= 0); let top = rr.top, best = 1, bd = 1e9;
+    for (let i = 0; i <= rows.length; i++) { const dd = Math.abs(y - top); if (dd < bd) { bd = dd; best = i + 1; } top += (rows[i] ?? 0) + gy; }
+    tgt = { page: 0, c: Math.round((x - rr.left) / ((rr.width - gx) / 2 + gx)) + 1, r: best };
+  }
+  const k = tgt.page + ":" + tgt.c + ":" + tgt.r; if (k === d.tgt) return; d.tgt = k;
+  const nl = HG.move(d.list, d.id, tgt, ed.mode, true); if (!nl) return;
+  const sig = nl.map((w) => w.id + w.page + w.c + w.r).join(); if (sig === d.key) return; d.key = sig; d.prev = nl;
+  edReconcile(nl, true, false);
+}
+function edEdge() {                       // perto da borda esquerda/direita por 0,6 s: vira a página
+  const d = ed.drag; if (!d || !homePk) return; const rr = $("home").getBoundingClientRect();
+  const dir = d.lx < rr.left + 40 ? -1 : d.lx > rr.right - 40 ? 1 : 0;
+  if (dir === d.dir) return; clearTimeout(d.et); d.dir = dir; if (!dir) return;
+  d.et = setTimeout(function turn() {
+    const root = $("home"), cur = edPage(), nx = cur + dir; if (!ed.drag || nx < 0 || nx > root.children.length - 1) return;
+    root.scrollTo({ left: nx * root.clientWidth, behavior: edStill() ? "auto" : "smooth" }); buzz(8);
+    setTimeout(() => { if (!ed.drag) return; ed.drag.tgt = ""; edTarget(); ed.drag.et = setTimeout(turn, 700); }, edStill() ? 60 : 380);
+  }, 600);
+}
+function edEnd(ok) {
+  const d = ed.drag; ed.press = null; if (!d) return;
+  ed.drag = null; clearTimeout(d.et); cancelAnimationFrame(d.raf); ed.sup = Date.now() + 400;
+  if (ok && d.prev) {
+    const fin = HG.settle(d.prev, ed.mode).list; homeList = fin; homeSave(ed.mode, fin); edReconcile(fin, false, true);
+  } else edReconcile(homeList, false, true);
+  const to = d.el.getBoundingClientRect(), done = () => { d.fl.remove(); d.el.classList.remove("hw-slot"); };
+  if (edStill()) return done();
+  const a = d.fl.animate([{ translate: d.fl.style.translate, transform: "scale(1.04)" }, { translate: `${to.left}px ${to.top}px`, transform: "scale(1)" }], { duration: 170, easing: "ease-out" });
+  a.onfinish = a.oncancel = done;
+}
+function edDown(e) {
+  if (e.button > 0 || ed.drag || (e.pointerType === "touch" && !e.isPrimary)) return;
+  const el = e.target.closest(".hw[data-w]"); if (!el) return;
+  if (ed.on && e.target.closest(".hw-x, .hw-sz")) return;
+  const p = ed.press = { el, x: e.clientX, y: e.clientY, pid: e.pointerId, edit: ed.on, t: 0 };
+  if (!ed.on) p.t = setTimeout(() => { if (ed.press !== p) return; p.edit = true; edOn(); ed.sup = Date.now() + 1500; }, 450);
+}
+window.addEventListener("pointermove", (e) => {
+  const p = ed.press, d = ed.drag; if (!p && !d) return;
+  if (d) { d.lx = e.clientX; d.ly = e.clientY; d.fl.style.translate = `${e.clientX - d.ox}px ${e.clientY - d.oy}px`; edEdge(); edTarget(); return; }
+  const dist = Math.hypot(e.clientX - p.x, e.clientY - p.y);
+  if (p.edit && dist > 5) edStart(e); else if (!p.edit && dist > 8) { clearTimeout(p.t); ed.press = null; }
+}, { passive: true });
+const edUp = (ok) => () => { const p = ed.press; if (p) clearTimeout(p.t); if (ed.drag) edEnd(ok); else ed.press = null; };
+window.addEventListener("pointerup", edUp(true)); window.addEventListener("pointercancel", edUp(false));
+$("home").addEventListener("pointerdown", edDown);
+$("home").addEventListener("contextmenu", (e) => { if (ed.on || ed.press) e.preventDefault(); });
+$("home").addEventListener("touchmove", (e) => { if (ed.drag) e.preventDefault(); }, { passive: false });
+$("home").addEventListener("click", (e) => { if ((ed.on || Date.now() < ed.sup) && !e.target.closest(".hw-x, .hw-sz")) { e.preventDefault(); e.stopPropagation(); } }, true);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && ed.on) { if (ed.drag) edEnd(false); else edOff(); } });
+$("home-edit").onclick = () => { if (ed.on) edOff(); else { if (!homeList.length) return showView("widgets"); edOn(); } };
 $("wd-done").onclick = () => { buzz(8); showView("inicio"); };
 
-function homeShow() { homeBuild(); loadTasks(); homeFetch(); }
+function homeShow() { ed.on = false; homeBuild(); loadTasks(); homeFetch(); }
 async function homeTaskToggle(id, undo) {
   const d = tasksData, t = d?.items.find((x) => x.id === id); if (!t) return;
   buzz();
