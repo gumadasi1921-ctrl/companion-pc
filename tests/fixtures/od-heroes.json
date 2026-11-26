@@ -1,0 +1,21 @@
+[
+ {
+  "hero_id": "74",
+  "last_played": 1795200000,
+  "games": 40,
+  "win": 22,
+  "with_games": 3
+ },
+ {
+  "hero_id": "2",
+  "last_played": 1795199995,
+  "games": 10,
+  "win": 4
+ },
+ {
+  "hero_id": "999",
+  "last_played": 1,
+  "games": 0,
+  "win": 0
+ }
+]

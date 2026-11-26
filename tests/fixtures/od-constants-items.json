@@ -1,0 +1,21 @@
+{
+ "blink": {
+  "id": 1,
+  "dname": "Blink Dagger",
+  "cost": 2250,
+  "img": "/apps/dota2/images/dota_react/items/blink.png?t=1593393829403",
+  "lore": "x"
+ },
+ "tango": {
+  "id": 44,
+  "dname": "Tango",
+  "cost": 90,
+  "img": "/apps/dota2/images/dota_react/items/tango.png?t=1"
+ },
+ "bad key!": {
+  "id": 5,
+  "dname": "X",
+  "cost": 1,
+  "img": null
+ }
+}
