@@ -1687,7 +1687,39 @@ html.lm-still .home.editing .hw:not(.hw-slot) { animation: none; outline: 2px da
 .htr-3 b { font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
 .htr-3 span { font-size: 11px; font-weight: 600; color: var(--text-2, var(--p2)); overflow-wrap: anywhere; }
 .htr-nof .htr-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .htr-nof [data-k="ctf"] { display: none; }
-.htr-late .htr-3 > div:first-child b, .htr-late .htr-3 > div:nth-child(2) b { color: var(--alert, #f87168); }
+/* Trello v3: cor fixa por etapa (A fazer azul · Em execução laranja · Pronto verde; Fallout = tons do tema), grupos, cards com barra, selos */
+:root[data-theme="modern"] { --tr-todo: #4C9AFF; --tr-run: #FF9F0A; --tr-done: #30D158; }
+:root[data-theme="modern"][data-scheme="light"] { --tr-todo: #0066CC; --tr-run: #B25000; --tr-done: #1B7431; }
+:root[data-theme="fallout"] { --tr-todo: var(--p2); --tr-run: var(--p); --tr-done: var(--p3t); }
+.trd { display: inline-block; flex: none; width: 8px; height: 8px; margin-right: 5px; border-radius: 50%; background: var(--c); vertical-align: middle; }
+.htr-3 > [data-c="todo"], .trl-tile[data-go="todo"], #trl-todo { --c: var(--tr-todo); } .htr-3 > [data-c="run"], .trl-tile[data-go="run"], #trl-run { --c: var(--tr-run); } .htr-3 > [data-c="done"], .trl-tile[data-go="done"], #trl-done { --c: var(--tr-done); }
+.htr-3 b, .trl-tile b { color: var(--c); } .trl-tile span { display: flex; align-items: center; }
+.trl-sh { display: flex; align-items: center; } .trl-sh .trd { width: 10px; height: 10px; margin-right: 8px; }
+.trl-g .trl-gh { color: var(--c, var(--text-2, var(--p2))); font-weight: 700; } .trl-g.late .trl-gh { color: var(--alert, #f87168); }
+.trc { position: relative; padding-left: 12px; } .trc::before, .trw-c::before { content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 2px; background: var(--c, var(--text-3, var(--p3t))); }
+.trc-r { align-items: center; }
+.trn { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.trn b, .trn span { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: break-word; word-break: normal; -webkit-line-clamp: 2; }
+.trn b { font-size: 14px; font-weight: 700; line-height: 18px; color: var(--text, var(--p)); } .trn span { font-size: 12px; line-height: 15px; color: var(--text-2, var(--p2)); -webkit-line-clamp: 1; }
+.trn.two b { -webkit-line-clamp: 1; }
+.trk-r { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; } .trk-r:empty { display: none; }
+.trk-d { font-size: 11px; font-weight: 600; line-height: 16px; padding: 0 6px; border-radius: 999px; border: 1px solid var(--separator, var(--p3)); color: var(--text-2, var(--p2)); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.trk-d.late { color: var(--alert, #f87168); border-color: currentColor; background: color-mix(in srgb, var(--alert, #f87168) 14%, transparent); }
+.trk-dots { display: inline-flex; gap: 3px; } .trk-dots i { width: 8px; height: 8px; border-radius: 50%; }
+.trw { display: flex; flex-direction: column; min-width: 0; }
+.hpage .hw .trw { flex: 1 1 0; min-height: 0; overflow: hidden; }
+.htr-l .trw { align-self: stretch; flex: 1; min-width: 0; }
+.trw-g { display: flex; flex-direction: column; min-width: 0; --c: var(--text-3, var(--p3t)); } .trw-g + .trw-g { margin-top: 6px; }
+.trw-g[data-cat="run"] { --c: var(--tr-run); } .trw-g[data-cat="todo"] { --c: var(--tr-todo); }
+.trw-gh { display: flex; align-items: center; font-size: 11px; line-height: 14px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--c); padding: 2px 0 3px; }
+.trw-gh em { margin-left: auto; font-style: normal; color: var(--text-2, var(--p2)); font-variant-numeric: tabular-nums; }
+.trw-c { position: relative; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 5px 0 5px 11px; border-top: 1px solid var(--separator, var(--p4)); } .trw-c::before { top: 6px; bottom: 6px; }
+.trw-gh + .trw-c { border-top: 0; }
+.trw .trn b { font-size: 13px; line-height: 16px; } .z-P .trw .trn b { font-size: 12px; } .z-P .trk-dots, .z-P .trw-gh { display: none; } .z-P .trw .trn b { -webkit-line-clamp: 1; } .z-P .trw .trn span { display: none; }
+.hpage .hw[data-w="trello"] > .hw-b { flex: 1 1 0; min-height: 0; }
+.hpage .hw.z-L .htr-l { flex: 1 1 0; min-height: 0; align-items: stretch; } .z-L .htr-l .htr-3 { flex: none; width: 112px; grid-template-columns: 1fr; align-content: center; gap: 8px; } .z-L .htr-l .htr-3 > div { flex-direction: row; align-items: baseline; gap: 6px; } .z-L .htr-l .htr-3 b { font-size: 24px; min-width: 22px; text-align: right; } .z-L .htr-l .htr-3 span { font-size: 11px; }
+.trw-more, .trw-tail { display: none; height: 18px; line-height: 18px; font-size: 11px; font-weight: 700; color: var(--text-2, var(--p2)); padding-left: 11px; font-variant-numeric: tabular-nums; }
+.trw-more.on, .trw-tail.on { display: block; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -4095,10 +4127,43 @@ function trelloSet(d) { if (!d || typeof d !== "object" || !d.groups) return; tr
 async function trelloLoad() { trT = Date.now(); try { trelloSet(await send("trello.get", { refresh: true })); } catch { trT = 0; } }
 const trDue = (c) => (c.due ? c.due.slice(8) + "/" + c.due.slice(5, 7) + (c.time && c.time !== "00:00" ? " " + c.time : "") : "");
 const trSpent = (c) => (c.spent && (c.spent.total_s || c.spent.today_s) ? `<div class="trc-t">Tempo: hoje ${humanDur(c.spent.today_s)} · semana ${humanDur(c.spent.week_s)} · total ${humanDur(c.spent.total_s)}</div>` : "");
+const TR_CAT = { run: "Em execução", todo: "A fazer" };
+function trNm(name) {   // regra fixa "CLIENTE - JOB": parte no primeiro " - " (cliente em negrito, job em cinza); sem isso, o nome inteiro
+  const s = String(name || ""), i = s.indexOf(" - "), cl = s.slice(0, i).trim(), jb = s.slice(i + 3).trim();
+  return i > 0 && cl && jb ? `<span class="trn two"><b>${esc(cl)}</b><span>${esc(jb)}</span></span>` : `<span class="trn"><b>${esc(s)}</b></span>`;
+}
+const trDots = (c) => { const l = (c.labels || []).slice(0, 4); return l.length ? `<span class="trk-dots">${l.map((x) => `<i title="${esc(x.n || "")}" style="background:${TR_COL[(x.c || "").split("_")[0]] || "var(--text-3, var(--p3t))"}"></i>`).join("")}</span>` : ""; };
+const trBadge = (c, late) => (c.due ? `<span class="trk-d${late ? " late" : ""}">${esc(trDue(c))}</span>` : "");
 function trCard(c, late) {
-  const lbl = (c.labels || []).map((l) => `<span class="trl" style="background:${TR_COL[(l.c || "").split("_")[0]] || "var(--text-3, var(--p3t))"}">${esc(l.n)}</span>`).join("");
-  return `<div class="trc" data-short="${esc(c.short)}" role="button" tabindex="0"><div class="trc-r"><span class="trc-n">${esc(c.name)}</span>${c.due ? `<span class="trc-d${late ? " late" : ""}">${esc(trDue(c))}</span>` : ""}</div>
-    <div class="trc-m">${esc([c.board, c.list].filter(Boolean).join(" › "))}</div>${lbl ? `<div class="trc-l">${lbl}</div>` : ""}${trSpent(c)}</div>`;
+  return `<div class="trc" data-short="${esc(c.short)}" role="button" tabindex="0"><div class="trc-r">${trNm(c.name)}<span class="trk-r">${trBadge(c, late)}${trDots(c)}</span></div>
+    <div class="trc-m">${esc([c.board, c.list].filter(Boolean).join(" › "))}</div>${trSpent(c)}</div>`;
+}
+const trwCard = (x) => `<div class="trw-c" data-short="${esc(x.short)}">${trNm(x.name)}<span class="trk-r">${trBadge(x, x.late)}${trDots(x)}</span></div>`;
+// lista do widget: Em execução, depois A fazer; o que não cabe vira "+N" no fim do grupo (nunca um card pela metade)
+function trwHtml(d, cap) {
+  const f = d.todo || { items: [] };
+  const run = ["overdue", "today", "tomorrow", "week", "later", "none"].flatMap((k) => d.groups[k].map((x) => ({ ...x, late: k === "overdue" })));
+  const sets = [["run", run], ["todo", f.items || []]].filter((a) => a[1].length);
+  return sets.map(([k, a]) => `<div class="trw-g" data-cat="${k}" data-n="${TR_CAT[k]}"><div class="trw-gh"><i class="trd"></i>${TR_CAT[k]}<em>${a.length}</em></div>${a.slice(0, cap).map(trwCard).join("")}<div class="trw-more${a.length > cap ? " on" : ""}">${a.length > cap ? "+" + (a.length - cap) : ""}</div></div>`).join("") + (sets.length ? '<div class="trw-tail"></div>' : "");
+}
+function trwFit(c) {
+  const gs = [...c.querySelectorAll(":scope > .trw-g")], tail = c.querySelector(":scope > .trw-tail");
+  for (const g of gs) { g.classList.remove("fx"); g.querySelectorAll(".trw-c").forEach((k) => k.classList.remove("fx")); const m = g.querySelector(".trw-more"); if (m) { m.classList.remove("on"); m.textContent = ""; } }
+  if (tail) { tail.classList.remove("on"); tail.textContent = ""; }
+  if (!gs.length) return;
+  const base = c.getBoundingClientRect().top, lim = c.clientHeight + 1, MORE = 18, rel = (e) => e.getBoundingClientRect().bottom - base;
+  const last = [...c.querySelectorAll(".trw-c")].pop();
+  let stop = false, hidden = 0, hg = [], cut = null;
+  for (const g of gs) {
+    const cs = [...g.querySelectorAll(".trw-c")];
+    if (stop) { g.classList.add("fx"); hidden += cs.length; hg.push(g.dataset.n); continue; }
+    let keep = 0;
+    for (const k of cs) { if (rel(k) + (k === last ? 0 : MORE) <= lim) keep++; else break; }
+    if (!keep) { g.classList.add("fx"); hidden += cs.length; hg.push(g.dataset.n); stop = true; continue; }
+    if (keep < cs.length) { cs.slice(keep).forEach((k) => k.classList.add("fx")); cut = [g, cs.length - keep]; stop = true; }
+  }
+  if (cut) { const m = cut[0].querySelector(".trw-more"); m.textContent = "+" + (cut[1] + hidden); m.classList.add("on"); }
+  else if (hidden && tail) { tail.textContent = "+" + hidden + (hg.length === 1 ? " " + hg[0] : ""); tail.classList.add("on"); }
 }
 const trSum = (d) => Object.values(d.counts).reduce((x, y) => x + y, 0);
 function trEmpty(d) {   // por que não há cards em execução: nunca inventa, diz o que a leitura achou
@@ -4109,13 +4174,13 @@ function trEmpty(d) {   // por que não há cards em execução: nunca inventa, 
 function trDoneHtml(d) {
   const n = d.done; if (!n) return "";
   const rec = n.recent.slice(0, 3).map((r) => `<div class="htr-c"><span>${esc(r.name)}</span><small>${esc(r.label)}</small></div>`).join("");
-  return `<div class="trl-g" id="trl-done"><div class="trl-sh">Pronto · Aprovar</div><div class="trl-gh">hoje ${n.today} · semana ${n.week} · mês ${n.month}</div>${rec ? `<div class="tk-grp">${rec}</div>` : ""}`
+  return `<div class="trl-g" id="trl-done"><div class="trl-sh"><i class="trd"></i>Pronto · Aprovar</div><div class="trl-gh">hoje ${n.today} · semana ${n.week} · mês ${n.month}</div>${rec ? `<div class="tk-grp">${rec}</div>` : ""}`
     + `<div class="tk-foot">A data é a de entrada em Aprovar quando o Trello informa; senão, a primeira vez que o Companion viu o card.${n.prior ? ` ${n.prior} já estava${n.prior === 1 ? "" : "m"} em Aprovar antes do Companion e não conta${n.prior === 1 ? "" : "m"}.` : ""}</div></div>`;
 }
 function trTiles(d) {
   const f = d.todo || { state: "off", count: 0 };
   const t = [f.state !== "off" ? ["todo", "A fazer", f.state === "missing" ? "–" : f.count] : null, ["run", "Em execução", trSum(d)], ["done", "Pronto hoje", d.done ? d.done.today : 0]].filter(Boolean);
-  return `<div class="trl-tiles">${t.map(([k, l, n]) => `<button class="trl-tile" type="button" data-go="${k}"><b>${n}</b><span>${l}</span></button>`).join("")}</div>`;
+  return `<div class="trl-tiles">${t.map(([k, l, n]) => `<button class="trl-tile" type="button" data-go="${k}"><b>${n}</b><span><i class="trd"></i>${l}</span></button>`).join("")}</div>`;
 }
 function trRender() {
   const el = $("trello"), d = trData;
@@ -4125,14 +4190,14 @@ function trRender() {
     : d.state === "net_error" ? `Sem conexão com o Trello${d.hhmm ? ` · mostrando a leitura das ${d.hhmm}` : ""}.`
     : d.state === "waiting" ? "Carregando os cards…" : "";
   const f = d.todo || { state: "off", items: [], count: 0 }, n = trSum(d), live = d.state === "ok" || d.state === "net_error";
+  const runHtml = `<div class="trl-g" id="trl-run"><div class="trl-sh"><i class="trd"></i>Em execução${n ? ` · ${n}` : ""}</div>`
+    + TR_GROUPS.map(([k, name]) => (d.groups[k].length ? `<div class="trl-g${k === "overdue" ? " late" : ""}"><div class="trl-gh">${name} · ${d.groups[k].length}</div><div class="tk-grp">${d.groups[k].map((c) => trCard(c, k === "overdue")).join("")}</div></div>` : "")).join("")
+    + (!n && d.state === "ok" ? `<div class="tk-empty">${esc(trEmpty(d))}</div>` : "") + "</div>";
   setHtml(el, `<div class="tk-h">Trello${d.hhmm && d.state === "ok" ? ` · atualizado às ${esc(d.hhmm)}` : ""}</div>${msg ? `<div class="trl-msg" role="status">${esc(msg)}</div>` : ""}`
-    + (live ? trTiles(d) : "")
-    + (f.state === "off" ? "" : `<div class="trl-g" id="trl-todo"><div class="trl-sh">A fazer${f.state === "ok" ? ` · ${f.count}` : ""}</div>`
+    + (live ? trTiles(d) : "") + runHtml
+    + (f.state === "off" ? "" : `<div class="trl-g" id="trl-todo"><div class="trl-sh"><i class="trd"></i>A fazer${f.state === "ok" ? ` · ${f.count}` : ""}</div>`
       + (f.state === "missing" ? (f.day ? `<div class="trl-msg" role="status">Sem lista de hoje (DIA ${f.day}).</div>` : '<div class="trl-msg" role="status">Lista não encontrada. Escolha outra no painel do PC (Ajustes › Trello).</div>')
         : f.count ? `<div class="tk-grp">${f.items.map((c) => trCard(c, c.late)).join("")}</div>` : '<div class="tk-empty">Nada na lista do dia.</div>') + "</div>")
-    + `<div class="trl-g" id="trl-run"><div class="trl-sh">Em execução${n ? ` · ${n}` : ""}</div>`
-    + TR_GROUPS.map(([k, name]) => (d.groups[k].length ? `<div class="trl-g${k === "overdue" ? " late" : ""}"><div class="trl-gh">${name} · ${d.groups[k].length}</div><div class="tk-grp">${d.groups[k].map((c) => trCard(c, k === "overdue")).join("")}</div></div>` : "")).join("")
-    + (!n && d.state === "ok" ? `<div class="tk-empty">${esc(trEmpty(d))}</div>` : "") + "</div>"
     + (live ? trDoneHtml(d) : ""));
 }
 $("trello").addEventListener("click", (e) => {
@@ -4550,11 +4615,11 @@ const HOME_W = {
   trello: {
     name: "Trello", icon: "layout-grid", sizes: "PALG", def: "A",
     html(z) {
-      const head = '<div class="htr-3"><div data-k="ctf"><b data-k="nf">–</b><span>A fazer</span></div><div><b data-k="ne">–</b><span>Em execução</span></div><div><b data-k="np">–</b><span>Pronto hoje</span></div></div>', title = '<div class="hw-t"><span>Trello</span><span data-k="cnt"></span></div>';
-      if (z === "P") return `<div class="pq" data-clip><div class="hw-t"><span>Trello</span><span data-k="cnt"></span></div>${head}<div class="hsub1 htr-cnt" data-k="grp"></div><div class="htr-list pq-tr" data-k="list" data-clip></div></div>`;
-      if (z === "L") return `<div class="htr-l">${head}<div class="htr-list" data-k="list"></div></div>`;
-      if (z === "G") return `${title}<div class="hcols"><div class="hcol">${head}<div class="hsub1 htr-cnt" data-k="grp"></div></div><div class="hcol"><div class="htr-list" data-k="list" data-fit></div></div></div>`;
-      return `${title}${head}<div class="hsub1 htr-cnt" data-k="grp"></div><div class="htr-list" data-k="list" data-fit></div>`;
+      const head = '<div class="htr-3"><div data-k="ctf" data-c="todo"><b data-k="nf">–</b><span><i class="trd"></i>A fazer</span></div><div data-c="run"><b data-k="ne">–</b><span><i class="trd"></i>Em execução</span></div><div data-c="done"><b data-k="np">–</b><span><i class="trd"></i>Pronto hoje</span></div></div>', title = '<div class="hw-t"><span>Trello</span><span data-k="cnt"></span></div>';
+      if (z === "P") return `<div class="pq" data-clip><div class="hw-t"><span>Trello</span><span data-k="cnt"></span></div>${head}<div class="trw pq-tr" data-k="list" data-trw></div><div class="hsub1 htr-cnt" data-k="grp"></div></div>`;
+      if (z === "L") return `<div class="htr-l">${head}<div class="trw" data-k="list" data-trw></div></div>`;
+      if (z === "G") return `${title}<div class="hcols"><div class="hcol">${head}<div class="hsub1 htr-cnt" data-k="grp"></div></div><div class="hcol"><div class="trw" data-k="list" data-trw></div></div></div>`;
+      return `${title}${head}<div class="hsub1 htr-cnt" data-k="grp"></div><div class="trw" data-k="list" data-trw></div>`;
     },
     ready: () => !!trData,
     upd(el) {
@@ -4569,10 +4634,8 @@ const HOME_W = {
       setText(hk(el, "cnt"), off || !late ? "" : `${late} ${late === 1 ? "atrasado" : "atrasados"}`);
       const grp = off ? off : f.state === "missing" ? (f.day ? "Sem lista de hoje (DIA " + f.day + ")" : "A fazer: lista não encontrada") : d.done && d.done.week ? `Pronto: semana ${d.done.week} · mês ${d.done.month}` : "";
       setText(hk(el, "grp"), grp);
-      const next = [...(f.items || []), ...["overdue", "today", "tomorrow", "week", "later", "none"].flatMap((k) => d.groups[k].map((x) => ({ ...x, late: k === "overdue" })))];
-      const pg = !!el.closest(".pager"), n = z === "L" ? 2 : pg ? 8 : 3;
-      setHtml(hk(el, "list"), off ? "" : next.slice(0, n).map((x) => `<div class="htr-c" data-short="${esc(x.short)}"><span>${esc(x.name)}</span><small class="${x.late ? "late" : ""}">${esc(trDue(x))}</small></div>`).join("")
-        || `<div class="hw-na">${esc(d.state === "ok" ? trEmpty(d) : "Nenhum card.")}</div>`);
+      const pg = !!el.closest(".pager");
+      setHtml(hk(el, "list"), off ? "" : trwHtml(d, pg ? 99 : 3) || `<div class="hw-na">${esc(d.state === "ok" ? trEmpty(d) : "Nenhum card.")}</div>`);
     },
   },
   monday: {
@@ -5285,6 +5348,7 @@ function hwFit(el) {
     const lh = parseFloat(getComputedStyle(t).lineHeight) || 16, room = c.clientHeight - others - gap * (c.children.length - 1);
     t.style.webkitLineClamp = String(Math.max(1, Math.min(6, Math.floor(room / lh))));
   }
+  for (const c of el.querySelectorAll("[data-trw]")) trwFit(c);
   for (const c of el.querySelectorAll(HW_FIT)) {
     const kids = [...c.children]; kids.forEach((k) => k.classList.remove("fx"));
     if (kids.length < 2) continue;
