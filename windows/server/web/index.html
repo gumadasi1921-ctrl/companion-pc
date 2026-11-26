@@ -5619,7 +5619,7 @@ function clSlide(el, dir, swap) {   // anima só transform: sai para um lado, tr
   el._sl = true;
   const o = el.animate([{ transform: "translateX(0)" }, { transform: `translateX(${-dir * 48}px)` }], { duration: 110, easing: "ease-in", fill: "forwards" });
   let done = false;   // o fim da animação pode não vir (aba em segundo plano, painel de teste): o prazo garante a troca
-  const go = () => { if (done) return; done = true; swap(); el.animate([{ transform: `translateX(${dir * 48}px)` }, { transform: "translateX(0)" }], { duration: 150, easing: "ease-out" }); o.cancel(); el._sl = false; };
+  const go = () => { if (done) return; done = true; swap(); const i = el.animate([{ transform: `translateX(${dir * 48}px)` }, { transform: "translateX(0)" }], { duration: 150, easing: "ease-out" }); o.cancel(); el._sl = false; setTimeout(() => i.cancel(), 400); };   // o cancel final nunca deixa o mês deslocado se a animação não rodar
   o.onfinish = go; setTimeout(go, 220);
 }
 function clGo(n) {   // n = meses; 0 = hoje
