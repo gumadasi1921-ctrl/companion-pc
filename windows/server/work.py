@@ -725,7 +725,7 @@ class WorkTracker:
     def _jkey(client, job):
         return (client.casefold(), (job or NO_JOB).casefold())
 
-    def link_set(self, client, job, card, card_name=""):
+    def link_set(self, client, job, card, card_name="", auto=False):
         """Liga o job ao card (troca a ligação anterior do job e a do card). Devolve {"link", "replaced"} para o desfazer."""
         if not isinstance(card, str) or not re.fullmatch(r"[A-Za-z0-9]{8}", card):
             raise ValueError("card inválido")
@@ -740,6 +740,8 @@ class WorkTracker:
             raise ValueError("limite de ligações atingido")
         entry = {"id": self._new_id(), "client": client, "job": job, "card": card, "card_name": name,
                  "created_at": datetime.now().isoformat(timespec="seconds")}
+        if auto:
+            entry["auto"] = True      # ligada sozinha (casamento exato); o painel mostra "automática" com Desfazer
         old = self.links
         self.links = keep + [entry]
         try:
@@ -769,9 +771,47 @@ class WorkTracker:
         add = [x for x in entries if self._link_ok(x)]
         for x in add:
             self.links = [y for y in self.links if y["id"] != x["id"] and y["card"] != x["card"] and self._jkey(y["client"], y["job"]) != self._jkey(x["client"], x["job"])]
-            self.links.append({k: x[k] for k in ("id", "client", "job", "card", "card_name", "created_at") if k in x})
+            self.links.append({k: x[k] for k in ("id", "client", "job", "card", "card_name", "created_at", "auto") if k in x})
         self._save_rules()
         return {"restored": len(add)}
+
+    # -- "Não perguntar o card" (work_rules.json, "nolink"): [{id, client, job, until|None, created_at}]; until None = para sempre ----
+    @staticmethod
+    def _nolink_ok(x):
+        return (isinstance(x, dict) and isinstance(x.get("id"), str) and isinstance(x.get("client"), str) and x["client"]
+                and isinstance(x.get("job"), str) and (x.get("until") is None or isinstance(x["until"], (int, float))))
+
+    def nolink_set(self, client, job, until=None):
+        key = self._jkey(client, job)
+        entry = {"id": self._new_id(), "client": client, "job": job, "until": until,
+                 "created_at": datetime.now().isoformat(timespec="seconds")}
+        old = self.nolink
+        self.nolink = [x for x in self.nolink if self._jkey(x["client"], x["job"]) != key] + [entry]
+        if len(self.nolink) > MAX_RULES:
+            self.nolink = self.nolink[-MAX_RULES:]
+        try:
+            self._save_rules()
+        except OSError:
+            self.nolink = old
+            raise ValueError("não consegui gravar") from None
+        return entry
+
+    def nolink_delete(self, ids):
+        ids = {ids} if isinstance(ids, str) else set(ids or [])
+        gone = [x for x in self.nolink if x["id"] in ids]
+        if gone:
+            old = self.nolink
+            self.nolink = [x for x in self.nolink if x["id"] not in ids]
+            try:
+                self._save_rules()
+            except OSError:
+                self.nolink = old
+                raise ValueError("não consegui gravar") from None
+        return {"removed": gone}
+
+    def nolink_get(self):
+        """Só os permanentes (os "Depois" vencem sozinhos e não aparecem)."""
+        return [x for x in self.nolink if x.get("until") is None]
 
     def link_times(self, today=None):
         """{shortLink: {today_s, week_s, total_s}} dos jobs ligados, numa passada só pelo histórico (regras/ignorados valem)."""
@@ -880,7 +920,7 @@ class WorkTracker:
     def _load_rules(self):
         def ok(d):
             return isinstance(d, dict) and all(isinstance(d.get(k, []), list) and all(isinstance(x, dict) for x in d.get(k, []))
-                                               for k in ("rules", "once", "ignored", "links", "mlinks"))
+                                               for k in ("rules", "once", "ignored", "links", "mlinks", "nolink"))
         p = self.rules_path
         try:
             d = json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
@@ -898,6 +938,7 @@ class WorkTracker:
         self.rules, self.once, self.ignored = (list(d.get(k, [])) for k in ("rules", "once", "ignored"))
         self.links = [x for x in d.get("links", []) if self._link_ok(x)]   # ligações job ↔ card do Trello
         self.mlinks = [x for x in d.get("mlinks", []) if self._mlink_ok(x)]   # ligações job ↔ item do monday
+        self.nolink = [x for x in d.get("nolink", []) if self._nolink_ok(x)]   # jobs em que não se pergunta o card
         self._reindex_rules()
 
     def _reindex_rules(self):
@@ -907,7 +948,7 @@ class WorkTracker:
 
     def _save_rules(self):
         _save_json(self.rules_path, {"version": 1, "rules": self.rules, "once": self.once, "ignored": self.ignored, "links": self.links,
-                                      "mlinks": self.mlinks})
+                                      "mlinks": self.mlinks, "nolink": self.nolink})
         self._reindex_rules()
 
     @staticmethod

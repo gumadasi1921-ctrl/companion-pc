@@ -76,6 +76,7 @@ from websockets.exceptions import ConnectionClosed
 
 import agenda
 import alerts
+import autolink
 import multipc
 import audio_profiles
 import backup
@@ -922,6 +923,8 @@ PANEL_OPS = {
     "work_link_set": lambda client, job, card, name: io_call(work_link_set, client, job, card, name),
     "work_link_delete": lambda ids: io_call(WORK.link_delete, ids),
     "work_link_restore": lambda entries: io_call(WORK.link_restore, entries),
+    "work_nolink_get": lambda: io_call(WORK.nolink_get),
+    "work_nolink_delete": lambda ids: io_call(WORK.nolink_delete, ids),
     "trello_cards": lambda: io_call(trello_cards_op),
     "work_mlinks_get": lambda: io_call(WORK.mlinks_get),
     "work_mlink_set": lambda client, job, item: io_call(work_mlink_set, client, job, item),
@@ -1043,6 +1046,8 @@ PANEL_WS = {   # nome -> função(params dict); as de gravação rodam na fila d
     "work_link_set": lambda p: PANEL_OPS["work_link_set"](_need(p, "client", str), p.get("job") or "", _need(p, "card", str), ""),
     "work_link_delete": lambda p: PANEL_OPS["work_link_delete"](p.get("ids") if "ids" in p else _need(p, "id", str)),
     "work_link_restore": lambda p: PANEL_OPS["work_link_restore"](_need(p, "entries", list)),
+    "work_nolink_get": lambda p: PANEL_OPS["work_nolink_get"](),
+    "work_nolink_delete": lambda p: PANEL_OPS["work_nolink_delete"](p.get("ids") if "ids" in p else _need(p, "id", str)),
     "trello_cards": lambda p: PANEL_OPS["trello_cards"](),
     "work_mlinks_get": lambda p: PANEL_OPS["work_mlinks_get"](),
     "work_mlink_set": lambda p: PANEL_OPS["work_mlink_set"](_need(p, "client", str), p.get("job") or "", _need(p, "item", str)),
@@ -1211,6 +1216,10 @@ ASYNC_ACTIONS = {
                                                p.get("q", 60), p.get("sid")),
     "screen.click": lambda p: screen_click(p),
     "mic.set": lambda p: pc_info.mic_set(p.get("muted", "toggle")),
+    "work.link_pick": lambda p: link_run("pick", p),
+    "work.link_none": lambda p: link_run("none", p),
+    "work.link_later": lambda p: link_run("later", p),
+    "work.link_undo": lambda p: link_run("undo", p),
     "pomo.get": lambda p: pomo_run("get", p),
     "pomo.start": lambda p: pomo_run("start", p),
     "pomo.pause": lambda p: pomo_run("pause", p),
@@ -1536,6 +1545,7 @@ async def session(ws, peer, kind, xff=None):
     if STEAMDL.polled:
         await steam_send(STEAMDL.state(), only=ws)
     await work_stream_send(only=ws)
+    await linkask_send(only=ws)
     log.info("conectado: %s (%s) tela %s", kind, peer, str(hello.get("screen", "?"))[:120])
     try:
         async for raw in ws:
@@ -1586,7 +1596,7 @@ def release_held():
 
 sent_art: dict = {}
 # não vão para o log: repetitivas ou com conteúdo pessoal (texto digitado/copiado)
-QUIET_ACTIONS = {"devbk.save", "devbk.info", "devbk.get", "devbk_list", "devbk_delete", "games.history", "games.library", "notif.sub", "mouse.move", "mouse.scroll", "key.text", "clip.set", "clip.get", "file.chunk",
+QUIET_ACTIONS = {"work.link_pick", "work.link_none", "work.link_later", "work.link_undo", "devbk.save", "devbk.info", "devbk.get", "devbk_list", "devbk_delete", "games.history", "games.library", "notif.sub", "mouse.move", "mouse.scroll", "key.text", "clip.set", "clip.get", "file.chunk",
                  "screen.shot", "mixer.get", "audio.profiles", "audio.profile_save", "audio.profile_apply", "audio.profile_delete",  # nome do perfil
                  "steam.get",  # consultada a cada abertura da tela Jogos
                  "deck.get", "deck.save",  # deck.save: textos/macros dos botões
@@ -1604,7 +1614,7 @@ QUIET_ACTIONS = {"devbk.save", "devbk.info", "devbk.get", "devbk_list", "devbk_d
                  "work_week", "work_csv", "work_month", "work_month_csv", "work_note_set", "work_add_root", "work_remove_root", "work_assign_preview", "work_assign",
                  "work_ignore", "work_rules_get", "work_rule_delete", "work_unignore", "config_get", "config_save", "open_focus", "backup_run", "trello_test", "trello_boards", "trello_boards",
                  "update_info", "update_check", "update_apply", "update_rollback", "agenda_test", "agenda.get", "agenda.join",
-                 "trello.get", "trello.open", "work_links_get", "work_link_set", "work_link_delete", "work_link_restore", "trello_cards",
+                 "trello.get", "trello.open", "work_links_get", "work_link_set", "work_link_delete", "work_link_restore", "work_nolink_get", "work_nolink_delete", "trello_cards",
                  "monday.get", "monday.open", "monday_test", "monday_boards", "monday_items", "work_mlinks_get", "work_mlink_set", "work_mlink_delete", "work_mlink_restore"}
 
 
@@ -2034,7 +2044,63 @@ def trello_cards_op():
 
 
 def _work_step():
-    return WORK.poll(), bool(WORK.roots)
+    info = WORK.poll()
+    ev = None
+    try:
+        ev = AUTOLINK.observe(info)       # só lê o cache do Trello; grava só ligação/"nolink" em work_rules.json
+    except Exception as e:  # noqa: BLE001
+        log.warning("autolink: %s", type(e).__name__)   # sem a mensagem: pode ter nome de cliente/arquivo
+    return info, bool(WORK.roots), ev
+
+
+def _autolink_cards():
+    return TRELLO.cards if TRELLO.status()["state"] == "ok" else []
+
+
+AUTOLINK = autolink.AutoLink(WORK, _autolink_cards)
+
+
+async def linkask_send(only=None):
+    msg = json.dumps({"t": "linkask", "d": AUTOLINK.public()}, ensure_ascii=False)
+    for ws in ([only] if only else [w for w in list(clients) if client_kind.get(w) == "celular"]):
+        try:
+            await ws.send(msg)
+        except ConnectionClosed:
+            clients.discard(ws)
+
+
+async def autolink_events(ev):
+    if not ev:
+        return
+    if ev["kind"] == "autolink":
+        log.info("ligação automática de job a card")
+        await phones_send({"t": "event", "kind": "work.autolink", "id": ev["id"], "client": ev["client"], "job": ev["job"]})
+        await trello_send()
+    elif ev["kind"] == "ask":
+        log.info("pergunta de card do Trello")
+    await linkask_send()
+
+
+def link_answer(op, p):
+    """Resposta do celular à pergunta (só qid + card); a ligação é feita aqui, no servidor."""
+    q = str(p.get("qid", ""))
+    if op == "pick":
+        r = AUTOLINK.pick(q, str(p.get("card", "")), TRELLO.has_card)
+    elif op == "none":
+        r = AUTOLINK.none(q)
+    elif op == "later":
+        r = AUTOLINK.later(q)
+    else:
+        r = AUTOLINK.undo(str(p.get("id", "")))
+    return r
+
+
+async def link_run(op, p):
+    r = await on_io(link_answer, op, p)
+    await linkask_send()
+    if op in ("pick", "undo"):
+        await trello_send()
+    return {"ok": True}
 
 
 def _misplaced_min():
@@ -2060,7 +2126,8 @@ async def work_loop():
     """Tempo no Photoshop/Premiere/After: lê o foco a cada 2 s, na fila de disco (WORK não usa locks)."""
     while True:
         try:
-            info, has_roots = await on_io(_work_step)
+            info, has_roots, aev = await on_io(_work_step)
+            await autolink_events(aev)
             st = await on_io(WORK.stream)
             if st != WSTREAM[0]:   # muda no máximo 1×/min (minutos inteiros) e ao zerar
                 WSTREAM[0] = st
