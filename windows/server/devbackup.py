@@ -14,6 +14,7 @@ import time
 from pathlib import Path
 
 KEEP = 5
+COALESCE_S = 3600   # mudanças seguidas do mesmo aparelho (mesma linhagem) dentro de 1 h trocam a versão mais nova em vez de gastar uma das 5
 MAX_BYTES = 256 * 1024
 MAX_DEVICES = 20
 SUBDIR = "device-backups"
@@ -77,8 +78,10 @@ class DeviceBackups:
         return dev_id
 
     # -- gravar ---------------------------------------------------------------
-    def save(self, dev_id, name, data):
-        """Grava uma versão nova (a menos que seja igual à última). Devolve {"saved", "at", "n"}."""
+    def save(self, dev_id, name, data, prev_at=None):
+        """Grava uma versão nova (a menos que seja igual à última). `prev_at` = a data que o aparelho recebeu na última
+        gravação/restauração: se ainda é a versão mais nova e tem < 1 h, ela é substituída (senão uma sessão de ajustes
+        gastaria as 5 versões e o backup bom sairia da fila). Devolve {"saved", "at", "n"}."""
         dev_id = self._check_id(dev_id)
         if not isinstance(data, dict):
             raise BackupError("dados inválidos")
@@ -109,7 +112,21 @@ class DeviceBackups:
         rec = {"v": 1, "name": clean_name(name), "at": at_ms / 1000.0, "data": json.loads(blob)}
         d = self.root / folder
         d.mkdir(parents=True, exist_ok=True)
+        old = None
+        if vers and prev_at is not None:
+            try:
+                same = abs(vers[0][0] - round(float(prev_at) * 1000)) <= 1
+            except (TypeError, ValueError):
+                same = False
+            if same and at_ms - vers[0][0] < COALESCE_S * 1000:
+                old = vers[0][1]
         self._write(d / f"v-{at_ms}.json", rec)
+        if old is not None:
+            try:
+                old.unlink()
+            except OSError:
+                pass
+            vers = vers[1:]
         for _, p in self._versions(folder)[KEEP:]:
             try:
                 p.unlink()

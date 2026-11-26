@@ -49,6 +49,18 @@ class DevBackupTests(unittest.TestCase):
         self.assertEqual(self.bk.get(A, at=v[4]["at"])["data"]["theme"], "t3")   # versão antiga pela data
         self.assertGreater(v[0]["at"], v[1]["at"])
 
+    def test_coalesce_same_lineage_only(self):
+        r = self.bk.save(A, "i", {"theme": "bom"})            # backup bom
+        for i in range(8):                                     # app recém-instalado: sem prev -> versão nova
+            r = self.bk.save(A, "i", {"theme": f"n{i}"}, prev_at=None if i == 0 else r["at"])
+        v = self.bk.own(A)
+        self.assertEqual(len(v), 2)                            # o bom + uma só da nova linhagem
+        self.assertEqual(self.bk.get(A, at=v[1]["at"])["data"]["theme"], "bom")
+        self.assertEqual(self.bk.get(A)["data"]["theme"], "n7")
+        r2 = self.bk.save(A, "i", {"theme": "z"}, prev_at=12345)   # prev que não é a mais nova: não substitui
+        self.assertEqual(len(self.bk.own(A)), 3)
+        self.assertTrue(r2["saved"])
+
     def test_empty_never_overwrites(self):
         self.bk.save(A, "i", {"theme": "x"})
         with self.assertRaises(dbk.BackupError):

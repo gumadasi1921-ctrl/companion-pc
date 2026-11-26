@@ -1665,7 +1665,7 @@ DEVBK = devbackup.DeviceBackups(BASE)
 def devbk_op(name, p):
     """Backup do estado do app (devbackup.py). Só o aparelho com o id inteiro grava/lê o seu; outro aparelho só por `ref`."""
     if name == "save":
-        return DEVBK.save(p.get("id"), p.get("name"), p.get("data"))
+        return DEVBK.save(p.get("id"), p.get("name"), p.get("data"), p.get("prev"))
     if name == "info":   # o que existe: versões do próprio aparelho + backups de outros (nome/data/ref)
         return {"own": DEVBK.own(p.get("id")), "others": DEVBK.others(p.get("id"))}
     if name == "get":
