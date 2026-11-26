@@ -2553,6 +2553,84 @@ const lumeRoomCss = (r) => `:root{${r.vars}}` + r.css;
 // cópia de trabalho do perfil em uso (o script do tema, antes da primeira tela, e todo o resto seguem lendo as mesmas chaves);
 // um gancho em store.set espelha cada mudança no perfil ativo. "Padrão" (id default) sempre existe. Nada aqui leva token,
 // endereço de PC ou caminho: o pacote de compartilhar usa uma lista de campos permitidos (SHARE).
+/* HG:begin */
+// Grade do Início (pura, sem DOM; testada em tests/test_homegrid.js). Cada widget tem posição própria {id,size,page,c,r}.
+// Modos: land (celular deitado, 3×2 por página, até 3 páginas), tablet (4×3) e port (em pé: 2 colunas × linhas que rolam, 1 "página").
+// Regras: soltar põe o widget na célula-alvo; quem estava no caminho vai para o primeiro espaço livre (troca de lugar);
+// depois todos "sobem" dentro da própria coluna (gravidade vertical, nunca para o lado: coluna livre continua livre).
+const HG = (() => {
+  const SZ = { P: [1, 1], A: [1, 2], L: [2, 1], G: [2, 2] };
+  const GRID = { land: [3, 2], tablet: [4, 3], port: [2, 60] }, PAGES = 3, MODES = ["land", "port", "tablet"];
+  const dims = (mode) => { const g = GRID[mode] || GRID.land; return { C: g[0], R: g[1], pages: mode === "port" ? 1 : PAGES }; };
+  const wh = (it) => SZ[it.size] || SZ.P;
+  const int = (v, a, b) => Number.isInteger(v) && v >= a && v <= b;
+  const has = (it) => int(it.page, 0, 2) && int(it.c, 1, 4) && int(it.r, 1, 60);
+  const key = (it) => it.page * 1e6 + it.r * 1000 + it.c;
+  const order = (l) => [...l].sort((a, b) => key(a) - key(b));
+  const grid = (mode) => ({ d: dims(mode), pg: [] });
+  const cells = (g, p) => (g.pg[p] ||= Array.from({ length: g.d.R }, () => Array(g.d.C).fill(0)));
+  const free = (g, p, c, r, w, h) => {
+    if (p < 0 || p >= g.d.pages || c < 1 || r < 1 || c + w - 1 > g.d.C || r + h - 1 > g.d.R) return false;
+    const m = cells(g, p);
+    for (let y = r - 1; y < r - 1 + h; y++) for (let x = c - 1; x < c - 1 + w; x++) if (m[y][x]) return false;
+    return true;
+  };
+  const mark = (g, it, v = 1) => { const [w, h] = wh(it), m = cells(g, it.page); for (let y = it.r - 1; y < it.r - 1 + h; y++) for (let x = it.c - 1; x < it.c - 1 + w; x++) m[y][x] = v; };
+  const spot = (g, w, h, first = 0) => {
+    const ps = [first, ...Array.from({ length: g.d.pages }, (_, i) => i).filter((i) => i !== first)].filter((p) => p >= 0 && p < g.d.pages);
+    for (const p of ps) for (let r = 1; r + h - 1 <= g.d.R; r++) for (let c = 1; c + w - 1 <= g.d.C; c++) if (free(g, p, c, r, w, h)) return { page: p, c, r };
+    return null;
+  };
+  const clean = (it) => ({ id: it.id, size: SZ[it.size] ? it.size : "P", page: it.page, c: it.c, r: it.r });
+  const renum = (l) => { const used = [...new Set(l.map((x) => x.page))].sort((a, b) => a - b); return l.map((x) => ({ ...x, page: used.indexOf(x.page) })); };
+  // Arruma uma lista qualquer: o que tem posição válida e livre fica onde está (na ordem de leitura); o resto vai para o 1º espaço livre.
+  function settle(list, mode) {
+    const g = grid(mode), seen = new Set(), items = [];
+    for (const it of list || []) { if (!it || typeof it.id !== "string" || seen.has(it.id)) continue; seen.add(it.id); items.push({ id: it.id, size: SZ[it.size] ? it.size : "P", page: it.page, c: it.c, r: it.r }); }
+    const placed = [], pending = [];
+    for (const it of order(items.filter(has).map((x) => ({ ...x, page: x.page })))) {
+      const [w, h] = wh(it);
+      if (free(g, it.page, it.c, it.r, w, h)) { mark(g, it); placed.push(it); } else pending.push(it);
+    }
+    for (const it of items) if (!has(it)) pending.push(it);
+    const over = [];
+    for (const it of pending) {
+      const [w, h] = wh(it), s = spot(g, w, h);
+      if (!s) { over.push(it.id); continue; }
+      const n = { ...clean(it), ...s }; mark(g, n); placed.push(n);
+    }
+    return { list: order(renum(placed)), over };
+  }
+  // Pela ordem da lista (como a distribuição antiga): migração, "Organizar por lista" e padrão.
+  const fromOrder = (list, mode) => settle((list || []).map((x) => ({ id: x.id, size: x.size })), mode);
+  function gravity(list, mode) {
+    const g = grid(mode), out = [];
+    for (const it of order(list)) { let r = it.r; const [w, h] = wh(it); while (r > 1 && free(g, it.page, it.c, r - 1, w, h)) r--; const n = { ...it, r }; mark(g, n); out.push(n); }
+    return order(out);
+  }
+  const hit = (a, b) => { const [aw, ah] = wh(a), [bw, bh] = wh(b); return a.page === b.page && a.c < b.c + bw && b.c < a.c + aw && a.r < b.r + bh && b.r < a.r + ah; };
+  // Põe `it` (já com o tamanho novo) em tgt; quem estava no caminho vai para o 1º espaço livre. null = não cabe.
+  function put(list, it, tgt, mode) {
+    const d = dims(mode), [w, h] = wh(it);
+    const m = { ...clean(it), page: Math.max(0, Math.min(d.pages - 1, tgt.page | 0)), c: Math.max(1, Math.min(d.C - w + 1, tgt.c | 0)), r: Math.max(1, Math.min(d.R - h + 1, tgt.r | 0)) };
+    const g = grid(mode); mark(g, m);
+    const out = [m], disp = [];
+    for (const x of order(list.filter((y) => y.id !== it.id))) { if (hit(m, x)) disp.push(x); else { mark(g, x); out.push(x); } }
+    for (const x of disp) { const [xw, xh] = wh(x), s = spot(g, xw, xh); if (!s) return null; const n = { ...x, ...s }; mark(g, n); out.push(n); }
+    return order(renum(gravity(out, mode)));
+  }
+  const move = (list, id, tgt, mode) => { const it = list.find((x) => x.id === id); return it ? put(list, it, tgt, mode) : null; };
+  const resize = (list, id, size, mode) => { const it = list.find((x) => x.id === id); return it && SZ[size] ? put(list, { ...it, size }, it, mode) : null; };
+  function add(list, id, size, mode, page = 0) {
+    if (list.some((x) => x.id === id) || !SZ[size]) return null;
+    const g = grid(mode); for (const x of list) mark(g, x);
+    const s = spot(g, ...SZ[size], page); return s ? order(renum([...list, { id, size, ...s }])) : null;
+  }
+  const removeIn = (list, id, mode) => order(renum(gravity(list.filter((x) => x.id !== id), mode)));
+  const pagesUsed = (list) => list.reduce((a, x) => Math.max(a, x.page + 1), 0);
+  return { SZ, GRID, PAGES, MODES, dims, settle, fromOrder, gravity, move, resize, add, remove: removeIn, order, pagesUsed, has };
+})();
+/* HG:end */
 /* LAY:begin */
 function makeLayouts(store, rid, now, defaults) {
   const KEYS = ["theme", "variant", "mode", "accent", "crt", "home", "homepg", "tab", "views", "nav"];
@@ -2567,15 +2645,17 @@ function makeLayouts(store, rid, now, defaults) {
     return t;
   };
   const validHome = (h) => {
-    if (!isObj(h) || (h.v !== 1 && h.v !== 2)) return null;
-    const out = { v: h.v };
-    for (const dev of ["phone", "tablet"]) {
+    if (!isObj(h) || (h.v !== 1 && h.v !== 2 && h.v !== 3)) return null;
+    const out = { v: h.v }, intIn = (n, a, b) => Number.isInteger(n) && n >= a && n <= b;
+    for (const dev of h.v === 3 ? ["land", "port", "tablet"] : ["phone", "tablet"]) {
       if (!(dev in h)) continue;
       if (!Array.isArray(h[dev]) || h[dev].length > 40) return null;
       const list = [];
       for (const it of h[dev]) {
         if (!isObj(it) || typeof it.id !== "string" || !/^[a-z0-9_]{1,24}$/.test(it.id) || !SIZES.includes(it.size)) return null;
-        list.push({ id: it.id, size: it.size });
+        const o = { id: it.id, size: it.size };
+        if (h.v === 3 && intIn(it.page, 0, 2) && intIn(it.c, 1, 4) && intIn(it.r, 1, 60)) { o.page = it.page; o.c = it.c; o.r = it.r; }   // posição torta: some, o app reempacota
+        list.push(o);
       }
       out[dev] = list;
     }

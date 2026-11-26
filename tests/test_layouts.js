@@ -116,4 +116,17 @@ const HOME = { v: 2, phone: [{ id: "now", size: "A" }, { id: "cpu", size: "P" }]
   const { L: L3 } = fresh({ theme: "fallout", home: HOME }); L3.init();
   t("perfil antigo (sem nav) continua válido", L3.pack("default").data.nav, undefined);
 }
+// ---- widgets do Início v3 (posição por widget): validação ao importar/compartilhar
+{
+  const { L } = fresh({ theme: "modern" });
+  const H3 = { v: 3, land: [{ id: "now", size: "A", page: 0, c: 1, r: 1 }, { id: "cpu", size: "P", page: 0, c: 9, r: 1 }, { id: "net", size: "L" }], port: [{ id: "now", size: "P", page: 0, c: 2, r: 4 }], tablet: [] };
+  const e = L.import(JSON.stringify({ companion_layout: 1, name: "v3", data: { theme: "fallout", home: H3 } })), h = L.pack(e.id).data.home;
+  t("v3 passa e guarda a posição válida", [h.v, h.land[0]], [3, { id: "now", size: "A", page: 0, c: 1, r: 1 }]);
+  t("posição torta some (o app reempacota), o widget fica", [h.land[1], h.land[2]], [{ id: "cpu", size: "P" }, { id: "net", size: "L" }]);
+  t("em pé também", h.port[0], { id: "now", size: "P", page: 0, c: 2, r: 4 });
+  const bad = L.import(JSON.stringify({ companion_layout: 1, name: "x", data: { theme: "fallout", home: { v: 3, land: [{ id: "<x>", size: "A" }] } } }));
+  t("id torto derruba só o home (resto do pacote vale)", [L.pack(bad.id).data.theme, "home" in L.pack(bad.id).data], ["fallout", false]);
+  const old = L.import(JSON.stringify({ companion_layout: 1, name: "v2", data: { theme: "fallout", home: HOME } }));
+  t("v2 antigo ainda importa", L.pack(old.id).data.home, HOME);
+}
 process.exit(fail ? 1 : 0);
