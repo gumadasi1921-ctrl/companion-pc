@@ -28,7 +28,8 @@ API = "https://api.trello.com/1/"
 TIMEOUT_S = 10
 REFRESH_S = 300          # automático, só com aparelho
 MANUAL_MIN_S = 60        # ao abrir Tarefas, no máximo 1x por minuto
-TODO_MODES, MAX_POSITION = ("off", "list", "position"), 20
+TODO_MODES, MAX_POSITION = ("off", "today", "list", "position"), 20
+TODO_DEFAULT = {"mode": "today", "list_id": "", "position": 1}     # padrão: a lista cujo nome começa com "DIA <dia de hoje>"
 SHORT_RX = re.compile(r"^[A-Za-z0-9]{8}$")
 CRED_RX = re.compile(r"^[A-Za-z0-9_-]{16,200}$")
 GROUPS = ("overdue", "today", "tomorrow", "week", "later", "none")
@@ -146,10 +147,16 @@ def clean_scope(v, cur=None):
     return {"mode": v["mode"], "prefixes": pre, "ids": ids, "workspace": " ".join(ws.split())}
 
 
+def today_list_rx(day):
+    """Regra fixa da lista do dia: nome (já normalizado por norm) começa com "dia " + dia do mês, com ou sem zero à esquerda,
+    seguido de espaço, hífen ou fim. "dia 2" nunca casa com "dia 26"; só esse formato, nada de adivinhar outro dia."""
+    return re.compile(r"^dia 0*%d(?:[\s-]|$)" % int(day))
+
+
 def clean_todo(v, cur=None):
-    """A fazer: off | list (id da lista) | position (N-ésima lista aberta de cada quadro do filtro)."""
+    """A fazer: today (lista "DIA <hoje>", padrão) | list (id da lista) | position (N-ésima lista aberta de cada quadro) | off."""
     if v is None:
-        v = cur if isinstance(cur, dict) else {"mode": "off"}
+        v = cur if isinstance(cur, dict) else {"mode": "today"}
     if not isinstance(v, dict) or set(v) - {"mode", "list_id", "position"} or v.get("mode") not in TODO_MODES:
         raise ValueError("Trello: A fazer inválido")
     out = {"mode": v["mode"], "list_id": "", "position": 1}
@@ -218,6 +225,8 @@ class Trello:
         self.user = None
         self.notified = ""
         self.ignored, self.found = 0, dict(NOFOUND)
+        self.todo_day = None          # dia (do Brasil) em que "A fazer" foi calculado: virou a meia-noite = relê
+        self.lists_used = {"todo": [], "running": [], "approved": []}   # só para o painel: quais listas valem AGORA
         self.done, self.baseline = {}, set()
         self._load()
 
@@ -269,10 +278,10 @@ class Trello:
         try:
             scope = clean_scope(c.get("scope"), {"mode": "all"}) if c.get("scope") else {"mode": "all", "prefixes": [], "ids": [], "workspace": ""}
             running, approved = _names(c.get("running"), "", DEFAULT_RUNNING), _names(c.get("approved"), "", DEFAULT_APPROVED)
-            todo = clean_todo(c.get("todo"), {"mode": "off"})
+            todo = clean_todo(c.get("todo"), {"mode": "today"})
         except ValueError:
             scope, running, approved = {"mode": "all", "prefixes": [], "ids": [], "workspace": ""}, list(DEFAULT_RUNNING), list(DEFAULT_APPROVED)
-            todo = {"mode": "off", "list_id": "", "position": 1}
+            todo = dict(TODO_DEFAULT)
         return {"scope": scope, "running": running, "approved": approved, "todo": todo}
 
     def enabled(self):
@@ -301,13 +310,21 @@ class Trello:
 
     def cfg_view(self):
         """Para o painel: filtro e listas (nunca credencial) + o que a última leitura achou."""
-        return {**self.cfg(), "found": dict(self.found), "ignored": self.ignored}
+        today = self.today()
+        cards = [c for c in self.cards if c.get("cat") in ("todo", "running")]
+        counts = {"todo": sum(c["cat"] == "todo" for c in cards), "running": sum(c["cat"] == "running" for c in cards),
+                  "done": self.done_counts(today)["today"]}
+        return {**self.cfg(), "found": dict(self.found), "ignored": self.ignored, "lists": {k: list(v) for k, v in self.lists_used.items()},
+                "counts": counts, "day": today.day}
 
     # -- leitura --------------------------------------------------------------
     def due(self, has_clients):
         if not has_clients or not self.enabled() or self.blocked:
             return False
-        return self.clock() - self.try_at >= (MANUAL_MIN_S if self.error else REFRESH_S)   # depois de erro de rede, tenta em 1 min
+        gap = self.clock() - self.try_at
+        if self.todo_day and self.todo_day != self.today() and self.cfg()["todo"]["mode"] == "today":
+            return gap >= MANUAL_MIN_S                                  # virou o dia: a lista de hoje é outra, relê sem esperar 5 min
+        return gap >= (MANUAL_MIN_S if self.error else REFRESH_S)   # depois de erro de rede, tenta em 1 min
 
     def refresh_manual(self):
         """Ao abrir Tarefas: no máximo 1x por minuto. True se buscou."""
@@ -388,9 +405,10 @@ class Trello:
                 if li["board"] in scoped:
                     found["running"] += norm(li["name"]) in run
                     found["approved"] += norm(li["name"]) in apr
-            todo_ids = self._todo_ids(cfg["todo"], scoped)
+            today = datetime.fromtimestamp(now, TZ).date()
+            todo_ids = self._todo_ids(cfg["todo"], scoped, today.day)
             if cfg["todo"]["mode"] != "off":
-                found["todo"] = "ok" if todo_ids else "missing"       # lista escolhida sumiu / posição que nenhum quadro tem: nunca adivinha
+                found["todo"] = "ok" if todo_ids else "missing"       # sem lista de hoje / lista escolhida sumiu / posição que nenhum quadro tem: nunca adivinha
                 found["todo_clash"] = sum(1 for i in todo_ids if norm(self.lists[i]["name"]) in run | apr)
             cards, ignored = [], 0
             for c in raw:
@@ -410,6 +428,9 @@ class Trello:
                                          for lb in (c.get("labels") or []) if isinstance(lb, dict)][:8],
                               "act": c.get("dateLastActivity") if isinstance(c.get("dateLastActivity"), str) else None})
             self.cards, self.at, self.error, self.ignored, self.found = cards, now, None, ignored, found
+            self.todo_day = today
+            self.lists_used = {k: self._used(scoped, pick) for k, pick in
+                               (("todo", lambda i, n: i in todo_ids), ("running", lambda i, n: norm(n) in run), ("approved", lambda i, n: norm(n) in apr))}
             self._track_done(key, token, cards, scoped, apr)
             self._save()
             return True
@@ -426,8 +447,17 @@ class Trello:
             log.warning("trello: %s", type(e).__name__)
             return True
 
-    def _todo_ids(self, todo, scoped):
-        """Ids das listas de "A fazer": a escolhida (se ainda existe num quadro do filtro) ou a N-ésima lista aberta de cada quadro do filtro."""
+    def _used(self, scoped, pick):
+        """[{list, board}] das listas dos quadros do filtro que `pick(id, nome)` aceita (só para o painel mostrar o que vale agora)."""
+        out = [{"list": li["name"], "board": self.boards[li["board"]]["name"]} for i, li in self.lists.items() if li["board"] in scoped and pick(i, li["name"])]
+        return sorted(out, key=lambda x: (x["board"].casefold(), x["list"].casefold()))[:10]
+
+    def _todo_ids(self, todo, scoped, day=None):
+        """Ids das listas de "A fazer": today = a lista "DIA <dia de hoje>" de cada quadro do filtro; list = a escolhida (se ainda existe num
+        quadro do filtro); position = a N-ésima lista aberta de cada quadro do filtro."""
+        if todo["mode"] == "today":
+            rx = today_list_rx(day if day is not None else self.today().day)
+            return {i for i, li in self.lists.items() if li["board"] in scoped and rx.match(norm(li["name"]))}
         if todo["mode"] == "list":
             li = self.lists.get(todo["list_id"])
             return {todo["list_id"]} if li and li["board"] in scoped else set()
@@ -560,7 +590,8 @@ class Trello:
         return {"state": st["state"], "on": st["on"], "at": st["at"], "hhmm": datetime.fromtimestamp(self.at, TZ).strftime("%H:%M") if self.at else None,
                 "today": today.isoformat(), "groups": groups, "counts": {g: len(groups[g]) for g in GROUPS},
                 "ignored": self.ignored, "found": dict(self.found),
-                "todo": {"state": self.found.get("todo", "off"), "items": todo, "count": len(todo)},
+                "todo": {"state": self.found.get("todo", "off"), "items": todo, "count": len(todo),
+                         "day": today.day if self.cfg()["todo"]["mode"] == "today" else None},
                 "done": {**self.done_counts(today), "recent": self.done_list(), "by_day": self.done_by_day(today=today), "prior": prior}}
 
     def all_cards(self):

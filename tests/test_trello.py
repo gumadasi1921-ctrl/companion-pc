@@ -119,6 +119,7 @@ class TrelloTests(unittest.TestCase):
         return [c["name"] for g in st["groups"].values() for c in g] + [c["name"] for c in st["todo"]["items"]]
 
     def test_only_running_lists_become_tasks(self):
+        self.cfg["todo"] = {"mode": "off"}
         self.assertTrue(self.t.refresh())
         st = self.t.state()
         g = {k: [c["name"] for c in v] for k, v in st["groups"].items()}
@@ -133,7 +134,7 @@ class TrelloTests(unittest.TestCase):
             self.assertNotIn(hidden, names)                                   # Aprovar não vira tarefa; A fazer desligado não aparece
         self.assertEqual(st["ignored"], 4)                                    # backlog, caixa de entrada e os 2 da lista do dia (A fazer desligado)
         self.assertEqual((st["found"]["boards"], st["found"]["running"], st["found"]["approved"], st["found"]["todo"]), (3, 3, 2, "off"))
-        self.assertEqual(st["todo"], {"state": "off", "items": [], "count": 0})
+        self.assertEqual(st["todo"], {"state": "off", "items": [], "count": 0, "day": None})
         c = st["groups"]["overdue"][0]
         self.assertEqual((c["board"], c["list"], c["short"], c["due"]), ("TIME | NOVEMBRO", "Em execução", "c1AAAAAA", "2026-11-23"))
         self.assertEqual(c["labels"][0], {"n": "Urgente", "c": "red"})
@@ -238,6 +239,77 @@ class TrelloTests(unittest.TestCase):
         self.t.invalidate()
         self.t.refresh()
         self.assertEqual(self.t.state()["todo"]["state"], "missing")
+
+    # ---- A fazer = "Lista de hoje pela data" (padrão): nome começa com "DIA <dia>" no fuso do Brasil
+    def day_boards(self, names, bid="b1"):
+        self.fake.boards[bid]["lists"] = {"x%d" % i: n for i, n in enumerate(names)} | {"l2": "Em execução", "l3": "Aprovar"}
+        self.fake.cards = [card("t%d" % i, "Card " + n, bid, "x%d" % i) for i, n in enumerate(names)]
+
+    def todo_names(self):
+        return sorted(c["name"] for c in self.t.state()["todo"]["items"])
+
+    def test_today_rule_is_exact_and_never_confuses_2_with_26(self):
+        for day, ok in ((2, ["DIA 2 - SEGUNDA"]), (6, ["DIA 06 - SEXTA", "dia  6"]), (26, ["DIA 26 - QUINTA-FEIRA", "DIA 026"])):
+            rx = trello.today_list_rx(day)
+            for n in ["DIA 2 - SEGUNDA", "DIA 26 - QUINTA-FEIRA", "DIA 06 - SEXTA", "dia  6", "DIA 026", "DIA 6-X", "DIA 20", "DIA 12", "DIA", "Dia 2x", "DIA 2.", "DIAS 2", "Backlog 26", "Terça 26/11"]:
+                self.assertEqual(bool(rx.match(trello.norm(n))), n in ok or (n == "DIA 6-X" and day == 6), (day, n))
+        self.assertTrue(trello.today_list_rx(26).match(trello.norm(" DIA   26 ")))      # espaços colapsados; só o fim também vale
+        self.assertTrue(trello.today_list_rx(2).match(trello.norm("DIA 02")))
+
+    def test_today_mode_is_default_and_picks_only_todays_list(self):
+        self.day_boards(["DIA 2 - SEGUNDA", "DIA 06 - SEXTA", "DIA 26 - QUINTA-FEIRA", "DIA 27 - SEXTA", "Backlog"])
+        self.now[0] = utc(2026, 11, 26, 15)                                            # quinta 26/11 12:00 em Brasília; cfg sem "todo" = padrão
+        self.t.refresh()
+        st = self.t.state()
+        self.assertEqual((self.todo_names(), st["todo"]["state"], st["todo"]["day"]), (["Card DIA 26 - QUINTA-FEIRA"], "ok", 26))
+        self.assertEqual(self.t.cfg_view()["lists"]["todo"], [{"list": "DIA 26 - QUINTA-FEIRA", "board": "TIME | NOVEMBRO"}])
+        self.assertEqual(self.t.cfg_view()["counts"]["todo"], 1)
+        for d, want in ((2, "DIA 2 - SEGUNDA"), (6, "DIA 06 - SEXTA")):                # sem zero no nome / com zero: dia 2 não pega o 26
+            self.now[0] = utc(2026, 12, d, 15)
+            self.t.invalidate()
+            self.t.refresh()
+            self.assertEqual(self.todo_names(), ["Card " + want], d)
+
+    def test_today_mode_without_list_never_takes_another_day(self):
+        self.day_boards(["DIA 25 - QUARTA-FEIRA", "DIA 27 - SEXTA"])
+        self.now[0] = utc(2026, 11, 26, 15)
+        self.t.refresh()
+        st = self.t.state()
+        self.assertEqual((st["todo"]["state"], st["todo"]["count"], st["todo"]["day"], st["found"]["todo"]), ("missing", 0, 26, "missing"))
+        self.assertEqual(self.t.cfg_view()["lists"]["todo"], [])
+
+    def test_today_mode_rolls_over_at_midnight_brazil_without_waiting_5_min(self):
+        self.day_boards(["DIA 26 - QUINTA-FEIRA", "DIA 27 - SEXTA"])
+        self.now[0] = utc(2026, 11, 27, 1, 50)                                         # 22:50 de 26/11 em Brasília
+        self.t.refresh()
+        self.assertEqual(self.todo_names(), ["Card DIA 26 - QUINTA-FEIRA"])
+        self.now[0] += 120                                                             # 22:52: nada mudou, a próxima leitura é só em 5 min
+        self.assertFalse(self.t.due(True))
+        self.now[0] = utc(2026, 11, 27, 3, 0, ) + 5                                    # 00:00:05 de 27/11 em Brasília (03:00 UTC)
+        self.assertTrue(self.t.due(True))                                              # virou o dia: relê antes dos 5 min
+        self.t.refresh()
+        self.assertEqual((self.todo_names(), self.t.state()["todo"]["day"]), (["Card DIA 27 - SEXTA"], 27))
+        self.now[0] += 10
+        self.assertFalse(self.t.due(True))                                             # e não fica relendo em laço
+
+    def test_today_mode_uses_brazil_day_not_utc(self):
+        self.day_boards(["DIA 26 - QUINTA-FEIRA", "DIA 27 - SEXTA"])
+        self.now[0] = utc(2026, 11, 27, 2, 30)                                         # 27/11 02:30 UTC = 26/11 23:30 em Brasília
+        self.t.refresh()
+        self.assertEqual(self.todo_names(), ["Card DIA 26 - QUINTA-FEIRA"])
+
+    def test_today_mode_old_modes_still_work_and_clean_cfg(self):
+        out = trello.clean_cfg({"on": True, "todo": {"mode": "today"}}, {"key": KEY, "token": TOKEN, "on": True})
+        self.assertEqual(out["todo"], {"mode": "today", "list_id": "", "position": 1})
+        self.day_boards(["DIA 26 - QUINTA-FEIRA", "Outra"])
+        self.now[0] = utc(2026, 11, 26, 15)
+        self.cfg["todo"] = {"mode": "list", "list_id": "x1", "position": 1}
+        self.t.refresh()
+        self.assertEqual(self.todo_names(), ["Card Outra"])
+        self.cfg["todo"] = {"mode": "position", "list_id": "", "position": 1}
+        self.t.invalidate()
+        self.t.refresh()
+        self.assertEqual(self.todo_names(), ["Card DIA 26 - QUINTA-FEIRA"])
 
     def test_todo_name_match_wins_over_position_and_is_reported(self):
         self.cfg["todo"] = {"mode": "list", "list_id": "l2", "position": 1}         # "Em execução" escolhida como A fazer: o nome ganha
@@ -473,7 +545,7 @@ class TrelloTests(unittest.TestCase):
         cur = {"key": KEY, "token": TOKEN, "on": True}
         out = trello.clean_cfg({"on": True}, cur)                                   # formato antigo: só liga/desliga
         self.assertEqual((out["key"], out["token"], out["scope"]["mode"], out["running"], out["approved"], out["todo"]["mode"]),
-                         (KEY, TOKEN, "all", ["Em execução"], ["Aprovar"], "off"))
+                         (KEY, TOKEN, "all", ["Em execução"], ["Aprovar"], "today"))   # sem escolha salva: lista de hoje pela data
         ok = trello.clean_cfg({"on": True, "scope": {"mode": "prefix", "prefixes": ["TIME |"], "workspace": " CONCEPT "}, "running": ["Em execução", "Fazendo"],
                                "approved": ["Aprovar"], "todo": {"mode": "position", "position": 1}}, cur)
         self.assertEqual((ok["scope"]["prefixes"], ok["scope"]["workspace"], ok["running"], ok["todo"]), (["TIME |"], "CONCEPT", ["Em execução", "Fazendo"], {"mode": "position", "list_id": "", "position": 1}))

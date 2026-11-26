@@ -4128,7 +4128,7 @@ function trRender() {
   setHtml(el, `<div class="tk-h">Trello${d.hhmm && d.state === "ok" ? ` · atualizado às ${esc(d.hhmm)}` : ""}</div>${msg ? `<div class="trl-msg" role="status">${esc(msg)}</div>` : ""}`
     + (live ? trTiles(d) : "")
     + (f.state === "off" ? "" : `<div class="trl-g" id="trl-todo"><div class="trl-sh">A fazer${f.state === "ok" ? ` · ${f.count}` : ""}</div>`
-      + (f.state === "missing" ? '<div class="trl-msg" role="status">Lista não encontrada. Escolha outra no painel do PC (Ajustes › Trello).</div>'
+      + (f.state === "missing" ? (f.day ? `<div class="trl-msg" role="status">Sem lista de hoje (DIA ${f.day}).</div>` : '<div class="trl-msg" role="status">Lista não encontrada. Escolha outra no painel do PC (Ajustes › Trello).</div>')
         : f.count ? `<div class="tk-grp">${f.items.map((c) => trCard(c, c.late)).join("")}</div>` : '<div class="tk-empty">Nada na lista do dia.</div>') + "</div>")
     + `<div class="trl-g" id="trl-run"><div class="trl-sh">Em execução${n ? ` · ${n}` : ""}</div>`
     + TR_GROUPS.map(([k, name]) => (d.groups[k].length ? `<div class="trl-g${k === "overdue" ? " late" : ""}"><div class="trl-gh">${name} · ${d.groups[k].length}</div><div class="tk-grp">${d.groups[k].map((c) => trCard(c, k === "overdue")).join("")}</div></div>` : "")).join("")
@@ -4567,7 +4567,7 @@ const HOME_W = {
       setText(hk(el, "np"), off ? "–" : String(np));
       el.classList.toggle("htr-late", !!late && !off);
       setText(hk(el, "cnt"), off || !late ? "" : `${late} ${late === 1 ? "atrasado" : "atrasados"}`);
-      const grp = off ? off : f.state === "missing" ? "A fazer: lista não encontrada" : d.done && d.done.week ? `Pronto: semana ${d.done.week} · mês ${d.done.month}` : "";
+      const grp = off ? off : f.state === "missing" ? (f.day ? "Sem lista de hoje (DIA " + f.day + ")" : "A fazer: lista não encontrada") : d.done && d.done.week ? `Pronto: semana ${d.done.week} · mês ${d.done.month}` : "";
       setText(hk(el, "grp"), grp);
       const next = [...(f.items || []), ...["overdue", "today", "tomorrow", "week", "later", "none"].flatMap((k) => d.groups[k].map((x) => ({ ...x, late: k === "overdue" })))];
       const pg = !!el.closest(".pager"), n = z === "L" ? 2 : pg ? 8 : 3;
