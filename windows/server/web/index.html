@@ -651,6 +651,7 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .mlist { display: grid; max-width: 560px; margin: 4px auto 0; border: 1px solid var(--p4); background: var(--panel); }
 .mrow { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 52px; padding: 0 14px; text-align: left; font-size: 16px; border-top: 1px solid var(--p4); }
 .mrow:first-child { border-top: 0; }
+.mnone { padding: 16px 14px; color: var(--p3t); font-size: 14px; }
 .mrow .mi { display: none; width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .mrow::after { content: ">"; margin-left: auto; color: var(--p3t); }
 .mrow:active { background: var(--p); color: var(--bg); text-shadow: none; }
@@ -3616,9 +3617,9 @@ function navBuild() {
   nav.insertAdjacentHTML("beforeend",
     '<div class="nav-scroll">' + navBar.map((id) => `<button data-nid="${id}">${navIc(NAVM[id][2], "ni")}<span>${NAVM[id][0]}</span>${bdg(id)}</button>`).join("") +
     (rest.length ? '<div class="nav-label nm-label">Mais</div>' + rest.map((id) => `<button class="nm" data-nid="${id}">${navIc(NAVM[id][2], "ni")}<span>${NAVM[id][1]}</span>${bdg(id)}</button>`).join("") : "") + "</div>" +
-    (rest.length ? `<button class="nav-more" data-nid="mais" data-sec="mais">${navIc("ellipsis", "ni")}<span>Mais</span></button>` : ""));
+    (rest.length || railMQ.matches ? `<button class="nav-more" data-nid="mais" data-sec="mais">${navIc("ellipsis", "ni")}<span>Mais</span></button>` : ""));
   const sc = nav.querySelector(".nav-scroll"); sc.addEventListener("scroll", navFade, { passive: true }); if (window.ResizeObserver) new ResizeObserver(navFade).observe(sc);
-  $("more-list").innerHTML = rest.map((id) => `<button class="mrow" data-nid="${id}">${navIc(NAVM[id][2], "mi")}<span>${NAVM[id][1]}</span>${bdg(id)}</button>`).join("");
+  $("more-list").innerHTML = !rest.length ? '<div class="mnone">Todos os itens já estão na barra lateral.</div>' : rest.map((id) => `<button class="mrow" data-nid="${id}">${navIc(NAVM[id][2], "mi")}<span>${NAVM[id][1]}</span>${bdg(id)}</button>`).join("");
   navBadge(); navMark(prefs.tab);
 }
 function navFade() {   // fade em cima/embaixo só no trilho (no .nav-scroll com display: contents não há rolagem) quando ainda há itens fora da vista
