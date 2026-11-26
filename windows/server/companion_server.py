@@ -1229,6 +1229,9 @@ ASYNC_ACTIONS = {
     "pomo.config": lambda p: pomo_run("config", p),
     "agenda.get": lambda p: agenda_get(p),
     "agenda.join": lambda p: agenda_join(p),
+    "agenda.month": lambda p: agenda_month(p),
+    "agenda.new": lambda p: agenda_new(p),
+    "agenda.open": lambda p: agenda_open(p),
     **{f"devbk.{n}": (lambda p, n=n: on_io(devbk_op, n, p)) for n in ("save", "info", "get")},
     **{f"reminders.{n}": (lambda p, n=n: rem_run(n, p)) for n in ("get", "add", "edit", "remove", "restore", "done", "snooze", "clear")},
     "timer.start": lambda p: TIMER.start(p.get("action"), p.get("minutes")),
@@ -1613,7 +1616,7 @@ QUIET_ACTIONS = {"work.link_pick", "work.link_none", "work.link_later", "work.li
                  "tasks_remove", "tasks_move", "tasks_toggle", "tasks_clear_done", "tasks_restore", "work_get",
                  "work_week", "work_csv", "work_month", "work_month_csv", "work_note_set", "work_add_root", "work_remove_root", "work_assign_preview", "work_assign",
                  "work_ignore", "work_rules_get", "work_rule_delete", "work_unignore", "config_get", "config_save", "open_focus", "backup_run", "trello_test", "trello_boards", "trello_boards",
-                 "update_info", "update_check", "update_apply", "update_rollback", "agenda_test", "agenda.get", "agenda.join",
+                 "update_info", "update_check", "update_apply", "update_rollback", "agenda_test", "agenda.get", "agenda.join", "agenda.month", "agenda.new", "agenda.open",
                  "trello.get", "trello.open", "work_links_get", "work_link_set", "work_link_delete", "work_link_restore", "work_nolink_get", "work_nolink_delete", "trello_cards",
                  "monday.get", "monday.open", "monday_test", "monday_boards", "monday_items", "work_mlinks_get", "work_mlink_set", "work_mlink_delete", "work_mlink_restore"}
 
@@ -1806,6 +1809,25 @@ async def agenda_join(p):
     if not link:
         raise ValueError("essa reunião não tem link")
     os.startfile(link)   # só link https de Meet/Zoom/Teams guardado no cache (nunca URL vinda do celular)
+    return {"ok": True}
+
+
+async def agenda_month(p):
+    y, m = p.get("year"), p.get("month")
+    return await on_io(AGENDA.month, y, m)
+
+
+async def agenda_new(p):
+    url = await on_io(AGENDA.new_url, p.get("day"))   # o servidor monta o link (só calendar.google.com); o celular manda só a data
+    os.startfile(url)   # navegador padrão do PC
+    AGENDA.note_opened()
+    return {"ok": True}
+
+
+async def agenda_open(p):
+    url = await on_io(AGENDA.open_url, _need(p, "id", str))
+    os.startfile(url)
+    AGENDA.note_opened()
     return {"ok": True}
 
 

@@ -410,5 +410,162 @@ class CalTests(unittest.TestCase):
         self.assertFalse(a.due(True))
 
 
+class MonthTests(unittest.TestCase):
+    """`agenda.month`: qualquer mês sem rede, recorrência, dia inteiro, limites, cache; e os links que o SERVIDOR monta."""
+    def setUp(self):
+        self._d = tempfile.TemporaryDirectory()
+        self.base = Path(self._d.name)
+        self.clk = Clock(NOW)   # 25/11/2026 09:00 em São Paulo
+        self.cfg = {"url": "https://calendar.google.com/x/basic.ics", "on": True, "notify_min": 5}
+        self.calls = 0
+        self.feed = ics(
+            ev("UID:r", "SUMMARY:Semanal", "DTSTART;TZID=America/Sao_Paulo:20260105T100000", "DTEND;TZID=America/Sao_Paulo:20260105T110000", "RRULE:FREQ=WEEKLY;BYDAY=MO",
+               "URL:https://calendar.google.com/calendar/event?eid=abcDEF123"),
+            ev("UID:p", "SUMMARY:Passado", "DTSTART;TZID=America/Sao_Paulo:20260310T140000", "DTEND;TZID=America/Sao_Paulo:20260310T150000",
+               "X-GOOGLE-CONFERENCE:https://meet.google.com/abc-defg-hij"),
+            ev("UID:f", "SUMMARY:Futuro", "DTSTART;TZID=America/Sao_Paulo:20270615T100000", "DTEND;TZID=America/Sao_Paulo:20270615T110000"),
+            ev("UID:v", "SUMMARY:Viagem", "DTSTART;VALUE=DATE:20261230", "DTEND;VALUE=DATE:20270103"),
+            ev("UID:l", "SUMMARY:Longe", "DTSTART;TZID=America/Sao_Paulo:20300101T100000", "DTEND;TZID=America/Sao_Paulo:20300101T110000"),
+            ev("UID:o", "SUMMARY:Antigo", "DTSTART;TZID=America/Sao_Paulo:20250101T100000", "DTEND;TZID=America/Sao_Paulo:20250101T110000"))
+
+    def tearDown(self):
+        self._d.cleanup()
+
+    def fetch(self, u):
+        self.calls += 1
+        return self.feed
+
+    def mk(self, read=True):
+        a = agenda.Agenda(self.base, lambda: self.cfg, fetch=self.fetch, clock=self.clk, local_tz=SP)
+        if read:
+            a.refresh()
+        return a
+
+    def test_mes_passado_sem_rede(self):
+        a = self.mk()
+        n = self.calls
+        m = a.month(2026, 3)
+        self.assertEqual(sorted(i["title"] for i in m["items"]), ["Passado"] + ["Semanal"] * 5)
+        self.assertEqual(self.calls, n)   # saiu dos eventos em memória
+        self.assertEqual((m["year"], m["month"], m["today"], m["tz"]), (2026, 3, "2026-11-25", -180))
+        self.assertIn("2026-03-10", m["days"])
+        self.assertTrue([i for i in m["items"] if i["title"] == "Passado"][0]["join"])
+        self.assertNotIn("link", json.dumps(m))   # nenhum link nem URL vai ao celular
+        self.assertNotIn("http", json.dumps(m))
+
+    def test_mes_futuro_e_recorrencia(self):
+        a = self.mk()
+        m = a.month(2027, 6)
+        self.assertEqual(sorted(i["title"] for i in m["items"]), ["Futuro"] + ["Semanal"] * 4)
+        self.assertEqual([i["day"] for i in m["items"] if i["title"] == "Semanal"], ["2027-06-07", "2027-06-14", "2027-06-21", "2027-06-28"])
+
+    def test_dia_inteiro_atravessa_meses(self):
+        a = self.mk()
+        dez, jan = a.month(2026, 12), a.month(2027, 1)
+        v = [i for i in dez["items"] if i["title"] == "Viagem"][0]
+        self.assertEqual((v["allday"], v["days"], v["day"]), (True, 4, "2026-12-30"))
+        self.assertEqual([d for d in dez["days"] if d >= "2026-12-30"], ["2026-12-30", "2026-12-31"])   # só os dias DO mês
+
+    def test_mes_vazio(self):
+        a = self.mk()
+        self.feed = ics()
+        a.refresh()
+        m = a.month(2027, 2)
+        self.assertEqual((m["items"], m["days"], m["state"]), ([], [], "ok"))
+
+    def test_limites_12_atras_24_a_frente(self):
+        a = self.mk()
+        for y, mo in ((2025, 11), (2028, 11)):
+            self.assertEqual(a.month(y, mo)["month"], mo)
+        for y, mo in ((2025, 10), (2028, 12), (2030, 1), (1999, 1)):
+            with self.assertRaises(ValueError):
+                a.month(y, mo)
+        for y, mo in ((2026, 0), (2026, 13), ("2026", 5), (2026, None), (True, 5), (2026.0, 5), (0, 1)):
+            with self.assertRaises(ValueError):
+                a.month(y, mo)
+
+    def test_cache_por_mes_e_invalidacao(self):
+        a = self.mk()
+        m1 = a.month(2026, 3)
+        self.assertIn((2026, 3), a.mcache)
+        self.assertEqual(a.month(2026, 3), m1)
+        self.feed = ics(ev("UID:z", "SUMMARY:Novo", "DTSTART;TZID=America/Sao_Paulo:20260312T100000", "DTEND;TZID=America/Sao_Paulo:20260312T110000"))
+        a.refresh()
+        self.assertEqual(a.mcache, {})
+        self.assertEqual([i["title"] for i in a.month(2026, 3)["items"]], ["Novo"])
+
+    def test_desligado_e_primeira_chamada_depois_de_reiniciar(self):
+        self.cfg = {"url": "", "on": True}
+        a = self.mk(read=False)
+        m = a.month(2026, 3)
+        self.assertEqual((m["items"], m["state"], self.calls), ([], "off", 0))
+        self.cfg = {"url": "https://calendar.google.com/x/basic.ics", "on": True}
+        a = self.mk(read=False)   # servidor recém-iniciado: sem eventos em memória
+        m = a.month(2026, 3)
+        self.assertEqual((self.calls, len(m["items"])), (1, 6))
+        a.month(2026, 4)
+        self.assertEqual(self.calls, 1)   # já em memória: não busca de novo
+
+    def test_novo_evento_hoje_hora_cheia_seguinte(self):
+        a = self.mk()
+        self.assertEqual(a.new_url("2026-11-25"), "https://calendar.google.com/calendar/render?action=TEMPLATE&dates=20261125T100000/20261125T110000")
+        self.clk.t = ep(datetime(2026, 11, 25, 23, 30, tzinfo=SP))
+        self.assertEqual(a.new_url("2026-11-25"), "https://calendar.google.com/calendar/render?action=TEMPLATE&dates=20261126T000000/20261126T010000")
+
+    def test_novo_evento_outro_dia_inteiro_e_validacao(self):
+        a = self.mk()
+        self.assertEqual(a.new_url("2026-12-31"), "https://calendar.google.com/calendar/render?action=TEMPLATE&dates=20261231/20270101")
+        self.assertEqual(a.new_url("2026-11-24"), "https://calendar.google.com/calendar/render?action=TEMPLATE&dates=20261124/20261125")
+        for bad in ("2026-13-01", "2026-02-30", "x&y=1", "2026-11-25&text=oi", "20261125", "", None, 5, "2026-11-25\n", "2030-01-01", "2020-01-01"):
+            with self.assertRaises(ValueError, msg=repr(bad)):
+                a.new_url(bad)
+
+    def test_abrir_evento_link_proprio_ou_visao_do_dia(self):
+        a = self.mk()
+        mar = a.month(2026, 3)["items"]
+        sem = [i for i in mar if i["title"] == "Passado"][0]["id"]
+        com = [i for i in mar if i["title"] == "Semanal"][0]["id"]
+        self.assertEqual(a.open_url(sem), "https://calendar.google.com/calendar/r/day/2026/03/10")
+        self.assertEqual(a.open_url(com), "https://calendar.google.com/calendar/event?eid=abcDEF123")
+        dia = [i for i in a.month(2026, 12)["items"] if i["title"] == "Viagem"][0]["id"]
+        self.assertEqual(a.open_url(dia), "https://calendar.google.com/calendar/r/day/2026/12/30")
+        for bad in ("nao-existe", "", None, 3):
+            with self.assertRaises(ValueError):
+                a.open_url(bad)
+
+    def test_link_do_evento_so_no_formato_exato(self):
+        self.feed = ics(ev("UID:e", "SUMMARY:x", "DTSTART;TZID=America/Sao_Paulo:20261126T100000", "DTEND;TZID=America/Sao_Paulo:20261126T110000",
+                           "URL:https://evil.example/calendar/event?eid=abcd"),
+                        ev("UID:g", "SUMMARY:y", "DTSTART;TZID=America/Sao_Paulo:20261127T100000", "DTEND;TZID=America/Sao_Paulo:20261127T110000",
+                           "URL:https://calendar.google.com/calendar/event?eid=abcd&x=http://evil"))
+        a = self.mk()
+        itens = a.month(2026, 11)["items"]
+        self.assertEqual(len(itens), 2)
+        for i in itens:
+            self.assertTrue(a.open_url(i["id"]).startswith("https://calendar.google.com/calendar/r/day/2026/11/"))
+
+    def test_releitura_2_min_depois_de_abrir(self):
+        a = self.mk()
+        self.assertFalse(a.due(True))
+        self.clk.t += 10
+        a.note_opened()
+        self.clk.t += 100
+        self.assertFalse(a.due(True))   # ainda não deu 2 min
+        self.clk.t += 25
+        self.assertTrue(a.due(True))    # 2 min depois e a última leitura tem mais de 60 s
+        n = self.calls
+        a.refresh()
+        self.assertEqual((self.calls, a.reread_at, a.due(True)), (n + 1, 0, False))
+
+    def test_releitura_respeita_60s(self):
+        a = self.mk()
+        a.note_opened()
+        self.clk.t += 125
+        a.try_at = self.clk.t - 30   # acabou de ler há 30 s
+        self.assertFalse(a.due(True))
+        self.clk.t += 31
+        self.assertTrue(a.due(True))
+
+
 if __name__ == "__main__":
     unittest.main()

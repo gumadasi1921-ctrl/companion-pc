@@ -36,6 +36,10 @@ DEFAULT_NOTIFY = 5
 HOSTS = ("meet.google.com", "zoom.us", "teams.microsoft.com")
 URL_RX = re.compile(r"^https://[^\s\x00-\x1f\x7f]{8,1500}$")
 BAD_FREQ = ("SECONDLY", "MINUTELY", "HOURLY")
+MONTHS_BACK, MONTHS_AHEAD = 12, 24   # janela que `agenda.month` aceita, contada a partir do mês de hoje (fuso do PC)
+REREAD_AFTER_S = 120   # depois de abrir o Google Agenda no PC: relê sozinho (respeitando MANUAL_MIN_S)
+DAY_RX = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+EVENT_LINK_RX = re.compile(r"^https://calendar\.google\.com/calendar/event\?eid=[A-Za-z0-9_=-]{4,300}$")
 
 
 class FeedError(Exception):
@@ -227,7 +231,21 @@ def _event(props, local_tz, allday=False):
     lk = _pick_link(links)
     title = _text(g.get("SUMMARY", ("", ""))[1]).strip()[:120] or "(sem título)"
     return {"uid": g.get("UID", ("", ""))[1].strip(), "title": title, "start": start, "end": max(end, start), "rrule": rrule,
-            "exdates": exdates, "rid": rid, "cancelled": False, "link": lk}, 0
+            "exdates": exdates, "rid": rid, "cancelled": False, "link": lk, "elink": _pick_elink(links)}, 0
+
+
+def _pick_elink(links):
+    """Link do PRÓPRIO evento no Google Agenda (só se o .ics trouxer, na propriedade URL, nesse formato exato). Nunca é montado."""
+    for n, v in links:
+        if n == "URL":
+            u = _text(v).strip()
+            if EVENT_LINK_RX.match(u):
+                return u
+    return None
+
+
+def _ok_elink(u):
+    return u if isinstance(u, str) and EVENT_LINK_RX.match(u) else None
 
 
 def _pick_link(links):
@@ -277,7 +295,7 @@ def _allday_event(g, exd, links, start_d):
             raise ValueError("exceção inválida")
     title = _text(g.get("SUMMARY", ("", ""))[1]).strip()[:120] or "(sem título)"
     return {"uid": g.get("UID", ("", ""))[1].strip(), "title": title, "allday": True, "start": datetime.combine(start_d, dtime.min),
-            "days": max(1, (end_d - start_d).days), "rrule": rrule, "exdates": exdates, "rid": rid, "cancelled": False, "link": _pick_link(links)}
+            "days": max(1, (end_d - start_d).days), "rrule": rrule, "exdates": exdates, "rid": rid, "cancelled": False, "link": _pick_link(links), "elink": _pick_elink(links)}
 
 
 def _safe_rid(g, local_tz, strict=False):
@@ -328,7 +346,7 @@ def expand(events, now, horizon_days=HORIZON_DAYS, lo_ts=None, hi_ts=None):
     for e, s, en in sorted(out, key=lambda t: t[1]):
         ts = int(s.timestamp())
         res.append({"id": hashlib.sha1(f"{e['uid']}|{ts}".encode()).hexdigest()[:10], "title": e["title"], "start": ts,
-                    "end": int(en.timestamp()), "link": e.get("link")})
+                    "end": int(en.timestamp()), "link": e.get("link"), "elink": e.get("elink")})
     return res, skipped
 
 
@@ -342,7 +360,7 @@ def expand_allday(events, d_lo, d_hi):
         n = e.get("days", 1)
         if s <= d_hi and s + timedelta(days=n - 1) >= d_lo:
             out.append({"id": hashlib.sha1(f"{e['uid']}|{s.isoformat()}".encode()).hexdigest()[:10], "title": e["title"], "day": s.isoformat(),
-                        "days": n, "link": e.get("link")})
+                        "days": n, "link": e.get("link"), "elink": e.get("elink")})
 
     for e in ev:
         if e.get("cancelled"):
@@ -389,6 +407,9 @@ class Agenda:
         self.get_cfg, self.fetch, self.clock, self.local_tz = get_cfg, fetch, clock, local_tz
         self.items, self.at, self.try_at, self.error, self.name, self.skipped = [], 0, 0, None, "", 0
         self.cal, self.cal_day = [], None
+        self.events = None     # eventos parseados da última leitura (só memória): `agenda.month` expande daqui, sem rede
+        self.mcache = {}       # (ano, mês) -> registros do mês; zerado a cada leitura
+        self.reread_at = 0     # depois de abrir o Google Agenda no PC: hora da releitura automática
         self.notified = set()
         self.cur_url = None
         self._load()
@@ -415,7 +436,7 @@ class Agenda:
         for i in raw if isinstance(raw, list) else []:
             try:
                 r = {"id": str(i["id"]), "title": str(i["title"])[:120], "day": date.fromisoformat(str(i["day"])).isoformat(), "start": int(i["start"]),
-                     "end": int(i["end"]), "allday": bool(i.get("allday")), "link": safe_link(i.get("link"))}
+                     "end": int(i["end"]), "allday": bool(i.get("allday")), "link": safe_link(i.get("link")), "elink": _ok_elink(i.get("elink"))}
                 if r["allday"]:
                     r["days"] = max(1, min(366, int(i.get("days", 1))))
                 out.append(r)
@@ -430,26 +451,31 @@ class Agenda:
         """Epoch da meia-noite local do dia `d` (fuso do PC, com horário de verão)."""
         return int(datetime(d.year, d.month, d.day, tzinfo=self.local_tz).timestamp() if self.local_tz else datetime(d.year, d.month, d.day).timestamp())
 
+    def _window(self, events, first, end):
+        """Eventos de [first, end] (datas do PC): com horário (inclui os que já passaram) e dia inteiro. Cada um leva `day` = data LOCAL DO PC."""
+        timed, sk = expand(events, 0, lo_ts=self._mid(first), hi_ts=self._mid(end + timedelta(days=1)))
+        out = []
+        for t in timed:
+            d = self._local(t["start"]).date()
+            if first <= d <= end:
+                out.append({"id": t["id"], "title": t["title"], "day": d.isoformat(), "start": t["start"], "end": t["end"], "allday": False,
+                            "link": t["link"], "elink": t.get("elink")})
+        days, sk2 = expand_allday(events, first, end)
+        for a in days:
+            s = date.fromisoformat(a["day"])
+            out.append({"id": a["id"], "title": a["title"], "day": a["day"], "start": self._mid(s), "end": self._mid(s + timedelta(days=a["days"])),
+                        "allday": True, "days": a["days"], "link": a["link"], "elink": a.get("elink")})
+        out.sort(key=lambda x: (x["day"], not x["allday"], x["start"], x["title"]))
+        return out[:MAX_CAL], sk + sk2
+
     def _cal_build(self, events, now):
         """Janela do widget Calendário: do dia 1 do mês até o maior entre o fim do mês e hoje+8 (fuso do PC). Eventos de hoje que já
         passaram e de dia inteiro entram aqui (e só aqui). Cada um leva `day` = data LOCAL DO PC, para o celular não depender do fuso."""
         today = self._local(now).date()
         first = today.replace(day=1)
         last = (first.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
-        end = max(last, today + timedelta(days=8))
-        timed, sk = expand(events, now, lo_ts=self._mid(first), hi_ts=self._mid(end + timedelta(days=1)))
-        out = []
-        for t in timed:
-            d = self._local(t["start"]).date()
-            if first <= d <= end:
-                out.append({"id": t["id"], "title": t["title"], "day": d.isoformat(), "start": t["start"], "end": t["end"], "allday": False, "link": t["link"]})
-        days, sk2 = expand_allday(events, first, end)
-        for a in days:
-            s = date.fromisoformat(a["day"])
-            out.append({"id": a["id"], "title": a["title"], "day": a["day"], "start": self._mid(s), "end": self._mid(s + timedelta(days=a["days"])),
-                        "allday": True, "days": a["days"], "link": a["link"]})
-        out.sort(key=lambda x: (x["day"], not x["allday"], x["start"], x["title"]))
-        return out[:MAX_CAL], sk2, today
+        out, sk = self._window(events, first, max(last, today + timedelta(days=8)))
+        return out, sk, today
 
     def _save(self):
         try:
@@ -473,6 +499,7 @@ class Agenda:
             self.cur_url = url
             self.items, self.at, self.try_at, self.error, self.name, self.skipped = [], 0, 0, None, "", 0
             self.cal, self.cal_day = [], None
+            self.events, self.mcache, self.reread_at = None, {}, 0
             self.notified = set()
 
     def enabled(self):
@@ -513,16 +540,99 @@ class Agenda:
         return {"tz": int(dt.utcoffset().total_seconds() // 60), "today": dt.date().isoformat(), "items": items}
 
     def link_for(self, eid):
-        for i in self.items + self.cal:
+        for i in self.items + self.cal + [x for v in self.mcache.values() for x in v]:
             if i["id"] == eid:
                 return safe_link(i.get("link"))
         return None
+
+    # -- outros meses (`agenda.month`) --------------------------------------
+    def _month_ok(self, y, m, now):
+        t = self._local(now).date()
+        k, cur = y * 12 + (m - 1), t.year * 12 + (t.month - 1)
+        return cur - MONTHS_BACK <= k <= cur + MONTHS_AHEAD
+
+    def month(self, y, m):
+        """Eventos de um mês (fuso do PC), com o mesmo parser/recorrência/dia inteiro do `cal`, a partir dos eventos já lidos (sem rede,
+        exceto a 1ª vez depois de reiniciar, que relê respeitando MANUAL_MIN_S). Nunca devolve link, só `join`."""
+        self._sync()
+        if not (type(y) is int and type(m) is int and 1 <= m <= 12 and 1 <= y <= 9998):
+            raise ValueError("mês inválido")
+        now = self.clock()
+        if not self._month_ok(y, m, now):
+            raise ValueError("mês fora do período permitido")
+        dt = self._local(now)
+        out = {"year": y, "month": m, "tz": int(dt.utcoffset().total_seconds() // 60), "today": dt.date().isoformat(),
+               "state": self.status()["state"], "items": [], "days": []}
+        if not self.enabled():
+            return out
+        if self.events is None:
+            self.refresh_manual()
+        if self.events is None:
+            out["state"] = self.error or out["state"]
+            return out
+        recs = self.mcache.get((y, m))
+        if recs is None:
+            first = date(y, m, 1)
+            last = (first.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+            recs, _ = self._window(self.events, first, last)
+            self.mcache[(y, m)] = recs
+        days = set()
+        for i in recs:
+            r = {"id": i["id"], "title": i["title"], "day": i["day"], "start": i["start"], "end": i["end"], "allday": i["allday"], "join": bool(i["link"])}
+            if i["allday"]:
+                r["days"] = i["days"]
+            out["items"].append(r)
+            d0 = date.fromisoformat(i["day"])
+            for k in range(i["days"] if i["allday"] else 1):
+                dk = d0 + timedelta(days=k)
+                if (dk.year, dk.month) == (y, m):
+                    days.add(dk.isoformat())
+        out["days"] = sorted(days)
+        return out
+
+    # -- abrir no Google Agenda (no PC; o servidor monta o link, nunca o celular) -------
+    def note_opened(self):
+        self.reread_at = self.clock() + REREAD_AFTER_S
+
+    def new_url(self, day):
+        """Criar evento no Google Agenda. Hoje: da próxima hora cheia até +1 h (hora local, sem fuso: vale o do calendário). Outro dia: dia inteiro."""
+        now = self.clock()
+        if not isinstance(day, str) or not DAY_RX.match(day):
+            raise ValueError("data inválida")
+        try:
+            d = date.fromisoformat(day)
+        except ValueError:
+            raise ValueError("data inválida") from None
+        if not self._month_ok(d.year, d.month, now):
+            raise ValueError("data fora do período permitido")
+        dt = self._local(now)
+        if d == dt.date():
+            a = dt.replace(minute=0, second=0, microsecond=0, tzinfo=None) + timedelta(hours=1)
+            dates = f"{a:%Y%m%dT%H%M%S}/{a + timedelta(hours=1):%Y%m%dT%H%M%S}"
+        else:
+            dates = f"{d:%Y%m%d}/{d + timedelta(days=1):%Y%m%d}"
+        return "https://calendar.google.com/calendar/render?action=TEMPLATE&dates=" + dates
+
+    def open_url(self, eid):
+        """Abrir um evento: o link do próprio evento se o .ics trouxe; senão a visão do dia dele. Nunca monta link de edição."""
+        if not isinstance(eid, str) or not eid:
+            raise ValueError("evento inválido")
+        for pool in [self.items, self.cal] + list(self.mcache.values()):
+            for i in pool:
+                if i["id"] == eid:
+                    if i.get("elink"):
+                        return i["elink"]
+                    d = date.fromisoformat(i["day"]) if i.get("day") else self._local(i["start"]).date()
+                    return f"https://calendar.google.com/calendar/r/day/{d.year:04d}/{d.month:02d}/{d.day:02d}"
+        raise ValueError("evento não encontrado")
 
     # -- leitura ----------------------------------------------------------
     def due(self, has_clients):
         self._sync()
         if not has_clients or not self.enabled():
             return False
+        if self.reread_at and self.clock() >= self.reread_at:   # abriu o Google Agenda no PC há ~2 min: relê (no mínimo 60 s entre leituras)
+            return self.clock() - self.try_at >= MANUAL_MIN_S
         # virou o dia (ou o mês): o `cal` precisa dos dias novos, então relê sem esperar os 5 min (respeitando o intervalo de nova tentativa)
         stale = self.cal_day is not None and self.cal_day != self._local(self.clock()).date()
         return self.clock() - self.try_at >= (RETRY_S if (self.error == "net_error" or stale) else REFRESH_S)
@@ -532,14 +642,16 @@ class Agenda:
         events, name, skipped = parse_ics(text, self.local_tz, allday=True)
         items, sk2 = expand(events, self.clock())
         cal, sk3, day = self._cal_build(events, self.clock())
-        return items, name, skipped + sk2 + sk3, cal, day
+        return items, name, skipped + sk2 + sk3, cal, day, events
 
     def refresh(self):
         if not self.enabled():
             return
         self.try_at = self.clock()
+        self.reread_at = 0
         try:
-            self.items, self.name, self.skipped, self.cal, self.cal_day = self._read(self.cfg()["url"])
+            self.items, self.name, self.skipped, self.cal, self.cal_day, self.events = self._read(self.cfg()["url"])
+            self.mcache = {}
             self.at, self.error = self.clock(), None
             self._save()
         except FeedError as e:
