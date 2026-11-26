@@ -7032,6 +7032,20 @@ html.panel-mode, html.panel-mode body { margin: 0; height: 100%; overflow: hidde
 .pn-h { margin: 22px 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
 .pn-card { background: var(--surface); border-radius: var(--r-card); padding: 16px 18px; }
 .pn-card + .pn-card { margin-top: 12px; }
+/* Trello em passos (estilo Ajustes do iOS): linha = número · título · valor cinza · seta */
+.pn-steps .pn-stw { border-top: 1px solid var(--surface-2); }
+.pn-step { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 4px 0; border: 0; background: none; color: inherit; text-align: left; font: inherit; }
+.pn-sn { flex: 0 0 22px; width: 22px; height: 22px; line-height: 22px; border-radius: 50%; background: var(--surface-2); color: var(--text-2); font-size: 12px; font-weight: 600; text-align: center; }
+.pn-sn:empty { background: none; }
+.pn-st { flex: 0 0 auto; font-weight: 600; min-width: 96px; }
+.pn-sv { flex: 1 1 0; min-width: 0; color: var(--text-3); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+.pn-sv.pn-warn { color: var(--warning); }
+.pn-sc { flex: 0 0 auto; color: var(--text-3); font-size: 18px; transition: transform .15s; }
+.pn-stw.open > .pn-step .pn-sc { transform: rotate(90deg); }
+.pn-sd { padding: 4px 0 14px 32px; }
+.pn-stw-h { display: flex; align-items: center; gap: 10px; min-height: 36px; border-top: 1px solid var(--surface-2); color: var(--text-3); font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.pn-prev { display: flex; align-items: center; gap: 10px; min-height: 44px; border-top: 1px solid var(--surface-2); }
+@media (prefers-reduced-motion: reduce) { .pn-sc { transition: none; } }
 .pn-row { display: flex; align-items: center; gap: 10px; }
 .pn-row.wrap { flex-wrap: wrap; }
 .pn-grow { flex: 1; min-width: 0; }
@@ -7704,7 +7718,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
 
   // ====================================================================== Ajustes
   function settingsView(main) {
-    let orig = null, vals = null, net = null, editSc = null, bk = {}, tr = {}, up = { info: {}, chk: null, busy: "", msg: "", bad: false }, agp = {}, md = {}, mdForm = { token: "", on: false, boards: [], info: null, msg: "" }, agForm = { url: "", on: false, notify_min: 5, msg: "" }, trForm = { key: "", token: "", on: false, msg: "", mode: "all", prefix: "", ws: "", ids: [], running: ["Em execução"], approved: ["Aprovar"], todo: { mode: "off", list_id: "", position: 1 }, info: null };
+    let orig = null, vals = null, net = null, editSc = null, bk = {}, tr = {}, up = { info: {}, chk: null, busy: "", msg: "", bad: false }, agp = {}, md = {}, mdForm = { token: "", on: false, boards: [], info: null, msg: "" }, agForm = { url: "", on: false, notify_min: 5, msg: "" }, trForm = { key: "", token: "", on: false, msg: "", mode: "all", prefix: "", ws: "", ids: [], running: ["Em execução"], approved: ["Aprovar"], todo: { mode: "today", list_id: "", position: 1 }, info: null, open: null };
     const body = h("div"), msg = h("span", { class: "pn-dim" });
     main.append(h("section", {}, h("h1", {}, "Ajustes"), h("p", { class: "pn-sub" }, "Opções do servidor no PC."), body));
     const KEYS = ["upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "idle_min", "notif_ignore", "shortcuts", "export_watch", "misplaced_min", "backup_dir", "pc_name", "remote_base", "allowed_origins", "repo_dir"];
@@ -7746,12 +7760,12 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
       const c = tr.cfg || {}, sc = c.scope || { mode: "all", prefixes: [], ids: [], workspace: "" };
       trForm.on = !!tr.on; trForm.mode = sc.mode; trForm.prefix = (sc.prefixes || []).join("; "); trForm.ws = sc.workspace || ""; trForm.ids = [...(sc.ids || [])];
       trForm.running = [...(c.running || ["Em execução"])]; trForm.approved = [...(c.approved || ["Aprovar"])];
-      trForm.todo = { mode: "off", list_id: "", position: 1, ...(c.todo || {}) };
+      trForm.todo = { mode: "today", list_id: "", position: 1, ...(c.todo || {}) };
     };
     const trScope = () => ({ mode: trForm.mode, prefixes: trForm.prefix.split(";").map((x) => x.trim()).filter(Boolean), ids: trForm.ids, workspace: trForm.ws.trim() });
     const trSave = async () => {
       try {
-        const t = trForm.todo, todo = t.mode === "list" ? { mode: "list", list_id: t.list_id } : t.mode === "position" ? { mode: "position", position: +t.position } : { mode: "off" };
+        const t = trForm.todo, todo = t.mode === "list" ? { mode: "list", list_id: t.list_id } : t.mode === "position" ? { mode: "position", position: +t.position } : { mode: t.mode === "off" ? "off" : "today" };
         const ch = { trello: { on: trForm.on, ...(trForm.key.trim() ? { key: trForm.key.trim() } : {}), ...(trForm.token.trim() ? { token: trForm.token.trim() } : {}), scope: trScope(), running: trForm.running, approved: trForm.approved, todo } };
         await call("config_save", { changes: ch }); trForm.key = ""; trForm.token = ""; trForm.msg = "Salvo."; await load();
       } catch (e) { trForm.msg = e.message; render(); }
@@ -7777,17 +7791,18 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
         h("div", { class: "pn-chips" }, list.length ? list.map((v, i) => h("button", { class: "pn-btn primary", type: "button", "aria-label": "Remover " + v, onclick: () => { list.splice(i, 1); render(); } }, v + " ×")) : h("span", { class: "pn-faint" }, "nenhuma")),
         h("div", { class: "pn-row", style: "margin-top:6px" }, inp, h("button", { class: "pn-btn", type: "button", onclick: add }, "Adicionar")));
     }
+    // A fazer: Lista de hoje pela data (padrão) | Lista específica (id) | Pela posição | Desligado. Os modos antigos continuam como opções.
+    const TR_MODES = [["today", "Lista de hoje pela data"], ["list", "Lista específica"], ["position", "Pela posição"], ["off", "Desligado"]];
     function trTodo() {
       const t = trForm.todo, inf = trForm.info, scoped = inf ? inf.boards.filter((x) => x.in) : [];
-      const modes = [["off", "Desligado"], ["list", "Uma lista específica"], ["position", "Pela posição no quadro"]];
       const seen = !!inf && t.mode === "list" && t.list_id && !scoped.some((x) => x.ordered.some((l) => l.id === t.list_id));
       return h("div", {},
-        h("div", { class: "pn-faint" }, "A lista do dia muda de nome, então não é achada por nome: escolha a lista (fica o id dela, troca em 1 toque) ou a posição dela no quadro (acompanha a troca de nome e os quadros mensais)."),
-        h("div", { class: "pn-chips" }, modes.map(([v, l]) => h("button", { class: "pn-btn" + (t.mode === v ? " primary" : ""), type: "button", "aria-pressed": t.mode === v, onclick: () => { t.mode = v; render(); } }, l))),
+        h("div", { class: "pn-chips", role: "group", "aria-label": "Como achar a lista do A fazer" }, TR_MODES.map(([v, l]) => h("button", { class: "pn-btn" + (t.mode === v ? " primary" : ""), type: "button", "aria-pressed": t.mode === v, onclick: () => { t.mode = v; render(); } }, l))),
+        t.mode === "today" ? h("div", { class: "pn-faint", style: "margin-top:6px" }, "Usa a lista cujo nome começa com “DIA ” + o dia de hoje (ex.: “DIA 26 - QUINTA-FEIRA”; “DIA 6” e “DIA 06” valem; o 2 nunca pega o 26). Troca sozinho à meia-noite. Sem lista de hoje: “Sem lista de hoje (DIA N)”, nunca outro dia.") : null,
         t.mode === "list" ? (inf ? h("select", { class: "pn-in", "aria-label": "Lista do A fazer", style: "margin-top:6px", onchange: (e) => { t.list_id = e.target.value; render(); } },
           h("option", { value: "" }, "Escolha a lista…"), seen ? h("option", { value: t.list_id, selected: true }, "(lista salva não encontrada)") : null,
           scoped.map((b) => h("optgroup", { label: b.name }, b.ordered.map((l) => h("option", { value: l.id, selected: l.id === t.list_id }, l.n + ". " + l.name)))))
-          : h("div", { class: "pn-faint", style: "margin-top:6px" }, t.list_id ? "Lista salva. Clique em “Carregar quadros e listas” para trocar." : "Clique em “Carregar quadros e listas” para escolher.")) : null,
+          : h("div", { class: "pn-faint", style: "margin-top:6px" }, t.list_id ? "Lista salva. Abra “Quadros” e clique em Carregar para trocar." : "Abra “Quadros” e clique em Carregar para escolher.")) : null,
         seen ? h("div", { class: "pn-warn", role: "status" }, "Lista não encontrada nos quadros do filtro: o A fazer fica vazio até você escolher outra.") : null,
         t.mode === "position" ? h("div", { class: "pn-row", style: "margin-top:6px" }, h("label", { class: "pn-grow", for: "tr-pos" }, "Em cada quadro do filtro, a lista que está em"),
           h("select", { id: "tr-pos", class: "pn-in", onchange: (e) => { t.position = +e.target.value; render(); } }, Array.from({ length: 10 }, (_, i) => h("option", { value: i + 1, selected: +t.position === i + 1 }, (i + 1) + "ª lista")))) : null);
@@ -7803,33 +7818,60 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
           h("span", { class: "pn-grow" }, b.name + (b.ws ? " · " + b.ws : "")))))
           : h("div", { class: "pn-faint", style: "margin-top:6px" }, "Clique em “Carregar quadros e listas” para marcar.")) : null);
     }
+    // Trello no painel, em passos: 1 Conexão 2 Quadros 3 Etapas (A fazer · Em execução · Pronto, cada uma com a lista que vale AGORA) 4 Prévia de hoje
+    const trOpen = (k) => { trForm.open = trForm.open === k ? "" : k; render(); };
+    const trJoin = (a) => a.length ? a.slice(0, 2).map((x) => x.list + " (" + x.board + ")").join(" · ") + (a.length > 2 ? " +" + (a.length - 2) : "") : "";
+    function trStep(key, num, title, value, detail, cls) {
+      const open = trForm.open === key;
+      return h("div", { class: "pn-stw" + (open ? " open" : ""), "data-step": key },
+        h("button", { class: "pn-step", type: "button", "aria-expanded": open, "aria-controls": "trs-" + key, onclick: () => trOpen(key) },
+          h("span", { class: "pn-sn", "aria-hidden": "true" }, num), h("span", { class: "pn-st" }, title), h("span", { class: "pn-sv" + (cls ? " " + cls : "") }, value), h("span", { class: "pn-sc", "aria-hidden": "true" }, "›")),
+        open ? h("div", { class: "pn-sd", id: "trs-" + key }, detail) : null);
+    }
     function trelloCard() {
-      const st = tr.state, at = tr.at ? new Date(tr.at * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "", f = (tr.cfg && tr.cfg.found) || {}, ig = (tr.cfg && tr.cfg.ignored) || 0;
-      const todoOn = tr.cfg && tr.cfg.todo && tr.cfg.todo.mode !== "off";
+      const st = tr.state, at = tr.at ? new Date(tr.at * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "", c = tr.cfg || {}, f = c.found || {}, ig = c.ignored || 0, ls = c.lists || {};
+      const saved = c.todo || { mode: "today" }, t = trForm.todo, live = st === "ok";
       const line = !tr.has_key || !tr.has_secret ? "Sem credenciais salvas." : !tr.on ? "Desligado."
         : st === "bad_cred" ? "Credencial inválida: o Trello recusou. Salve a key e o token de novo."
         : st === "net_error" ? "Sem conexão com o Trello" + (at ? " (mostrando a leitura das " + at + ")" : "") + "."
         : st === "ok" ? "Funcionando · atualizado às " + at : "Aguardando a primeira leitura (só com o celular conectado).";
-      const found = st === "ok" ? f.boards + " quadro" + (f.boards === 1 ? "" : "s") + " no filtro · listas achadas: Em execução " + f.running + ", Aprovar " + f.approved
-        + (todoOn ? " · A fazer: " + (f.todo === "ok" ? "ok" : "lista não encontrada") : "") + (ig ? " · " + ig + " card" + (ig === 1 ? "" : "s") + " em outras listas (não aparecem)" : "")
-        + (f.todo_clash ? " · a lista do A fazer também casa com o nome de Em execução/Aprovar: o nome ganha" : "") : "";
-      const field = (k, label, saved) => [h("label", { for: "tr-" + k }, label), h("input", { id: "tr-" + k, class: "pn-in", type: "password", autocomplete: "off", spellcheck: "false", maxlength: "200",
-        placeholder: saved ? "•••••••• (já salvo; deixe em branco para manter)" : "", value: trForm[k], oninput: (e) => { trForm[k] = e.target.value; } })];
-      return h("div", { class: "pn-card" },
-        h("div", { class: "pn-faint" }, "Mostra no celular os cards atribuídos a você, só das listas que você escolher abaixo. O Companion só LÊ (nunca cria nem altera nada no Trello) e guarda a chave só neste PC. Para gerar: abra trello.com/power-ups/admin, crie um Power-Up e gere a API key; depois, nela, “Gerar um token” só de leitura (read)."),
-        h("div", { class: "pn-form", style: "margin-top:8px" }, field("key", "API key", tr.has_key), field("token", "Token de leitura", tr.has_secret)),
-        h("div", { class: "pn-row", style: "margin-top:10px" }, h("div", { class: "pn-grow", id: "lb-tr" }, "Ler meus cards do Trello"),
-          h("button", { class: "pn-sw", type: "button", role: "switch", "aria-checked": !!trForm.on, "aria-labelledby": "lb-tr", onclick: () => { trForm.on = !trForm.on; render(); } })),
+      const sc = trScope(), nb = f.boards;
+      const scLine = (sc.mode === "all" ? "Todos os quadros" : sc.mode === "prefix" ? "Começa com " + (sc.prefixes.length ? sc.prefixes.map((x) => "“" + x + "”").join(" ou ") : "…") : (sc.ids.length || 0) + " marcado" + (sc.ids.length === 1 ? "" : "s"))
+        + (sc.workspace ? " · área " + sc.workspace : "") + (live && nb != null ? " · " + nb + " quadro" + (nb === 1 ? "" : "s") : "");
+      const same = saved.mode === t.mode && (t.mode !== "list" || saved.list_id === t.list_id) && (t.mode !== "position" || +saved.position === +t.position);
+      const modeName = (TR_MODES.find((m) => m[0] === t.mode) || [])[1];
+      let todoV, todoCls = "";
+      if (t.mode === "off") todoV = "Desligado";
+      else if (!same) { todoV = modeName + " · não salvo"; todoCls = "pn-warn"; }
+      else if (!live) todoV = modeName;
+      else if (ls.todo && ls.todo.length) todoV = "→ " + trJoin(ls.todo);
+      else { todoV = t.mode === "today" ? "Sem lista de hoje (DIA " + (c.day || "") + ")" : "Lista não encontrada"; todoCls = "pn-warn"; }
+      const namesV = (key) => !trForm[key].length ? "nenhum nome" : live && ls[key] && ls[key].length ? "→ " + trJoin(ls[key]) : "→ " + trForm[key].join(", ") + (live ? " (lista não achada)" : "");
+      const cn = c.counts, prev = live && cn ? "Hoje: " + (t.mode !== "off" ? cn.todo + " a fazer · " : "") + cn.running + " em execução · " + cn.done + " pront" + (cn.done === 1 ? "o" : "os") : live ? "—" : "Disponível depois da primeira leitura";
+      const field = (k, label, savedK) => [h("label", { for: "tr-" + k }, label), h("input", { id: "tr-" + k, class: "pn-in", type: "password", autocomplete: "off", spellcheck: "false", maxlength: "200",
+        placeholder: savedK ? "•••••••• (já salvo; deixe em branco para manter)" : "", value: trForm[k], oninput: (e) => { trForm[k] = e.target.value; } })];
+      if (trForm.open == null) trForm.open = !tr.has_key || !tr.has_secret ? "conn" : "";
+      return h("div", { class: "pn-card pn-steps" },
+        h("div", { class: "pn-faint" }, "Mostra no celular os cards atribuídos a você. O Companion só LÊ: nunca cria nem altera nada no Trello."),
         h("datalist", { id: "tr-names" }, (trForm.info ? trForm.info.names : []).map((n) => h("option", { value: n.name }))),
         h("datalist", { id: "tr-ws" }, (trForm.info ? trForm.info.workspaces : []).map((n) => h("option", { value: n }))),
-        h("div", { class: "pn-h" }, "Quadros que valem"), trScopeEl(),
-        h("div", { class: "pn-h" }, "Listas (pelo nome, sem diferenciar maiúsculas)"),
-        trNames("running", "Em execução: os cards daqui viram tarefas"), trNames("approved", "Aprovar: card que entra aqui conta como feito"),
-        h("div", { class: "pn-h" }, "A fazer (a lista do dia)"), trTodo(),
-        h("div", { class: "pn-foot" }, h("button", { class: "pn-btn primary", type: "button", onclick: trSave }, "Salvar"),
-          h("button", { class: "pn-btn", type: "button", onclick: trTest }, "Testar"), h("button", { class: "pn-btn", type: "button", onclick: trLoad }, "Carregar quadros e listas"),
-          h("span", { class: "pn-faint", role: "status" }, trForm.msg)),
-        h("div", { class: "pn-faint", style: "margin-top:6px" }, line), found ? h("div", { class: "pn-faint", style: "margin-top:2px" }, found) : null);
+        trStep("conn", "1", "Conexão", trForm.on ? line : "Desligado", h("div", {},
+          h("div", { class: "pn-faint" }, "Gere em trello.com/power-ups/admin: crie um Power-Up, gere a API key e, nela, “Gerar um token” só de leitura (read). A chave fica só neste PC."),
+          h("div", { class: "pn-form", style: "margin-top:8px" }, field("key", "API key", tr.has_key), field("token", "Token de leitura", tr.has_secret)),
+          h("div", { class: "pn-row", style: "margin-top:10px" }, h("div", { class: "pn-grow", id: "lb-tr" }, "Ler meus cards do Trello"),
+            h("button", { class: "pn-sw", type: "button", role: "switch", "aria-checked": !!trForm.on, "aria-labelledby": "lb-tr", onclick: () => { trForm.on = !trForm.on; render(); } })),
+          h("div", { class: "pn-foot" }, h("button", { class: "pn-btn", type: "button", onclick: trTest }, "Testar")),
+          h("div", { class: "pn-faint", style: "margin-top:6px" }, line))),
+        trStep("boards", "2", "Quadros", scLine, h("div", {}, trScopeEl(),
+          h("div", { class: "pn-foot" }, h("button", { class: "pn-btn", type: "button", onclick: trLoad }, "Carregar quadros e listas")))),
+        h("div", { class: "pn-stw-h" }, h("span", { class: "pn-sn", "aria-hidden": "true" }, "3"), "Etapas: qual lista de cada uma vale agora"),
+        trStep("todo", "", "A fazer", todoV, trTodo(), todoCls),
+        trStep("run", "", "Em execução", namesV("running"), trNames("running", "Nomes das listas de Em execução (os cards daqui viram tarefas)")),
+        trStep("done", "", "Pronto", namesV("approved"), trNames("approved", "Nomes das listas de Aprovar (card que entra aqui conta como feito)")),
+        h("div", { class: "pn-prev", role: "status" }, h("span", { class: "pn-sn", "aria-hidden": "true" }, "4"), h("b", {}, "Prévia"), h("span", { class: "pn-sv" }, prev)),
+        f.todo_clash ? h("div", { class: "pn-warn", style: "margin-top:6px" }, "A lista do A fazer também casa com o nome de Em execução/Aprovar: o nome ganha.") : null,
+        ig && live ? h("div", { class: "pn-faint", style: "margin-top:4px" }, ig + " card" + (ig === 1 ? "" : "s") + " em outras listas (não aparecem).") : null,
+        h("div", { class: "pn-foot" }, h("button", { class: "pn-btn primary", type: "button", onclick: trSave }, "Salvar"), h("span", { class: "pn-faint", role: "status" }, trForm.msg)));
     }
     const agSave = async () => {
       try {
