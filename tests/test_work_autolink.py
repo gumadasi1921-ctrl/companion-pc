@@ -89,6 +89,17 @@ class Exact(Base):
             self.a.undo(manual["id"])
         self.assertEqual(len(self.a.undo(r["id"])["removed"]), 1)
         self.assertEqual([x["card"] for x in self.t.links], ["BBBBBBB2"])
+        self.assertEqual(self.a.observe(info(), self.now + 4), None)    # Desfazer não religa sozinho
+        self.assertEqual(len(self.t.links), 1)
+        self.assertEqual([x["job"] for x in self.t.nolink_get()], ["A4"])
+
+    def test_restoring_an_undone_auto_link_lifts_the_block(self):
+        self.cards = [card("AAAAAAA1", "Top Market - A4")]
+        r = self.a.observe(info(), self.now)
+        gone = self.a.undo(r["id"])["removed"]
+        self.t.link_restore(gone)
+        self.assertEqual(self.t.nolink_get(), [])
+        self.assertEqual([x["card"] for x in self.t.links], ["AAAAAAA1"])
 
 
 class Ask(Base):

@@ -8067,9 +8067,9 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
       h("div", { class: "pn-h" }, "Pastas de clientes"), roots, idx, h("div", { class: "pn-h" }, "Agora"), now,
       h("div", { class: "pn-h" }, "Relatório"), rep, tree, h("div", { class: "pn-h" }, "Histórico"), histBox, h("div", { class: "pn-h" }, "Cards do Trello"), linksBox, h("div", { class: "pn-h" }, "Itens do monday"), mlinksBox, rulesBox, bar));
     // ---- Tempo por card do Trello: liga um cliente/job a um dos meus cards; o tempo vem do histórico (hoje, semana, total)
-    let links = [], tcards = null, tstat = null, mlinks = [], mitems = null, mstat = null;
+    let links = [], tcards = null, tstat = null, mlinks = [], mitems = null, mstat = null, nolinks = [];
     const loadLinks = async () => {
-      try { [links, tcards, mlinks, mitems] = await Promise.all([call("work_links_get"), call("trello_cards"), call("work_mlinks_get"), call("monday_items")]); tstat = tcards.status; tcards = tcards.cards; mstat = mitems.status; mitems = mitems.items; renderLinks(); renderMLinks(); } catch (e) { fail(e); }
+      try { [links, tcards, mlinks, mitems, nolinks] = await Promise.all([call("work_links_get"), call("trello_cards"), call("work_mlinks_get"), call("monday_items"), call("work_nolink_get")]); tstat = tcards.status; tcards = tcards.cards; mstat = mitems.status; mitems = mitems.items; renderLinks(); renderMLinks(); } catch (e) { fail(e); }
     };
     // o que muda entre ligar a um card do Trello e a um item do monday
     const KT = { title: "Ligar ao card do Trello", noun: "Card", what: "card", list: () => tcards, id: "short", sub: (c) => [c.board, c.list], key: "card", set: "work_link_set", del: "work_link_delete", res: "work_link_restore", links: () => links };
@@ -8097,6 +8097,11 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
         toast("Ligação desfeita. O tempo continua no histórico.", { undo: async () => { try { await call("work_link_restore", { entries: r.removed }); await loadLinks(); } catch (e) { fail(e); } } });
       } catch (e) { fail(e); }
     };
+    // "Nenhum" respondido ao Lume: o job nunca mais recebe a pergunta do card até você pedir aqui
+    const askAgain = async (x) => { try { await call("work_nolink_delete", { id: x.id }); await loadLinks(); toast("O Lume volta a perguntar neste job."); } catch (e) { fail(e); } };
+    const nolinkBox = () => nolinks.length ? h("div", { style: "margin-top:8px" }, h("div", { class: "pn-faint" }, "Jobs sem pergunta do Lume (você respondeu “Nenhum”):"),
+      nolinks.map((x) => h("div", { class: "pn-li" }, h("div", { class: "pn-txt", style: "cursor:default" }, h("div", {}, x.client + " › " + x.job)),
+        h("button", { class: "pn-btn", type: "button", "aria-label": "Perguntar de novo em " + x.client + " › " + x.job, onclick: () => askAgain(x) }, "Perguntar de novo")))) : null;
     // Sugestões pelo nome "CLIENTE - JOB": só quando cliente E job existem no Trabalho (igualdade sem maiúsculas/acentos); ligar é sempre um clique seu
     const sugLinked = (c) => links.some((l) => l.card === c.short || (l.client.toLowerCase() === (c.client || "").toLowerCase() && l.job.toLowerCase() === (c.job || "").toLowerCase()));
     const linkSug = async (c) => { try { await call("work_link_set", { client: c.client, job: c.job, card: c.short }); await loadLinks(); toast("Ligado: " + c.client + " › " + c.job); } catch (e) { fail(e); } };
@@ -8115,10 +8120,10 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
       const times = (l) => "hoje " + fmtDur(l.today_s) + " · semana " + fmtDur(l.week_s) + " · total " + fmtDur(l.total_s);
       const on = tstat && tstat.on && tstat.state !== "off";
       linksBox.replaceChildren(h("div", { class: "pn-list" }, links.length ? links.map((l) => h("div", { class: "pn-li" },
-        h("div", { class: "pn-txt", style: "cursor:default" }, h("div", {}, name(l)), h("div", { class: "pn-faint" }, l.client + " › " + l.job + " · " + times(l))),
-        h("button", { class: "pn-btn", type: "button", "aria-label": "Desligar " + name(l), onclick: () => unlink(l) }, "Desligar")))
+        h("div", { class: "pn-txt", style: "cursor:default" }, h("div", {}, name(l)), h("div", { class: "pn-faint" }, (l.auto ? "Automática · " : "") + l.client + " › " + l.job + " · " + times(l))),
+        h("button", { class: "pn-btn", type: "button", "aria-label": (l.auto ? "Desfazer a ligação automática de " : "Desligar ") + name(l), onclick: () => unlink(l) }, l.auto ? "Desfazer" : "Desligar")))
         : h("div", { class: "pn-empty" }, on ? "Nenhum cliente/job ligado a um card." : "Ligue o Trello em Ajustes para poder ligar cards.")),
-        suggestBox(on) || "",
+        suggestBox(on) || "", nolinkBox() || "",
         h("div", { class: "pn-foot" }, h("button", { class: "pn-btn", type: "button", disabled: !on || !(tcards && tcards.length), onclick: () => openLink(KT) }, "Ligar ao card do Trello…"),
           tstat && tstat.state === "bad_cred" ? h("span", { class: "pn-warn" }, "Credencial do Trello inválida") : null));
     }

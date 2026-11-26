@@ -762,6 +762,9 @@ class WorkTracker:
             except OSError:
                 self.links = old
                 raise ValueError("não consegui gravar") from None
+            for x in gone:
+                if x.get("auto"):       # desfez uma ligação automática: não religa sozinho (só o painel, "Perguntar de novo", volta atrás)
+                    self.nolink_set(x["client"], x["job"], None)
         return {"removed": gone}
 
     def link_restore(self, entries):
@@ -772,6 +775,9 @@ class WorkTracker:
         for x in add:
             self.links = [y for y in self.links if y["id"] != x["id"] and y["card"] != x["card"] and self._jkey(y["client"], y["job"]) != self._jkey(x["client"], x["job"])]
             self.links.append({k: x[k] for k in ("id", "client", "job", "card", "card_name", "created_at", "auto") if k in x})
+            k = self._jkey(x["client"], x["job"])
+            if x.get("auto"):
+                self.nolink = [n for n in self.nolink if self._jkey(n["client"], n["job"]) != k]
         self._save_rules()
         return {"restored": len(add)}
 
