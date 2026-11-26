@@ -31,12 +31,13 @@ MANUAL_MIN_S = 60        # ao abrir Tarefas, no máximo 1x por minuto
 TODO_MODES, MAX_POSITION = ("off", "today", "list", "position"), 20
 TODO_DEFAULT = {"mode": "today", "list_id": "", "position": 1, "scope": "all", "job_only": True}     # padrão: lista "DIA <hoje>", todos os cards abertos, só no padrão CLIENTE - JOB
 TODO_SCOPES = ("mine", "all")
+STAGE_SCOPES = ("mine", "all")        # Em execução / Aprovar: só os meus | todos (meus + sem responsável, só CLIENTE - JOB); cards de OUTRA pessoa nunca entram
 SHORT_RX = re.compile(r"^[A-Za-z0-9]{8}$")
 CRED_RX = re.compile(r"^[A-Za-z0-9_-]{16,200}$")
 GROUPS = ("overdue", "today", "tomorrow", "week", "later", "none")
 CARD_FIELDS = "name,due,idBoard,idList,labels,shortLink,dateLastActivity"
 ID_RX = re.compile(r"^[A-Za-z0-9]{1,32}$")
-NOFOUND = {"boards": 0, "running": 0, "approved": 0, "todo": "off", "todo_clash": 0, "todo_hidden": 0}
+NOFOUND = {"boards": 0, "running": 0, "approved": 0, "todo": "off", "todo_clash": 0, "todo_hidden": 0, "running_hidden": 0, "approved_hidden": 0}
 MAX_NAMES, MAX_PREFIXES, MAX_IDS, MAX_NAME_LEN = 5, 5, 20, 60
 DEFAULT_RUNNING, DEFAULT_APPROVED = ["Em execução"], ["Aprovar"]
 SCOPE_MODES = ("all", "prefix", "pick")
@@ -187,7 +188,7 @@ def clean_todo(v, cur=None):
 def clean_cfg(v, cur):
     """config_save: key/token em branco = mantém os salvos (nunca voltam ao painel). Formato antigo {key, token, on} continua valendo."""
     cur = cur if isinstance(cur, dict) else {}
-    if not isinstance(v, dict) or set(v) - {"key", "token", "on", "scope", "running", "approved", "todo"} or not isinstance(v.get("on"), bool):
+    if not isinstance(v, dict) or set(v) - {"key", "token", "on", "scope", "running", "approved", "todo", "running_scope", "approved_scope"} or not isinstance(v.get("on"), bool):
         raise ValueError("Trello: formato inválido")
     out = {"on": v["on"]}
     for k, label in (("key", "API key"), ("token", "token")):
@@ -197,6 +198,11 @@ def clean_cfg(v, cur):
         raise ValueError("Informe a API key e o token para ligar o Trello")
     out["scope"] = clean_scope(v.get("scope"), cur.get("scope"))
     out["todo"] = clean_todo(v.get("todo"), cur.get("todo"))
+    for k in ("running_scope", "approved_scope"):
+        val = v.get(k, cur.get(k, "all"))
+        if val not in STAGE_SCOPES:
+            raise ValueError("Trello: opção inválida")
+        out[k] = val
     out["running"] = _names(v.get("running", cur.get("running")), "Em execução", DEFAULT_RUNNING)
     out["approved"] = _names(v.get("approved", cur.get("approved")), "Aprovar", DEFAULT_APPROVED)
     if not out["running"] and not out["approved"]:
@@ -239,7 +245,7 @@ class Trello:
         self.ignored, self.found = 0, dict(NOFOUND)
         self.todo_day = None          # dia (do Brasil) em que "A fazer" foi calculado: virou a meia-noite = relê
         self.lists_used = {"todo": [], "running": [], "approved": []}   # só para o painel: quais listas valem AGORA
-        self.done, self.baseline = {}, set()
+        self.done, self.baseline, self.baseline_all = {}, set(), set()   # baseline_all: quadros já lidos com "Todos" em Aprovar (os sem responsável que já estavam lá = anterior)
         self._load()
 
     # -- disco ----------------------------------------------------------------
@@ -262,6 +268,7 @@ class Trello:
             if isinstance(d, dict) and d.get("v") == 1 and isinstance(d.get("done"), dict):
                 self.done = {k: v for k, v in d["done"].items() if ID_RX.match(str(k)) and isinstance(v, dict)}
                 self.baseline = {str(x) for x in d.get("baseline", [])}
+                self.baseline_all = {str(x) for x in d.get("baseline_all", [])}
         except (OSError, ValueError, TypeError):
             log.warning("trello-done.json inválido: ignorado")
 
@@ -274,7 +281,7 @@ class Trello:
 
     def _save_done(self):
         try:
-            _atomic(self.done_path, {"v": 1, "done": self.done, "baseline": sorted(self.baseline)})
+            _atomic(self.done_path, {"v": 1, "done": self.done, "baseline": sorted(self.baseline), "baseline_all": sorted(self.baseline_all)})
         except OSError as e:
             log.warning("trello-done.json: %s", type(e).__name__)
 
@@ -294,7 +301,9 @@ class Trello:
         except ValueError:
             scope, running, approved = {"mode": "all", "prefixes": [], "ids": [], "workspace": ""}, list(DEFAULT_RUNNING), list(DEFAULT_APPROVED)
             todo = dict(TODO_DEFAULT)
-        return {"scope": scope, "running": running, "approved": approved, "todo": todo}
+        rs, ap = c.get("running_scope", "all"), c.get("approved_scope", "all")
+        return {"scope": scope, "running": running, "approved": approved, "todo": todo,
+                "running_scope": rs if rs in STAGE_SCOPES else "all", "approved_scope": ap if ap in STAGE_SCOPES else "all"}
 
     def enabled(self):
         c = self.get_cfg() or {}
@@ -445,26 +454,35 @@ class Trello:
                 if not valid(c):
                     continue
                 cards.append(mk(c, cat, lname))
-            hidden = 0
-            if todo_ids and cfg["todo"]["scope"] == "all":     # A fazer = todos os cards abertos da lista (os meus já vieram acima; Em execução e Pronto seguem só meus)
-                have = {c["id"] for c in cards}
-                for lid in sorted(todo_ids):
+            mine = {c["id"] for c in cards}
+            found["todo_hidden"] = found["running_hidden"] = found["approved_hidden"] = 0
+            all_stage = {"todo": cfg["todo"]["scope"] == "all", "running": cfg["running_scope"] == "all", "approved": cfg["approved_scope"] == "all"}
+            stage_lists = {"todo": todo_ids,
+                           "running": {i for i, li in self.lists.items() if li["board"] in scoped and norm(li["name"]) in run},
+                           "approved": {i for i, li in self.lists.items() if li["board"] in scoped and norm(li["name"]) in apr}}
+            # "Todos": além dos meus (members/me/cards), os cards abertos das listas da etapa SEM responsável. Card de OUTRA pessoa (tem membro e não
+            # sou eu) nunca entra, não aparece nem conta. Fora do padrão CLIENTE - JOB (separadores) também não, exceto no A fazer se o painel liberar.
+            for cat in ("running", "approved", "todo"):
+                if not all_stage[cat]:
+                    continue
+                job_only = cfg["todo"]["job_only"] if cat == "todo" else True
+                for lid in sorted(stage_lists[cat]):
                     extra = self.fetch(f"lists/{lid}/cards", {"filter": "open", "fields": CARD_FIELDS + ",idMembers"}, key, token)
                     if not isinstance(extra, list):
                         raise NetError("resposta")
                     for c in extra:
-                        if not isinstance(c, dict) or c.get("id") in have or not valid(c):
+                        if not isinstance(c, dict) or c.get("id") in mine or not valid(c) or c.get("idMembers"):
                             continue
-                        if cfg["todo"]["job_only"] and split_name(c.get("name"))[0] is None:     # separadores ("DE MANHÃ:", "----"): só cards CLIENTE - JOB
-                            hidden += 1
+                        if job_only and split_name(c.get("name"))[0] is None:
+                            found[cat + "_hidden"] += 1
                             continue
-                        cards.append(mk(c, "todo", self.lists[lid]["name"], nobody=not c.get("idMembers")))
-            found["todo_hidden"] = hidden
+                        mine.add(c["id"])
+                        cards.append(mk(c, cat, self.lists[lid]["name"], nobody=True))
             self.cards, self.at, self.error, self.ignored, self.found = cards, now, None, ignored, found
             self.todo_day = today
             self.lists_used = {k: self._used(scoped, pick) for k, pick in
                                (("todo", lambda i, n: i in todo_ids), ("running", lambda i, n: norm(n) in run), ("approved", lambda i, n: norm(n) in apr))}
-            self._track_done(key, token, cards, scoped, apr)
+            self._track_done(key, token, cards, scoped, apr, all_stage["approved"])
             self._save()
             return True
         except CredError:
@@ -536,21 +554,27 @@ class Trello:
                 break
         return found
 
-    def _track_done(self, key, token, cards, scoped, apr):
+    def _track_done(self, key, token, cards, scoped, apr, all_approved=False):
         changed, need, today = False, {}, self.today()
         for c in cards:      # voltou para A fazer / Em execução: deixa de contar (continua no histórico; se entrar de novo em Aprovar, conta na nova data)
             cur = self.done.get(c["id"])
             if cur is not None and c["cat"] in ("todo", "running") and not cur.get("open"):
                 cur["open"] = True
                 changed = True
+        if not all_approved and self.baseline_all:
+            self.baseline_all = set()       # voltou para "Só os meus": ao ligar "Todos" de novo, a base dos sem responsável é refeita
+            changed = True
         for bid in sorted(scoped):
             first = bid not in self.baseline
+            first_all = all_approved and bid not in self.baseline_all
             for c in (x for x in cards if x["board_id"] == bid and x["cat"] == "approved"):
                 cur = self.done.get(c["id"])
                 if cur is None:
+                    prior = first_all if c.get("nobody") else first      # sem responsável que já estava em Aprovar quando "Todos" foi ligado = anterior
                     self.done[c["id"]] = {"name": c["name"], "board": c["board"], "board_id": bid, "short": c["short"],
-                                          "src": "prior" if first else "seen", "day": None if first else today.isoformat()}
-                    need.setdefault(bid, set()).add(c["id"])
+                                          "src": "prior" if prior else "seen", "day": None if prior else today.isoformat()}
+                    if not (prior and c.get("nobody")):      # só os sem responsável "anteriores" nunca consultam as actions (nunca contam); os meus seguem como sempre
+                        need.setdefault(bid, set()).add(c["id"])
                     changed = True
                 elif cur.get("open"):      # reentrou em Aprovar depois de reaberto: um registro só por card, com a data nova
                     cur.update({"open": False, "src": "seen", "day": today.isoformat(), "name": c["name"], "short": c["short"]})
@@ -561,6 +585,9 @@ class Trello:
                     changed = True
             if first:
                 self.baseline.add(bid)
+                changed = True
+            if all_approved and bid not in self.baseline_all:
+                self.baseline_all.add(bid)
                 changed = True
         for bid, ids in need.items():
             try:

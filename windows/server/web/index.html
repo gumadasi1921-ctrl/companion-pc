@@ -8052,6 +8052,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
       const c = tr.cfg || {}, sc = c.scope || { mode: "all", prefixes: [], ids: [], workspace: "" };
       trForm.on = !!tr.on; trForm.mode = sc.mode; trForm.prefix = (sc.prefixes || []).join("; "); trForm.ws = sc.workspace || ""; trForm.ids = [...(sc.ids || [])];
       trForm.running = [...(c.running || ["Em execução"])]; trForm.approved = [...(c.approved || ["Aprovar"])];
+      trForm.running_scope = c.running_scope === "mine" ? "mine" : "all"; trForm.approved_scope = c.approved_scope === "mine" ? "mine" : "all";
       trForm.todo = { mode: "today", list_id: "", position: 1, scope: "all", job_only: true, ...(c.todo || {}) };
     };
     const trScope = () => ({ mode: trForm.mode, prefixes: trForm.prefix.split(";").map((x) => x.trim()).filter(Boolean), ids: trForm.ids, workspace: trForm.ws.trim() });
@@ -8059,7 +8060,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
       try {
         const t = trForm.todo, todo = t.mode === "list" ? { mode: "list", list_id: t.list_id } : t.mode === "position" ? { mode: "position", position: +t.position } : { mode: t.mode === "off" ? "off" : "today" };
         Object.assign(todo, { scope: t.scope === "mine" ? "mine" : "all", job_only: t.job_only !== false });
-        const ch = { trello: { on: trForm.on, ...(trForm.key.trim() ? { key: trForm.key.trim() } : {}), ...(trForm.token.trim() ? { token: trForm.token.trim() } : {}), scope: trScope(), running: trForm.running, approved: trForm.approved, todo } };
+        const ch = { trello: { on: trForm.on, ...(trForm.key.trim() ? { key: trForm.key.trim() } : {}), ...(trForm.token.trim() ? { token: trForm.token.trim() } : {}), scope: trScope(), running: trForm.running, approved: trForm.approved, running_scope: trForm.running_scope === "mine" ? "mine" : "all", approved_scope: trForm.approved_scope === "mine" ? "mine" : "all", todo } };
         await call("config_save", { changes: ch }); trForm.key = ""; trForm.token = ""; trForm.msg = "Salvo."; await load();
       } catch (e) { trForm.msg = e.message; render(); }
     };
@@ -8080,7 +8081,11 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
       const add = () => { const v = inp.value.trim().split(/\s+/).join(" "); if (!v || list.length >= 5 || list.some((x) => trn(x) === trn(v))) return; list.push(v); trForm[other] = trForm[other].filter((x) => trn(x) !== trn(v)); render(); };
       const inp = h("input", { class: "pn-in", type: "text", maxlength: "60", list: "tr-names", placeholder: "Nome da lista", "aria-label": label + ": adicionar nome" });
       inp.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); add(); } };
-      return h("div", { style: "margin-top:8px" }, h("div", { class: "pn-faint" }, label),
+      const sk = key + "_scope", mineOnly = trForm[sk] === "mine";
+      return h("div", { style: "margin-top:8px" },
+        h("div", { class: "pn-chips", role: "group", "aria-label": "Quais cards entram" }, [["all", "Todos (padrão CLIENTE - JOB)"], ["mine", "Só os meus"]].map(([v, l]) => h("button", { class: "pn-btn" + ((mineOnly ? "mine" : "all") === v ? " primary" : ""), type: "button", "aria-pressed": (mineOnly ? "mine" : "all") === v, onclick: () => { trForm[sk] = v; render(); } }, l))),
+        h("div", { class: "pn-faint", style: "margin-top:4px" }, mineOnly ? "Só os cards atribuídos a você." : "Seus cards e os sem responsável no padrão CLIENTE - JOB (marcados “sem resp.”). Cards de outra pessoa nunca entram."),
+        h("div", { class: "pn-faint", style: "margin-top:8px" }, label),
         h("div", { class: "pn-chips" }, list.length ? list.map((v, i) => h("button", { class: "pn-btn primary", type: "button", "aria-label": "Remover " + v, onclick: () => { list.splice(i, 1); render(); } }, v + " ×")) : h("span", { class: "pn-faint" }, "nenhuma")),
         h("div", { class: "pn-row", style: "margin-top:6px" }, inp, h("button", { class: "pn-btn", type: "button", onclick: add }, "Adicionar")));
     }
@@ -8101,7 +8106,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
           h("div", { class: "pn-chips", role: "group", "aria-label": "Quais cards entram no A fazer" }, [["all", "Todos os cards abertos da lista"], ["mine", "Só os meus"]].map(([v, l]) => h("button", { class: "pn-btn" + (t.scope === v ? " primary" : ""), type: "button", "aria-pressed": t.scope === v, onclick: () => { t.scope = v; render(); } }, l))),
           t.scope === "all" ? h("label", { class: "pn-row", style: "margin-top:6px" }, h("input", { type: "checkbox", checked: t.job_only !== false, "aria-label": "Só cards no padrão CLIENTE - JOB", onchange: (e) => { t.job_only = e.target.checked; render(); } }),
             h("span", { class: "pn-grow" }, "Só cards no padrão CLIENTE - JOB (esconde separadores como “DE MANHÃ:”; os meus aparecem sempre)")) : null,
-          h("div", { class: "pn-faint", style: "margin-top:4px" }, t.scope === "all" ? "Cards que ninguém assumiu aparecem com “sem resp.”. Em execução e Pronto continuam só com os meus." : "Só os cards atribuídos a você.")) : null,
+          h("div", { class: "pn-faint", style: "margin-top:4px" }, t.scope === "all" ? "Cards que ninguém assumiu aparecem com “sem resp.”; cards de outra pessoa nunca entram." : "Só os cards atribuídos a você.")) : null,
         t.mode === "position" ? h("div", { class: "pn-row", style: "margin-top:6px" }, h("label", { class: "pn-grow", for: "tr-pos" }, "Em cada quadro do filtro, a lista que está em"),
           h("select", { id: "tr-pos", class: "pn-in", onchange: (e) => { t.position = +e.target.value; render(); } }, Array.from({ length: 10 }, (_, i) => h("option", { value: i + 1, selected: +t.position === i + 1 }, (i + 1) + "ª lista")))) : null);
     }

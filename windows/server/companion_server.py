@@ -869,7 +869,7 @@ def config_save(changes):
         WORK.set_idle_min(clean["idle_min"])
     if "trello" in changed and any(old_trello.get(k) != clean["trello"].get(k) for k in ("key", "token")):
         TRELLO.reset()     # credencial nova: tenta de novo e esquece os dados da conta anterior (o histórico de Aprovar fica)
-    elif "trello" in changed and any(old_trello.get(k) != clean["trello"].get(k) for k in ("scope", "running", "approved", "todo", "on")):
+    elif "trello" in changed and any(old_trello.get(k) != clean["trello"].get(k) for k in ("scope", "running", "approved", "todo", "on", "running_scope", "approved_scope")):
         TRELLO.invalidate()    # filtro/listas novos: relê na próxima volta
     if "monday" in changed and (old_monday.get("token") != clean["monday"].get("token") or old_monday.get("boards") != clean["monday"].get("boards")):
         MONDAY.reset()     # token ou quadros novos: tenta de novo e esquece a leitura anterior (o histórico de Aprovar fica)

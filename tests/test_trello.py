@@ -124,6 +124,7 @@ class TrelloTests(unittest.TestCase):
         return [c["name"] for g in st["groups"].values() for c in g] + [c["name"] for c in st["todo"]["items"]]
 
     def test_only_running_lists_become_tasks(self):
+        self.cfg["running_scope"] = self.cfg["approved_scope"] = "mine"     # só GET de members/me (o modo Todos lê também as listas)
         self.cfg["todo"] = {"mode": "off"}
         self.assertTrue(self.t.refresh())
         st = self.t.state()
@@ -370,8 +371,8 @@ class TrelloTests(unittest.TestCase):
         self.t.refresh()
         st = self.t.state()["todo"]
         names = {c["name"]: c.get("nobody", False) for c in st["items"]}
-        self.assertEqual(names, {"Fazer hoje": False, "Fazer hoje atrasado": False, "TOP MARKET - A4": True, "EL VIEJO - TV VERTICAL": True, "CDAVILA - POST": False})
-        self.assertEqual((st["count"], self.t.found["todo_hidden"]), (5, 2))
+        self.assertEqual(names, {"Fazer hoje": False, "Fazer hoje atrasado": False, "TOP MARKET - A4": True, "EL VIEJO - TV VERTICAL": True})   # CDAVILA - POST é de outra pessoa: não entra
+        self.assertEqual((st["count"], self.t.found["todo_hidden"]), (4, 2))
         self.assertIn("lists/l0/cards", self.fake.calls)
 
     def test_a_fazer_job_only_off_shows_separators_and_mine_scope_is_the_old_behavior(self):
@@ -386,14 +387,97 @@ class TrelloTests(unittest.TestCase):
         self.assertEqual(sorted(c["name"] for c in self.t.state()["todo"]["items"]), ["Fazer hoje", "Fazer hoje atrasado"])
         self.assertNotIn("lists/l0/cards", self.fake.calls)
 
-    def test_a_fazer_my_card_without_dash_is_kept_and_running_stays_mine_only(self):
+    def test_a_fazer_my_card_without_dash_is_kept_and_stage_scope_mine_reads_only_mine(self):
         self.fake.cards.append(card("k1", "Kappa", "b1", "l0"))
-        self.fake.others = [self.other("u9", "OUTRO - EM EXECUCAO", lst="l2")]      # card de outro na lista Em execução: nunca entra
+        self.fake.others = [self.other("u9", "OUTRO - EM EXECUCAO", lst="l2")]
         self.cfg["todo"] = {"mode": "list", "list_id": "l0", "position": 1}
+        self.cfg["running_scope"] = "mine"
         self.t.refresh()
         self.assertIn("Kappa", [c["name"] for c in self.t.state()["todo"]["items"]])
-        self.assertNotIn("OUTRO - EM EXECUCAO", self.all_names())
+        self.assertNotIn("OUTRO - EM EXECUCAO", self.all_names())          # "Só os meus" em Em execução: sem responsável não entra
         self.assertNotIn("lists/l2/cards", self.fake.calls)
+
+    def test_em_execucao_all_includes_unassigned_cliente_job_marked_and_never_others(self):
+        self.fake.others = [self.other("u1", "TOP MARKET - A4", lst="l2"), self.other("u2", "SEPARADOR", lst="l2"),
+                            self.other("u3", "CDAVILA - POST", lst="l2", members=["ana"]), self.other("u4", "LAVENUE - POST 05", lst="l2")]
+        self.t.refresh()
+        st = self.t.state()
+        run = {c["name"]: c.get("nobody", False) for g in st["groups"].values() for c in g}
+        self.assertEqual(run["TOP MARKET - A4"], True)
+        self.assertEqual(run["LAVENUE - POST 05"], True)
+        self.assertEqual(run["Atrasado"], False)                              # os meus continuam, sem marca
+        self.assertNotIn("SEPARADOR", run)                                    # fora do padrão CLIENTE - JOB
+        self.assertNotIn("CDAVILA - POST", run)                               # de outra pessoa: nem aparece nem conta
+        self.assertEqual(self.t.found["running_hidden"], 1)
+        self.assertIn("lists/l2/cards", self.fake.calls)
+        self.cfg["running_scope"] = "mine"
+        self.now[0] += 400
+        self.t.refresh()
+        self.assertNotIn("TOP MARKET - A4", self.all_names())
+
+    def test_aprovar_all_counts_unassigned_arrivals_but_existing_ones_are_prior_without_actions(self):
+        self.fake.others = [self.other("p1", "LAVENUE - POST 01", lst="l3")]    # já em Aprovar, sem responsável, na 1ª leitura
+        self.fake.actions["b1"] = [action("p1", "Aprovar", "2026-11-20T15:00:00.000Z")]
+        self.t.refresh()
+        self.assertEqual(self.t.done["p1"]["src"], "prior")                     # anterior ao Companion: mesmo com action recente, nunca conta
+        d = self.t.state()["done"]
+        self.assertEqual((d["today"], d["week"], d["month"], d["recent"]), (0, 0, 0, []))
+        self.assertIn("a1", self.t.done)                                        # o meu (a1) segue a regra de sempre
+        self.fake.others.append(self.other("p2", "EL VIEJO - TV", lst="l3"))
+        self.fake.others.append(self.other("p3", "TOP MARKET - OUTRO", lst="l3", members=["ana"]))   # de outra pessoa: ignorado
+        self.fake.others.append(self.other("p4", "SEPARADOR", lst="l3"))                             # fora do padrão
+        self.fake.actions["b1"].append(action("p2", "Aprovar", "2026-11-23T15:00:00.000Z"))
+        self.now[0] += 400
+        self.t.refresh()
+        self.assertEqual((self.t.done["p2"]["src"], self.t.done["p2"]["day"]), ("entered", "2026-11-23"))   # data real pelas actions
+        self.assertNotIn("p3", self.t.done)
+        self.assertNotIn("p4", self.t.done)
+        self.assertEqual(self.t.state()["done"]["month"], 1)
+
+    def test_aprovar_all_without_actions_is_seen_and_toggle_rebaselines(self):
+        self.t.refresh()
+        self.fake.others = [self.other("p5", "ACME - X", lst="l3")]
+        self.now[0] += 400
+        self.t.refresh()
+        self.assertEqual(self.t.done["p5"]["src"], "seen")                      # chegou depois da base: "visto em"
+        self.cfg["approved_scope"] = "mine"
+        self.fake.others.append(self.other("p6", "ACME - Y", lst="l3"))
+        self.now[0] += 400
+        self.t.refresh()
+        self.assertNotIn("p6", self.t.done)                                     # Só os meus: sem responsável não entra
+        self.cfg["approved_scope"] = "all"
+        self.now[0] += 400
+        self.t.refresh()
+        self.assertEqual(self.t.done["p6"]["src"], "prior")                     # ligar "Todos" de novo: os que já estavam lá = anterior, nunca hoje
+        self.assertEqual(self.t.state()["done"]["today"], 1)                    # só o p5
+        again = trello.Trello(self.base, lambda: self.cfg, self.fake, lambda: self.now[0])
+        self.assertEqual(again.baseline_all, self.t.baseline_all)               # a base sobrevive a reinício
+
+    def test_unassigned_in_aprovar_follows_permanent_and_reopen_rules(self):
+        self.t.refresh()
+        self.fake.others = [self.other("p7", "ACME - Z", lst="l3")]
+        self.now[0] += 400
+        self.t.refresh()
+        self.assertEqual(self.t.state()["done"]["today"], 1)
+        self.fake.others = []                                                    # saiu de Aprovar para fora do processo (ou foi atribuído a outro): continua contando
+        self.now[0] += 400
+        self.t.refresh()
+        self.assertEqual(self.t.state()["done"]["today"], 1)
+        self.fake.others = [self.other("p7", "ACME - Z", lst="l2")]              # reaberto em Em execução
+        self.now[0] += 400
+        self.t.refresh()
+        self.assertEqual(self.t.state()["done"]["today"], 0)
+        self.fake.others = [self.other("p7", "ACME - Z", lst="l3")]
+        self.now[0] += 400
+        self.t.refresh()
+        self.assertEqual(self.t.state()["done"]["today"], 1)
+
+    def test_stage_scope_config_default_all_and_validation(self):
+        self.assertEqual((self.t.cfg()["running_scope"], self.t.cfg()["approved_scope"]), ("all", "all"))
+        out = trello.clean_cfg({"on": True, "running_scope": "mine"}, {"key": KEY, "token": TOKEN})
+        self.assertEqual((out["running_scope"], out["approved_scope"]), ("mine", "all"))
+        with self.assertRaises(ValueError):
+            trello.clean_cfg({"on": True, "approved_scope": "x"}, {"key": KEY, "token": TOKEN})
 
     def test_split_name_rule(self):
         self.assertEqual(trello.split_name("TOP MARKET - POST 20 - EP 1"), ("TOP MARKET", "POST 20 - EP 1"))
