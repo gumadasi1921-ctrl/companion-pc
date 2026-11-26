@@ -92,6 +92,9 @@ def main():
             return False
 
     png = dota_img.PNG + b"x" * 20
+
+    def bridge_none(req, timeout):
+        raise urllib.error.URLError("sem ponte")
     seen = []
 
     def cdn_open(req, timeout):

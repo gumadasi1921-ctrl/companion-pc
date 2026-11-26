@@ -2304,7 +2304,7 @@ OD = dota_od.OpenDota(BASE / "dota-od.json", lambda: dota_cfg().get("steam_id", 
 GSIS = dota_gsi.GSI(lambda: dota_cfg().get("gsi_token"), lambda: dota_cfg().get("steam_id", ""))
 GSI_LIS = [None]
 IMG = dota_img.ImageProxy(Path(__file__).resolve().with_name("dota-img"), lambda: CFG["token"], lambda: DOTA.cfg.get("bridge"),
-                          cdn_path=OD.img_path)
+                          cdn_path=OD.img_path, ext_url=OD.ext_url)
 
 
 def dota_open():

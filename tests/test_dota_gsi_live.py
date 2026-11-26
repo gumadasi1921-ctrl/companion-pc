@@ -45,7 +45,7 @@ ROUTES = {"/players/1": "od-player", "/players/1/recentMatches": "od-recent", "/
 class FakeOd(http.server.BaseHTTPRequestHandler):
     def do_GET(self):  # noqa: N802
         OD_CALLS.append(self.path)
-        name = ROUTES.get(self.path)
+        name = ROUTES.get(self.path) or ("od-match" if self.path.startswith("/matches/") else None)
         data = fx(name) if name else {}
         if self.path.endswith("recentMatches") and EXTRA:
             data = EXTRA + data
@@ -103,7 +103,7 @@ async def live(srv, dota_root):
     m = await recv_until(phone, lambda m: isd(m) and m["d"]["lobby"] is not None, 10)
     check("lobby vem do OpenDota (medalha, 5 partidas, mais jogados)", bool(m) and m["d"]["lobby"]["mmr"]["medal"] == "Lenda 3" and len(m["d"]["lobby"]["recent"]) == 5
           and m["d"]["lobby"]["top_heroes"][0]["hero"] == "Invoker" and m["d"]["lobby"]["source"] == "opendota", str(m and m["d"]["lobby"] and list(m["d"]["lobby"])))
-    check("chamadas ao OpenDota: só GET conhecidos", all(c in ROUTES for c in OD_CALLS), str(OD_CALLS))
+    check("chamadas ao OpenDota: só GET conhecidos", all(c in ROUTES or c.startswith("/matches/") for c in OD_CALLS), str(OD_CALLS))
     check("img_key e auto_open acompanham", bool(m) and len(m["img_key"]) == 24)
     # GSI
     check("POST com token errado = 403", post_gsi("gsi-game", "errado") == 403)

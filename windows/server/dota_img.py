@@ -35,7 +35,9 @@ CDN_HOST = "https://cdn.cloudflare.steamstatic.com"
 PNG = b"\x89PNG\r\n\x1a\n"
 KEY_LABEL = b"dota-img-v1"
 _ID = re.compile(r"[0-9]{1,10}")
-_NAME = re.compile(r"(hero-[0-9]+-(icon|portrait|loadout)|item-[0-9]+)\.png")
+_NAME = re.compile(r"(hero-[0-9]+-(icon|portrait|loadout)|item-[0-9]+|rank-[0-8]|star-[1-5])\.png|avatar-[0-9a-f]{40}\.jpg")
+JPG = b"\xff\xd8\xff"
+_EXT = {"rank": re.compile(r"[0-8]"), "star": re.compile(r"[1-5]"), "avatar": re.compile(r"[0-9a-f]{40}")}
 
 
 def image_key(token):
@@ -49,7 +51,7 @@ def _reply(status, body=b"", ctype="text/plain; charset=utf-8", cache="no-store"
 
 class ImageProxy:
     def __init__(self, cache_dir, token, bridge_url, opener=None, clock=time.monotonic, cache_max=CACHE_MAX_BYTES,
-                 cdn_path=None, cdn_opener=None):
+                 cdn_path=None, cdn_opener=None, ext_url=None):
         self.cache_dir = Path(cache_dir)
         self._token = token            # função: devolve o token atual
         self._bridge_url = bridge_url  # função: devolve a URL do estado da ponte (config "dota.bridge")
@@ -60,6 +62,8 @@ class ImageProxy:
         # sem o Copilot: imagem estática do CDN da Valve, só para id JÁ conhecido (cdn_path(kind, id) = caminho validado do
         # OpenDota/constants, ou None) e só https do host fixo; nada de conta ou Steam ID vai junto
         self.cdn_path = cdn_path
+        # medalha/estrela (host do OpenDota) e avatar do perfil (steamstatic): ext_url(kind, id) só devolve URL de id conhecido
+        self.ext_url = ext_url
         self.cdn_opener = cdn_opener or urllib.request.build_opener().open
         self.cdn_down_until = 0.0
         self.lock = threading.Lock()
@@ -72,7 +76,7 @@ class ImageProxy:
         """(arquivo_no_cache, caminho_na_ponte) ou (None, resposta_de_erro)."""
         path, _, query = target.partition("?")
         parts = path.split("/")
-        if len(parts) != 5 or parts[:3] != ["", "dota", "img"] or parts[3] not in ("hero", "item"):
+        if len(parts) != 5 or parts[:3] != ["", "dota", "img"] or parts[3] not in ("hero", "item", "rank", "star", "avatar"):
             return None, _reply(404, b"nao encontrado\n")
         try:
             q = urllib.parse.parse_qs(query, keep_blank_values=True, max_num_fields=8)
@@ -81,6 +85,11 @@ class ImageProxy:
         keys = q.get("k", [])
         if len(keys) != 1 or not hmac.compare_digest(keys[0].encode("utf-8"), self.key().encode("utf-8")):
             return None, _reply(403, b"recusado\n")
+        if parts[3] in _EXT:
+            if not _EXT[parts[3]].fullmatch(parts[4]):
+                return None, _reply(400, b"id invalido\n")
+            ext = "jpg" if parts[3] == "avatar" else "png"
+            return (f"{parts[3]}-{parts[4]}.{ext}", ("ext", parts[3], parts[4])), None
         if not _ID.fullmatch(parts[4]) or int(parts[4]) <= 0:
             return None, _reply(400, b"id invalido\n")
         ident = int(parts[4])
@@ -99,7 +108,13 @@ class ImageProxy:
         name, remote = job
         cached = self._read_cache(name)
         if cached is not None:
-            return self._ok(cached)
+            return self._ok(cached, "image/jpeg" if name.endswith(".jpg") else "image/png")
+        if isinstance(remote, tuple):      # imagem externa de id conhecido
+            body = self._ext(remote[1], remote[2], name)
+            if body is None:
+                return _reply(404, b"imagem indisponivel\n")
+            self._store(name, body)
+            return self._ok(body, "image/jpeg" if name.endswith(".jpg") else "image/png")
         fetched = self._fetch(remote)
         if isinstance(fetched, tuple):   # erro: 404 da ponte (não guarda) ou 502
             cdn = self._cdn(name)
@@ -110,8 +125,27 @@ class ImageProxy:
         return self._ok(fetched)
 
     @staticmethod
-    def _ok(body):
-        return 200, "image/png", body, {"Cache-Control": f"max-age={BROWSER_MAX_AGE}", "X-Content-Type-Options": "nosniff"}
+    def _ok(body, ctype="image/png"):
+        return 200, ctype, body, {"Cache-Control": f"max-age={BROWSER_MAX_AGE}", "X-Content-Type-Options": "nosniff"}
+
+    def _ext(self, kind, ident, name):
+        """Corpo (PNG ou JPEG conforme o nome) de uma imagem externa de id conhecido, ou None."""
+        if self.ext_url is None or self.clock() < self.cdn_down_until:
+            return None
+        arg = int(ident) if kind in ("rank", "star") else ident
+        url = self.ext_url(kind, arg)
+        if not url or not url.startswith(("https://www.opendota.com/assets/images/dota2/rank_icons/", "https://avatars.steamstatic.com/")):
+            return None
+        try:
+            with self.cdn_opener(urllib.request.Request(url, headers={"Accept": "image/*"}), timeout=5) as resp:
+                body = resp.read(MAX_IMAGE_BYTES + 1)
+        except urllib.error.HTTPError:
+            return None
+        except (urllib.error.URLError, http.client.HTTPException, OSError, ValueError, TimeoutError):
+            self.cdn_down_until = self.clock() + DOWN_FOR_S
+            return None
+        sig = JPG if name.endswith(".jpg") else PNG
+        return body if len(body) <= MAX_IMAGE_BYTES and body.startswith(sig) else None   # HTML de erro/página não vira imagem
 
     def _cdn(self, name):
         """PNG do CDN da Valve para o arquivo pedido, ou None (sem fonte/erro: vale a resposta de erro da ponte)."""
@@ -140,7 +174,7 @@ class ImageProxy:
             body = f.read_bytes()
         except OSError:
             return None
-        if not body.startswith(PNG):  # arquivo estragado: descarta e busca de novo
+        if not (body.startswith(PNG) or (name.endswith(".jpg") and body.startswith(JPG))):  # arquivo estragado: descarta e busca de novo
             self._drop(f)
             return None
         try:

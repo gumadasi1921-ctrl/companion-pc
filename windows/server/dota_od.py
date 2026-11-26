@@ -34,6 +34,11 @@ MAX_BYTES = 8 * 1024 * 1024
 BACKOFF_429_S = 300
 BACKOFF_ERR_S = 60
 WATCH_EVERY_S, WATCH_MAX_S, WATCH_MAX_CALLS = 30, 600, 20
+MATCH_BATCH = 3            # itens das partidas: no máximo 3 leituras de /matches/{id} por ciclo (10 min); cada partida é lida uma vez
+MATCH_TRIES = 3            # partida sem os itens do jogador: desiste depois de 3 tentativas
+EXT_HOSTS = "https://www.opendota.com/assets/images/dota2/rank_icons/"   # medalhas e estrelas (a Valve não serve esses PNG pelo CDN dela)
+AVATAR_HOST = "https://avatars.steamstatic.com/"
+_AVATAR = re.compile(r"https://avatars\.[a-z.]*steamstatic\.com/([0-9a-f]{40})(?:_full)?\.jpg")
 RECENT_KEEP = 10
 TOP_KEEP = 10
 MEDALS = ("Arauto", "Guardião", "Cruzado", "Arconte", "Lenda", "Ancião", "Divino", "Imortal")
@@ -90,7 +95,8 @@ def trim_profile(d):
         raise OdError("formato")
     p = d.get("profile") if isinstance(d.get("profile"), dict) else {}
     name = p.get("personaname")
-    return {"name": name[:40] if isinstance(name, str) else None, "rank_tier": _i(d.get("rank_tier")),
+    av = _AVATAR.fullmatch(p.get("avatarfull")) if isinstance(p.get("avatarfull"), str) else None
+    return {"name": name[:40] if isinstance(name, str) else None, "avatar": av.group(1) if av else None, "rank_tier": _i(d.get("rank_tier")),
             "leaderboard": _i(d.get("leaderboard_rank")), "has_profile": bool(p)}
 
 
@@ -131,6 +137,17 @@ def trim_wl(d):
     return {"win": d["win"], "lose": d["lose"]}
 
 
+def trim_match(d, acc):
+    """Itens do jogador numa partida (/matches/{id}): ([6 ids ou None], item neutro ou None), ou (None, None) se ele não aparece."""
+    if not isinstance(d, dict) or not isinstance(d.get("players"), list):
+        raise OdError("formato")
+    for p in d["players"]:
+        if isinstance(p, dict) and p.get("account_id") == acc:
+            its = [_i(p.get(f"item_{n}")) or None for n in range(6)]
+            return its, _i(p.get("item_neutral")) or None
+    return None, None
+
+
 def _img(v):
     p = v.split("?", 1)[0] if isinstance(v, str) else ""
     return p if _IMG_PATH.fullmatch(p) else None
@@ -169,6 +186,7 @@ class OpenDota:
         self.error = None            # tipo do último erro (None = ok)
         self.watch = None            # {"id", "since", "last", "calls"}
         self.official = None         # entrada de recentMatches da partida observada, quando aparece
+        self.match_batch_at = -1e12  # última leitura em lote de /matches/{id}
         self._sync_account()
 
     # ------------------------------------------------------------ disco
@@ -179,6 +197,7 @@ class OpenDota:
                 d.setdefault("sec", {})
                 d.setdefault("consts", {})
                 d.setdefault("calls", {"day": "", "n": 0})
+                d.setdefault("matches", {})
                 return d
         except FileNotFoundError:
             pass
@@ -187,7 +206,7 @@ class OpenDota:
                 os.replace(self.path, self.path.with_name(self.path.name + ".bad-" + time.strftime("%Y%m%d-%H%M%S")))
             except OSError:
                 pass
-        return {"v": 1, "account": None, "sec": {}, "consts": {}, "calls": {"day": "", "n": 0}}
+        return {"v": 1, "account": None, "sec": {}, "consts": {}, "matches": {}, "calls": {"day": "", "n": 0}}
 
     def _save(self):
         try:
@@ -203,6 +222,7 @@ class OpenDota:
         if self.data.get("account") != acc:
             self.data["account"] = acc
             self.data["sec"] = {}
+            self.data["matches"] = {}
             self.watch = self.official = None
             self._save()
         return acc
@@ -228,7 +248,8 @@ class OpenDota:
         try:
             return self.fetch(BASE + path)
         except OdError as e:
-            self.blocked_until = now + (BACKOFF_429_S if e.kind == "limite" else BACKOFF_ERR_S)
+            if e.code != 404:   # 404 = esta partida/perfil não existe lá; não é motivo para parar as outras leituras
+                self.blocked_until = now + (BACKOFF_429_S if e.kind == "limite" else BACKOFF_ERR_S)
             raise
 
     def _fill(self, group, key, path, trim):
@@ -272,7 +293,21 @@ class OpenDota:
             todo += [("sec", s) for s in SECTIONS if self._stale("sec", s, TTL_S)]
             if self._watching() and self.clock() - self.watch["last"] >= WATCH_EVERY_S and ("sec", "recent") not in todo:
                 todo.append(("sec", "recent"))
+            if self._batch_ok() and self._missing_matches():
+                todo.append(("match", None))
         return todo
+
+    def _missing_matches(self):
+        """Partidas recentes sem itens guardados (a mais nova primeiro). Guardadas para sempre: uma leitura por partida."""
+        out = []
+        for m in self._sec("recent") or []:
+            e = self.data["matches"].get(str(m["match_id"]))
+            if e is None or (e.get("i") is None and e.get("n", 0) < MATCH_TRIES):
+                out.append(m["match_id"])
+        return out
+
+    def _batch_ok(self):
+        return self.clock() - self.match_batch_at >= TTL_S
 
     def due(self, has_clients=True):
         return bool(self.needs(has_clients))
@@ -283,7 +318,7 @@ class OpenDota:
             acc = self._sync_account()
             todo = self.needs(has_clients) if not force else [("sec", s) for s in SECTIONS] if acc else []
             changed = False
-            for group, key in todo:
+            for group, key in [t for t in todo if t[0] != "match"]:
                 try:
                     if group == "consts":
                         self._fill("consts", key, f"/constants/{key}", trim_const_heroes if key == "heroes" else trim_const_items)
@@ -305,8 +340,33 @@ class OpenDota:
                         log.warning("OpenDota erro (%s)", e.kind)
                     self.error = e.kind
                     self._save()
-                    break
+                    return changed
+            if acc and self._batch_ok() and self._missing_matches():
+                changed = self._fetch_matches(acc) or changed
             return changed
+
+    def _fetch_matches(self, acc):
+        """Até MATCH_BATCH partidas por ciclo, da mais nova para a mais velha."""
+        self.match_batch_at = self.clock()
+        got = False
+        for mid in self._missing_matches()[:MATCH_BATCH]:
+            prev = self.data["matches"].get(str(mid)) or {}
+            try:
+                its, neutral = trim_match(self._get(f"/matches/{mid}"), acc)
+                self.data["matches"][str(mid)] = {"i": its, "nt": neutral, "n": prev.get("n", 0) + 1}
+                got = True
+            except OdError as e:
+                if e.code == 404:        # a partida não está disponível lá (ainda): conta a tentativa, as outras seguem
+                    self.data["matches"][str(mid)] = {"i": None, "nt": None, "n": prev.get("n", 0) + 1}
+                    got = True
+                    continue
+                if e.kind != "espera" and self.error != e.kind:
+                    log.warning("OpenDota erro (%s)", e.kind)
+                self.error = e.kind
+                break
+        if got:
+            self._save()
+        return got
 
     def refresh_manual(self):
         """Botão 'atualizar': no mínimo 60 s entre pedidos. Devolve (mudou, segundos_para_poder_de_novo)."""
@@ -368,15 +428,19 @@ class OpenDota:
         if prof:
             md = medal(prof["rank_tier"])
             if md:
-                out["mmr"] = {"value": None, "estimated": False, "medal": md}
-            out["profile"] = {"name": prof["name"]}
+                tier, stars = divmod(prof["rank_tier"], 10)
+                out["mmr"] = {"value": None, "estimated": False, "medal": md, "tier": tier, "stars": stars if 1 <= stars <= 5 and tier < 8 else None,
+                              "leaderboard": prof["leaderboard"] if tier == 8 else None}
+            out["profile"] = {"name": prof["name"], "avatar": prof.get("avatar")}
         if wl:
             out["record"] = wl
         if rec is not None:
+            byid = {v["id"]: v["n"] for v in list(((self.data["consts"].get("items") or {}).get("d", {})).values())}
             out["recent"] = [{"match_id": m["match_id"], "hero_id": m["hero_id"], "hero": self.hero_name(m["hero_id"]), "win": m["win"],
                               "k": m["k"], "d": m["d"], "a": m["a"], "duration_s": m["duration_s"],
-                              "ended_at": m["start"] + m["duration_s"] if m["start"] is not None and m["duration_s"] is not None else None}
-                             for m in rec]
+                              "ended_at": m["start"] + m["duration_s"] if m["start"] is not None and m["duration_s"] is not None else None,
+                              "gpm": m.get("gpm"), "xpm": m.get("xpm"), "last_hits": m.get("last_hits"), "hero_damage": m.get("hero_damage"),
+                              **self._items_of(m["match_id"], byid)} for m in rec]
             lt = time.localtime(self.clock())
             midnight = time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, 0, 0, 0, 0, 0, -1))
             day = [m for m in out["recent"] if m["ended_at"] is not None and m["ended_at"] >= midnight and m["win"] is not None]
@@ -386,12 +450,30 @@ class OpenDota:
                 n = next((i for i, w in enumerate(wins) if w != wins[0]), len(wins))
                 out["streak"] = n if wins[0] else -n
         out["top_heroes"] = [{"hero_id": h["hero_id"], "hero": self.hero_name(h["hero_id"]), "matches": h["games"],
-                              "winrate": round(h["win"] / h["games"], 3) if h["win"] is not None else None}
+                              "winrate": round(h["win"] / h["games"], 3) if h["win"] is not None else None, "last_played": h.get("last_played") or None}
                              for h in (top or [])[:5]]
         ats = [e["at"] for e in list(self.data["sec"].values())]
         out["fetched_at"] = min(ats) if ats else None
         out["stale"] = bool(self.error) or (bool(ats) and self.clock() - min(ats) > 2 * TTL_S)
         return out
+
+    def _items_of(self, match_id, byid):
+        """{'items': [{'id','name'}|None ×6], 'neutral': {...}|None} só de partida já lida em /matches/{id}; senão nada (sem chave)."""
+        e = self.data["matches"].get(str(match_id))
+        if not e or e.get("i") is None:
+            return {}
+        mk = lambda i: {"id": i, "name": byid.get(i)} if i else None  # noqa: E731
+        return {"items": [mk(i) for i in e["i"]], "neutral": mk(e.get("nt"))}
+
+    def ext_url(self, kind, ident):
+        """URL externa de uma imagem JÁ conhecida (medalha/estrela do OpenDota, avatar do Steam do perfil), ou None."""
+        if kind == "rank" and isinstance(ident, int) and 0 <= ident <= 8:
+            return f"{EXT_HOSTS}rank_icon_{ident}.png"
+        if kind == "star" and isinstance(ident, int) and 1 <= ident <= 5:
+            return f"{EXT_HOSTS}rank_star_{ident}.png"
+        if kind == "avatar" and isinstance(ident, str) and ident and ident == (self._sec("profile") or {}).get("avatar"):
+            return f"{AVATAR_HOST}{ident}_medium.jpg"
+        return None
 
     def status(self):
         acc = account_id(self.steam_fn())

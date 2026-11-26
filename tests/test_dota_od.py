@@ -28,7 +28,7 @@ def fx(n):
 class Net:
     """Rede falsa: responde pelo caminho e conta as chamadas."""
     def __init__(self):
-        self.calls, self.fail, self.recent = [], None, fx("recent")
+        self.calls, self.fail, self.recent, self.gone = [], None, fx("recent"), set()
 
     def __call__(self, url):
         path = url[len(dota_od.BASE):]
@@ -47,6 +47,13 @@ class Net:
             return fx("constants-heroes")
         if path == "/constants/items":
             return fx("constants-items")
+        if path.startswith("/matches/"):
+            mid = int(path.rsplit("/", 1)[1])
+            if mid in self.gone:
+                raise dota_od.OdError("http", 404)
+            d = fx("match")
+            d["match_id"] = mid
+            return d
         raise AssertionError(path)
 
 
@@ -72,11 +79,11 @@ def main():
         check("sem leitura: lobby None", od.lobby() is None)
         check("status pendente", od.status()["state"] == "pending")
         check("precisa de aparelho para buscar", od.needs(False) == [] and len(od.needs(True)) == 6)
-        check("refresh faz 6 chamadas", od.refresh() and len(net.calls) == 6, str(net.calls))
-        check("só GET de caminhos conhecidos (sem /request, sem /matches)", all(c.startswith(("/players/1", "/constants/")) and "/request" not in c for c in net.calls))
+        check("refresh: 6 leituras + 3 partidas (a mais nova primeiro)", od.refresh() and len(net.calls) == 9 and net.calls[6:] == ["/matches/9000000005", "/matches/9000000004", "/matches/9000000003"], str(net.calls))
+        check("só GET de caminhos conhecidos (sem /request)", all(c.startswith(("/players/1", "/constants/", "/matches/")) and "/request" not in c for c in net.calls))
         lb = od.lobby()
-        check("medalha sem valor de MMR", lb["mmr"] == {"value": None, "estimated": False, "medal": "Lenda 3"})
-        check("perfil e vitórias/derrotas", lb["profile"] == {"name": "Jogador Falso"} and lb["record"] == {"win": 120, "lose": 100})
+        check("medalha: nome, tier e estrelas, sem valor de MMR", lb["mmr"] == {"value": None, "estimated": False, "medal": "Lenda 3", "tier": 5, "stars": 3, "leaderboard": None}, str(lb["mmr"]))
+        check("perfil (nome e avatar) e vitórias/derrotas", lb["profile"] == {"name": "Jogador Falso", "avatar": "32dbb7d95395f12254ba2d97ff56526a5d6989eb"} and lb["record"] == {"win": 120, "lose": 100})
         r = lb["recent"]
         check("recentes: herói pelo nome", [m["hero"] for m in r] == ["Invoker", "Axe", "Invoker", "Rubick", "Axe"])
         check("V/D pela player_slot", [m["win"] for m in r] == [True, True, True, False, False], str([m["win"] for m in r]))
@@ -85,6 +92,15 @@ def main():
         check("sequência de vitórias", lb["streak"] == 3)
         check("mais jogados: sem partidas zeradas, taxa", [(h["hero"], h["matches"], h["winrate"]) for h in lb["top_heroes"]] == [("Invoker", 40, 0.55), ("Axe", 10, 0.4)])
         check("hoje conta só o que terminou depois da meia-noite local", lb["today"]["wins"] + lb["today"]["losses"] <= 5)
+        check("recentes trazem GPM/XPM/LH/dano e início", (r[0]["gpm"], r[0]["xpm"], r[0]["last_hits"], r[0]["hero_damage"]) == (400, 500, 200, 20000) and r[0]["ended_at"] == T0 + 2400)
+        check("itens só das 3 partidas lidas; 0 = vazio; id sem catálogo fica sem nome", [("items" in m) for m in r] == [True, True, True, False, False]
+              and [x and x["id"] for x in r[0]["items"]] == [1, 44, None, 9999, None, 1] and r[0]["items"][0]["name"] == "Blink Dagger" and r[0]["items"][3]["name"] is None
+              and r[0]["neutral"]["id"] == 44, str(r[0].get("items")))
+        check("top_heroes traz last_played", lb["top_heroes"][0]["last_played"] == T0)
+        check("ext_url: medalha, estrela e avatar conhecidos", od.ext_url("rank", 5) == dota_od.EXT_HOSTS + "rank_icon_5.png" and od.ext_url("star", 3).endswith("rank_star_3.png")
+              and od.ext_url("avatar", "32dbb7d95395f12254ba2d97ff56526a5d6989eb") == "https://avatars.steamstatic.com/32dbb7d95395f12254ba2d97ff56526a5d6989eb_medium.jpg")
+        check("ext_url: id fora da faixa ou avatar desconhecido = None", od.ext_url("rank", 9) is None and od.ext_url("star", 6) is None and od.ext_url("star", 0) is None
+              and od.ext_url("avatar", "0" * 40) is None and od.ext_url("rank", "5") is None and od.ext_url("hero", 5) is None)
         check("fetched_at e não velho", lb["fetched_at"] == T0 + 3000 and lb["stale"] is False)
         check("hero_mine do top, outro None", od.hero_mine(74) == {"matches": 40, "winrate": 0.55, "last_played": T0, "avg_kda": None} and od.hero_mine(86) is None)
         check("nome do herói e item", od.hero_name(74) == "Invoker" and od.hero_name(5) is None and od.item("item_blink") == {"id": 1, "name": "Blink Dagger", "cost": 2250} and od.item("item_nada") is None)
@@ -93,15 +109,27 @@ def main():
         check("URL externa e '..' descartados", od.img_path("portrait", 74) is None and od.img_path("icon", 74) is None)
         check("id desconhecido sem imagem; chave de item inválida fora", od.img_path("portrait", 12345) is None and od.img_path("item", 5) is None)
         check("cache em disco", json.loads(Path(d, "dota-od.json").read_text(encoding="utf-8"))["sec"]["profile"]["d"]["name"] == "Jogador Falso")
-        # nada vencido: sem chamadas
         n = len(net.calls)
+        clock.t += 100
+        check("lote de partidas: no máximo 3 por ciclo (nada de novo antes de 10 min)", not any("/matches/" in c for c in net.calls[9:]) and od.needs() == [])
+        clock.t -= 100
+        # nada vencido: sem chamadas
         clock.t += 300
         check("dentro dos 10 min: nada a buscar", od.needs() == [] and not od.refresh() and len(net.calls) == n)
         clock.t += 400
-        check("depois de 10 min: 4 seções (constantes não)", len(od.needs()) == 4)
+        check("depois de 10 min: 4 seções + lote de partidas (constantes não)", len(od.needs()) == 5)
+        od.refresh()
+        mt = [c for c in net.calls if c.startswith("/matches/")]
+        check("2º ciclo lê as 2 que faltam; depois nunca mais", mt[3:] == ["/matches/9000000002", "/matches/9000000001"] and len(mt) == 5, str(mt))
+        r2 = od.lobby()["recent"]
+        check("agora as 5 partidas têm itens", all("items" in m for m in r2))
+        clock.t += 700
+        od.refresh()
+        check("partida já lida nunca é lida de novo", len([c for c in net.calls if c.startswith("/matches/")]) == 5)
+        clock.t += 700
         # reabre do disco = mesma cópia, sem rede
         od2, net2, _ = mk(d, clock=clock)
-        check("reabre do disco", od2.lobby()["recent"][0]["hero"] == "Invoker" and net2.calls == [])
+        check("reabre do disco (itens guardados para sempre)", od2.lobby()["recent"][0]["hero"] == "Invoker" and "items" in od2.lobby()["recent"][0] and net2.calls == [])
         # offline: erro de rede mantém a cópia e marca estale
         net.fail = "rede"
         check("erro: sem mudança, guarda o tipo", not od.refresh() and od.error == "rede")
@@ -123,6 +151,26 @@ def main():
         who[0] = ""
         check("sem Steam ID: sem lobby e status no_id; constantes ficam", od3.lobby() is None and od3.status()["state"] == "no_id" and od3.hero_name(74) == "Invoker")
         check("sem Steam ID só busca constantes vencidas (nenhuma)", od3.needs() == [])
+    # partida que o OpenDota não tem (404): conta a tentativa, as outras seguem e não há recuo
+    with tempfile.TemporaryDirectory() as d:
+        od, net, clock = mk(d)
+        net.gone = {9000000004}
+        od.refresh()
+        r = od.lobby()["recent"]
+        check("404 numa partida: sem itens nela, as outras vêm, sem recuo geral", "items" not in r[1] and "items" in r[0] and "items" in r[2] and od.status()["blocked_s"] == 0 and od.error is None)
+        for _ in range(4):
+            clock.t += 700
+            od.refresh()
+        check("404: desiste depois de 3 tentativas", len([c for c in net.calls if c == "/matches/9000000004"]) == dota_od.MATCH_TRIES)
+    # outra conta esquece os itens guardados
+    with tempfile.TemporaryDirectory() as d:
+        who = ["1"]
+        net, clock = Net(), Clock()
+        od = dota_od.OpenDota(Path(d, "dota-od.json"), lambda: who[0], net, clock)
+        od.refresh()
+        who[0] = "2"
+        od._sync_account()
+        check("trocar o Steam ID apaga as partidas guardadas", od.data["matches"] == {} and od.lobby() is None)
     # limite diário
     with tempfile.TemporaryDirectory() as d:
         od, net, clock = mk(d)

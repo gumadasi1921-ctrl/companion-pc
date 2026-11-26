@@ -297,7 +297,9 @@ def main():
             "token": TOKEN, "panel_token": PANEL,
             "web": {"host": "127.0.0.1", "port": PORT, "adb_reverse": False, "adb_path": ""},
             "dota": {"bridge": f"http://127.0.0.1:{BRIDGE_PORT}/companion/v1/state", "auto_open": True}}), encoding="utf-8")
-        p = subprocess.Popen([sys.executable, "companion_server.py", "--console"], cwd=srv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        import os
+        env = {**os.environ, "COMPANION_OD_BASE": "http://127.0.0.1:9", "COMPANION_GSI_PORT": "8799"}   # sem rede real: só a ponte falsa serve imagens
+        p = subprocess.Popen([sys.executable, "companion_server.py", "--console"], cwd=srv, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
             for _ in range(40):
                 try:

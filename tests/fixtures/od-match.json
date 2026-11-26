@@ -1,0 +1,26 @@
+{
+ "match_id": 0,
+ "players": [
+  {
+   "account_id": 999,
+   "item_0": 1,
+   "item_1": 1,
+   "item_2": 1,
+   "item_3": 1,
+   "item_4": 1,
+   "item_5": 1
+  },
+  {
+   "account_id": 1,
+   "hero_id": 74,
+   "item_0": 1,
+   "item_1": 44,
+   "item_2": 0,
+   "item_3": 9999,
+   "item_4": 0,
+   "item_5": 1,
+   "backpack_0": 0,
+   "item_neutral": 44
+  }
+ ]
+}
