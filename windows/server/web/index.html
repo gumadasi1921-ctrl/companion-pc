@@ -7105,6 +7105,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
   const h = (tag, props, ...kids) => {
     const e = document.createElement(tag);
     for (const [k, v] of Object.entries(props || {})) {
+      if (typeof v === "boolean" && k.startsWith("aria-")) { e.setAttribute(k, String(v)); continue; }   // aria-checked=true virava "" e o CSS [aria-checked="true"] nunca pegava
       if (v == null || v === false) continue;
       if (k === "class") e.className = v; else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
       else if (k === "value") e.value = v; else e.setAttribute(k, v === true ? "" : v);
