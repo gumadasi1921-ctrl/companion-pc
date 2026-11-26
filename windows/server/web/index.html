@@ -1720,6 +1720,39 @@ html.lm-still .home.editing .hw:not(.hw-slot) { animation: none; outline: 2px da
 .hpage .hw.z-L .htr-l { flex: 1 1 0; min-height: 0; align-items: stretch; } .z-L .htr-l .htr-3 { flex: none; width: 112px; grid-template-columns: 1fr; align-content: center; gap: 8px; } .z-L .htr-l .htr-3 > div { flex-direction: row; align-items: baseline; gap: 6px; } .z-L .htr-l .htr-3 b { font-size: 24px; min-width: 22px; text-align: right; } .z-L .htr-l .htr-3 span { font-size: 11px; }
 .trw-more, .trw-tail { display: none; height: 18px; line-height: 18px; font-size: 11px; font-weight: 700; color: var(--text-2, var(--p2)); padding-left: 11px; font-variant-numeric: tabular-nums; }
 .trw-more.on, .trw-tail.on { display: block; }
+/* Calendário (widget): data em vermelho, mini-mês, linhas com barra/hora/título, dia inteiro em faixa, em andamento destacado */
+.cal-wd { font-size: 12px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--alert, #f87168); }
+.cal-dn { font-size: 34px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; }
+.cal-p { gap: 4px; } .cal-p .cal-dn { font-size: clamp(30px, 18cqw, 42px); }
+.cal-pe { display: flex; gap: 8px; min-width: 0; } .cal-pe > div { min-width: 0; display: flex; flex-direction: column; }
+.cal-pe small { font-size: 11px; color: var(--text-2, var(--p2)); font-variant-numeric: tabular-nums; } .cal-pe b { font-size: 13px; line-height: 16px; font-weight: 600; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: break-word; }
+.cal-pm { font-size: 12px; color: var(--text-2, var(--p2)); }
+.cal-bar { flex: none; align-self: stretch; width: 3px; min-height: 14px; border-radius: 2px; background: var(--accent, var(--p)); }
+.cal-a, .cal-l, .cal-gg { display: flex; min-width: 0; } .hpage .hw .cal-a, .hpage .hw .cal-l, .hpage .hw .cal-gg { min-height: 0; flex: 1 1 0; } .cal-a { flex-direction: column; gap: 6px; } .cal-gg { flex-direction: column; gap: 6px; } .cal-l { flex-direction: row; gap: 12px; align-items: stretch; }
+.cal-hd { display: flex; align-items: center; gap: 8px; flex: none; } .cal-hd span { display: flex; flex-direction: column; min-width: 0; } .cal-hd em { font-style: normal; } .cal-hd i { font-style: normal; font-size: 12px; color: var(--text-2, var(--p2)); }
+.cal-mini { flex: none; min-width: 0; display: flex; flex-direction: column; gap: 2px; } .cal-l .cal-mini { width: 46%; max-width: 168px; }
+.cal-mt { font-size: 12px; line-height: 14px; font-weight: 700; text-transform: capitalize; }
+.cal-mm { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: 1fr; flex: 1 1 auto; min-height: 0; text-align: center; }
+.cal-gg .cal-mm { grid-auto-rows: 17px; flex: none; }
+.cal-mw { font-size: 10px; line-height: 14px; color: var(--text-3, var(--p3t)); font-weight: 600; } .cal-gg .cal-mw { line-height: 15px; }
+.cal-md { position: relative; display: flex; align-items: center; justify-content: center; min-height: 0; font-size: 11px; font-variant-numeric: tabular-nums; }
+.cal-md b { font-weight: 500; display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; max-height: 100%; border-radius: 50%; line-height: 1; }
+.cal-md.today b { background: var(--alert, #f87168); color: #fff; font-weight: 700; } .cal-md.has:not(.today)::after, .cal-md.has.today::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--accent, var(--p)); }
+.cal-md.has.today::after { background: var(--text-2, var(--p2)); }
+.cal-list { display: flex; flex-direction: column; min-width: 0; } .hpage .hw .cal-list { min-height: 0; flex: 1 1 0; overflow: hidden; }
+.cal-g { display: flex; flex-direction: column; min-width: 0; } .cal-g + .cal-g { margin-top: 4px; }
+.cal-dh { font-size: 11px; line-height: 14px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--alert, #f87168); padding: 2px 0; }
+.cal-c { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px 6px 4px 0; border-radius: 6px; }
+.cal-e { border-top: 1px solid var(--separator, var(--p4)); } .cal-dh + .cal-e { border-top: 0; }
+.cal-e.now { background: color-mix(in srgb, var(--accent, var(--p)) 16%, transparent); padding-left: 6px; margin: 0 -6px 0 0; }
+.cal-e.now .cal-bar { width: 4px; } .cal-e.now .cal-n { font-weight: 700; }
+.cal-t { flex: none; display: flex; flex-direction: column; width: 38px; font-variant-numeric: tabular-nums; } .cal-t b { font-size: 12px; line-height: 15px; font-weight: 600; } .cal-t small { font-size: 11px; line-height: 13px; color: var(--text-2, var(--p2)); }
+.cal-n { flex: 1 1 auto; min-width: 0; font-size: 13px; line-height: 16px; font-weight: 600; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: break-word; }
+.cal-j { flex: none; display: flex; align-items: center; min-height: 44px; margin: -8px 0; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--accent, var(--p)); }
+.cal-ad { background: color-mix(in srgb, var(--accent, var(--p)) 14%, transparent); padding-left: 8px; margin-bottom: 2px; } .cal-ad b { font-size: 13px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .cal-adl { flex: none; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--accent, var(--p)); }
+.cal-emp { font-size: 12px; color: var(--text-2, var(--p2)); }
+.cal-more, .cal-tail { display: none; height: 18px; line-height: 18px; font-size: 11px; font-weight: 700; color: var(--text-2, var(--p2)); padding-left: 2px; font-variant-numeric: tabular-nums; } .cal-more.on, .cal-tail.on { display: block; }
+.z-P .cal-j, .z-P .cal-t small { display: none; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -4146,23 +4179,23 @@ function trwHtml(d, cap) {
   const sets = [["run", run], ["todo", f.items || []]].filter((a) => a[1].length);
   return sets.map(([k, a]) => `<div class="trw-g" data-cat="${k}" data-n="${TR_CAT[k]}"><div class="trw-gh"><i class="trd"></i>${TR_CAT[k]}<em>${a.length}</em></div>${a.slice(0, cap).map(trwCard).join("")}<div class="trw-more${a.length > cap ? " on" : ""}">${a.length > cap ? "+" + (a.length - cap) : ""}</div></div>`).join("") + (sets.length ? '<div class="trw-tail"></div>' : "");
 }
-function trwFit(c) {
-  const gs = [...c.querySelectorAll(":scope > .trw-g")], tail = c.querySelector(":scope > .trw-tail");
-  for (const g of gs) { g.classList.remove("fx"); g.querySelectorAll(".trw-c").forEach((k) => k.classList.remove("fx")); const m = g.querySelector(".trw-more"); if (m) { m.classList.remove("on"); m.textContent = ""; } }
+function trwFit(c, p = "trw") {   // p = prefixo das classes: trw (Trello) | cal (Calendário)
+  const gs = [...c.querySelectorAll(`:scope > .${p}-g`)], tail = c.querySelector(`:scope > .${p}-tail`);
+  for (const g of gs) { g.classList.remove("fx"); g.querySelectorAll(`.${p}-c`).forEach((k) => k.classList.remove("fx")); const m = g.querySelector(`.${p}-more`); if (m) { m.classList.remove("on"); m.textContent = ""; } }
   if (tail) { tail.classList.remove("on"); tail.textContent = ""; }
   if (!gs.length) return;
   const base = c.getBoundingClientRect().top, lim = c.clientHeight + 1, MORE = 18, rel = (e) => e.getBoundingClientRect().bottom - base;
-  const last = [...c.querySelectorAll(".trw-c")].pop();
+  const last = [...c.querySelectorAll(`.${p}-c`)].pop();
   let stop = false, hidden = 0, hg = [], cut = null;
   for (const g of gs) {
-    const cs = [...g.querySelectorAll(".trw-c")];
+    const cs = [...g.querySelectorAll(`.${p}-c`)];
     if (stop) { g.classList.add("fx"); hidden += cs.length; hg.push(g.dataset.n); continue; }
     let keep = 0;
     for (const k of cs) { if (rel(k) + (k === last ? 0 : MORE) <= lim) keep++; else break; }
     if (!keep) { g.classList.add("fx"); hidden += cs.length; hg.push(g.dataset.n); stop = true; continue; }
     if (keep < cs.length) { cs.slice(keep).forEach((k) => k.classList.add("fx")); cut = [g, cs.length - keep]; stop = true; }
   }
-  if (cut) { const m = cut[0].querySelector(".trw-more"); m.textContent = "+" + (cut[1] + hidden); m.classList.add("on"); }
+  if (cut) { const m = cut[0].querySelector(`.${p}-more`); m.textContent = "+" + (cut[1] + hidden); m.classList.add("on"); }
   else if (hidden && tail) { tail.textContent = "+" + hidden + (hg.length === 1 ? " " + hg[0] : ""); tail.classList.add("on"); }
 }
 const trSum = (d) => Object.values(d.counts).reduce((x, y) => x + y, 0);
@@ -5033,6 +5066,64 @@ function agNotice(m) {   // aviso X min antes: balão do Lume com "Entrar" (ou a
   const msg = `Reunião em ${m.minutes} min: ${m.title}`; snd("note");
   if (m.join) undoToast(msg, () => send("agenda.join", { id: m.id }).catch((e) => toast(e.message, "bad")), "Entrar", null, 9000); else toast(msg, "ok");
 }
+// ---- Calendário (widget; só leitura; dados = ag.d.cal do servidor). Dia = o do PC (cal.day / cal.tz), nunca o fuso do aparelho.
+const CAL_WD = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"], CAL_WS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+const CAL_MO = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+const calTz = () => ((ag.d && ag.d.cal && ag.d.cal.tz) || 0) * 60000;
+const calNow = () => new Date(agNow() + calTz());   // ler com getUTC*: é a hora do PC
+const calIso = (t) => t.toISOString().slice(0, 10);
+const calAdd = (iso, n) => { const t = new Date(iso + "T00:00:00Z"); t.setUTCDate(t.getUTCDate() + n); return calIso(t); };
+const calHM = (ts) => { const t = new Date(ts * 1000 + calTz()); return String(t.getUTCHours()).padStart(2, "0") + ":" + String(t.getUTCMinutes()).padStart(2, "0"); };
+const calEnd = (e) => (e.end > e.start ? e.end : e.start + 60);
+const calOver = (e) => !e.allday && calEnd(e) * 1000 <= agNow();
+const calLive = (e) => !e.allday && e.start * 1000 <= agNow() && agNow() < calEnd(e) * 1000;
+function calIdx(d) {   // dia (AAAA-MM-DD) -> eventos; dia inteiro de vários dias aparece em cada dia que cobre
+  if (d._ci) return d._ci;
+  const m = new Map();
+  for (const e of d.cal.items) for (let k = 0; k < (e.allday ? e.days || 1 : 1); k++) { const day = calAdd(e.day, k); if (!m.has(day)) m.set(day, []); m.get(day).push(e); }
+  for (const a of m.values()) a.sort((x, y) => (y.allday ? 1 : 0) - (x.allday ? 1 : 0) || x.start - y.start);
+  return (d._ci = m);
+}
+function calMsg(d, fb) { return d.state === "off" ? "Configure a agenda no painel do PC" : d.state === "ok" || (d.state === "net_error" && d.at) ? fb : agEmpty(d); }
+function calRow(e) {
+  if (e.allday) return `<div class="cal-c cal-ad"><span class="cal-adl">dia inteiro</span><b>${esc(e.title)}</b></div>`;
+  return `<div class="cal-c cal-e${calLive(e) ? " now" : ""}"><span class="cal-t"><b>${calHM(e.start)}</b><small>${calHM(e.end > e.start ? e.end : e.start)}</small></span><span class="cal-bar"></span><span class="cal-n">${esc(e.title)}</span>${e.join ? `<button class="cal-j" type="button" data-cal-join="${esc(e.id)}">Entrar</button>` : ""}</div>`;
+}
+const calDayLabel = (iso, today) => (iso === today ? "Hoje" : iso === calAdd(today, 1) ? "Amanhã" : CAL_WS[new Date(iso + "T00:00:00Z").getUTCDay()] + ", " + iso.slice(8) + "/" + iso.slice(5, 7));
+// lista do widget por tamanho; em pé (sem páginas) não há encaixe automático: orçamento de linhas e "+N" fixo
+function calList(d, z, pg) {
+  const idx = calIdx(d), today = calIso(calNow()), left = (iso) => (idx.get(iso) || []).filter((e) => iso !== today || !calOver(e));
+  const days = z === "G" ? [0, 1, 2, 3, 4, 5, 6] : z === "A" ? [0, 1] : [0];
+  const groups = [];
+  for (const k of days) {
+    const iso = calAdd(today, k), a = left(iso);
+    if (k && !a.length) continue;
+    groups.push({ n: calDayLabel(iso, today), head: z === "G" || k > 0, a });
+  }
+  if (z === "G" && groups.every((g) => !g.a.length)) groups[0] = { n: "Hoje", head: false, a: [] };
+  let budget = pg ? 999 : { A: 5, G: 8, L: 4 }[z] || 4;
+  return groups.map((g) => {
+    const rows = g.a.length ? g.a.slice(0, Math.max(0, budget)).map(calRow) : [`<div class="cal-c cal-emp">${esc(g.n === "Hoje" ? calMsg(d, "Nenhum evento hoje") : "Nenhum evento")}</div>`];
+    const rest = g.a.length - (g.a.length ? rows.length : 0);
+    budget -= g.a.length ? rows.length : 1;
+    return `<div class="cal-g" data-n="${esc(g.n)}">${g.head ? `<div class="cal-dh">${esc(g.n)}</div>` : ""}${rows.join("")}<div class="cal-more${rest > 0 ? " on" : ""}">${rest > 0 ? "+" + rest : ""}</div></div>`;
+  }).join("") + '<div class="cal-tail"></div>';
+}
+function calMini(d, today) {
+  const idx = calIdx(d), y = +today.slice(0, 4), m = +today.slice(5, 7), dim = new Date(Date.UTC(y, m, 0)).getUTCDate(), f = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
+  let h = `<div class="cal-mt">${CAL_MO[m - 1]} ${y}</div><div class="cal-mm">` + ["D", "S", "T", "Q", "Q", "S", "S"].map((x) => `<span class="cal-mw">${x}</span>`).join("") + '<span class="cal-md"></span>'.repeat(f);
+  for (let k = 1; k <= dim; k++) {
+    const iso = today.slice(0, 8) + String(k).padStart(2, "0");
+    h += `<span class="cal-md${iso === today ? " today" : ""}${(idx.get(iso) || []).length ? " has" : ""}"><b>${k}</b></span>`;
+  }
+  return h + "</div>";
+}
+function calPHtml(d, today) {
+  const t = calNow(), a = (calIdx(d).get(today) || []).filter((e) => !calOver(e)), ev = a.find((e) => !e.allday) || a[0];
+  const e = !ev ? `<div class="cal-pe"><span class="cal-pm">${esc(calMsg(d, "Nenhum evento hoje"))}</span></div>`
+    : `<div class="cal-pe"><span class="cal-bar"></span><div><small>${ev.allday ? "dia inteiro" : (calLive(ev) ? "agora · " : "") + calHM(ev.start) + "–" + calHM(ev.end > ev.start ? ev.end : ev.start)}</small><b>${esc(ev.title)}</b></div></div>`;
+  return `<div class="cal-wd">${CAL_WD[t.getUTCDay()]}</div><div class="cal-dn">${t.getUTCDate()}</div>${e}`;
+}
 Object.assign(HOME_W, {
   agenda: {
     name: "Próxima reunião", icon: "history", sizes: "PALG", def: "A",
@@ -5053,6 +5144,24 @@ Object.assign(HOME_W, {
       const j = hk(el, "join"); if (j) j.classList.toggle("hidden", !(nx && nx.join));
       const n = el.closest(".pager") ? 6 : { A: 3, G: 4 }[z] || 0;
       if (hk(el, "list")) setHtml(hk(el, "list"), (d.upcoming || []).slice(1, 1 + n).map((r) => `<div class="rw"><b>${esc(agDay(r.start) + agHM(r.start))}</b><span>${esc(r.title)}</span></div>`).join(""));
+    },
+  },
+  calendar: {
+    name: "Calendário", icon: "calendar", sizes: "PALG", def: "A",
+    html(z) {
+      if (z === "P") return '<div class="pq cal-p" data-clip data-k="p"></div>';
+      if (z === "A") return '<div class="cal-a"><div class="cal-hd" data-k="hd"></div><div class="cal-list" data-k="list" data-calfit></div></div>';
+      return `<div class="${z === "L" ? "cal-l" : "cal-gg"}"><div class="cal-mini" data-k="mini"></div><div class="cal-list" data-k="list" data-calfit></div></div>`;
+    },
+    ready: () => !!ag.d,
+    upd(el) {
+      const d = ag.d, z = el.dataset.z;
+      if (!d.cal) { const b = hk(el, "list") || hk(el, "p") || el; setHtml(b, `<div class="cal-c cal-emp">Atualize o Companion no PC para ver o calendário</div>`); return; }
+      const today = calIso(calNow()), t = calNow();
+      if (z === "P") return setHtml(hk(el, "p"), calPHtml(d, today));
+      if (z === "A") setHtml(hk(el, "hd"), `<b class="cal-dn">${t.getUTCDate()}</b><span><em class="cal-wd">${CAL_WD[t.getUTCDay()]}</em><i>${CAL_MO[t.getUTCMonth()]}</i></span>`);
+      else setHtml(hk(el, "mini"), calMini(d, today));
+      setHtml(hk(el, "list"), calList(d, z, !!el.closest(".pager")));
     },
   },
 });
@@ -5336,7 +5445,7 @@ $("home-dots").addEventListener("click", (e) => {
 });
 matchMedia("(orientation: landscape)").addEventListener("change", () => { if (vis("inicio")) homeBuild(); });
 // funcionalidade do servidor de que cada widget depende: sem ela neste PC o widget fica no lugar, com "indisponível neste PC"
-const HOME_NEEDS = { agenda: "agenda", reminders: "reminders", now: "media", work: "work", today: "work", games: "library", notif: "notif", trello: "trello", monday: "monday", pomo: "pomo", dota: "dota" };
+const HOME_NEEDS = { agenda: "agenda", calendar: "agenda", reminders: "reminders", now: "media", work: "work", today: "work", games: "library", notif: "notif", trello: "trello", monday: "monday", pomo: "pomo", dota: "dota" };
 // Início em páginas (deitado/tablet): nos tamanhos A e G as listas ocupam a altura que sobra e mostram quantos itens couberem
 // (só dados que já existem; o que não cabe fica escondido com .fx e volta quando a altura cresce).
 const HW_FIT = "[data-fit], [data-clip]";
@@ -5349,6 +5458,7 @@ function hwFit(el) {
     t.style.webkitLineClamp = String(Math.max(1, Math.min(6, Math.floor(room / lh))));
   }
   for (const c of el.querySelectorAll("[data-trw]")) trwFit(c);
+  for (const c of el.querySelectorAll("[data-calfit]")) trwFit(c, "cal");
   for (const c of el.querySelectorAll(HW_FIT)) {
     const kids = [...c.children]; kids.forEach((k) => k.classList.remove("fx"));
     if (kids.length < 2) continue;
@@ -5632,6 +5742,8 @@ $("home").addEventListener("click", (e) => {
     if (a.dataset.a === "play" && m) { const u = a.querySelector("use"); u.setAttribute("href", m.status === "playing" ? "#ic-play" : "#ic-pause"); }   // otimista
     return act("media." + (a.dataset.a === "play" ? "play_pause" : a.dataset.a));
   }
+  const cj = e.target.closest("[data-cal-join]");
+  if (cj) { buzz(); return void send("agenda.join", { id: cj.dataset.calJoin }).then(() => toast("Aberto no PC", "ok")).catch((er) => { if (er.message !== "offline") toast(er.message, "bad"); }); }
   if (e.target.closest("[data-ag=join]")) return agJoin();
   const t = e.target.closest(".trow[data-id]"); if (t) return homeTaskToggle(t.dataset.id);
   if (e.target.closest('.hw[data-w="reminders"]')) { buzz(8); showView("reminders"); }
