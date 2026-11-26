@@ -353,6 +353,61 @@ class TrelloTests(unittest.TestCase):
         d = self.t.state()["done"]
         self.assertEqual((d["today"], d["week"], d["month"]), (0, 0, 1))          # 22/11 foi domingo: semana passada (esta começa em 23/11)
 
+    def test_done_is_permanent_when_card_leaves_aprovar_to_another_list(self):
+        self.t.refresh()
+        self.fake.cards.append(card("m5", "Finalizado", "b1", "l3"))
+        self.now[0] += 400
+        self.t.refresh()
+        self.assertEqual(self.t.state()["done"]["month"], 1)
+        self.fake.cards = [c for c in self.fake.cards if c["id"] != "m5"]       # saiu de Aprovar para uma lista fora do processo (não vem mais)
+        self.now[0] += 400
+        self.t.refresh()
+        self.assertEqual((self.t.state()["done"]["month"], self.t.state()["done"]["today"]), (1, 1))
+        self.fake.cards.append(card("m5", "Finalizado", "b1", "l1"))            # em outra lista conhecida (Backlog): ainda conta
+        self.now[0] += 400
+        self.t.refresh()
+        self.assertEqual(self.t.state()["done"]["month"], 1)
+
+    def test_reopened_card_stops_counting_and_new_entry_counts_on_new_date_once(self):
+        self.t.refresh()
+        self.fake.cards.append(card("m6", "Vai e volta", "b1", "l3"))
+        self.now[0] += 400
+        self.t.refresh()
+        self.assertEqual(self.t.state()["done"]["today"], 1)
+        self.fake.cards = [c for c in self.fake.cards if c["id"] != "m6"] + [card("m6", "Vai e volta", "b1", "l2")]   # voltou para Em execução
+        self.now[0] += 400
+        self.t.refresh()
+        d = self.t.state()["done"]
+        self.assertEqual((d["today"], d["month"], d["recent"]), (0, 0, []))
+        self.assertTrue(self.t.done["m6"]["open"])
+        self.fake.cards = [c for c in self.fake.cards if c["id"] != "m6"] + [card("m6", "Vai e volta", "b1", "l3")]   # entrou de novo no mesmo dia
+        self.now[0] += 400
+        self.t.refresh()
+        d = self.t.state()["done"]
+        self.assertEqual((d["today"], d["month"]), (1, 1))                       # conta de novo, sem duplicar
+        self.assertFalse(self.t.done["m6"]["open"])
+        self.fake.cards = [c for c in self.fake.cards if c["id"] != "m6"] + [card("m6", "Vai e volta", "b1", "l0")]   # reaberto para A fazer
+        self.cfg["todo"] = {"mode": "list", "list_id": "l0", "position": 1}
+        self.now[0] += 400
+        self.t.refresh()
+        self.assertEqual(self.t.state()["done"]["month"], 0)
+        self.fake.cards = [c for c in self.fake.cards if c["id"] != "m6"] + [card("m6", "Vai e volta", "b1", "l3")]
+        self.now[0] += 86400
+        self.t.refresh()                                                         # outro dia: nova data
+        self.assertEqual(self.t.done["m6"]["day"], "2026-11-25")
+        self.assertEqual(self.t.state()["done"]["month"], 1)
+
+    def test_reopened_flag_survives_restart(self):
+        self.t.refresh()
+        self.fake.cards.append(card("m7", "x", "b1", "l3"))
+        self.now[0] += 400
+        self.t.refresh()
+        self.fake.cards = [c for c in self.fake.cards if c["id"] != "m7"] + [card("m7", "x", "b1", "l2")]
+        self.now[0] += 400
+        self.t.refresh()
+        again = trello.Trello(self.base, lambda: self.cfg, self.fake, lambda: self.now[0])
+        self.assertEqual(again.state()["done"]["month"], 0)
+
     def test_new_monthly_board_first_read_is_prior(self):
         self.cfg["scope"] = {"mode": "prefix", "prefixes": ["TIME |"], "ids": [], "workspace": "CONCEPT"}
         self.t.refresh()

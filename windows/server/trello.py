@@ -505,6 +505,11 @@ class Trello:
 
     def _track_done(self, key, token, cards, scoped, apr):
         changed, need, today = False, {}, self.today()
+        for c in cards:      # voltou para A fazer / Em execução: deixa de contar (continua no histórico; se entrar de novo em Aprovar, conta na nova data)
+            cur = self.done.get(c["id"])
+            if cur is not None and c["cat"] in ("todo", "running") and not cur.get("open"):
+                cur["open"] = True
+                changed = True
         for bid in sorted(scoped):
             first = bid not in self.baseline
             for c in (x for x in cards if x["board_id"] == bid and x["cat"] == "approved"):
@@ -512,6 +517,10 @@ class Trello:
                 if cur is None:
                     self.done[c["id"]] = {"name": c["name"], "board": c["board"], "board_id": bid, "short": c["short"],
                                           "src": "prior" if first else "seen", "day": None if first else today.isoformat()}
+                    need.setdefault(bid, set()).add(c["id"])
+                    changed = True
+                elif cur.get("open"):      # reentrou em Aprovar depois de reaberto: um registro só por card, com a data nova
+                    cur.update({"open": False, "src": "seen", "day": today.isoformat(), "name": c["name"], "short": c["short"]})
                     need.setdefault(bid, set()).add(c["id"])
                     changed = True
                 elif cur.get("name") != c["name"] or cur.get("short") != c["short"]:
@@ -538,7 +547,7 @@ class Trello:
         return f"{day[8:10]}/{day[5:7]}"
 
     def _counted(self):
-        return [(v["day"], k, v) for k, v in self.done.items() if v.get("src") in ("entered", "seen") and v.get("day")]
+        return [(v["day"], k, v) for k, v in self.done.items() if v.get("src") in ("entered", "seen") and v.get("day") and not v.get("open")]
 
     def done_counts(self, today=None):
         today = today or self.today()
