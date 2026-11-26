@@ -652,6 +652,26 @@ def trello_test(p):
         raise ValueError("Não consegui falar com o Trello agora") from None
 
 
+def _trello_cred(p):
+    cur = CFG.get("trello") if isinstance(CFG.get("trello"), dict) else {}
+    key = trello.valid_cred(p["key"], "API key") if isinstance(p.get("key"), str) and p["key"].strip() else cur.get("key", "")
+    token = trello.valid_cred(p["token"], "token") if isinstance(p.get("token"), str) and p["token"].strip() else cur.get("token", "")
+    if not key or not token:
+        raise ValueError("Informe a API key e o token")
+    return key, token
+
+
+def trello_boards(p):
+    """Painel › Ajustes › Trello › "Carregar quadros e listas": quadros (com área), nomes de lista dos quadros que o filtro aceita."""
+    key, token = _trello_cred(p)
+    try:
+        return TRELLO.boards_info(key, token, p.get("scope"))
+    except trello.CredError:
+        raise ValueError("Credencial inválida (confira a key e o token de leitura)") from None
+    except trello.NetError:
+        raise ValueError("Não consegui falar com o Trello agora") from None
+
+
 def monday_state():
     """Na fila de disco: estado do monday + tempo dos jobs ligados aos itens."""
     return MONDAY.state(times=WORK.mlink_times())
@@ -782,16 +802,7 @@ def clean_config_value(key, v):
     if key == "misplaced_min":
         return alerts.valid_misplaced_min(v)
     if key == "trello":   # key/token em branco = mantém os já salvos; nunca voltam ao painel nem ao celular
-        if not isinstance(v, dict) or set(v) - {"key", "token", "on"} or not isinstance(v.get("on"), bool):
-            raise ValueError("Trello: formato inválido")
-        cur = CFG.get("trello") if isinstance(CFG.get("trello"), dict) else {}
-        out = {"on": v["on"]}
-        for k, label in (("key", "API key"), ("token", "token")):
-            new = v.get(k)
-            out[k] = trello.valid_cred(new, label) if isinstance(new, str) and new.strip() else cur.get(k, "")
-        if v["on"] and not (out["key"] and out["token"]):
-            raise ValueError("Informe a API key e o token para ligar o Trello")
-        return out
+        return trello.clean_cfg(v, CFG.get("trello") if isinstance(CFG.get("trello"), dict) else {})
     if key == "monday":   # token em branco = mantém o salvo; nunca volta ao painel nem ao celular
         return monday.clean_cfg(v, CFG.get("monday") if isinstance(CFG.get("monday"), dict) else {})
     if key == "agenda":   # url em branco = mantém a salva; a URL secreta nunca volta ao painel nem ao celular
@@ -857,7 +868,9 @@ def config_save(changes):
     if "idle_min" in changed:
         WORK.set_idle_min(clean["idle_min"])
     if "trello" in changed and any(old_trello.get(k) != clean["trello"].get(k) for k in ("key", "token")):
-        TRELLO.reset()     # credencial nova: tenta de novo e esquece os dados da conta anterior
+        TRELLO.reset()     # credencial nova: tenta de novo e esquece os dados da conta anterior (o histórico de Aprovar fica)
+    elif "trello" in changed and any(old_trello.get(k) != clean["trello"].get(k) for k in ("scope", "running", "approved", "todo", "on")):
+        TRELLO.invalidate()    # filtro/listas novos: relê na próxima volta
     if "monday" in changed and (old_monday.get("token") != clean["monday"].get("token") or old_monday.get("boards") != clean["monday"].get("boards")):
         MONDAY.reset()     # token ou quadros novos: tenta de novo e esquece a leitura anterior (o histórico de Aprovar fica)
     if set(changed) & {"shortcuts", "allow_power", "pc_name"} and LOOP[0]:
@@ -883,7 +896,7 @@ def config_get():
     out["agenda"] = AGENDA.status()    # idem: só "tem URL?" e o estado
     mc = CFG.get("monday") if isinstance(CFG.get("monday"), dict) else {}
     out["monday"] = {**MONDAY.status(), "boards_cfg": json.loads(json.dumps(mc.get("boards") or []))}   # sem token
-    out["trello"] = TRELLO.status()    # só "tem key/token?" e o estado: as credenciais nunca saem do config.json
+    out["trello"] = {**TRELLO.status(), "cfg": TRELLO.cfg_view()}    # só "tem key/token?", o estado e o filtro: as credenciais nunca saem do config.json
     out["net"] = {"ip": lan_ip(), "port": WEB["port"],
                   "mode": "só cabo (127.0.0.1)" if WEB["host"] in ("127.0.0.1", "localhost") else "rede local + cabo"}
     return out
@@ -1050,6 +1063,7 @@ PANEL_WS = {   # nome -> função(params dict); as de gravação rodam na fila d
     "config_save": lambda p: PANEL_OPS["config_save"](_need(p, "changes", dict)),
     "backup_run": lambda p: PANEL_OPS["backup_run"](),
     "trello_test": lambda p: trello_test(p),
+    "trello_boards": lambda p: trello_boards(p),
     "agenda_test": lambda p: agenda_test(p),
     "update_info": lambda p: update_op("info"), "update_check": lambda p: update_op("check"),
     "update_apply": lambda p: update_op("apply"), "update_rollback": lambda p: update_op("rollback"),
@@ -1584,7 +1598,7 @@ QUIET_ACTIONS = {"games.history", "games.library", "notif.sub", "mouse.move", "m
                  "panel_status", "pair_new", "pair_state", "pick_folder", "tasks_get", "tasks_add", "tasks_edit",
                  "tasks_remove", "tasks_move", "tasks_toggle", "tasks_clear_done", "tasks_restore", "work_get",
                  "work_week", "work_csv", "work_month", "work_month_csv", "work_note_set", "work_add_root", "work_remove_root", "work_assign_preview", "work_assign",
-                 "work_ignore", "work_rules_get", "work_rule_delete", "work_unignore", "config_get", "config_save", "open_focus", "backup_run", "trello_test",
+                 "work_ignore", "work_rules_get", "work_rule_delete", "work_unignore", "config_get", "config_save", "open_focus", "backup_run", "trello_test", "trello_boards", "trello_boards",
                  "update_info", "update_check", "update_apply", "update_rollback", "agenda_test", "agenda.get", "agenda.join",
                  "trello.get", "trello.open", "work_links_get", "work_link_set", "work_link_delete", "work_link_restore", "trello_cards",
                  "monday.get", "monday.open", "monday_test", "monday_boards", "monday_items", "work_mlinks_get", "work_mlink_set", "work_mlink_delete", "work_mlink_restore"}

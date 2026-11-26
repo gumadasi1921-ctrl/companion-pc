@@ -101,11 +101,11 @@ class Links(unittest.TestCase):
 
 class StateTimes(unittest.TestCase):
     def test_card_shows_spent_and_unlinked_do_not(self):
-        cards = [{"short": CARD_A, "name": "Cartaz", "due": None, "dueComplete": False, "idBoard": "b", "idList": "l", "shortLink": CARD_A, "labels": []},
-                 {"short": CARD_B, "name": "Outro", "due": None, "dueComplete": False, "idBoard": "b", "idList": "l", "shortLink": CARD_B, "labels": []}]
+        cards = [{"id": "cardA", "short": CARD_A, "name": "Cartaz", "due": None, "dueComplete": False, "idBoard": "b", "idList": "l", "shortLink": CARD_A, "labels": []},
+                 {"id": "cardB", "short": CARD_B, "name": "Outro", "due": None, "dueComplete": False, "idBoard": "b", "idList": "l", "shortLink": CARD_B, "labels": []}]
 
         def fetch(path, params, key, token):
-            return cards if path == "members/me/cards" else [{"id": "b", "name": "Q"}] if path.endswith("boards") else [{"id": "l", "name": "L"}]
+            return cards if path == "members/me/cards" else [{"id": "b", "name": "Q"}] if path.endswith("boards") else [{"id": "l", "name": "Em execução"}]
         with tempfile.TemporaryDirectory() as d:
             t = trello.Trello(Path(d), lambda: {"key": "k" * 20, "token": "t" * 20, "on": True}, fetch, lambda: 1_800_000_000.0)
             t.refresh()
