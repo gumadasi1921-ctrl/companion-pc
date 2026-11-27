@@ -93,6 +93,7 @@ import games
 import pair
 import pc_info
 import steam_dl
+import battery
 import watchers
 import pomodoro
 import cowork
@@ -1227,6 +1228,7 @@ ASYNC_ACTIONS = {
     "audio.set_output": lambda p: output_action(p.get("id")),
     "audio.cycle": lambda p: output_action(cycle=True),
     "steam.get": lambda p: steam_get(),
+    "battery.get": lambda p: battery_get(),
     "audio.profiles": lambda p: AUDIO_PROFILES.list(),
     "audio.profile_save": lambda p: profile_save(p),
     "audio.profile_apply": lambda p: profile_apply(p),
@@ -1471,7 +1473,7 @@ def welcome_payload():
         "features": {"media": pc_info.HAS_MEDIA, "volume": pc_info.HAS_VOLUME, "mixer": pc_info.HAS_VOLUME,
                      "screen": True, "clipboard": True, "files": True, "deck": True,
                      "mic": pc_info.HAS_VOLUME, "timer": True, "deck_auto": True, "macro": True,
-                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True, "cowork": True, "trello": True, "monday": True, "reminders": True, "agenda": True, "devbk": True, "noise": True,
+                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True, "cowork": True, "trello": True, "monday": True, "reminders": True, "agenda": True, "devbk": True, "noise": True, "battery": True,
                      "dota": True},
     }
 
@@ -1576,6 +1578,8 @@ async def session(ws, peer, kind, xff=None):
     await noise_send(only=ws)
     if STEAMDL.polled:
         await steam_send(STEAMDL.state(), only=ws)
+    if BATTERY.polled:
+        await battery_send(only=ws)
     await work_stream_send(only=ws)
     await linkask_send(only=ws)
     for ev in IMPQ.pending_events():     # Importante ainda sem toque: quem conecta depois recebe
@@ -1633,6 +1637,7 @@ sent_art: dict = {}
 QUIET_ACTIONS = {"alert.ack", "alert_test_sound", "work.link_pick", "work.link_none", "work.link_later", "work.link_undo", "devbk.save", "devbk.info", "devbk.get", "devbk_list", "devbk_delete", "games.history", "games.library", "notif.sub", "mouse.move", "mouse.scroll", "key.text", "clip.set", "clip.get", "file.chunk",
                  "screen.shot", "mixer.get", "audio.profiles", "audio.profile_save", "audio.profile_apply", "audio.profile_delete",  # nome do perfil
                  "steam.get",  # consultada a cada abertura da tela Jogos
+                 "battery.get",  # nome do fone/mouse que o Windows informa
                  "deck.get", "deck.save",  # deck.save: textos/macros dos botões
                  "work.get", "work.week", "work.csv", "work.month",  # nomes de cliente/job/arquivo
                  "tasks.get", "tasks.toggle",  # texto das tarefas
@@ -2788,6 +2793,41 @@ async def steam_loop():
         await asyncio.sleep(wait)
 
 
+BATTERY = battery.Battery()
+
+
+async def battery_send(only=None):
+    msg = json.dumps({"t": "battery", "d": BATTERY.state()}, ensure_ascii=False)
+    for ws in ([only] if only else list(clients)):
+        try:
+            await ws.send(msg)
+        except ConnectionClosed:
+            clients.discard(ws)
+
+
+async def battery_get():
+    if not BATTERY.polled:
+        await on_io(BATTERY.poll)
+    return {"d": BATTERY.state()}
+
+
+async def battery_loop():
+    """Bateria Bluetooth que o Windows informa: 1×/min, só com aparelho; < 15% vira aviso (Importante se estiver marcado)."""
+    while True:
+        try:
+            if clients:
+                changed, low = await on_io(BATTERY.poll)
+                if changed:
+                    await battery_send()
+                for a in low:
+                    title, body = battery.message(a)
+                    log.info("aviso de bateria baixa")   # sem nome do aparelho
+                    await alert_emit("battery", {"t": "event", "kind": "alert", "sub": "battery", "title": title, "body": body, "open": "home"}, title, body)
+        except Exception:  # noqa: BLE001
+            log.exception("battery_loop")
+        await asyncio.sleep(60)
+
+
 async def now_loop():
     while True:
         try:
@@ -3062,6 +3102,7 @@ async def main():
     spawn("dota_gsi", gsi_serve)
     spawn("weather", weather_loop)
     spawn("steam", steam_loop)
+    spawn("battery", battery_loop)
     spawn("work", work_loop)
     spawn("noise", noise_loop)
     spawn("backup", backup_loop)

@@ -210,9 +210,10 @@ def valid_focus_except(v):
 # o evento com level "important" (piscada + Lume no centro). Pendente na memória até o celular tocar (alert.ack), reenviado a quem
 # conectar e repetido UMA vez se ninguém tocar em 15 min.
 IMPORTANT_KINDS = {"misplaced_generic": "Arquivo sem salvar", "misplaced_outside": "Arquivo fora do lugar",
-                   "linkcard": "Ligar job ao card", "unident": "Tempo sem atribuir hoje"}
+                   "linkcard": "Ligar job ao card", "unident": "Tempo sem atribuir hoje",
+                   "battery": "Bateria baixa (fone, mouse)"}
 IMPORTANT_SOUNDS = {"chime": "Sino curto", "bell": "Campainha", "pulse": "Três toques"}
-IMPORTANT_DEFAULT = {"kinds": ["misplaced_generic", "linkcard"], "ignore_focus": ["misplaced_generic"], "sound": "chime", "volume": 70}
+IMPORTANT_DEFAULT = {"kinds": ["misplaced_generic", "linkcard", "battery"], "ignore_focus": ["misplaced_generic"], "sound": "chime", "volume": 70}
 REPEAT_S = 15 * 60
 MAX_PENDING_S = 2 * 3600
 

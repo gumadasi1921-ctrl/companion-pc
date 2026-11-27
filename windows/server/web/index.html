@@ -2054,6 +2054,11 @@ header .host { display: none; }
 #rem-alarm { position: fixed; left: 50%; top: calc(8px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 47; width: min(560px, calc(100vw - 16px)); box-sizing: border-box; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 14px; background: var(--panel); border: 2px solid var(--alert, #f87168); box-shadow: 0 6px 24px rgba(0,0,0,.35); }
 #rem-alarm.hidden { display: none; } #rem-alarm .ra-t { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; } #rem-alarm .ra-t em { color: var(--p3t); font-style: normal; }
 #rem-alarm .ra-b { display: flex; gap: 8px; flex: none; } #rem-alarm button { min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--p3); background: var(--bg); color: var(--p); font: inherit; cursor: pointer; } #rem-alarm button[data-ra=done] { background: var(--accent-fill, var(--p)); color: var(--on-accent, var(--bg)); border-color: transparent; }
+.bt-list { display: flex; flex-direction: column; gap: 6px; min-height: 0; } .bt-l { flex-direction: row; gap: 14px; align-items: center; }
+.bt-r { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: baseline; font-size: 14px; min-width: 0; } .bt-l .bt-r { flex: 1 1 0; }
+.bt-n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .bt-r b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.bt-b { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: color-mix(in srgb, currentColor 14%, transparent); overflow: hidden; } .bt-b u { display: block; height: 100%; background: var(--ok); border-radius: 3px; }
+.bt-r.lo b { color: var(--alert, #f87168); } .bt-r.lo .bt-b u { background: var(--alert, #f87168); }
 .rw { display: flex; gap: 8px; align-items: baseline; min-height: 28px; font-size: 14px; } .rw b { flex: none; font-weight: 500; color: var(--p2); font-size: 13px; } .rw span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .rw.hi b { color: var(--alert, #f87168); }
 
 /* Widget Foco: Iniciar/Pausar + Pular (alvos de 44 px) */
@@ -2730,6 +2735,7 @@ button.cal-mt::after { content: ""; position: absolute; left: 0; right: 0; top: 
           <div class="set"><label>Arquivo fora do lugar</label><button class="switch" id="al-impOutside" aria-label="Arquivo fora do lugar: aviso importante"></button></div>
           <div class="set"><label>Ligar job ao card</label><button class="switch" id="al-impLink" aria-label="Ligar job ao card: aviso importante"></button></div>
           <div class="set"><label>Tempo sem atribuir hoje</label><button class="switch" id="al-impUnident" aria-label="Tempo sem atribuir hoje: aviso importante"></button></div>
+          <div class="set"><label>Bateria baixa<small>Fone ou mouse Bluetooth abaixo de 15%</small></label><button class="switch" id="al-impBattery" aria-label="Bateria baixa: aviso importante"></button></div>
           <div class="set"><label>Ver como fica</label><button class="btn" id="al-imp-test" type="button">Testar</button></div>
         </div>
       </div>
@@ -3532,7 +3538,7 @@ function makeFull(store, KEYS, lay, defaults, now) {
   const GROUPS = G0.map((g) => ({ ...g, keys: g.keys.filter((k) => SHARED.includes(k)) })).filter((g) => g.keys.length)
     .concat([{ id: "other", label: "Outros", keys: SHARED.filter((k) => !used.has(k)) }]);   // chave nova da lista cai em Outros
   const BOOL = ["snd", "vib", "wake", "liqLight", "micFab", "dotaOpen", "deckAuto", "pcnotif", "scrFast", "land"];
-  const AL_B = ["net", "download", "export", "misplaced", "trello", "monday", "gpu", "cpu", "ram", "impGeneric", "impOutside", "impLink", "impUnident"], AL_V = ["gpuV", "cpuV", "ramV"];
+  const AL_B = ["net", "download", "export", "misplaced", "trello", "monday", "gpu", "cpu", "ram", "impGeneric", "impOutside", "impLink", "impUnident", "impBattery"], AL_V = ["gpuV", "cpuV", "ramV"];
   const unit = (n) => typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1;
   const posMap = (v) => {
     if (!isObj(v)) return undefined; const o = {};
@@ -3879,6 +3885,7 @@ function onMsg(m) {
     case "linkask": linkAskSet(m.d); break;
     case "monday": mondaySet(m.d); break;
     case "reminders": remSet(m.d); break;
+    case "battery": batSet(m.d); break;
     case "agenda": agSet(m.d); break;
     case "gameart": state.gameart = { [m.id]: "data:image/jpeg;base64," + m.jpg }; renderGames(); break;
     case "event": lumeEvent(m, () => {
@@ -3890,7 +3897,8 @@ function onMsg(m) {
       if (m.kind === "steam.done" && prefs.alerts.download) { snd("note"); notify("Download da Steam concluído", m.name, "steam-" + m.appid); toast("Steam: " + m.name + " terminou de baixar", "ok"); return; }
       if (m.kind === "download" && prefs.alerts.download) notify("Download concluído", m.name + (m.size ? ` · ${fmtBytes(m.size)}` : ""), "dl");
       if (m.kind === "export" && prefs.alerts.export) exportNotice(m);
-      if (m.kind === "alert" && prefs.alerts.misplaced) { if (!impAlert(m)) misplacedNotice(m); }
+      if (m.kind === "alert" && m.sub === "battery") { if (!impAlert(m)) batNotice(m); }
+      else if (m.kind === "alert" && prefs.alerts.misplaced) { if (!impAlert(m)) misplacedNotice(m); }
       if (m.kind === "focus.summary") focusSummary(m);
       if (m.kind === "trello.digest" && prefs.alerts.trello) trelloDigest(m);
       if (m.kind === "monday.digest" && prefs.alerts.monday) mondayDigest(m);
@@ -6215,6 +6223,32 @@ Object.assign(HOME_W, {
   },
 });
 
+// ---------------------------------------------------------------- Bateria (fone/mouse Bluetooth: só o que o Windows informa; sem dado = mensagem, nunca número inventado)
+const bat = { d: null };
+function batSet(d) { if (!d || !Array.isArray(d.items)) return; bat.d = d; homeUpd("battery"); }
+const batRow = (i, lo) => `<div class="bt-r${i.pct < lo ? " lo" : ""}"><span class="bt-n">${esc(i.name)}</span><b>${i.pct}%</b><i class="bt-b" aria-hidden="true"><u style="width:${i.pct}%"></u></i></div>`;
+function batNotice(m) {
+  homeNotifPush({ app: m.title, title: m.body, body: "", go: "" });
+  snd("note"); buzz(30);
+  if (document.hidden) return sysNotify(m.title, m.body, "battery");
+  toast(m.title + ": " + m.body, "bad");
+}
+Object.assign(HOME_W, {
+  battery: {
+    name: "Bateria", icon: "battery", sizes: "PAL", def: "A",
+    html(z) {
+      if (z === "P") return '<div class="pq" data-clip><div class="hw-t"><span>Bateria</span></div><div class="bt-list pq-list" data-k="list" data-clip></div></div>';
+      if (z === "L") return '<div class="htk-l"><div class="bt-list bt-l" data-k="list"></div></div>';
+      return '<div class="hw-t"><span>Bateria</span></div><div class="bt-list" data-k="list" data-fit></div>';
+    },
+    ready: () => !!bat.d,
+    upd(el) {
+      const z = el.dataset.z, d = bat.d, lo = d.low_pct || 15, n = el.closest(".pager") && z !== "L" ? 8 : { P: 2, A: 4, L: 3 }[z];
+      setHtml(hk(el, "list"), !d.items.length ? '<div class="hw-na">Nenhum fone ou mouse Bluetooth com bateria no Windows.</div>' : d.items.slice(0, n).map((i) => batRow(i, lo)).join(""));
+    },
+  },
+});
+
 // ---------------------------------------------------------------- Agenda (somente leitura; o servidor lê o .ics e manda só o necessário)
 const ag = { d: null, off: 0 };
 const agNow = () => Date.now() + ag.off;
@@ -6790,7 +6824,7 @@ $("home-dots").addEventListener("click", (e) => {
 });
 matchMedia("(orientation: landscape)").addEventListener("change", () => { if (vis("inicio")) homeBuild(); });
 // funcionalidade do servidor de que cada widget depende: sem ela neste PC o widget fica no lugar, com "indisponível neste PC"
-const HOME_NEEDS = { agenda: "agenda", calendar: "agenda", reminders: "reminders", now: "media", work: "work", today: "work", games: "library", notif: "notif", trello: "trello", monday: "monday", pomo: "pomo", dota: "dota" };
+const HOME_NEEDS = { battery: "battery", agenda: "agenda", calendar: "agenda", reminders: "reminders", now: "media", work: "work", today: "work", games: "library", notif: "notif", trello: "trello", monday: "monday", pomo: "pomo", dota: "dota" };
 // Início em páginas (deitado/tablet): nos tamanhos A e G as listas ocupam a altura que sobra e mostram quantos itens couberem
 // (só dados que já existem; o que não cabe fica escondido com .fx e volta quando a altura cresce).
 const HW_FIT = "[data-fit], [data-clip]";
@@ -8420,10 +8454,10 @@ async function handleShared() {
 const waitConnected = () => new Promise((res) => { const chk = () => (welcome.host && ws && ws.readyState === 1 ? res() : setTimeout(chk, 300)); chk(); });
 
 // ---------------------------------------------------------------- Alertas
-prefs.alerts = Object.assign({ net: true, download: true, export: true, misplaced: true, trello: true, monday: true, impGeneric: true, impOutside: false, impLink: true, impUnident: false, gpu: false, gpuV: 85, cpu: false, cpuV: 90, ram: false, ramV: 90 }, store.get("alerts", {}));
+prefs.alerts = Object.assign({ net: true, download: true, export: true, misplaced: true, trello: true, monday: true, impGeneric: true, impOutside: false, impLink: true, impUnident: false, impBattery: true, gpu: false, gpuV: 85, cpu: false, cpuV: 90, ram: false, ramV: 90 }, store.get("alerts", {}));
 const alertOn = {};
 const saveAlerts = () => store.set("alerts", prefs.alerts);
-["net", "download", "export", "misplaced", "trello", "monday", "gpu", "cpu", "ram", "impGeneric", "impOutside", "impLink", "impUnident"].forEach((k) => {
+["net", "download", "export", "misplaced", "trello", "monday", "gpu", "cpu", "ram", "impGeneric", "impOutside", "impLink", "impUnident", "impBattery"].forEach((k) => {
   const sw = $("al-" + k); sw.classList.toggle("on", !!prefs.alerts[k]);
   sw.onclick = () => { prefs.alerts[k] = !prefs.alerts[k]; saveAlerts(); sw.classList.toggle("on", prefs.alerts[k]); buzz(8); if (prefs.alerts[k]) askNotify(false); };
   const inp = $(`al-${k}-v`);
@@ -8450,7 +8484,7 @@ function misplacedNotice(m) {
 // ---- Aviso IMPORTANTE (o servidor decide o nível e manda level:"important"; aqui só o efeito, sem som: o som toca só no PC)
 const IMP = { seen: new Set(), t: 0 };
 const impKind = (id) => String(id || "").split(":")[0];
-const impPref = (kind) => ({ misplaced_generic: "impGeneric", misplaced_outside: "impOutside", linkcard: "impLink", unident: "impUnident" })[kind];
+const impPref = (kind) => ({ misplaced_generic: "impGeneric", misplaced_outside: "impOutside", linkcard: "impLink", unident: "impUnident", battery: "impBattery" })[kind];
 const impWanted = (kind) => !!prefs.alerts[impPref(kind)];
 const impStill = () => matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.classList.contains("lm-still");
 function impFlash() {
@@ -8466,13 +8500,14 @@ function impAlert(m) {
   const key = m.id + ":" + (m.repeat || 0);
   if (IMP.seen.has(key)) return true;           // reconexão devolve o mesmo aviso: já mostrado nesta abertura
   IMP.seen.add(key);
-  homeNotifPush({ app: m.title, title: m.body, body: "", go: "work" });
+  const home = m.open === "home", view = home ? "inicio" : "work", lbl = home ? "Abrir Início" : "Abrir Trabalho";
+  homeNotifPush({ app: m.title, title: m.body, body: "", go: home ? "" : "work" });
   if (document.hidden) { sysNotify(m.title, m.body, "imp-" + kind); return true; }
   impFlash(); buzz(30);
   if (lumeOn() && !lumeHidden()) {
     if (LB.cur) lumeBalClose(false);
-    lumeSay({ src: "pc", title: m.title, text: m.body, act: () => showView("work"), label: "Abrir Trabalho", big: true, ack: m.id, ms: 60000 });
-  } else undoToast(m.body, () => { impAck(m.id); showView("work"); }, "Abrir Trabalho", ["Dispensar", () => impAck(m.id)], 15000);
+    lumeSay({ src: "pc", title: m.title, text: m.body, act: () => showView(view), label: lbl, big: true, ack: m.id, ms: 60000 });
+  } else undoToast(m.body, () => { impAck(m.id); showView(view); }, lbl, ["Dispensar", () => impAck(m.id)], 15000);
   return true;
 }
 $("al-imp-test").onclick = () => {
@@ -9964,7 +9999,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
             h("input", { id: "st-unid-at", class: "pn-in", type: "time", value: vals.unident_notice.at, disabled: !vals.unident_notice.on, onchange: (e) => { if (/^\d\d:\d\d$/.test(e.target.value)) vals.unident_notice = { ...vals.unident_notice, at: e.target.value }; render(); } }))),
         h("div", { class: "pn-h" }, "Avisos importantes"), h("div", { class: "pn-card" },
           h("div", { class: "pn-faint" }, "Importante = som e balão aqui no PC, e no celular a borda pisca, o Lume vai para o centro e o balão fica grande. Fica pendente até você tocar e repete uma vez depois de 15 min."),
-          ...[["misplaced_generic", "Arquivo sem salvar"], ["misplaced_outside", "Arquivo fora do lugar"], ["linkcard", "Ligar job ao card"], ["unident", "Tempo sem atribuir hoje"]].map(([k, t]) => {
+          ...[["misplaced_generic", "Arquivo sem salvar"], ["misplaced_outside", "Arquivo fora do lugar"], ["linkcard", "Ligar job ao card"], ["unident", "Tempo sem atribuir hoje"], ["battery", "Bateria baixa (fone, mouse)"]].map(([k, t]) => {
             const imp = vals.important.kinds.includes(k), ign = vals.important.ignore_focus.includes(k), tog = (key, on) => { const a = vals.important[key].filter((x) => x !== k); vals.important = { ...vals.important, [key]: on ? [...a, k] : a }; render(); };
             return h("div", { class: "pn-row", style: "margin-top:10px" }, h("div", { class: "pn-grow", id: "im-" + k }, t),
               h("label", { class: "pn-faint", style: "margin-right:10px" }, h("input", { type: "checkbox", checked: ign, disabled: !imp, "aria-label": t + ": ignora o modo foco", onchange: (e) => tog("ignore_focus", e.target.checked) }), " Ignora o foco"),

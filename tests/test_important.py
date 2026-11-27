@@ -20,7 +20,7 @@ class Clock:
 class Cfg(unittest.TestCase):
     def test_default_marks_generic_and_linkcard(self):
         d = alerts.important_cfg(None)
-        self.assertEqual(d["kinds"], ["misplaced_generic", "linkcard"])
+        self.assertEqual(d["kinds"], ["misplaced_generic", "linkcard", "battery"])
         self.assertEqual(d["ignore_focus"], ["misplaced_generic"])      # "Ligar job ao card" espera a pausa
 
     def test_clean(self):
