@@ -23,13 +23,15 @@ window.pccTheme = (() => {
   const pick = (v, list) => (list.includes(v) ? v : null);
   const t = g("theme"), legacy = pick(t, ["green", "amber", "cyan"]), variant = pick(g("variant"), ["green", "amber", "cyan"]);
   /* quem já tinha escolhido uma cor do terminal escolheu o Fallout; quem nunca escolheu fica no Moderno */
-  const prefs = { theme: pick(t, ["modern", "fallout"]) || (legacy || variant ? "fallout" : "modern"), variant: variant || legacy || "green",
+  const prefs = { theme: pick(t, ["modern", "fallout", "liquid"]) || (legacy || variant ? "fallout" : "modern"), variant: variant || legacy || "green",
     mode: pick(g("mode"), ["auto", "light", "dark"]) || "auto", accent: pick(g("accent"), ["blue", "purple", "green", "orange", "pink"]) || "blue" };
   let cur = prefs, mq = null;
   try { mq = matchMedia("(prefers-color-scheme: light)"); } catch {}
   const api = { prefs, onScheme: null,
     apply(p) { cur = p || cur; const d = document.documentElement.dataset;
-      d.theme = cur.theme; d.variant = cur.variant; d.mode = cur.mode; d.accent = cur.accent;
+      d.theme = cur.theme === "liquid" ? "modern" : cur.theme;   /* Líquido = Moderno + data-fx (herda todos os tokens; nada do Moderno/Fallout muda) */
+      if (cur.theme === "liquid") d.fx = "liquid"; else delete d.fx;
+      d.variant = cur.variant; d.mode = cur.mode; d.accent = cur.accent;
       d.scheme = cur.mode === "auto" ? (mq && mq.matches ? "light" : "dark") : cur.mode; } };
   if (mq) { const f = () => { if (cur.mode === "auto") { api.apply(); api.onScheme && api.onScheme(); } }; mq.addEventListener ? mq.addEventListener("change", f) : mq.addListener && mq.addListener(f); }
   api.apply(prefs); return api;
@@ -703,6 +705,27 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
   :root[data-theme="modern"] nav { padding: 8px 8px 8px calc(8px + env(safe-area-inset-left, 0px)); }
 }
 
+/* Líquido (data-fx="liquid" sobre o Moderno): indicador de gota que escorre até a aba ativa.
+   Só transform/opacity animam; o filtro SVG "gooey" fica ligado SÓ durante o deslize (nav.mv, ~0,6 s). Parado: nenhuma animação, nenhum filtro. */
+.liq { display: none; }
+:root[data-fx="liquid"] .liq { display: block; position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
+:root[data-fx="liquid"] nav, :root[data-fx="liquid"] .nav-scroll { position: relative; }
+:root[data-fx="liquid"] .liq i { position: absolute; left: 0; top: 0; width: var(--lw, 0px); height: var(--lh, 0px); border-radius: 14px; background: var(--accent-soft); transform: translate3d(0, 0, 0); }
+:root[data-fx="liquid"] .liq i.h { transition: transform .42s cubic-bezier(.34, 1.4, .5, 1); }
+:root[data-fx="liquid"] .liq i.t { transition: transform .56s cubic-bezier(.22, 1, .36, 1); }
+:root[data-fx="liquid"] .liq.nt i { transition: none; }
+:root[data-fx="liquid"] nav.liq-off .liq { opacity: 0; }
+:root[data-fx="liquid"] nav.mv .liq { filter: url(#liq-goo); }
+:root[data-fx="liquid"] nav.mv .liq i { will-change: transform; }
+:root[data-fx="liquid"][data-theme] nav button.on { background: transparent; }
+:root[data-fx="liquid"][data-theme] nav.liq-off button.nav-more.on { background: var(--accent-soft); }
+:root[data-fx="liquid"] nav button { transition: color .2s ease; }
+:root[data-fx="liquid"] nav .ni { transition: transform .26s cubic-bezier(.22, 1, .36, 1); }
+:root[data-fx="liquid"] nav button.on .ni { transform: translateY(-2px) scale(1.08); }
+@media (min-width: 1000px) and (min-height: 600px) and (orientation: landscape) { :root[data-fx="liquid"] nav button.on .ni { transform: scale(1.1); } }
+html.lm-still .liq i, html.lm-still nav .ni, html.lm-still nav button { transition: none !important; }
+@media (prefers-reduced-motion: reduce) { :root[data-fx="liquid"] .liq i, :root[data-fx="liquid"] nav .ni, :root[data-fx="liquid"] nav button { transition: none !important; } }
+
 /* Ajustes › Aparência */
 .fo-only { display: none; }
 :root[data-theme="fallout"] .fo-only { display: flex; }
@@ -710,7 +733,7 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .mo-only { display: none; }
 :root[data-theme="fallout"] .mo-only { display: none; }
 .set.col { flex-direction: column; align-items: stretch; gap: 8px; }
-.thcards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 4px 0 8px; }
+.thcards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 4px 0 8px; }
 .thcard { display: flex; flex-direction: column; gap: 8px; padding: 8px; text-align: center; border: 1px solid var(--p4); border-radius: 12px; min-height: 44px; font-size: 14px; }
 .thcard[aria-pressed="true"] { outline: 2px solid var(--accent-text, var(--p)); outline-offset: 1px; }
 .thprev { display: block; height: 64px; padding: 8px; border: 1px solid; position: relative; overflow: hidden; border-radius: 8px; text-shadow: none; }
@@ -721,6 +744,8 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 /* prévias fixas: mostram cada tema como ele é, qualquer que seja o tema atual */
 .pv-modern { background: #000000; border-color: #38383A; }
 .pv-modern .pv-bar { background: #2C2C2E; border-radius: 4px; } .pv-modern .pv-card { background: #1C2B45; border-radius: 8px; } .pv-modern .pv-pill { background: #1F6FEB; border-radius: 999px; }
+.pv-liquid { background: #000000; border-color: #38383A; }
+.pv-liquid .pv-bar { background: #2C2C2E; border-radius: 4px; } .pv-liquid .pv-card { background: #1C2B45; border-radius: 14px; } .pv-liquid .pv-pill { background: #1F6FEB; border-radius: 999px; width: 54px; box-shadow: 18px 0 0 -2px #1F6FEB66; }
 .pv-fallout { background: #040d07; border-color: #1c7a3d; border-radius: 2px; }
 .pv-fallout .pv-bar { background: #1c7a3d; } .pv-fallout .pv-card { background: #071a0e; border: 1px solid #1c7a3d; } .pv-fallout .pv-pill { background: #5cff8a; }
 .seg { display: flex; border: 1px solid var(--p4); border-radius: 12px; overflow: hidden; background: var(--panel); }
@@ -2113,6 +2138,7 @@ button.cal-mt::after { content: ""; position: absolute; left: 0; right: 0; top: 
 </script>
 </head>
 <body class="crt">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><filter id="liq-goo" filterUnits="userSpaceOnUse" x="-100" y="-100" width="3000" height="3000" color-interpolation-filters="sRGB"><feGaussianBlur in="SourceGraphic" stdDeviation="6"/><feColorMatrix values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -9"/></filter></svg>
 <svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"><!-- logo do Dota: web/icons/dota.svg (um path, fill=currentColor); viewBox ampliado para casar com o tamanho visual dos ícones Lucide --><symbol id="ic-dota" viewBox="-480 -480 5756 5754.4"><path fill="currentColor" stroke="none" d="M2749.8,0c5.3,41.6-20.3,75-63.3,132.7l204.6,2.4,25.9,75,212.7-22.5,58.6-172.4c117.4-1.6,218.1-4.6,331.6,2.5l149.9,9.5,415,28.9,50.3,81.3,95.5-68.9,436.3,70.6,126.6,109.8-.5,164.9-115.1,130.1,107.7,487.7c23.1,192.1-1.1,382.8,10.1,577.5l-116.4,67.7-9,95.3c-45.2,39.2-92.3,84.7-121.5,135.3l108.2,181.6c15.5,192.1,20.1,381.4,14.2,569.5l-111.4,130.3,234.2-67.1-.5,1948.9c-151.6-85.1-322.6-115.3-490-119.5l37.2,94.6c-203.6,41.5-385.3,35.3-579.8,3.7-66-10.8-111.5-41.4-160.1-98.7l-122,122.5-700.3,3.2c-89.1.4-174.2,67-232.1,117.3h-54.8c0-.1-304.7-118-304.7-118l-101.5,117.9h-27.6s-190.1-243.4-190.1-243.4l-124.1,123.7-331.1-123.4c-79.6,80.2-177.6,118.6-291.1,119.6l-565.6,5.2c-137.3,1.2-249.6-42.9-377.5-87.1L0,4523.9v-597c0,0,17.3-52.6,17.3-52.6-21.4-114,24.8-210.2,116.5-274.2l.6-512.5L0,2994.1v-448.4s131.5-142.8,131.5-142.8l4.3-166.3L.1,2127.3v-82.6c6.7-.8,11.5-53.9,20.6-67.3l109.2-160.4L15.5,1494.4c-5.7-16-9.6-59.1-15.5-59L.3,352.6c7.5-19.6,10.9-36.2,13.9-72.6,4.1-49.7,52-144.2,122.2-144.2l1068.2-1.1c32.2,74.6,95.3,122.6,175.9,123.2l287.8,2.4c95.2.7,84.2-122.1,245.5-131.7L2017.7,0h732.1ZM4294,3085.3L1570.5,1236.8c-58.7-39.8-95.8-61-167.9-69-11.1-20.4-35-76.2-55.6-91.2l-390.8-285.2c-123.5-90.1-298.3,50.2-438.1,137.3l2947.2,3112.4,492.6,1.3L4294,3085.3ZM3917.8,997.4l-426.2-232.9-711,359.9,994.3,647.9L3917.8,997.4ZM1001.1,4044.7l895.8-212.5-969.2-1051.1-415.9,842.2L1001.1,4044.7Z"/></symbol></svg>
 <div id="boot" aria-hidden="true"><div id="boot-lines"></div></div>
 <div id="banner" class="banner hidden"></div>
@@ -2463,6 +2489,7 @@ button.cal-mt::after { content: ""; position: absolute; left: 0; right: 0; top: 
           <div class="thcards" id="ap-theme" role="group" aria-label="Tema">
             <button class="thcard" data-pick="modern" aria-pressed="false"><span class="thprev pv-modern"><i class="pv-bar"></i><i class="pv-card"></i><i class="pv-pill"></i></span><b>Moderno</b></button>
             <button class="thcard" data-pick="fallout" aria-pressed="false"><span class="thprev pv-fallout"><i class="pv-bar"></i><i class="pv-card"></i><i class="pv-pill"></i></span><b>Fallout</b></button>
+            <button class="thcard" data-pick="liquid" aria-pressed="false"><span class="thprev pv-liquid"><i class="pv-bar"></i><i class="pv-card"></i><i class="pv-pill"></i></span><b>Líquido</b></button>
           </div>
           <div class="set col mo-only"><label>Modo<small>Automático segue o claro/escuro do aparelho</small></label>
             <div class="seg" id="ap-mode" role="group" aria-label="Modo"><button data-mode="auto">Automático</button><button data-mode="light">Claro</button><button data-mode="dark">Escuro</button></div></div>
@@ -3168,7 +3195,7 @@ const DEVKEYS = Object.freeze(["theme", "variant", "mode", "accent", "crt", "hom
 function makeLayouts(store, rid, now, defaults) {
   const KEYS = ["theme", "variant", "mode", "accent", "crt", "home", "homepg", "tab", "views", "nav"];
   const SHARE = ["theme", "variant", "mode", "accent", "crt", "home", "nav"];
-  const ENUM = { theme: ["modern", "fallout"], variant: ["green", "amber", "cyan"], mode: ["auto", "light", "dark"], accent: ["blue", "purple", "green", "orange", "pink"] };
+  const ENUM = { theme: ["modern", "fallout", "liquid"], variant: ["green", "amber", "cyan"], mode: ["auto", "light", "dark"], accent: ["blue", "purple", "green", "orange", "pink"] };
   const MAX = 10, MAX_NAME = 30, MAX_CODE = 8192, PREFIX = "PCL1.", SIZES = ["P", "A", "L", "G"];
   let applying = false, timer = 0;
   const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
@@ -3975,7 +4002,7 @@ function stVals() {
   let lume = ""; try { lume = lm[LM.cfg().mode] || ""; } catch {}
   const V = {
     pcname: PCL.active().name, pcs: PCL.active().name,
-    look: prefs.theme === "fallout" ? "Fallout" : "Moderno · " + (modes[prefs.mode] || ""),
+    look: prefs.theme === "fallout" ? "Fallout" : (prefs.theme === "liquid" ? "Líquido · " : "Moderno · ") + (modes[prefs.mode] || ""),
     nav: (navCfg().order.length - navCfg().hidden.length) + " na barra", home: city, wx: city,
     alerts: al + " alertas ligados", al: al + " ligados", lume,
     pomo: pm.d ? "Foco " + pm.d.config.focus_min + " min" : "", work: pm.d ? "Foco " + pm.d.config.focus_min + " min" : "",
@@ -4076,9 +4103,9 @@ function navBuild() {
   // itens (e, na barra larga, o grupo "Mais") ficam no .nav-scroll, que rola no trilho; o botão Mais fica fora, fixo no rodapé
   nav.insertAdjacentHTML("beforeend",
     '<div class="nav-scroll">' + navBar.map((id) => `<button data-nid="${id}">${navIc(NAVM[id][2], "ni")}<span>${NAVM[id][0]}</span>${bdg(id)}</button>`).join("") +
-    (rest.length ? '<div class="nav-label nm-label">Mais</div>' + rest.map((id) => `<button class="nm" data-nid="${id}">${navIc(NAVM[id][2], "ni")}<span>${NAVM[id][1]}</span>${bdg(id)}</button>`).join("") : "") + "</div>" +
+    (rest.length ? '<div class="nav-label nm-label">Mais</div>' + rest.map((id) => `<button class="nm" data-nid="${id}">${navIc(NAVM[id][2], "ni")}<span>${NAVM[id][1]}</span>${bdg(id)}</button>`).join("") : "") + '<div class="liq" aria-hidden="true"><i class="t"></i><i class="h"></i></div></div>' +
     (rest.length || railMQ.matches ? `<button class="nav-more" data-nid="mais" data-sec="mais">${navIc("ellipsis", "ni")}<span>Mais</span></button>` : ""));
-  const sc = nav.querySelector(".nav-scroll"); sc.addEventListener("scroll", navFade, { passive: true }); if (window.ResizeObserver) new ResizeObserver(navFade).observe(sc);
+  const sc = nav.querySelector(".nav-scroll"); sc.addEventListener("scroll", navFade, { passive: true }); if (window.ResizeObserver) new ResizeObserver(() => { navFade(); liqPlace(true); }).observe(sc);
   $("more-list").innerHTML = !rest.length ? '<div class="mnone">Todos os itens já estão na barra lateral.</div>' : rest.map((id) => `<button class="mrow" data-nid="${id}">${navIc(NAVM[id][2], "mi")}<span>${NAVM[id][1]}</span>${bdg(id)}</button>`).join("");
   navBadge(); navMark(prefs.tab);
 }
@@ -4093,12 +4120,27 @@ function navReveal() {   // o item ativo rola para a vista (só no trilho)
   if (r.top < c.top + m) s.scrollTop += r.top - c.top - m; else if (r.bottom > c.bottom - m) s.scrollTop += r.bottom - c.bottom + m;
   navFade();
 }
-addEventListener("resize", () => { if (typeof navMode !== "undefined" && navMode !== railMQ.matches) { navBuild(); showView(prefs.tab, true); } navFade(); navReveal(); });   // reserva do listener do railMQ (em pé 4 + Mais; deitado todos)
+addEventListener("resize", () => { if (typeof navMode !== "undefined" && navMode !== railMQ.matches) { navBuild(); showView(prefs.tab, true); } navFade(); navReveal(); liqPlace(true); });   // reserva do listener do railMQ (em pé 4 + Mais; deitado todos)
 function navMark(name) {   // marca o item da barra da vista atual (Mais acende quando a vista não está na barra)
   const it = navItemOf(name);
   document.body.classList.toggle("onbar", navBar.includes(it));   // a tela ativa já aparece no trilho: o título dela pode sair no deitado
   document.querySelectorAll("nav [data-nid]").forEach((b) => b.classList.toggle("on", b.dataset.nid === it || (b.dataset.nid === "mais" && (name === "more" || (!!it && !navBar.includes(it))))));
-  navReveal(); navFade();
+  navReveal(); navFade(); liqPlace();
+}
+// Tema Líquido: a gota (cabeça .h rápida + cauda .t atrasada; o filtro gooey as funde enquanto se afastam) vai até o botão ativo.
+// Posição por offsetLeft/offsetTop (o indicador mora no .nav-scroll, então rola junto com o trilho). O botão Mais do trilho fica fora dele: ali o fundo vem do CSS (.liq-off).
+let liqT = 0;
+function liqPlace(instant) {
+  const nav = $("nav"), liq = nav && nav.querySelector(".liq"); if (!liq) return;
+  const a = nav.querySelector("button.on[data-nid]");
+  if (document.documentElement.dataset.fx !== "liquid" || !a || !a.offsetWidth || a.offsetParent !== liq.offsetParent) { nav.classList.add("liq-off"); return; }
+  nav.classList.remove("liq-off");
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.classList.contains("lm-still");
+  const t = `translate3d(${a.offsetLeft}px,${a.offsetTop}px,0)`, h = liq.querySelector(".h"), tl = liq.querySelector(".t");
+  liq.style.setProperty("--lw", a.offsetWidth + "px"); liq.style.setProperty("--lh", a.offsetHeight + "px");
+  if (instant || still || !liq.dataset.p) { liq.classList.add("nt"); h.style.transform = tl.style.transform = t; void liq.offsetWidth; liq.classList.remove("nt"); }
+  else { nav.classList.add("mv"); h.style.transform = tl.style.transform = t; clearTimeout(liqT); liqT = setTimeout(() => nav.classList.remove("mv"), 640); }
+  liq.dataset.p = "1";
 }
 function navGo(id) {
   buzz(8);
@@ -8307,6 +8349,7 @@ function applyTheme() {
   document.querySelectorAll("#ap-mode button").forEach((b) => b.classList.toggle("on", b.dataset.mode === prefs.mode));
   document.querySelectorAll("#ap-accent button").forEach((b) => b.classList.toggle("on", b.dataset.accent === prefs.accent));
   syncChrome();
+  try { navMark(prefs.tab); liqPlace(true); } catch {}
 }
 $("themes").onclick = (e) => { const b = e.target.closest("[data-variant]"); if (!b) return; buzz(8); prefs.variant = b.dataset.variant; store.set("variant", prefs.variant); applyTheme(); };
 $("ap-theme").onclick = (e) => { const b = e.target.closest("[data-pick]"); if (!b) return; buzz(8); prefs.theme = b.dataset.pick; store.set("theme", prefs.theme); applyTheme(); };
