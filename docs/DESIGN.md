@@ -66,20 +66,23 @@ Seções: inicio | ctrl | deck | tasks | mais (lista → radio, games, work, fil
 - Linhas >= 44 px de alvo; só presentação: ids, handlers e chaves salvas não mudam.
 
 
-## Tema Líquido (`data-fx="liquid"`)
-Escolhido em Ajustes › Aparência (3º cartão, ao lado de Moderno e Fallout). Grava `theme="liquid"`, mas o `pccTheme.apply` define
-`data-theme="modern"` + `data-fx="liquid"`: herda todos os tokens do Moderno (claro/escuro, 5 cores) e tudo o que é novo mora sob `[data-fx="liquid"]`;
-Moderno e Fallout não têm regra nova. Princípio: fluido e elástico, nunca exagerado; só transform/opacity.
-| Animação | Duração | Curva |
+## Tema Líquido (`data-fx="liquid"`) — estilo "vidro líquido" (só estilo, sem marca)
+Escolhido em Ajustes › Aparência (3º cartão). Grava `theme="liquid"`, mas o `pccTheme.apply` define `data-theme="modern"` + `data-fx="liquid"`: herda os tokens do Moderno (claro/escuro, 5 cores);
+tudo o que é novo mora sob `[data-fx="liquid"]` (Moderno e Fallout não têm regra nova). Chave extra `liqLight` (Vidro leve; em DEVKEYS e devbackup.KEYS).
+**Modos** (`fxMode()` → `data-fxm`): `full` (tudo), `calm` (Reduzir movimento do sistema: só esmaecer, sem deslocar/escalar/borrar), `off` (Economia do Lume: nada anima). O Líquido nunca liga a Economia.
+Diagnóstico em Ajustes › Aparência (cartão "Diagnóstico do Líquido": Reduzir movimento, Economia, :has(), backdrop-filter, sensor; botão "Testar animação" usa Web Animations, que a regra global de reduzir movimento não derruba).
+**Material:** fundo `#liq-bg` (3 manchas de gradiente radial nas cores do destaque, animadas só por transform, 38–55 s, pausam com a página oculta; Vidro leve = parado); vidro = `backdrop-filter: blur(22px) saturate(1.7)` (com -webkit-), brilho especular em box-shadow inset (forte no topo) e camadas de gradiente; reflexo `--mx/--my/--gl` segue o dedo (`@property --gl`) e `--tx/--ty/--gg` a inclinação (DeviceOrientation, só por botão, só HTTPS no iOS).
+**iOS/Safari:** blur/saturate, gradientes, @property (16.4+) e WAAPI funcionam; refração real (backdrop-filter com filtro SVG `#liq-lens`, feDisplacementMap) só no Chromium (`data-refr`): no iPhone a lente é gradiente + brilho + ícone ampliado.
+| Animação | Duração | Curva / forma |
 |---|---|---|
-| Gota (cabeça `.h`) até a aba ativa | 420 ms | `cubic-bezier(.34,1.4,.5,1)` |
-| Gota (cauda `.t`, atrasada: o filtro gooey a funde enquanto se afastam) | 560 ms | `cubic-bezier(.22,1,.36,1)` |
-| Ícone ativo sobe 2 px + 1,08× | 260 ms | `cubic-bezier(.22,1,.36,1)` |
-| Troca de aba: entra 24 px (lado pela ordem das abas) + fade | 260 ms | `cubic-bezier(.22,1,.36,1)` |
-| Troca de página do Início (fade .55→1 + escala .985→1) | 240 ms | idem |
-| Cascata dos widgets (12 px + fade, 40 ms por degrau, até 8) | 320 ms | idem |
-| Afundar (.965) / voltar com spring | 90 ms / 380 ms | ease-out / `cubic-bezier(.34,1.56,.64,1)` |
-| Número que nasce vazio conta de 0 ao valor (só na abertura) | 500 ms | ease-out cúbica (rAF) |
-| Barras (`width`), anéis (`stroke-dashoffset`), barras SVG (`scaleY`) | 600 ms | `cubic-bezier(.22,1,.36,1)` |
-| Levantar widget arrastado (1 → 1,04) | 220 ms | spring |
-Regras: `prefers-reduced-motion` e `html.lm-still` (Economia) desligam tudo (a gota salta direto, sem filtro nem contagem); o filtro (`nav.mv`) só existe durante o deslize (~0,6 s), parado não há animação nem filtro; sem animação na saída da aba (display troca direto); `legacy.html` intacto.
+| Lente do menu: estica (até 2,4×) e se achata no caminho, passa 8 px e volta (WAAPI) | 700 ms | keyframes + `cubic-bezier(.3,.7,.4,1)` |
+| Ícone ativo sobe e amplia 1,3× | 500 ms | `cubic-bezier(.34,1.7,.5,1)` |
+| Cápsula encolhe ao rolar para baixo (.84×) e volta ao rolar para cima | 550 ms | `cubic-bezier(.34,1.56,.64,1)` |
+| Tela que entra: 72 px + escala .94, passa 8 px, assenta | 620 ms | 3 passos + `cubic-bezier(.22,1,.36,1)` |
+| Tela que sai: cópia sem ids recua (.9, -18%), desfoca 8 px, some | 520 ms | `cubic-bezier(.4,0,.2,1)` |
+| Página do Início: .92 → 1,02 → 1 | 600 ms | idem |
+| Widgets em cascata: 40 px + .88 → overshoot → 1, 70 ms por degrau (até 9) | 780 ms | idem |
+| Toque: cresce 1,045× (widget) / 1,06× (botão) e o vidro acende; volta com spring | 140–160 ms / 700 ms | ease-out / `cubic-bezier(.34,1.8,.5,1)` |
+| Número que nasce vazio conta de 0 | 900 ms | ease-out cúbica (rAF) |
+| Barras (width), anéis (dashoffset), barras SVG (scaleY com sobra) | 1 s / 1,2 s / 900 ms | spring / ease-out |
+Custos: o fundo animado é o único gasto contínuo; blur custa por área (Vidro leve: 8 px); o sensor só escuta em modo completo com a página visível (≤ 15 atualizações/s). `legacy.html` intacto.
