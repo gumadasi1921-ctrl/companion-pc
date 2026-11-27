@@ -734,6 +734,20 @@ html.lm-still .liq i, html.lm-still nav .ni, html.lm-still nav button { transiti
 :root[data-fx="liquid"] .hpage.fx-pg { animation: fxPg .24s cubic-bezier(.22, 1, .36, 1) backwards; }
 html.lm-still .tab.fx-r, html.lm-still .tab.fx-l, html.lm-still .hpage.fx-pg { animation: none !important; }
 
+/* Líquido: widgets. Entrada em cascata, afundar e voltar (spring), barras/anéis que crescem, levantar elástico ao arrastar. Só transform/opacity (anel: dashoffset de 1 círculo). */
+@keyframes fxCard { from { opacity: 0; transform: translate3d(0, 12px, 0) scale(.98); } }
+@keyframes fxBar { from { transform: scaleY(0); } }
+@keyframes fxLift { from { transform: scale(1); } }
+:root[data-fx="liquid"] .hw.fx-in { animation: fxCard .32s cubic-bezier(.22, 1, .36, 1) calc(var(--fi, 0) * 40ms) backwards; }
+:root[data-fx="liquid"] .home:not(.editing) .hw { transition: transform .38s cubic-bezier(.34, 1.56, .64, 1); }
+:root[data-fx="liquid"] .home:not(.editing) .hw:active:not(:has(button:active, [data-a]:active, [data-id]:active, [role="button"]:active)) { transform: scale(.965); transition-duration: .09s; transition-timing-function: ease-out; }
+:root[data-fx="liquid"] .hbar > i { transition: width .6s cubic-bezier(.22, 1, .36, 1); }
+:root[data-fx="liquid"] .hring-f { transition: stroke-dashoffset .6s cubic-bezier(.22, 1, .36, 1); }
+:root[data-fx="liquid"] .hw .hbarr { transform-box: fill-box; transform-origin: 50% 100%; animation: fxBar .6s cubic-bezier(.22, 1, .36, 1) backwards; }
+:root[data-fx="liquid"] #hw-layer .hw-fl { animation: fxLift .22s cubic-bezier(.34, 1.56, .64, 1) backwards; }
+html.lm-still .hw.fx-in, html.lm-still .hw .hbarr, html.lm-still #hw-layer .hw-fl { animation: none !important; }
+html.lm-still .hw, html.lm-still .hbar > i, html.lm-still .hring-f { transition: none !important; }
+
 /* Ajustes › Aparência */
 .fo-only { display: none; }
 :root[data-theme="fallout"] .fo-only { display: flex; }
@@ -3986,7 +4000,7 @@ function showView(name, temp) {
   if (vis("work")) loadWork(true);
   if (vis("weather")) wxShow();
   if (vis("tasks")) loadTasks();
-  if (vis("inicio")) homeShow();
+  if (vis("inicio")) { homeShow(); if (fxFirst || prevName !== name) fxCascade(); fxFirst = false; }
   if (vis("mascot")) lumeRender();
   if (vis("widgets")) wdShow();
   if (vis("reminders")) remLoad();
@@ -4146,6 +4160,12 @@ function fxTab(a, b) {   // Líquido: a tela que entra desliza 24 px (do lado de
   const cls = fxRank(b) >= fxRank(a) ? "fx-r" : "fx-l";
   document.querySelectorAll(".tab.on").forEach((t) => { t.classList.remove("fx-r", "fx-l"); void t.offsetWidth; t.classList.add(cls); clearTimeout(t._fx); t._fx = setTimeout(() => t.classList.remove(cls), 340); });
 }
+var fxFirst = true;
+function fxCascade() {   // Líquido: ao abrir o Início os widgets entram em cascata (12 px + fade, 40 ms entre um e outro, no máximo 8 degraus)
+  if (!fxOn() || fxStill()) return;
+  $("home").querySelectorAll(".hw").forEach((w, i) => { w.style.setProperty("--fi", Math.min(i, 8)); w.classList.add("fx-in"); clearTimeout(w._fx); w._fx = setTimeout(() => w.classList.remove("fx-in"), 760); });
+}
+document.addEventListener("touchstart", () => {}, { passive: true });   // iOS só aplica :active (afundar e voltar do widget) se houver um touchstart no documento
 let liqT = 0;
 function liqPlace(instant) {
   const nav = $("nav"), liq = nav && nav.querySelector(".liq"); if (!liq) return;
@@ -5435,7 +5455,24 @@ function undoToast(msg, fn, label = "Desfazer", alt = null, ms = 4000) {
   clearTimeout(undoToast.t); undoToast.t = setTimeout(() => t.classList.add("hidden"), ms);
 }
 const ic = (n, cls = "hi") => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-${n}"/></svg>`;
-const setText = (el, t) => { if (el && el.textContent !== t) el.textContent = t; };
+const setText = (el, t) => {
+  if (!el) return;
+  if (el._cn) { cancelAnimationFrame(el._cn); el._cn = 0; }
+  if (el.textContent === t) return;
+  if (el.textContent === "" && fxOn() && !fxStill() && /^\d{1,6}[^\d]{0,3}$/.test(t) && el.closest(".hw")) return fxCount(el, t);
+  el.textContent = t;
+};
+// Líquido: número que nasce vazio (widget recém-aberto) conta de 0 até o valor em 500 ms; os updates seguintes (a cada tick) trocam direto, sem contagem
+function fxCount(el, t) {
+  const m = /^(\d+)(.*)$/.exec(t), to = +m[1], suf = m[2], t0 = performance.now();
+  const step = (now) => {
+    const k = Math.min(1, (now - t0) / 500), e = 1 - Math.pow(1 - k, 3);
+    el.textContent = Math.round(to * e) + suf;
+    el._cn = k < 1 ? requestAnimationFrame(step) : 0;
+  };
+  el._cn = requestAnimationFrame(step); el._ct = t;
+  setTimeout(() => { if (el._cn && el._ct === t) { cancelAnimationFrame(el._cn); el._cn = 0; el.textContent = t; } }, 560);   // reserva: aba em segundo plano não perde o valor final
+}
 const setHtml = (el, h) => { if (el && el._h !== h) { el.innerHTML = h; el._h = h; } };
 const hk = (el, k) => ((el._k ||= {})[k] ||= el.querySelector(`[data-k="${k}"]`));
 const setBarW = (el, pct, bad = 90) => { pct = Math.max(0, Math.min(100, +pct || 0)); el.firstElementChild.style.width = pct + "%"; el.classList.toggle("bad", pct >= bad); };
@@ -5648,7 +5685,12 @@ function ringUpd(box, pct, color, txt, sub, label) {
   const key = color + "|" + (sub ? 1 : 0);
   if (box._rk !== key) {
     box.innerHTML = ringSvg(pct, color, txt, sub, label); box._rk = key;
-    const sv = box.firstChild; box._rf = sv.querySelector(".hring-f"); box._rx = sv.querySelector(".hring-x"); box._rs = sv.querySelector(".hring-s"); return;
+    const sv = box.firstChild; box._rf = sv.querySelector(".hring-f"); box._rx = sv.querySelector(".hring-x"); box._rs = sv.querySelector(".hring-s");
+    if (fxOn() && !fxStill() && box.closest(".hw")) {   // Líquido: o anel cresce do vazio até o valor
+      const to = box._rf.style.strokeDashoffset; box._rf.style.strokeDashoffset = (2 * Math.PI * 42).toFixed(1); void box._rf.getBoundingClientRect();
+      requestAnimationFrame(() => { if (box._rf) box._rf.style.strokeDashoffset = to; });
+    }
+    return;
   }
   const C = 2 * Math.PI * 42;
   box._rf.style.strokeDashoffset = (C * (1 - Math.max(0, Math.min(100, pct)) / 100)).toFixed(1);
