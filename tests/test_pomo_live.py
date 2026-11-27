@@ -59,6 +59,11 @@ async def run():
     t0 = time.time()
     r = await req(phone, "pomo.start")
     check("retomada responde rodando", bool(r) and r["ok"] and r["d"]["running"] and 0 < r["d"]["remaining_s"] <= 6)
+    check("estado traz o Trabalhando junto ligado, check-in no fim do foco", bool(r) and r["d"].get("cowork", {}).get("on") is True and r["d"]["cowork"]["every"] == 0)
+    r2 = await req(phone, "cowork.answer", id=1, v="x")
+    check("cowork.answer recusa valor fora da lista", bool(r2) and not r2["ok"])
+    r2 = await req(phone, "cowork.get")
+    check("cowork.get responde", bool(r2) and r2["ok"] and r2["d"]["on"] is True)
     done_phone, seen = await recv_until(phone, lambda m: m.get("kind") == "pomo.done", 12)
     done_panel, _ = await recv_until(panel, lambda m: m.get("kind") == "pomo.done", 3)
     check("pomo.done chega ao celular", bool(done_phone) and done_phone["finished"] == "focus" and done_phone["next"] == "short",
@@ -67,6 +72,8 @@ async def run():
     extra, seen2 = await recv_until(phone, lambda m: m.get("kind") == "pomo.done", 4)
     check("pomo.done dispara uma vez só", extra is None)
     st = [x for x in seen + seen2 if x.get("t") == "pomo"]
+    cwm = [x for x in seen + seen2 if x.get("t") == "pomo" and x["d"].get("cowork")]
+    check("fim do foco traz resumo (tempo real de poucos segundos, nunca inventado)", bool(cwm) and cwm[-1]["d"]["cowork"]["summary"] is not None and cwm[-1]["d"]["cowork"]["summary"]["min"] <= 1)
     check("push do estado no fim da fase (parado, pausa pronta, 1 foco hoje)",
           bool(st) and st[-1]["d"]["phase"] == "short" and not st[-1]["d"]["running"] and st[-1]["d"]["today"] == 1)
     # ações: o outro aparelho recebe o push

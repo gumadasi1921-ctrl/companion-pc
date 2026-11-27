@@ -1048,6 +1048,20 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .nz-vol input[type=range] { flex: 1; min-width: 0; }
 .nz-chip { display: flex; align-items: center; gap: 10px; min-height: 48px; margin: 0 0 6px; padding: 4px 4px 4px 14px; border: 1px solid var(--p3); border-radius: var(--r-card, 2px); background: var(--panel); max-width: 100%; box-sizing: border-box; }
 .nz-chip.hidden { display: none; }
+/* Trabalhando junto: Lume ao lado do timer (só transform; sem animação com reduzir movimento / economia) */
+.cw-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-height: 48px; padding: 4px 8px 4px 10px; box-sizing: border-box; max-width: 100%; border: 1px solid var(--separator, var(--p3)); border-radius: var(--r-card, 2px); background: var(--panel, var(--surface)); }
+.cw-row.hidden { display: none; }
+.cw-lm { flex: none; width: 36px; height: 36px; display: block; }
+.cw-lm .lm { width: 100%; height: 100%; display: block; overflow: visible; }
+.cw-t { flex: 1 1 90px; min-width: 0; font-size: 14px; font-weight: 600; color: var(--p2, var(--text)); overflow-wrap: anywhere; line-height: 1.25; }
+.cw-b { flex: 3 1 300px; display: flex; gap: 8px; }
+.cw-b .btn { flex: 1; min-height: 44px; min-width: 0; padding: 0 8px; }
+.cw-row.work .lm .l-bob { animation: cwBob 2.4s ease-in-out infinite; }
+.cw-row.work .lm .l-arm { animation: cwTap 1.1s ease-in-out infinite; }
+@keyframes cwBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+@keyframes cwTap { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(7deg); } }
+html.lm-still .cw-row .lm * { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .cw-row .lm * { animation: none !important; } }
 .nz-chip .nz-t { flex: 1; min-width: 0; font-weight: 600; color: var(--p2); overflow-wrap: anywhere; }
 .nz-chip .btn { min-height: 44px; flex: none; }
 .nz-chip.sm { min-height: 44px; margin: 0; padding: 0 0 0 8px; border: 0; background: transparent; }
@@ -3593,6 +3607,7 @@ function onMsg(m) {
     case "stats": state.stats = m.d; statsT = performance.now(); renderStats(); break;
     case "pomo": pomoSet(m.d); break;
     case "noise": nzSet(m.d); break;
+    case "cowork": cwSet(m.d); break;
     case "workstream": lumeWork(m.d); break;
     case "now": state.now = m.d; state.nowT = performance.now(); renderNow(); break;
     case "art": state.art = { [m.id]: "data:image/jpeg;base64," + m.jpg }; renderNow(); break;
@@ -5064,11 +5079,63 @@ function pomoSet(d) {
   if (!d || typeof d !== "object" || !d.config) return;
   pm.d = d; pm.off = d.server_now - Date.now() / 1000;
   if (d.task_id) pm.sel = d.task_id;
+  if (d.cowork) cw.d = d.cowork;
   pomoRender(); homeUpd("pomo"); homeStrip();
+  if (d.cowork) cwSet(d.cowork);
 }
 // faixa do Início: Foco rodando ou pausado e o widget "pomo" fora do layout (com o widget na tela não duplica)
 const pmHeld = (d) => (d?.focus?.on ? `Modo foco: ${d.focus.held} ${d.focus.held === 1 ? "notificação segurada" : "notificações seguradas"}` : "");
 // ---------------------------------------------------------------- Ruído (Rádio › Ruído; toca no PC; ajuste do foco em Tarefas › Foco)
+// ---------------------------------------------------------------- Trabalhando junto (cowork.py; Lume ao lado do timer, só dados reais do PC)
+const CW_L = { r: "Rendeu", t: "Travei", d: "Me distraí" };
+const cw = { d: null, seen: 0, hint: false };
+function cwSet(d) {
+  if (!d || typeof d !== "object") return;
+  cw.d = d;
+  if (d.ask && d.ask.id !== cw.seen) { cw.seen = d.ask.id; cw.hint = false; cwBalloon(d.ask); }
+  cwRender();
+}
+function cwBalloon(a) {   // o balão só aparece se o Lume está acordado e a tela Foco não está aberta (lá a linha já tem os botões)
+  const pomoOpen = $("pomo")?.offsetParent;
+  if (pomoOpen || !(lumeOn() && !lumeHidden() && !document.hidden)) return;
+  lumeSay({ text: a.end ? "Como foi o foco?" : "Como foi?", ms: 15000, choices: ["r", "t", "d"].map((v) => ({ label: CW_L[v], fn: () => cwAnswer(a.id, v) })) });
+}
+function cwAnswer(id, v) {
+  return send("cowork.answer", { id, v }).then((d) => { if (v === "t") cw.hint = true; cwSet(d); }).catch((e) => { if (e.message !== "offline") toast(e.message, "bad"); });
+}
+function cwSum(s) {
+  if (!s) return "Foco concluído";
+  const w = s.job ? ` no ${s.job}` : s.app ? ` no ${s.app}` : "";
+  return s.min > 0 ? `Foco: ${s.min} min${w}` : "Foco concluído";
+}
+function cwView() {   // {t, ask?, btns?, work?}; null = linha escondida (desligado, sem dado ou sem foco)
+  const d = cw.d, p = pm.d;
+  if (!d || !d.on || !p) return null;
+  if (cw.hint) return { t: "Quer só abrir o arquivo?", btns: [["hint", "Beleza"], ["hint", "Agora não"]] };
+  if (p.phase === "focus" && d.live) {
+    const l = d.live, m = l.min > 0 ? ` · ${l.min} min` : "";
+    const base = l.job ? `Você no ${l.job}${m}` : l.app ? `${l.app}${m}` : l.min > 0 ? `Foco · ${l.min} min` : "Trabalhando junto";
+    return { t: d.ask ? "Como foi?" : l.running ? base : "Foco pausado", ask: d.ask, work: l.running && !d.ask };
+  }
+  if (p.phase !== "focus" && d.summary) {
+    const a = d.summary.answer ? ` · ${CW_L[d.summary.answer]}` : "";
+    return { t: d.ask ? `${cwSum(d.summary)} · Como foi?` : cwSum(d.summary) + a, ask: d.ask };
+  }
+  return null;
+}
+function cwRender() {
+  const el = $("pm-cw"); if (!el) return;
+  const v = cwView(), a = v?.ask;
+  let h = "";
+  if (v) {
+    let lm = ""; try { lm = lumeSvg(LU.skin, "cw-lm-s").replace('data-st="happy"', 'data-st="focus"'); } catch { /* Lume ainda não montou */ }
+    const b = a ? ["r", "t", "d"].map((x) => `<button class="btn" data-cw="${x}" data-id="${a.id}">${CW_L[x]}</button>`).join("") : (v.btns || []).map(([k, l]) => `<button class="btn" data-cw="${k}">${l}</button>`).join("");
+    h = `<span class="cw-lm" aria-hidden="true">${lm}</span><span class="cw-t" role="status">${esc(v.t)}</span>${b ? `<div class="cw-b">${b}</div>` : ""}`;
+  }
+  const k = h + "|" + (v?.work ? 1 : 0);
+  if (el._h !== k) { el._h = k; el.innerHTML = h; el.classList.toggle("work", !!v?.work); }
+  el.classList.toggle("hidden", !v);
+}
 const NZ_NAMES = { white: "Branco", pink: "Rosa", brown: "Marrom" };
 const nz = { d: null, volT: 0, sig: "" };
 function nzSet(d) {
@@ -5168,6 +5235,8 @@ function pomoRender() {
     ${stp("long_min", "Pausa longa", c.long_min, 1, 60, 1, " min")}${stp("long_every", "Pausa longa a cada", c.long_every, 2, 8, 1, " focos")}
     <div class="pm-set"><span>Começar a próxima fase sozinho</span><button class="switch${c.auto_next ? " on" : ""}" data-pm="auto" role="switch" aria-checked="${c.auto_next}" aria-label="Começar a próxima fase sozinho"></button></div>
     <div class="pm-set"><span>Modo foco (segura as notificações do PC)</span><button class="switch${c.focus_mode ? " on" : ""}" data-pm="fmode" role="switch" aria-checked="${!!c.focus_mode}" aria-label="Modo foco"></button></div>
+    ${c.cowork === undefined ? "" : `<div class="pm-set"><span>Trabalhando junto (o Lume acompanha o foco)</span><button class="switch${c.cowork ? " on" : ""}" data-pm="cowork" role="switch" aria-checked="${!!c.cowork}" aria-label="Trabalhando junto"></button></div>
+    ${c.cowork ? `<div class="pm-set"><label for="pm-cwk">Check-in "Como foi?"</label><select id="pm-cwk" class="pm-sel"><option value="0"${c.checkin_min ? "" : " selected"}>No fim de cada foco</option><option value="15"${c.checkin_min === 15 ? " selected" : ""}>A cada 15 min</option></select></div>` : ""}`}
     <div class="pm-set"><span>Ligar ruído no modo foco</span><button class="switch${nz.d?.cfg?.focus_on ? " on" : ""}" data-pm="nzfocus" role="switch" aria-checked="${!!nz.d?.cfg?.focus_on}" aria-label="Ligar ruído no modo foco"${nz.d ? "" : " disabled"}></button></div>
     ${nz.d?.cfg?.focus_on ? `<div class="pm-set"><label for="pm-nzk">Tipo de ruído no foco</label><select id="pm-nzk" class="pm-sel">${["white", "pink", "brown"].map((k) => `<option value="${k}"${nz.d.cfg.kind === k ? " selected" : ""}>${NZ_NAMES[k]}</option>`).join("")}</select></div>` : ""}</div>` : "";
   root.innerHTML = `<div class="pm-side">
@@ -5176,6 +5245,7 @@ function pomoRender() {
         <div class="pm-c"><div class="pm-time" data-k="time" role="timer"></div><div class="pm-ph">${PM_PH[d.phase]}</div></div></div>
       <div class="pm-dots" role="img" aria-label="${filled} de ${n} focos neste ciclo">${dots}</div></div>
     <div class="pm-main">
+      <div class="cw-row hidden" id="pm-cw"></div>
       <div class="pm-btns"><button class="btn primary pm-go" data-pm="go">${pmBtn(d)}</button>
         <button class="btn" data-pm="skip">Pular</button><button class="btn" data-pm="reset">Zerar</button></div>
       <div class="nz-chip hidden" id="pm-nz"></div>
@@ -5183,9 +5253,11 @@ function pomoRender() {
       ${pmHeld(d) ? `<div class="pm-today" id="pm-held">${pmHeld(d)}</div>` : ""}
       <div class="pm-today">Hoje: <b>${d.today}</b> pomodoro${d.today === 1 ? "" : "s"} · semana: <b>${d.week}</b></div>
       <button class="pm-cfgb" data-pm="cfg" aria-expanded="${pm.cfg}">${pm.cfg ? "Fechar ajustes" : "Ajustes do Pomodoro"}</button>${cfg}</div>`;
-  pm.sig = null; pomoTaskOpts(); pomoTick(); nzChips();
+  pm.sig = null; pomoTaskOpts(); pomoTick(); nzChips(); cwRender();
 }
 $("pomo").addEventListener("click", (e) => {
+  const cb = e.target.closest("[data-cw]");
+  if (cb && !cb.disabled) { buzz(8); if (cb.dataset.cw === "hint") { cw.hint = false; return cwRender(); } cb.disabled = true; return cwAnswer(+cb.dataset.id, cb.dataset.cw); }
   const b = e.target.closest("[data-pm]"); if (!b || b.disabled || !pm.d) return;
   buzz(8);
   switch (b.dataset.pm) {
@@ -5195,11 +5267,13 @@ $("pomo").addEventListener("click", (e) => {
     case "cfg": pm.cfg = !pm.cfg; return pomoRender();
     case "auto": return pomoCall("pomo.config", { auto_next: !pm.d.config.auto_next });
     case "fmode": return pomoCall("pomo.config", { focus_mode: !pm.d.config.focus_mode });
+    case "cowork": return pomoCall("pomo.config", { cowork: !pm.d.config.cowork });
     case "nzfocus": return nzCall("noise.set", { focus_on: !nz.d?.cfg?.focus_on });
     case "step": return pomoCall("pomo.config", { [b.dataset.k]: pm.d.config[b.dataset.k] + +b.dataset.d });
   }
 });
 $("pomo").addEventListener("change", (e) => {
+  if (e.target.id === "pm-cwk") return pomoCall("pomo.config", { checkin_min: +e.target.value });
   if (e.target.id === "pm-nzk") return nzCall("noise.set", { kind: e.target.value });
   if (e.target.id !== "pm-task") return;
   pm.sel = e.target.value || null; pm.sig = null;
