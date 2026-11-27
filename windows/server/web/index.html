@@ -4858,17 +4858,24 @@ function trNm(name) {   // regra fixa "CLIENTE - JOB": parte no primeiro " - " (
 }
 const trDots = (c) => { const l = (c.labels || []).slice(0, 4); return l.length ? `<span class="trk-dots">${l.map((x) => `<i title="${esc(x.n || "")}" style="background:${TR_COL[(x.c || "").split("_")[0]] || "var(--text-3, var(--p3t))"}"></i>`).join("")}</span>` : ""; };
 const trBadge = (c, late) => (c.due ? `<span class="trk-d${late ? " late" : ""}">${esc(trDue(c))}</span>` : "") + (c.nobody ? '<span class="trk-nb" title="Ninguém assumiu este card">sem resp.</span>' : "");
-function trCard(c, late) {
-  return `<div class="trc" data-short="${esc(c.short)}" role="button" tabindex="0"><div class="trc-r">${trNm(c.name)}<span class="trk-r">${trBadge(c, late)}${trDots(c)}</span></div>
-    <div class="trc-m">${esc([c.board, c.list].filter(Boolean).join(" › "))}</div>${trSpent(c)}</div>`;
+// fonte dos cards: "tr" (Trello: data-short, lista) | "md" (monday, só leitura: data-id, grupo; abre só se o servidor mandou url)
+const CARD_SRC = {
+  tr: { id: (c) => `data-short="${esc(c.short)}"`, role: () => ' role="button" tabindex="0"', ctx: (c) => [c.board, c.list] },
+  md: { id: (c) => `data-id="${esc(c.id)}"`, role: (c) => (c.open ? ' role="button" tabindex="0"' : ""), ctx: (c) => [c.board, c.group] },
+};
+function trCard(c, late, src = "tr") {
+  const S = CARD_SRC[src];
+  return `<div class="trc" ${S.id(c)}${S.role(c)}><div class="trc-r">${trNm(c.name)}<span class="trk-r">${trBadge(c, late)}${trDots(c)}</span></div>
+    <div class="trc-m">${esc(S.ctx(c).filter(Boolean).join(" › "))}</div>${trSpent(c)}</div>`;
 }
-const trwCard = (x) => `<div class="trw-c" data-short="${esc(x.short)}">${trNm(x.name)}<span class="trk-r">${trBadge(x, x.late)}${trDots(x)}</span></div>`;
+const trwCard = (x, src = "tr") => `<div class="trw-c" ${CARD_SRC[src].id(x)}>${trNm(x.name)}<span class="trk-r">${trBadge(x, x.late)}${trDots(x)}</span></div>`;
 // lista do widget: Em execução, depois A fazer; o que não cabe vira "+N" no fim do grupo (nunca um card pela metade)
-function trwHtml(d, cap) {
+function trwHtml(d, cap, src = "tr") {
   const f = d.todo || { items: [] };
   const run = ["overdue", "today", "tomorrow", "week", "later", "none"].flatMap((k) => d.groups[k].map((x) => ({ ...x, late: k === "overdue" })));
-  const sets = [["run", run], ["todo", f.items || []]].filter((a) => a[1].length);
-  return sets.map(([k, a]) => `<div class="trw-g" data-cat="${k}" data-n="${TR_CAT[k]}"><div class="trw-gh"><i class="trd"></i>${TR_CAT[k]}<em>${a.length}</em></div>${a.slice(0, cap).map(trwCard).join("")}<div class="trw-more${a.length > cap ? " on" : ""}">${a.length > cap ? "+" + (a.length - cap) : ""}</div></div>`).join("") + (sets.length ? '<div class="trw-tail"></div>' : "");
+  const todo = src === "md" ? (f.items || []).map((x) => ({ ...x, late: !!x.due && x.due < d.today })) : f.items || [];   // o monday não manda `late` no A fazer: o prazo vs. o dia do servidor decide
+  const sets = [["run", run], ["todo", todo]].filter((a) => a[1].length);
+  return sets.map(([k, a]) => `<div class="trw-g" data-cat="${k}" data-n="${TR_CAT[k]}"><div class="trw-gh"><i class="trd"></i>${TR_CAT[k]}<em>${a.length}</em></div>${a.slice(0, cap).map((x) => trwCard(x, src)).join("")}<div class="trw-more${a.length > cap ? " on" : ""}">${a.length > cap ? "+" + (a.length - cap) : ""}</div></div>`).join("") + (sets.length ? '<div class="trw-tail"></div>' : "");
 }
 function trwFit(c, p = "trw") {   // p = prefixo das classes: trw (Trello) | cal (Calendário)
   const gs = [...c.querySelectorAll(`:scope > .${p}-g`)], tail = c.querySelector(`:scope > .${p}-tail`);
