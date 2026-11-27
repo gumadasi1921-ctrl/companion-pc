@@ -16,7 +16,7 @@ log = logging.getLogger("companion")
 
 SUBDIR = "Companion-backup"
 KEEP_DAYS = 30
-FILES = ["work-history.json", "work_rules.json", "work-notes.json", "work-roots.json", "tasks.json", "pomodoro.json", "cowork.json", "deck.json"]
+FILES = ["work-history.json", "work_rules.json", "work-notes.json", "work-roots.json", "tasks.json", "pomodoro.json", "cowork.json", "dota-month.json", "deck.json"]
 DAY_RX = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 RETRY_S = 3600
 

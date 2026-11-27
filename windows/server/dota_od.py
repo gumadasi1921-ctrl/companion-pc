@@ -187,6 +187,7 @@ class OpenDota:
         self.watch = None            # {"id", "since", "last", "calls"}
         self.official = None         # entrada de recentMatches da partida observada, quando aparece
         self.match_batch_at = -1e12  # última leitura em lote de /matches/{id}
+        self.on_recent = None        # função(lista de recentMatches já limpa): o servidor arquiva as partidas do mês (recap.DotaMonth)
         self._sync_account()
 
     # ------------------------------------------------------------ disco
@@ -256,6 +257,11 @@ class OpenDota:
         d = trim(self._get(path))
         self.data[group][key] = {"at": int(self.clock()), "d": d}
         self._save()
+        if group == "sec" and key == "recent" and self.on_recent:
+            try:
+                self.on_recent(d)
+            except Exception:  # noqa: BLE001  (o arquivo da retrospectiva nunca derruba a leitura do OpenDota)
+                pass
 
     def _stale(self, group, key, ttl):
         e = self.data[group].get(key)

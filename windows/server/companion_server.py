@@ -94,6 +94,7 @@ import pair
 import pc_info
 import steam_dl
 import battery
+import recap
 import watchers
 import pomodoro
 import cowork
@@ -1229,6 +1230,7 @@ ASYNC_ACTIONS = {
     "audio.cycle": lambda p: output_action(cycle=True),
     "steam.get": lambda p: steam_get(),
     "battery.get": lambda p: battery_get(),
+    "recap.get": lambda p: recap_get(p),
     "audio.profiles": lambda p: AUDIO_PROFILES.list(),
     "audio.profile_save": lambda p: profile_save(p),
     "audio.profile_apply": lambda p: profile_apply(p),
@@ -1473,7 +1475,7 @@ def welcome_payload():
         "features": {"media": pc_info.HAS_MEDIA, "volume": pc_info.HAS_VOLUME, "mixer": pc_info.HAS_VOLUME,
                      "screen": True, "clipboard": True, "files": True, "deck": True,
                      "mic": pc_info.HAS_VOLUME, "timer": True, "deck_auto": True, "macro": True,
-                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True, "cowork": True, "trello": True, "monday": True, "reminders": True, "agenda": True, "devbk": True, "noise": True, "battery": True,
+                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True, "cowork": True, "trello": True, "monday": True, "reminders": True, "agenda": True, "devbk": True, "noise": True, "battery": True, "recap": True,
                      "dota": True},
     }
 
@@ -1638,6 +1640,7 @@ QUIET_ACTIONS = {"alert.ack", "alert_test_sound", "work.link_pick", "work.link_n
                  "screen.shot", "mixer.get", "audio.profiles", "audio.profile_save", "audio.profile_apply", "audio.profile_delete",  # nome do perfil
                  "steam.get",  # consultada a cada abertura da tela Jogos
                  "battery.get",  # nome do fone/mouse que o Windows informa
+                 "recap.get",  # nomes de cliente/job do mês
                  "deck.get", "deck.save",  # deck.save: textos/macros dos botões
                  "work.get", "work.week", "work.csv", "work.month",  # nomes de cliente/job/arquivo
                  "tasks.get", "tasks.toggle",  # texto das tarefas
@@ -2556,6 +2559,8 @@ if not dota_cfg().get("gsi_token"):
     dota_persist(gsi_token=dota_gsi.new_token())     # token da GSI: só no config.json e no .cfg do Dota, nunca em log/celular
 # Dota sem o Copilot: OpenDota (cache em disco, só o Steam ID público) + GSI direta (listener só em 127.0.0.1)
 OD = dota_od.OpenDota(BASE / "dota-od.json", lambda: dota_cfg().get("steam_id", ""))
+DOTAMONTH = recap.DotaMonth(BASE / "dota-month.json")   # partidas vistas desde que o arquivamento começou (o OpenDota só devolve as 10 últimas)
+OD.on_recent = DOTAMONTH.add
 GSIS = dota_gsi.GSI(lambda: dota_cfg().get("gsi_token"), lambda: dota_cfg().get("steam_id", ""))
 GSI_LIS = [None]
 IMG = dota_img.ImageProxy(Path(__file__).resolve().with_name("dota-img"), lambda: CFG["token"], lambda: DOTA.cfg.get("bridge"),
@@ -2791,6 +2796,22 @@ async def steam_loop():
         except Exception:  # noqa: BLE001
             log.exception("steam_loop")
         await asyncio.sleep(wait)
+
+
+def recap_build(ym):
+    first, last = work.month_bounds(ym)
+    f, l = first.isoformat(), last.isoformat()
+    return recap.build(ym, WORK.month(ym, notes=False), POMO.history, COWORK.days, TRELLO.done_range(f, l), MONDAY.done_range(f, l),
+                       DOTAMONTH.month(ym), OD.hero_name)
+
+
+async def recap_get(p):
+    """Retrospectiva do mês pedido (AAAA-MM, padrão o mês de hoje): só números e nomes do histórico; o log não leva nada disso."""
+    try:
+        ym = work.valid_month(p.get("ym"))
+    except ValueError:
+        raise ValueError("mês inválido") from None
+    return await on_io(recap_build, ym)
 
 
 BATTERY = battery.Battery()

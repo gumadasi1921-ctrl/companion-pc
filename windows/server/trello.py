@@ -628,6 +628,14 @@ class Trello:
                 out[day] = out.get(day, 0) + 1
         return out
 
+    def done_range(self, first, last):
+        """{dia: nº de cards contados como feitos} entre duas datas (AAAA-MM-DD, inclusive), do histórico completo (retrospectiva)."""
+        out = {}
+        for day, _k, _v in self._counted():
+            if first <= day <= last:
+                out[day] = out.get(day, 0) + 1
+        return out
+
     def done_names(self, first, last):
         """Nomes dos cards contados como feitos entre duas datas (AAAA-MM-DD, inclusive): vem do histórico completo, sem o limite de 62 dias do celular."""
         return [v.get("name", "") for day, _k, v in self._counted() if first <= day <= last]

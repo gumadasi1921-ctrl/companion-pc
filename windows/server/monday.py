@@ -566,6 +566,14 @@ class Monday:
                 out[v["day"]] = out.get(v["day"], 0) + 1
         return out
 
+    def done_range(self, first, last):
+        """{dia: nº de itens contados como feitos} entre duas datas (AAAA-MM-DD, inclusive), do histórico completo (retrospectiva)."""
+        out = {}
+        for v in self.done.values():
+            if v.get("src") in ("entered", "seen") and v.get("day") and first <= v["day"] <= last:
+                out[v["day"]] = out.get(v["day"], 0) + 1
+        return out
+
     def done_list(self, limit=8):
         rows = [(v["day"], k, v) for k, v in self.done.items() if v.get("src") in ("entered", "seen") and v.get("day")]
         rows.sort(key=lambda r: (r[0], r[1]), reverse=True)
