@@ -95,6 +95,7 @@ import pc_info
 import steam_dl
 import watchers
 import pomodoro
+import cowork
 import reminders
 import tasks
 import trello
@@ -1242,6 +1243,8 @@ ASYNC_ACTIONS = {
     "pomo.skip": lambda p: pomo_run("skip", p),
     "pomo.reset": lambda p: pomo_run("reset", p),
     "pomo.config": lambda p: pomo_run("config", p),
+    "cowork.get": lambda p: cowork_run("get", p),
+    "cowork.answer": lambda p: cowork_run("answer", p),
     "noise.get": lambda p: noise_run("get", p),
     "noise.start": lambda p: noise_run("start", p),
     "noise.stop": lambda p: noise_run("stop", p),
@@ -1462,7 +1465,7 @@ def welcome_payload():
         "features": {"media": pc_info.HAS_MEDIA, "volume": pc_info.HAS_VOLUME, "mixer": pc_info.HAS_VOLUME,
                      "screen": True, "clipboard": True, "files": True, "deck": True,
                      "mic": pc_info.HAS_VOLUME, "timer": True, "deck_auto": True, "macro": True,
-                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True, "trello": True, "monday": True, "reminders": True, "agenda": True, "devbk": True, "noise": True,
+                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True, "cowork": True, "trello": True, "monday": True, "reminders": True, "agenda": True, "devbk": True, "noise": True,
                      "dota": True},
     }
 
@@ -1629,7 +1632,7 @@ QUIET_ACTIONS = {"work.link_pick", "work.link_none", "work.link_later", "work.li
                  "dota.get",  # consultada a cada abertura da tela Dota
                  "dota_status", "dota_set_steam", "dota_gsi_install", "dota_od_refresh",  # Steam ID e pasta do Dota (painel)
                  "weather.get", "weather.search", "weather.set_place", "weather.refresh",  # cidade escolhida / texto digitado
-                 "pomo.get", "pomo.start", "pomo.pause", "pomo.resume", "pomo.skip", "pomo.reset", "pomo.config",
+                 "pomo.get", "pomo.start", "pomo.pause", "pomo.resume", "pomo.skip", "pomo.reset", "pomo.config", "cowork.get", "cowork.answer",
                  "noise.get", "noise.start", "noise.stop", "noise.set", "noise.force",
                  "reminders.get", "reminders.add", "reminders.edit", "reminders.remove", "reminders.restore", "reminders.done", "reminders.snooze", "reminders.clear",   # texto dos lembretes
                  "pomo_get", "pomo_start", "pomo_pause", "pomo_resume", "pomo_skip", "pomo_reset", "pomo_config",
@@ -1939,7 +1942,49 @@ async def pomo_state(state=None):
         await focus_deliver(summary)
     await noise_follow(state["phase"] == "focus" and state["running"])
     state["noise"] = NOISE.state()
+    on, every = _cw_cfg()
+    await on_io(COWORK.sync, state["phase"], state["running"], on)
+    state["cowork"] = COWORK.public(state["phase"], state["running"], on, every)
+    COWORK_LAST[0] = state["cowork"]
     return state
+
+
+# --------------------------------------------------------------------------
+# Trabalhando junto (cowork.py): o Lume acompanha o foco com o job real em foco; check-in Rendeu/Travei/Me distraí
+# --------------------------------------------------------------------------
+COWORK = cowork.CoWork(BASE)
+COWORK_LAST = [None]
+
+
+def _cw_cfg():
+    c = POMO.cfg
+    return bool(c.get("cowork", True)), cowork.clean_every(c.get("checkin_min", 0))
+
+
+def _cowork_step(info):
+    on, every = _cw_cfg()
+    COWORK.step(info, POMO.phase, POMO.running, on, every)
+    return COWORK.public(POMO.phase, POMO.running, on, every)
+
+
+async def cowork_send(pub, only=None):
+    msg = json.dumps({"t": "cowork", "d": pub}, ensure_ascii=False)
+    for ws in ([only] if only else [w for w in list(clients) if client_kind.get(w) == "celular"]):
+        try:
+            await ws.send(msg)
+        except ConnectionClosed:
+            clients.discard(ws)
+
+
+async def cowork_run(name, p):
+    if name == "answer":
+        await on_io(COWORK.answer, _need(p, "id", int), _need(p, "v", str))
+    on, every = _cw_cfg()
+    pub = COWORK.public(POMO.phase, POMO.running, on, every)
+    if name == "answer":
+        COWORK_LAST[0] = pub
+        await cowork_send(pub)
+    return pub
 
 
 # --------------------------------------------------------------------------
@@ -2070,6 +2115,8 @@ def _pomo_alert(text):
 async def pomo_fire():
     POMO_H[0] = None
     ev = await on_io(POMO.tick)
+    if ev and ev["finished"] == "focus":
+        await on_io(COWORK.focus_done)   # resumo + check-in do fim (sem nomes no log)
     state = await pomo_state()
     pomo_reschedule()   # sem evento = ainda não venceu (relógio mudou): agenda de novo
     msgs = [json.dumps({"t": "pomo", "d": state})]
@@ -2278,6 +2325,10 @@ async def work_loop():
             if st != WSTREAM[0]:   # muda no máximo 1×/min (minutos inteiros) e ao zerar
                 WSTREAM[0] = st
                 await work_stream_send()
+            pub = await on_io(_cowork_step, info)
+            if pub != COWORK_LAST[0]:
+                COWORK_LAST[0] = pub
+                await cowork_send(pub)
             await unident_check()
             a = MISPLACED.observe(info, time.time(), has_roots, _misplaced_min())
             if a:
