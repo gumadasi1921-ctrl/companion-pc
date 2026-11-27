@@ -203,3 +203,139 @@ def valid_focus_except(v):
         if a.strip().casefold() not in {x.casefold() for x in out}:
             out.append(a.strip())
     return out
+
+
+# ---- Avisos IMPORTANTES (níveis Normal / Importante) -------------------------------------------------------------
+# Nada daqui vai ao log com texto de aviso. O que o PC faz com um Importante: som (só no PC) + balão da bandeja; o celular recebe
+# o evento com level "important" (piscada + Lume no centro). Pendente na memória até o celular tocar (alert.ack), reenviado a quem
+# conectar e repetido UMA vez se ninguém tocar em 15 min.
+IMPORTANT_KINDS = {"misplaced_generic": "Arquivo sem salvar", "misplaced_outside": "Arquivo fora do lugar",
+                   "linkcard": "Ligar job ao card", "unident": "Tempo sem atribuir hoje"}
+IMPORTANT_SOUNDS = {"chime": "Sino curto", "bell": "Campainha", "pulse": "Três toques"}
+IMPORTANT_DEFAULT = {"kinds": ["misplaced_generic", "linkcard"], "ignore_focus": ["misplaced_generic"], "sound": "chime", "volume": 70}
+REPEAT_S = 15 * 60
+MAX_PENDING_S = 2 * 3600
+
+
+def clean_important(v):
+    """{kinds[], ignore_focus[], sound, volume 0..100}: a mesma regra no config.json e no painel."""
+    if not isinstance(v, dict):
+        raise ValueError("avisos importantes inválidos")
+    out = {}
+    for k in ("kinds", "ignore_focus"):
+        x = v.get(k)
+        if not isinstance(x, list) or any(not isinstance(i, str) or i not in IMPORTANT_KINDS for i in x):
+            raise ValueError("tipo de aviso desconhecido")
+        out[k] = [i for i in IMPORTANT_KINDS if i in x]
+    if v.get("sound") not in IMPORTANT_SOUNDS:
+        raise ValueError("som desconhecido")
+    out["sound"] = v["sound"]
+    vol = v.get("volume")
+    if isinstance(vol, bool) or not isinstance(vol, int) or not 0 <= vol <= 100:
+        raise ValueError("volume: 0 a 100")
+    out["volume"] = vol
+    return out
+
+
+def important_cfg(v):
+    try:
+        return clean_important(v)
+    except ValueError:
+        return {**IMPORTANT_DEFAULT, "kinds": list(IMPORTANT_DEFAULT["kinds"]), "ignore_focus": list(IMPORTANT_DEFAULT["ignore_focus"])}
+
+
+_RATE = 22050
+
+
+def alert_wav(name, volume):
+    """WAV mono 16 bits em bytes (Python puro, sem numpy). Sons curtos; volume 0..100 escala a amplitude (pico máximo ~0,8)."""
+    import io
+    import math
+    import struct
+    import wave
+    if name not in IMPORTANT_SOUNDS:
+        name = "chime"
+    amp = 0.8 * max(0, min(100, int(volume))) / 100.0
+
+    def tone(f, dur, decay, partials=((1.0, 1.0),)):
+        n = int(_RATE * dur)
+        return [sum(a * math.sin(2 * math.pi * f * r * i / _RATE) for r, a in partials) * math.exp(-decay * i / _RATE)
+                * min(1.0, i / 90.0) for i in range(n)]       # 4 ms de entrada: sem estalo
+
+    def mix(parts):
+        total = max(off + len(s) for off, s in parts)
+        buf = [0.0] * total
+        for off, s in parts:
+            for i, x in enumerate(s):
+                buf[off + i] += x
+        return buf
+    if name == "chime":
+        buf = mix([(0, tone(1318.5, 0.5, 7.0)), (int(_RATE * 0.16), tone(1760.0, 0.7, 6.0))])
+    elif name == "bell":
+        buf = mix([(0, tone(660.0, 1.3, 3.2, ((1.0, 1.0), (2.0, 0.5), (2.76, 0.35), (5.4, 0.15))))])
+    else:
+        buf = mix([(int(_RATE * 0.22 * k), tone(988.0, 0.14, 22.0)) for k in range(3)])
+    peak = max(1e-9, max(abs(x) for x in buf))
+    pcm = b"".join(struct.pack("<h", int(max(-1.0, min(1.0, x / peak * amp)) * 32767)) for x in buf)
+    bio = io.BytesIO()
+    with wave.open(bio, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(_RATE)
+        w.writeframes(pcm)
+    return bio.getvalue()
+
+
+class ImportantQueue:
+    """Avisos Importantes pendentes (só memória). Cada item: {id, kind, event|None, title, body, ign, fired_at, repeats, acked, created}.
+    event None = o aviso é um estado (a pergunta do card), reenviado pelo servidor; ign = ignora o modo foco."""
+
+    def __init__(self, clock=time.time):
+        self.clock, self.items = clock, {}
+
+    def add(self, id, kind, event, title, body, ign):
+        if id in self.items:
+            return self.items[id]
+        it = {"id": id, "kind": kind, "event": event, "title": title, "body": body, "ign": bool(ign),
+              "fired_at": None, "repeats": 0, "acked": False, "created": self.clock()}
+        self.items[id] = it
+        return it
+
+    def due(self, focus_active):
+        """[(fire|repeat, item)]: item novo sai já (ou ao acabar o foco, se não ignora o foco); sem toque, repete 1 vez em 15 min."""
+        now, out = self.clock(), []
+        for k in [k for k, it in self.items.items() if it["acked"] or now - it["created"] > MAX_PENDING_S]:
+            del self.items[k]
+        for it in self.items.values():
+            if focus_active and not it["ign"]:
+                continue
+            if it["fired_at"] is None:
+                out.append(("fire", it))
+            elif it["repeats"] < 1 and now - it["fired_at"] >= REPEAT_S:
+                out.append(("repeat", it))
+        return out
+
+    def mark(self, it, act):
+        it["fired_at"] = self.clock()
+        if act == "repeat":
+            it["repeats"] += 1
+
+    def ack(self, id=None, prefix=None):
+        n = 0
+        for k, it in self.items.items():
+            if (id is not None and k == id) or (prefix is not None and k.startswith(prefix)):
+                it["acked"] = True
+                n += 1
+        return n
+
+    def pending_events(self):
+        """Eventos já entregues e ainda sem toque, para quem conectar depois."""
+        return [{**it["event"], "repeat": it["repeats"]} for it in self.items.values()
+                if it["event"] and it["fired_at"] is not None and not it["acked"]]
+
+    def ask_info(self, prefix="ask:"):
+        """(n_repetições, ignora_foco) do item pendente da pergunta, ou None."""
+        for k, it in self.items.items():
+            if k.startswith(prefix) and not it["acked"]:
+                return it["repeats"], it["ign"], it["fired_at"] is not None
+        return None

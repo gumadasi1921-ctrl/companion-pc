@@ -9161,7 +9161,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
     const body = h("div"), msg = h("span", { class: "pn-dim" });
     let dp = null; const dForm = { steam: "", msg: "", bad: false };
     main.append(h("section", {}, h("h1", {}, "Ajustes"), h("p", { class: "pn-sub" }, "Opções do servidor no PC."), body));
-    const KEYS = ["upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "idle_min", "notif_ignore", "shortcuts", "export_watch", "misplaced_min", "unident_notice", "backup_dir", "pc_name", "remote_base", "allowed_origins", "repo_dir"];
+    const KEYS = ["upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "idle_min", "notif_ignore", "shortcuts", "export_watch", "misplaced_min", "unident_notice", "important", "backup_dir", "pc_name", "remote_base", "allowed_origins", "repo_dir"];
     const dirty = () => KEYS.filter((k) => JSON.stringify(vals[k]) !== JSON.stringify(orig[k]));
     const pickDir = async (k) => { try { const f = await call("pick_folder", {}, 600000); if (f) { vals[k] = f; render(); } } catch (e) { fail(e); } };
     const slug = (name) => { let b = name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 36) || "programa", id = b, n = 2; const ids = new Set(vals.shortcuts.map((s) => s.id)); while (ids.has(id)) id = b + "-" + n++; return id; };
@@ -9526,6 +9526,19 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
             h("button", { class: "pn-sw", type: "button", role: "switch", "aria-checked": !!vals.unident_notice.on, "aria-labelledby": "lb-unid", onclick: () => { vals.unident_notice = { ...vals.unident_notice, on: !vals.unident_notice.on }; render(); } })),
           h("div", { class: "pn-row", style: "margin-top:10px" }, h("label", { class: "pn-grow", for: "st-unid-at" }, "Hora do aviso diário"),
             h("input", { id: "st-unid-at", class: "pn-in", type: "time", value: vals.unident_notice.at, disabled: !vals.unident_notice.on, onchange: (e) => { if (/^\d\d:\d\d$/.test(e.target.value)) vals.unident_notice = { ...vals.unident_notice, at: e.target.value }; render(); } }))),
+        h("div", { class: "pn-h" }, "Avisos importantes"), h("div", { class: "pn-card" },
+          h("div", { class: "pn-faint" }, "Importante = som e balão aqui no PC, e no celular a borda pisca, o Lume vai para o centro e o balão fica grande. Fica pendente até você tocar e repete uma vez depois de 15 min."),
+          ...[["misplaced_generic", "Arquivo sem salvar"], ["misplaced_outside", "Arquivo fora do lugar"], ["linkcard", "Ligar job ao card"], ["unident", "Tempo sem atribuir hoje"]].map(([k, t]) => {
+            const imp = vals.important.kinds.includes(k), ign = vals.important.ignore_focus.includes(k), tog = (key, on) => { const a = vals.important[key].filter((x) => x !== k); vals.important = { ...vals.important, [key]: on ? [...a, k] : a }; render(); };
+            return h("div", { class: "pn-row", style: "margin-top:10px" }, h("div", { class: "pn-grow", id: "im-" + k }, t),
+              h("label", { class: "pn-faint", style: "margin-right:10px" }, h("input", { type: "checkbox", checked: ign, disabled: !imp, "aria-label": t + ": ignora o modo foco", onchange: (e) => tog("ignore_focus", e.target.checked) }), " Ignora o foco"),
+              h("button", { class: "pn-sw", type: "button", role: "switch", "aria-checked": imp, "aria-labelledby": "im-" + k, onclick: () => tog("kinds", !imp) }));
+          }),
+          h("div", { class: "pn-row", style: "margin-top:10px" }, h("label", { class: "pn-grow", for: "im-snd" }, "Som no PC"),
+            h("select", { id: "im-snd", class: "pn-in", onchange: (e) => { vals.important = { ...vals.important, sound: e.target.value }; render(); } }, [["chime", "Sino curto"], ["bell", "Campainha"], ["pulse", "Três toques"]].map(([v, t]) => h("option", { value: v, selected: vals.important.sound === v }, t)))),
+          h("div", { class: "pn-row", style: "margin-top:10px" }, h("label", { class: "pn-grow", for: "im-vol" }, "Volume do som: " + vals.important.volume + "%"),
+            h("input", { id: "im-vol", class: "pn-in", type: "range", min: 0, max: 100, step: 5, value: vals.important.volume, oninput: (e) => { vals.important = { ...vals.important, volume: parseInt(e.target.value, 10) }; e.target.previousSibling.textContent = "Volume do som: " + vals.important.volume + "%"; }, onchange: () => render() })),
+          h("div", { class: "pn-foot" }, h("button", { class: "pn-btn", type: "button", onclick: () => call("alert_test_sound", { sound: vals.important.sound, volume: vals.important.volume }).catch(fail) }, "Testar som"))),
         h("div", { class: "pn-h" }, "Vários PCs (app no celular)"), h("div", { class: "pn-card" },
           h("div", { class: "pn-faint" }, "Para usar este PC no app junto com outros: dê um nome a ele e informe os endereços do Tailscale. Nada disso abre este PC para a internet."),
           h("div", { class: "pn-row", style: "margin-top:10px" }, h("label", { class: "pn-grow", for: "mp-name" }, "Nome deste PC (ex.: Casa)"), h("input", { id: "mp-name", class: "pn-in", type: "text", maxlength: 30, value: vals.pc_name || "", onchange: (e) => { vals.pc_name = e.target.value.trim(); render(); } })),

@@ -748,7 +748,7 @@ def work_csv(offset):
 # config.json editado pelo painel do PC: um conjunto fechado de opções
 # --------------------------------------------------------------------------
 CONFIG_EDITABLE = {"upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "notif_ignore", "shortcuts",
-                   "idle_min", "export_watch", "misplaced_min", "unident_notice", "backup_dir", "trello", "pc_name", "allowed_origins", "remote_base", "repo_dir", "agenda", "monday"}
+                   "idle_min", "export_watch", "misplaced_min", "unident_notice", "important", "backup_dir", "trello", "pc_name", "allowed_origins", "remote_base", "repo_dir", "agenda", "monday"}
 CONFIG_RESTART = {"upload_dir", "downloads_dir"}  # lidas só na abertura do servidor
 SHORTCUT_ID = re.compile(r"^[a-z0-9_-]{1,40}$")
 _CTRL = re.compile(r"[\x00-\x1f\x7f]")
@@ -810,6 +810,8 @@ def clean_config_value(key, v):
         return alerts.valid_misplaced_min(v)
     if key == "unident_notice":
         return alerts.clean_unident(v)
+    if key == "important":
+        return alerts.clean_important(v)
     if key == "trello":   # key/token em branco = mantém os já salvos; nunca voltam ao painel nem ao celular
         return trello.clean_cfg(v, CFG.get("trello") if isinstance(CFG.get("trello"), dict) else {})
     if key == "monday":   # token em branco = mantém o salvo; nunca volta ao painel nem ao celular
@@ -894,7 +896,7 @@ def config_get():
     fallback = {"upload_dir": DEFAULT_CFG["upload_dir"], "downloads_dir": DEFAULT_CFG["downloads_dir"],
                 "allow_power": DEFAULT_CFG["allow_power"], "shutdown_delay_s": DEFAULT_CFG["shutdown_delay_s"],
                 "notif_ignore": [], "shortcuts": [], "idle_min": 5,
-                "export_watch": {"folders": [], "on": True}, "misplaced_min": alerts.DEFAULT_MISPLACED_MIN, "unident_notice": dict(alerts.UNIDENT_DEFAULT), "backup_dir": "", "trello": {}, "pc_name": "", "allowed_origins": [], "remote_base": "", "repo_dir": "", "agenda": {}, "monday": {}}
+                "export_watch": {"folders": [], "on": True}, "misplaced_min": alerts.DEFAULT_MISPLACED_MIN, "unident_notice": dict(alerts.UNIDENT_DEFAULT), "important": alerts.important_cfg(None), "backup_dir": "", "trello": {}, "pc_name": "", "allowed_origins": [], "remote_base": "", "repo_dir": "", "agenda": {}, "monday": {}}
     out = {}
     for k in CONFIG_EDITABLE:
         v = CFG.get(k)
@@ -1090,6 +1092,8 @@ PANEL_WS = {   # nome -> função(params dict); as de gravação rodam na fila d
     "dota_set_steam": lambda p: dota_set_steam(p.get("steam_id")),
     "dota_gsi_install": lambda p: dota_gsi_install(p.get("folder") if isinstance(p.get("folder"), str) and p.get("folder") else None),
     "dota_od_refresh": lambda p: dota_od_refresh(),
+    "alert_test_sound": lambda p: play_alert(sound=p.get("sound") if p.get("sound") in alerts.IMPORTANT_SOUNDS else None,
+                                             volume=p["volume"] if isinstance(p.get("volume"), int) and not isinstance(p.get("volume"), bool) and 0 <= p["volume"] <= 100 else None),
     "open_focus": lambda p: os.startfile("ms-settings:quietmomentshome"),   # só abre a tela do Windows; o Foco é do usuário
 }
 PANEL_ASYNC = {"pick_folder": lambda p: asyncio.to_thread(pick_folder),
@@ -1153,6 +1157,7 @@ EXPORTS_RECENT: dict = {}   # id -> caminho (só memória, últimos 20): o celul
 FOCUS = alerts.FocusHold()
 MISPLACED = alerts.Misplaced(BASE / "misplaced-time.json")
 UNIDENT = alerts.DailyUnident(BASE / "unident-notice.json")
+IMPQ = alerts.ImportantQueue()    # avisos Importantes pendentes (só memória)
 
 
 def shortcut_map():
@@ -1232,6 +1237,7 @@ ASYNC_ACTIONS = {
                                                p.get("q", 60), p.get("sid")),
     "screen.click": lambda p: screen_click(p),
     "mic.set": lambda p: pc_info.mic_set(p.get("muted", "toggle")),
+    "alert.ack": lambda p: alert_ack(p),
     "work.link_pick": lambda p: link_run("pick", p),
     "work.link_none": lambda p: link_run("none", p),
     "work.link_later": lambda p: link_run("later", p),
@@ -1572,6 +1578,8 @@ async def session(ws, peer, kind, xff=None):
         await steam_send(STEAMDL.state(), only=ws)
     await work_stream_send(only=ws)
     await linkask_send(only=ws)
+    for ev in IMPQ.pending_events():     # Importante ainda sem toque: quem conecta depois recebe
+        await ws.send(json.dumps(ev, ensure_ascii=False))
     log.info("conectado: %s (%s) tela %s", kind, peer, str(hello.get("screen", "?"))[:120])
     try:
         async for raw in ws:
@@ -1622,7 +1630,7 @@ def release_held():
 
 sent_art: dict = {}
 # não vão para o log: repetitivas ou com conteúdo pessoal (texto digitado/copiado)
-QUIET_ACTIONS = {"work.link_pick", "work.link_none", "work.link_later", "work.link_undo", "devbk.save", "devbk.info", "devbk.get", "devbk_list", "devbk_delete", "games.history", "games.library", "notif.sub", "mouse.move", "mouse.scroll", "key.text", "clip.set", "clip.get", "file.chunk",
+QUIET_ACTIONS = {"alert.ack", "alert_test_sound", "work.link_pick", "work.link_none", "work.link_later", "work.link_undo", "devbk.save", "devbk.info", "devbk.get", "devbk_list", "devbk_delete", "games.history", "games.library", "notif.sub", "mouse.move", "mouse.scroll", "key.text", "clip.set", "clip.get", "file.chunk",
                  "screen.shot", "mixer.get", "audio.profiles", "audio.profile_save", "audio.profile_apply", "audio.profile_delete",  # nome do perfil
                  "steam.get",  # consultada a cada abertura da tela Jogos
                  "deck.get", "deck.save",  # deck.save: textos/macros dos botões
@@ -2242,8 +2250,16 @@ def _link_has_card(short):
 AUTOLINK = autolink.AutoLink(WORK, _autolink_cards)
 
 
+def _linkask_payload():
+    d = AUTOLINK.public()
+    info = IMPQ.ask_info() if d else None
+    if d and info:
+        d = {**d, "level": "important", "n": info[0], "ign": info[1]}
+    return d
+
+
 async def linkask_send(only=None):
-    msg = json.dumps({"t": "linkask", "d": AUTOLINK.public()}, ensure_ascii=False)
+    msg = json.dumps({"t": "linkask", "d": _linkask_payload()}, ensure_ascii=False)
     for ws in ([only] if only else [w for w in list(clients) if client_kind.get(w) == "celular"]):
         try:
             await ws.send(msg)
@@ -2259,7 +2275,12 @@ async def autolink_events(ev):
         await phones_send({"t": "event", "kind": "work.autolink", "id": ev["id"], "client": ev["client"], "job": ev["job"], "src": ev.get("src", "tr")})
         await (monday_send() if ev.get("src") == "md" else trello_send())
     elif ev["kind"] == "ask":
-        log.info("pergunta de card do Trello")
+        log.info("pergunta de card do Trello ou monday")
+        cfg = alerts.important_cfg(CFG.get("important"))
+        if "linkcard" in cfg["kinds"]:
+            IMPQ.add("ask:" + ev["id"], "linkcard", None, "Ligar job ao card", "Escolha o card no celular.", "linkcard" in cfg["ignore_focus"])
+    if ev["kind"] in ("autolink", "clear"):
+        IMPQ.ack(prefix="ask:")
     await linkask_send()
 
 
@@ -2279,6 +2300,7 @@ def link_answer(op, p):
 
 async def link_run(op, p):
     r = await on_io(link_answer, op, p)
+    IMPQ.ack(prefix="ask:")
     await linkask_send()
     if op in ("pick", "undo"):
         await trello_send()
@@ -2305,6 +2327,50 @@ async def work_stream_send(only=None):
             clients.discard(ws)
 
 
+def play_alert(cfg=None, sound=None, volume=None):
+    """Som do aviso Importante, SÓ no PC (WAV gerado em Python puro, tocado da memória)."""
+    try:
+        import winsound
+        c = cfg or alerts.important_cfg(CFG.get("important"))
+        wav = alerts.alert_wav(sound or c["sound"], c["volume"] if volume is None else volume)
+        winsound.PlaySound(wav, winsound.SND_MEMORY)      # síncrono: roda numa thread
+    except Exception as e:  # noqa: BLE001
+        log.warning("som do aviso: %s", type(e).__name__)
+
+
+async def alert_emit(kind, ev, title, body):
+    """Aviso do PC para os celulares: Normal sai na hora (como sempre); Importante entra na fila (foco, reenvio, repetição)."""
+    cfg = alerts.important_cfg(CFG.get("important"))
+    if kind in cfg["kinds"]:
+        ign = kind in cfg["ignore_focus"]
+        iid = f"{kind}:{int(time.time())}"
+        IMPQ.add(iid, kind, {**ev, "level": "important", "id": iid, "ign": ign}, title, body, ign)
+        await important_pump()
+        return
+    n = await phones_send(ev)
+    log.info("aviso (%s): %d celular(es)", kind, n)
+    await pc_balloon(title, body)
+
+
+async def important_pump():
+    for act, it in IMPQ.due(FOCUS.active):
+        IMPQ.mark(it, act)
+        n = 0
+        if it["event"]:
+            n = await phones_send({**it["event"], "repeat": it["repeats"]})
+        else:
+            await linkask_send()
+        log.info("aviso importante (%s)%s: %d celular(es)", it["kind"], " repetido" if act == "repeat" else "", n)   # sem texto
+        await pc_balloon(it["title"], it["body"])
+        await asyncio.to_thread(play_alert)
+
+
+async def alert_ack(p):
+    iid = str(p.get("id", ""))
+    IMPQ.ack(prefix="ask:" if iid.startswith("ask:") else None, id=None if iid.startswith("ask:") else iid)
+    return {"ok": True}
+
+
 async def unident_check():
     """Aviso diário "Tempo sem atribuir hoje" (hora configurável): celular, painel e balão do PC. Só números por programa."""
     now = datetime.now()
@@ -2316,14 +2382,13 @@ async def unident_check():
         return
     log.info("aviso diário de tempo sem atribuir")   # sem nomes nem horas
     ev = {"t": "event", "kind": "alert", "sub": "unident", "title": m[0], "body": m[1], "open": "work"}
-    await phones_send(ev)
     txt = json.dumps(ev, ensure_ascii=False)
     for ws in list(panel_clients):
         try:
             await ws.send(txt)
         except ConnectionClosed:
             panel_clients.discard(ws)
-    await pc_balloon(m[0], m[1])
+    await alert_emit("unident", ev, m[0], m[1])
 
 
 async def work_loop():
@@ -2343,10 +2408,10 @@ async def work_loop():
             await unident_check()
             a = MISPLACED.observe(info, time.time(), has_roots, _misplaced_min())
             if a:
-                n = await phones_send({"t": "event", "kind": "alert", "sub": a["kind"], "title": a["title"],
-                                       "body": a["body"], "open": "work"})
-                log.info("aviso de arquivo fora do lugar (%s): %d celular(es)", a["kind"], n)   # sem nomes
-                await pc_balloon(a["title"], a["body"])
+                await alert_emit("misplaced_generic" if a["kind"] == "generic" else "misplaced_outside",
+                                 {"t": "event", "kind": "alert", "sub": a["kind"], "title": a["title"], "body": a["body"], "open": "work"},
+                                 a["title"], a["body"])
+            await important_pump()
         except Exception as e:  # noqa: BLE001
             log.warning("work_loop: %s", type(e).__name__)  # sem a mensagem: pode ter nome de arquivo
         await asyncio.sleep(2)
