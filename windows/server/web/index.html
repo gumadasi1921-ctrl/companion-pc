@@ -1571,6 +1571,18 @@ html[data-theme="modern"] .dota .dline { border-radius: 12px; background: color-
 #lume-fab:focus-visible { outline: 2px solid var(--accent, var(--p)); outline-offset: 2px; border-radius: 50%; }
 #lume-bal { position: fixed; left: 0; top: 0; z-index: 38; width: max-content; max-width: min(260px, calc(100vw - 96px)); padding: 10px 12px; border-radius: 16px; background: var(--surface-2, var(--bg)); color: var(--text, var(--p));
   border: 1px solid var(--separator, var(--p3)); box-shadow: 0 6px 24px rgba(0,0,0,.4); font-size: 14px; line-height: 1.3; }
+/* Aviso Importante: borda na cor do tema pisca 3 vezes (só opacidade); com reduzir movimento / lm-still fica fixa 1,2 s (sem piscar). Lume no centro com balão grande. */
+#imp-flash { position: fixed; inset: 0; z-index: 46; pointer-events: none; opacity: 0; box-shadow: inset 0 0 0 5px var(--accent, var(--p)), inset 0 0 44px 8px var(--accent, var(--p)); }
+#imp-flash.go { animation: impPulse .7s ease-in-out 3; }
+#imp-flash.still { opacity: .9; animation: none; }
+@keyframes impPulse { 0%, 100% { opacity: 0; } 35% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #imp-flash.go { animation: none; opacity: .9; } }
+#lume-fab.center { transition: transform .4s ease; }
+html.lm-still #lume-fab.center { transition: none; }
+@media (prefers-reduced-motion: reduce) { #lume-fab.center { transition: none; } }
+#lume-bal.big { max-width: min(420px, calc(100vw - 32px)); padding: 14px 16px; font-size: 17px; z-index: 39; border-color: var(--accent, var(--p)); border-width: 2px; }
+#lume-bal.big .lb-t { -webkit-line-clamp: 4; }
+#lume-bal.big .lb-a, #lume-bal.big .lb-ch button, #lume-bal.big .lb-sec button { min-height: 48px; font-size: 16px; }
 .lb-h { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--p3t); margin-bottom: 4px; }
 .lb-h em { font-style: normal; font-size: 11px; padding: 0 6px; border-radius: 8px; background: rgba(128,128,128,.25); }
 .lb-pc { display: inline-flex; align-items: center; gap: 5px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2528,6 +2540,14 @@ button.cal-mt::after { content: ""; position: absolute; left: 0; right: 0; top: 
           <div class="set"><label>Notificações do PC<small id="pcn-note">WhatsApp, Discord, e-mail e outros avisos do Windows</small></label><button class="switch" id="sw-pcnotif" aria-label="Notificações do PC"></button></div>
           <div class="set"><label>Memória cheia<small>Acima de <input class="num" id="al-ram-v" type="number" inputmode="numeric"> %</small></label><button class="switch" id="al-ram" aria-label="Memória cheia"></button></div>
         </div>
+        <div class="card">
+          <div class="set"><label>Avisos importantes<small>Pisca a borda, chama o Lume ao centro e mostra o aviso grande. Quais avisos valem como Importantes e o som (só no PC) são escolhidos no painel do PC.</small></label></div>
+          <div class="set"><label>Arquivo sem salvar<small>Pisca e chama o Lume ao centro</small></label><button class="switch" id="al-impGeneric" aria-label="Arquivo sem salvar: aviso importante"></button></div>
+          <div class="set"><label>Arquivo fora do lugar</label><button class="switch" id="al-impOutside" aria-label="Arquivo fora do lugar: aviso importante"></button></div>
+          <div class="set"><label>Ligar job ao card</label><button class="switch" id="al-impLink" aria-label="Ligar job ao card: aviso importante"></button></div>
+          <div class="set"><label>Tempo sem atribuir hoje</label><button class="switch" id="al-impUnident" aria-label="Tempo sem atribuir hoje: aviso importante"></button></div>
+          <div class="set"><label>Ver como fica</label><button class="btn" id="al-imp-test" type="button">Testar</button></div>
+        </div>
       </div>
       <div class="st-pg" data-pg="lume" data-title="Lume" data-parent="alerts">
         <div class="card">
@@ -2595,6 +2615,7 @@ button.cal-mt::after { content: ""; position: absolute; left: 0; right: 0; top: 
 <svg id="lume-defs" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"></svg>
 <button id="lume-fab" class="hidden" aria-label="Lume"></button>
 <div id="lume-menu" class="hidden" role="menu"></div>
+<div id="imp-flash" aria-hidden="true"></div>
 <div id="lume-bal" class="hidden" role="status" aria-live="polite"></div>
 <div id="rem-alarm" class="hidden" role="alertdialog" aria-live="assertive" aria-label="Lembrete"></div>
 
@@ -3327,7 +3348,7 @@ function makeFull(store, KEYS, lay, defaults, now) {
   const GROUPS = G0.map((g) => ({ ...g, keys: g.keys.filter((k) => SHARED.includes(k)) })).filter((g) => g.keys.length)
     .concat([{ id: "other", label: "Outros", keys: SHARED.filter((k) => !used.has(k)) }]);   // chave nova da lista cai em Outros
   const BOOL = ["snd", "vib", "wake", "micFab", "dotaOpen", "deckAuto", "pcnotif", "scrFast", "land"];
-  const AL_B = ["net", "download", "export", "misplaced", "trello", "monday", "gpu", "cpu", "ram"], AL_V = ["gpuV", "cpuV", "ramV"];
+  const AL_B = ["net", "download", "export", "misplaced", "trello", "monday", "gpu", "cpu", "ram", "impGeneric", "impOutside", "impLink", "impUnident"], AL_V = ["gpuV", "cpuV", "ramV"];
   const unit = (n) => typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1;
   const posMap = (v) => {
     if (!isObj(v)) return undefined; const o = {};
@@ -3680,7 +3701,7 @@ function onMsg(m) {
       if (m.kind === "steam.done" && prefs.alerts.download) { snd("note"); notify("Download da Steam concluído", m.name, "steam-" + m.appid); toast("Steam: " + m.name + " terminou de baixar", "ok"); return; }
       if (m.kind === "download" && prefs.alerts.download) notify("Download concluído", m.name + (m.size ? ` · ${fmtBytes(m.size)}` : ""), "dl");
       if (m.kind === "export" && prefs.alerts.export) exportNotice(m);
-      if (m.kind === "alert" && prefs.alerts.misplaced) misplacedNotice(m);
+      if (m.kind === "alert" && prefs.alerts.misplaced) { if (!impAlert(m)) misplacedNotice(m); }
       if (m.kind === "focus.summary") focusSummary(m);
       if (m.kind === "trello.digest" && prefs.alerts.trello) trelloDigest(m);
       if (m.kind === "monday.digest" && prefs.alerts.monday) mondayDigest(m);
@@ -7191,8 +7212,19 @@ function lumeView() { const n = Date.now(); return LM.view(n / 1000, { focus: lu
 const lumeOn = () => LM.cfg().mode === "on";
 const lumeHidden = () => !lumeOn() || LM.sleeping() || vis("mascot") || (LM.cfg().hideCtrl && (vis("mouse") || vis("screen")));
 function lumeParty(ms = 2600) { LU.partyUntil = Date.now() + ms; setTimeout(lumePaint, ms + 50); lumePaint(); }
+// Aviso importante: o Lume e o balão grande ficam juntos no centro (deitado: Lume à esquerda do balão; em pé: Lume em cima)
+function lumeCenterXY() {
+  const el = $("lume-bal"), bw = el.offsetWidth, bh = el.offsetHeight, W = innerWidth, H = innerHeight, cl = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  if (W > H) {
+    const gw = LUF + 12 + bw, x0 = Math.round((W - gw) / 2), by = Math.round(cl((H - bh) / 2, 8, Math.max(8, H - bh - 8)));
+    return { fx: x0, fy: cl(Math.round(by + Math.min(bh, 120) / 2 - LUF / 2), 8, H - LUF - 8), bx: x0 + LUF + 12, by };
+  }
+  const gh = LUF + 8 + bh, y0 = Math.round(cl((H - gh) / 2, 8, Math.max(8, H - gh - 8)));
+  return { fx: Math.round((W - LUF) / 2), fy: y0, bx: Math.round(cl((W - bw) / 2, 8, W - bw - 8)), by: y0 + LUF + 8 };
+}
 function lumePlace() {
   if (LU.drag) return;
+  if (LU.center && LB.cur && LB.cur.big) { const c = lumeCenterXY(); lumeFab.style.transform = `translate(${c.fx}px, ${c.fy}px)`; return; }
   const a = micFabArea(LUF), p = LU.pos[a.key] || { x: 0, y: 0.85 };
   let x = a.L + p.x * a.W, y = a.T + p.y * a.H;
   if (!micFab.classList.contains("hidden")) {   // o mic é controle e tem prioridade: o Lume desvia na vertical
@@ -7483,6 +7515,7 @@ function lumeSay(o) {
 }
 function lumeBalDraw() {
   const o = LB.cur, el = $("lume-bal"), pc = PCL.active();
+  el.classList.toggle("big", !!o.big);
   const chip = o.src === "pc" ? `<span class="lb-pc"><i style="background:${PC_COLORS[pc.color] || "#888"}"></i>${esc(pc.name)}</span>` : '<span class="lb-pc">Lume</span>';
   el.innerHTML = `<div class="lb-h">${chip}${LB.q.length ? `<em>+${LB.q.length}</em>` : ""}<button class="lb-x" data-lb="x" aria-label="Dispensar">×</button></div>${o.title ? `<b>${esc(o.title)}</b>` : ""}<div class="lb-t" data-lb="t"${o.sheet ? ` data-ni="${o.sheet.id}" role="button" aria-label="Ver o aviso completo"` : ""}>${esc(o.text)}</div>` +
     (o.choices ? `<div class="lb-ch">${o.choices.map((c, i) => `<button data-lb="c${i}" title="${esc(c.label)}">${esc(c.label)}</button>`).join("")}</div>` : "") +
@@ -7491,12 +7524,13 @@ function lumeBalDraw() {
   lumeBalPlace();
 }
 function lumeBalShow(o) {
-  LB.cur = o; LU.balOpen = true; LU.alertUntil = Date.now() + 9000; LU.touch = Date.now();
+  LB.cur = o; LU.balOpen = true; LU.alertUntil = Date.now() + 9000; LU.touch = Date.now(); LU.center = !!o.big; lumeFab.classList.toggle("center", !!o.big);
   $("lume-bal").classList.remove("hidden"); lumePaint(); lumeBalDraw();
   clearTimeout(LB.t); LB.t = setTimeout(() => lumeBalClose(false), o.ms || (o.act ? 9000 : 6000));
 }
 function lumeBalClose(acted) {
-  clearTimeout(LB.t); const o = LB.cur; LB.cur = null; LU.balOpen = false; LU.alertUntil = 0; $("lume-bal").classList.add("hidden");
+  clearTimeout(LB.t); const o = LB.cur; LB.cur = null; LU.balOpen = false; LU.alertUntil = 0; LU.center = false; $("lume-bal").classList.add("hidden"); $("lume-bal").classList.remove("big");
+  setTimeout(() => { if (!LU.center) lumeFab.classList.remove("center"); }, 450);
   if (o && o.id) { if (acted) LM.acted(o.id); else LM.ignored(o.id); }
   if (LB.q.length) setTimeout(() => lumeBalShow(LB.q.shift()), 350);
   lumePaint();
@@ -7505,11 +7539,13 @@ function lumeBalPlace() {
   const el = $("lume-bal");
   if (!LB.cur) return;
   if (lumeFab.classList.contains("hidden")) return lumeBalClose(false);
+  if (LB.cur.big) { const c = lumeCenterXY(); el.style.transform = `translate(${c.bx}px, ${c.by}px)`; return; }
   lumeAnchor(el);
 }
 $("lume-bal").addEventListener("click", (e) => {
   const b = e.target.closest("[data-lb]"); if (!b) return; buzz(8);
   const o = LB.cur; if (!o) return;
+  if (o.ack) impAck(o.ack);
   if (b.dataset.lb === "x") return lumeBalClose(false);
   if (b.dataset.lb === "t" && o.sheet) { const r = o.sheet; lumeBalClose(true); nsOpen(r); return; }
   const cs = /^([cs])(\d)$/.exec(b.dataset.lb), f = cs ? (cs[1] === "c" ? o.choices : o.sec)[+cs[2]].fn : b.dataset.lb === "b" ? o.alt[1] : o.act; lumeBalClose(true); if (f) try { f(); } catch {}
@@ -7518,6 +7554,7 @@ $("lume-bal").addEventListener("click", (e) => {
 // ---- Ligar card do Trello: o servidor pergunta (qid + até 3 cards do cliente); aqui só se apresenta e se manda qid + card de volta.
 // Foco rodando = segura e entrega na pausa; Lume dormindo/escondido ou rota "Aviso comum" = folha #lk-sheet com os mesmos botões.
 const LK = { q: null, shown: null };
+const lkKey = (q) => q.id + ":" + (q.n || 0);   // a repetição do servidor (n) conta como pergunta nova
 const lkAns = (op, extra) => send("work.link_" + op, Object.assign({ qid: LK.q && LK.q.id }, extra)).catch(() => toast("Não consegui ligar o card", "warn"));
 function lkParts(q) {
   const fn = (c) => () => lkAns("pick", { card: c.short }).then(() => toast("Card ligado", "ok"));
@@ -7537,17 +7574,19 @@ $("lk-sheet").addEventListener("click", (e) => {
   const f = (m[1] === "c" ? o.choices : o.sec)[+m[2]].fn; lkSheetHide(); try { f(); } catch {}
 });
 function linkAskPresent(q) {
-  LK.shown = q.id;
+  LK.shown = lkKey(q);
+  const imp = q.level === "important" && impWanted("linkcard") && !document.hidden;
+  if (imp) { impFlash(); buzz(30); }
   if (lumeOn() && !lumeHidden() && !document.hidden && LM.cfg().route.linkcard === "b") {
     lkSheetHide(); const o = lkParts(q);
     if (LB.cur) lumeBalClose(false);
-    return lumeSay({ src: "lume", text: o.text, choices: o.choices, sec: o.sec, ms: 40000 });
+    return lumeSay({ src: "lume", text: o.text, choices: o.choices, sec: o.sec, ms: 40000, big: imp });
   }
   lkSheetShow(q);
 }
 function linkAskTry() {
   const q = LK.q;
-  if (!q || LK.shown === q.id || document.hidden || lumeFocus() || LB.cur) return;
+  if (!q || LK.shown === lkKey(q) || document.hidden || lumeFocus() || LB.cur) return;
   if (lumeOn() && LM.silenced(Date.now() / 1000)) return;
   linkAskPresent(q);
 }
@@ -8019,10 +8058,10 @@ async function handleShared() {
 const waitConnected = () => new Promise((res) => { const chk = () => (welcome.host && ws && ws.readyState === 1 ? res() : setTimeout(chk, 300)); chk(); });
 
 // ---------------------------------------------------------------- Alertas
-prefs.alerts = Object.assign({ net: true, download: true, export: true, misplaced: true, trello: true, monday: true, gpu: false, gpuV: 85, cpu: false, cpuV: 90, ram: false, ramV: 90 }, store.get("alerts", {}));
+prefs.alerts = Object.assign({ net: true, download: true, export: true, misplaced: true, trello: true, monday: true, impGeneric: true, impOutside: false, impLink: true, impUnident: false, gpu: false, gpuV: 85, cpu: false, cpuV: 90, ram: false, ramV: 90 }, store.get("alerts", {}));
 const alertOn = {};
 const saveAlerts = () => store.set("alerts", prefs.alerts);
-["net", "download", "export", "misplaced", "trello", "monday", "gpu", "cpu", "ram"].forEach((k) => {
+["net", "download", "export", "misplaced", "trello", "monday", "gpu", "cpu", "ram", "impGeneric", "impOutside", "impLink", "impUnident"].forEach((k) => {
   const sw = $("al-" + k); sw.classList.toggle("on", !!prefs.alerts[k]);
   sw.onclick = () => { prefs.alerts[k] = !prefs.alerts[k]; saveAlerts(); sw.classList.toggle("on", prefs.alerts[k]); buzz(8); if (prefs.alerts[k]) askNotify(false); };
   const inp = $(`al-${k}-v`);
@@ -8046,6 +8085,39 @@ function misplacedNotice(m) {
   if (document.hidden) return sysNotify(m.title, m.body, "misplaced");
   undoToast(m.body, () => showView("work"), "Abrir Trabalho", null, 10000);
 }
+// ---- Aviso IMPORTANTE (o servidor decide o nível e manda level:"important"; aqui só o efeito, sem som: o som toca só no PC)
+const IMP = { seen: new Set(), t: 0 };
+const impKind = (id) => String(id || "").split(":")[0];
+const impPref = (kind) => ({ misplaced_generic: "impGeneric", misplaced_outside: "impOutside", linkcard: "impLink", unident: "impUnident" })[kind];
+const impWanted = (kind) => !!prefs.alerts[impPref(kind)];
+const impStill = () => matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.classList.contains("lm-still");
+function impFlash() {
+  if (document.hidden) return;
+  const f = $("imp-flash"); clearTimeout(IMP.t); f.className = ""; void f.offsetWidth;
+  if (impStill()) { f.className = "still"; IMP.t = setTimeout(() => { f.className = ""; }, 1200); return; }   // sem piscar: borda fixa por 1,2 s
+  f.className = "go"; IMP.t = setTimeout(() => { f.className = ""; }, 2300);
+}
+const impAck = (id) => { if (id) send("alert.ack", { id }).catch(() => {}); };
+function impAlert(m) {
+  if (m.level !== "important") return false;
+  const kind = impKind(m.id); if (!impWanted(kind)) return false;
+  const key = m.id + ":" + (m.repeat || 0);
+  if (IMP.seen.has(key)) return true;           // reconexão devolve o mesmo aviso: já mostrado nesta abertura
+  IMP.seen.add(key);
+  homeNotifPush({ app: m.title, title: m.body, body: "", go: "work" });
+  if (document.hidden) { sysNotify(m.title, m.body, "imp-" + kind); return true; }
+  impFlash(); buzz(30);
+  if (lumeOn() && !lumeHidden()) {
+    if (LB.cur) lumeBalClose(false);
+    lumeSay({ src: "pc", title: m.title, text: m.body, act: () => showView("work"), label: "Abrir Trabalho", big: true, ack: m.id, ms: 60000 });
+  } else undoToast(m.body, () => { impAck(m.id); showView("work"); }, "Abrir Trabalho", ["Dispensar", () => impAck(m.id)], 15000);
+  return true;
+}
+$("al-imp-test").onclick = () => {
+  impFlash();
+  if (lumeOn() && !lumeHidden()) { if (LB.cur) lumeBalClose(false); lumeSay({ src: "lume", title: "Arquivo sem salvar", text: "Exemplo: há 2 min em um arquivo sem salvar. Salve na pasta do cliente.", act: () => {}, label: "Entendi", big: true, ms: 8000 }); }
+  else toast("Exemplo de aviso importante", "ok");
+};
 // Modo foco: resumo do que foi segurado durante o Foco
 let focusItems = [];
 function focusSummary(m) {

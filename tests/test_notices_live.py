@@ -58,6 +58,17 @@ async def run(exp):
     (exp / "antigo.mp4").write_bytes(b"x" * 100)   # existia antes de vigiar
     r = await pop(panel, "config_save", changes={"export_watch": {"folders": [str(exp)], "on": True}, "misplaced_min": 5})
     check("painel grava pastas de exportação e minutos", bool(r) and r["ok"], str(r))
+    imp = {"kinds": ["linkcard"], "ignore_focus": [], "sound": "bell", "volume": 0}
+    r = await pop(panel, "config_save", changes={"important": {**imp, "sound": "x"}})
+    check("config_save recusa som desconhecido (avisos importantes)", bool(r) and not r["ok"])
+    r = await pop(panel, "config_save", changes={"important": imp})
+    check("config_save grava avisos importantes", bool(r) and r["ok"])
+    r = await pop(panel, "config_get")
+    check("config_get devolve important", bool(r) and r["ok"] and r["d"]["important"] == imp)
+    r = await pop(panel, "alert_test_sound", sound="bell", volume=0)
+    check("Testar som (volume 0) responde ok", bool(r) and r["ok"])
+    r = await req(phone, "alert.ack", id="misplaced_generic:1")
+    check("celular: alert.ack aceito", bool(r) and r["ok"])
     r = await pop(panel, "config_save", changes={"misplaced_min": 7})
     check("minutos inválidos recusados", bool(r) and not r["ok"])
     r = await pop(panel, "config_save", changes={"export_watch": {"folders": ["relativa"], "on": True}})
