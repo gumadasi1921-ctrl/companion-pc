@@ -65,3 +65,21 @@ Seções: inicio | ctrl | deck | tasks | mais (lista → radio, games, work, fil
 - Em pé: lista -> subtela com "‹ voltar". Deitado e tablet (container >= 600 px): lista (~230-290 px) à esquerda e detalhe à direita, cada um com rolagem própria. Busca no topo leva direto à linha (abre a subtela, rola e destaca).
 - Linhas >= 44 px de alvo; só presentação: ids, handlers e chaves salvas não mudam.
 
+
+## Tema Líquido (`data-fx="liquid"`)
+Escolhido em Ajustes › Aparência (3º cartão, ao lado de Moderno e Fallout). Grava `theme="liquid"`, mas o `pccTheme.apply` define
+`data-theme="modern"` + `data-fx="liquid"`: herda todos os tokens do Moderno (claro/escuro, 5 cores) e tudo o que é novo mora sob `[data-fx="liquid"]`;
+Moderno e Fallout não têm regra nova. Princípio: fluido e elástico, nunca exagerado; só transform/opacity.
+| Animação | Duração | Curva |
+|---|---|---|
+| Gota (cabeça `.h`) até a aba ativa | 420 ms | `cubic-bezier(.34,1.4,.5,1)` |
+| Gota (cauda `.t`, atrasada: o filtro gooey a funde enquanto se afastam) | 560 ms | `cubic-bezier(.22,1,.36,1)` |
+| Ícone ativo sobe 2 px + 1,08× | 260 ms | `cubic-bezier(.22,1,.36,1)` |
+| Troca de aba: entra 24 px (lado pela ordem das abas) + fade | 260 ms | `cubic-bezier(.22,1,.36,1)` |
+| Troca de página do Início (fade .55→1 + escala .985→1) | 240 ms | idem |
+| Cascata dos widgets (12 px + fade, 40 ms por degrau, até 8) | 320 ms | idem |
+| Afundar (.965) / voltar com spring | 90 ms / 380 ms | ease-out / `cubic-bezier(.34,1.56,.64,1)` |
+| Número que nasce vazio conta de 0 ao valor (só na abertura) | 500 ms | ease-out cúbica (rAF) |
+| Barras (`width`), anéis (`stroke-dashoffset`), barras SVG (`scaleY`) | 600 ms | `cubic-bezier(.22,1,.36,1)` |
+| Levantar widget arrastado (1 → 1,04) | 220 ms | spring |
+Regras: `prefers-reduced-motion` e `html.lm-still` (Economia) desligam tudo (a gota salta direto, sem filtro nem contagem); o filtro (`nav.mv`) só existe durante o deslize (~0,6 s), parado não há animação nem filtro; sem animação na saída da aba (display troca direto); `legacy.html` intacto.
