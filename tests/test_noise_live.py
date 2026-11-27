@@ -1,7 +1,8 @@
 """Teste ao vivo do Ruído numa CÓPIA do servidor (pasta temporária, porta de teste, volume 0 = sem som audível):
 foco → fim do foco (liga e desliga sozinho), ações noise.*, filho de verdade (processo) e filho some se o servidor morre.
 Se houver mídia tocando no PC, o foco NÃO liga o ruído (regra aprovada): o teste confere o aviso e o "Ligar mesmo assim".
-Rodar: py -3 tests/test_noise_live.py"""
+Rodar: py -3 tests/test_noise_live.py            (usa a mídia real do PC: se houver algo tocando, testa o caminho do aviso)
+       py -3 tests/test_noise_live.py --sem-midia  (cópia do servidor que enxerga "nada tocando": testa o caminho de ligar sozinho)"""
 import asyncio
 import json
 import secrets
@@ -98,6 +99,9 @@ def main():
     tmp = Path(tempfile.mkdtemp(prefix="companion-test-"))
     srv = tmp / "server"
     shutil.copytree(SRC, srv, ignore=shutil.ignore_patterns("__pycache__", "*.log", "config.json", "tasks.json", "work*.json", "pomodoro*.json", "noise-*.wav"))
+    if "--sem-midia" in sys.argv:   # só na cópia: a leitura de mídia devolve "nada tocando"
+        with open(srv / "pc_info.py", "a", encoding="utf-8") as f:
+            f.write("\n\nasync def _sem_midia(self):\n    return None\n\n\nMedia.info = _sem_midia\n")
     (srv / "config.json").write_text(json.dumps({"token": TOKEN, "panel_token": PANEL, "noise": {"focus_on": True, "kind": "brown", "volume": 0},
                                                  "web": {"host": "127.0.0.1", "port": PORT, "adb_reverse": False, "adb_path": ""}}), encoding="utf-8")
     (srv / "pomodoro.json").write_text(json.dumps({

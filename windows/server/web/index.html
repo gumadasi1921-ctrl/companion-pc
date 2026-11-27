@@ -1028,6 +1028,41 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 .pms-ph { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--p2); }
 .pms-t { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
 .pm-strip .btn { min-height: 44px; min-width: 96px; }
+/* Ruído */
+.nz { display: grid; gap: 10px; align-content: start; }
+.nz-card { display: grid; gap: 14px; padding: 14px; }
+.nz-left, .nz-right { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.nz-main { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.nz-go { flex: none; width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--p2); background: var(--panel); color: var(--p); }
+.nz-go svg { width: 28px; height: 28px; }
+.nz-go.on { background: var(--accent-fill, var(--p)); color: var(--on-accent, var(--bg)); border-color: var(--accent-fill, var(--p)); }
+.nz-go:disabled { opacity: .4; }
+.nz-txt { min-width: 0; }
+.nz-name { font-size: 20px; font-weight: 600; overflow-wrap: anywhere; }
+.nz-sub, .nz-hint { font-size: 14px; color: var(--text-2, var(--p2)); overflow-wrap: anywhere; }
+.nz-hint { font-size: 13px; }
+.nz-warn { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 10px; border: 1px solid var(--alert, var(--p2)); border-radius: var(--r-card, 2px); font-size: 14px; }
+.nz-warn span { flex: 1 1 140px; min-width: 0; }
+.nz-vol { padding: 0 2px; }
+.nz-vol svg { width: 22px; height: 22px; flex: none; opacity: .8; }
+.nz-vol input[type=range] { flex: 1; min-width: 0; }
+.nz-chip { display: flex; align-items: center; gap: 10px; min-height: 48px; margin: 0 0 6px; padding: 4px 4px 4px 14px; border: 1px solid var(--p3); border-radius: var(--r-card, 2px); background: var(--panel); max-width: 100%; box-sizing: border-box; }
+.nz-chip.hidden { display: none; }
+.nz-chip .nz-t { flex: 1; min-width: 0; font-weight: 600; color: var(--p2); overflow-wrap: anywhere; }
+.nz-chip .btn { min-height: 44px; flex: none; }
+.nz-chip.sm { min-height: 44px; margin: 0; padding: 0 0 0 8px; border: 0; background: transparent; }
+.nz-chip.sm .nz-t { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; max-width: 14ch; }
+.pm-strip .nz-chip.sm .btn { min-width: 0; padding: 0 10px; }
+.pm-strip { container: pms / inline-size; }
+#pms-nz .nz-t { display: none; }   /* na faixa só o botão ("Parar ruído"): o nome completo aparece no Tocando, no Foco e em Rádio › Ruído */
+@container pms (max-width: 240px) { #pms-nz { padding-left: 0; } #pms-nz .btn { font-size: 12px; line-height: 1.15; min-height: 44px; }
+  .pm-strip .nz-chip.sm { width: 100%; } .pm-strip .nz-chip.sm .btn { width: 100%; } }
+.pm-sel { min-height: 44px; font: inherit; color: inherit; background: transparent; border: 1px solid var(--p3); border-radius: 8px; padding: 0 8px; }
+.pm-nz { margin-bottom: 8px; }
+@container (min-width: 520px) { .nz-card { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; } }
+#t-noise { container-type: inline-size; }
+@media (orientation: landscape) { #t-media .media { align-content: safe center; } }   /* o chip do Ruído aumenta o conteúdo: sem "safe" o topo ficaria cortado e fora do alcance da rolagem */
+@media (max-height: 560px) { #nz-chip { min-height: 44px; margin-bottom: 2px; padding-left: 10px; } #nz-chip .nz-t { font-size: 14px; } }
 .hpm { display: flex; align-items: center; gap: 12px; }
 .hpm-r { width: 64px; height: 64px; flex: none; }
 .hpm-r svg { width: 100%; height: 100%; display: block; }
@@ -2020,7 +2055,7 @@ button.cal-mt::after { content: ""; position: absolute; left: 0; right: 0; top: 
   <!-- INÍCIO: widgets montados pelo JS a partir do layout salvo (store "home") -->
   <section class="tab" id="t-inicio">
     <div class="home-head"><button class="pcchip rail" id="pc-chip3" aria-label="Trocar de PC"><svg class="pcmon" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-monitor"/></svg></button><h2>Início</h2>
-      <div class="pm-strip hidden" id="home-pm" role="button" tabindex="0" aria-label="Abrir o Foco em Tarefas"><span class="pms-ph" id="pms-ph"></span><span class="pms-t" id="pms-t" role="timer"></span><button class="btn" id="pms-b"></button></div>
+      <div class="pm-strip hidden" id="home-pm" role="button" tabindex="0" aria-label="Abrir o Foco em Tarefas"><span class="pms-ph" id="pms-ph"></span><span class="pms-t" id="pms-t" role="timer"></span><span class="nz-chip sm hidden" id="pms-nz"></span><button class="btn" id="pms-b"></button></div>
       <div class="pm-strip hidden" id="home-ag" aria-label="Próxima reunião"><span class="pms-ph" id="ags-ph"></span><span class="pms-ph ag-short" id="ags-s">Reunião</span><span class="pms-t ag-t" id="ags-t" role="timer"></span><button class="btn primary hidden" id="ags-b" data-ag="join">Entrar</button></div>
       <div class="hdots hidden" id="home-dots" role="group" aria-label="Páginas do Início"></div>
       <button class="btn sm hidden" id="home-add" aria-label="Adicionar widget">+</button><button class="btn sm" id="home-edit">Editar</button></div>
@@ -2154,7 +2189,7 @@ button.cal-mt::after { content: ""; position: absolute; left: 0; right: 0; top: 
   <section class="tab" id="t-media">
     <div class="media">
       <div class="art" id="art"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg></div>
-      <div class="minfo"><div class="mtitle" id="m-title">Nada tocando</div><div class="martist" id="m-artist">Abra uma música ou vídeo no PC</div><div class="mapp" id="m-app"></div></div>
+      <div class="minfo"><div class="nz-chip hidden" id="nz-chip"></div><div class="mtitle" id="m-title">Nada tocando</div><div class="martist" id="m-artist">Abra uma música ou vídeo no PC</div><div class="mapp" id="m-app"></div></div>
       <div class="mprog"><div class="prog" id="prog"><div class="bar"><i id="prog-i"></i></div></div><div class="times"><span id="m-pos">0:00</span><span id="m-dur">0:00</span></div></div>
       <div class="ctrls">
         <button class="cbtn" id="b-prev" aria-label="Anterior"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
@@ -2179,6 +2214,29 @@ button.cal-mt::after { content: ""; position: absolute; left: 0; right: 0; top: 
         <div class="prof-new"><input id="prof-name" type="text" maxlength="40" placeholder="Nome do perfil" autocomplete="off"><button class="btn" id="prof-save">Salvar o atual</button></div></div>
       </div>
       <div class="card mx-apps"><h3><span>Volume por aplicativo</span><span id="mx-master"></span></h3><div id="mx-list"></div></div>
+    </div>
+  </section>
+
+  <!-- RÁDIO > Ruído -->
+  <section class="tab" id="t-noise">
+    <div class="nz">
+      <div class="card nz-card">
+        <div class="nz-left">
+          <div class="nz-main">
+            <button class="nz-go" id="nz-go" aria-label="Ligar o ruído"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path id="nz-ico" d="M8 5v14l11-7z"/></svg></button>
+            <div class="nz-txt"><div class="nz-name" id="nz-name">Ruído desligado</div><div class="nz-sub" id="nz-sub">Gerado no PC, sem internet</div></div>
+          </div>
+          <div class="nz-warn hidden" id="nz-warn"><span>Há mídia tocando no PC: o ruído não ligou.</span><button class="btn" data-nzact="force">Ligar mesmo assim</button></div>
+        </div>
+        <div class="nz-right">
+          <div class="seg" id="nz-kinds" role="radiogroup" aria-label="Tipo de ruído">
+            <button role="radio" data-nzk="white" aria-checked="false">Branco</button><button role="radio" data-nzk="pink" aria-checked="false">Rosa</button><button role="radio" data-nzk="brown" aria-checked="false">Marrom</button>
+          </div>
+          <div class="vol nz-vol"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4z"/></svg>
+            <input type="range" id="nz-vol" min="0" max="100" step="1" value="40" aria-label="Volume do ruído"><span class="val" id="nz-val">40</span></div>
+          <div class="nz-hint">Ligar sozinho no foco: Tarefas › Foco › Ajustes do Pomodoro.</div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -3534,6 +3592,7 @@ function onMsg(m) {
     }
     case "stats": state.stats = m.d; statsT = performance.now(); renderStats(); break;
     case "pomo": pomoSet(m.d); break;
+    case "noise": nzSet(m.d); break;
     case "workstream": lumeWork(m.d); break;
     case "now": state.now = m.d; state.nowT = performance.now(); renderNow(); break;
     case "art": state.art = { [m.id]: "data:image/jpeg;base64," + m.jpg }; renderNow(); break;
@@ -3760,11 +3819,11 @@ const SECTIONS = {
   ctrl: [["mouse", "Mouse e teclado"], ["screen", "Tela do PC"]],
   deck: [["deck", "Botões"]],
   tasks: [["tasks", "Tarefas"]],
-  mais: [["more", "Mais"], ["dash", "Sistema"], ["media", "Tocando"], ["mix", "Mixer"], ["games", "Jogos"], ["dota", "Dota"], ["work", "Trabalho"], ["weather", "Tempo"],
+  mais: [["more", "Mais"], ["dash", "Sistema"], ["media", "Tocando"], ["mix", "Mixer"], ["noise", "Ruído"], ["games", "Jogos"], ["dota", "Dota"], ["work", "Trabalho"], ["weather", "Tempo"],
     ["send", "Arquivos"], ["power", "Energia"], ["widgets", "Widgets do Início"], ["mascot", "Lume"], ["reminders", "Lembretes"], ["calendar", "Calendário"], ["sys", "Ajustes"]],
 };
-const GROUPS = { ctrl: ["mouse", "screen"], radio: ["media", "mix"] };
-const SPLIT = { ctrl: "minmax(0,1fr) minmax(0,1.7fr)", radio: "minmax(0,1fr) minmax(0,1.1fr)" };
+const GROUPS = { ctrl: ["mouse", "screen"], radio: ["media", "mix", "noise"] };
+const SPLIT = { ctrl: "minmax(0,1fr) minmax(0,1.7fr)", radio: "minmax(0,1fr) minmax(0,1.1fr) minmax(0,.9fr)" };
 const VIEWS = Object.values(SECTIONS).flat().map(([n]) => n);
 const LABEL = Object.fromEntries(Object.values(SECTIONS).flat());
 const secOf = (v) => Object.keys(SECTIONS).find((s) => SECTIONS[s].some(([n]) => n === v)) || "inicio";
@@ -3800,6 +3859,7 @@ function showView(name, temp) {
   if (vis("screen")) requestAnimationFrame(() => { layoutScreen(); screenLoop(); });
   if (vis("media") || vis("mix")) { mixT = 0; renderMixer(); pollMixer(); }
   if (vis("mix")) loadProfiles();
+  if (vis("noise")) nzRender();
   if (vis("games")) loadGamesExtra();
   if (vis("dota")) dotaShow();
   if (vis("work")) loadWork(true);
@@ -3917,7 +3977,7 @@ const navCfg = () => LAY.NAV.norm(store.get("nav", null)) || LAY.NAV.def();
 const navItemOf = (v) => {   // vista → item da barra a que ela pertence
   if (v === "more") return null;
   if (groupOf(v) === "ctrl") return "ctrl";
-  if (v === "mix") return "media";
+  if (v === "mix" || v === "noise") return "media";
   const s = secOf(v); return s === "mais" ? v : s;
 };
 const navIc = (n, cls) => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-${n}"/></svg>`;
@@ -5008,6 +5068,54 @@ function pomoSet(d) {
 }
 // faixa do Início: Foco rodando ou pausado e o widget "pomo" fora do layout (com o widget na tela não duplica)
 const pmHeld = (d) => (d?.focus?.on ? `Modo foco: ${d.focus.held} ${d.focus.held === 1 ? "notificação segurada" : "notificações seguradas"}` : "");
+// ---------------------------------------------------------------- Ruído (Rádio › Ruído; toca no PC; ajuste do foco em Tarefas › Foco)
+const NZ_NAMES = { white: "Branco", pink: "Rosa", brown: "Marrom" };
+const nz = { d: null, volT: 0, sig: "" };
+function nzSet(d) {
+  if (!d || !d.cfg) return;
+  const cfgSig = JSON.stringify([d.cfg.focus_on, d.cfg.kind]);
+  nz.d = d;
+  nzRender(); nzChips();
+  if (cfgSig !== nz.sig) { nz.sig = cfgSig; if (pm.cfg && pm.mode === "foco" && pm.d) pomoRender(); }   // o ajuste do foco mostra o tipo só quando está ligado
+}
+function nzCall(a, p) { return send(a, p).then(nzSet).catch((e) => { if (e.message !== "offline") toast(e.message, "bad"); }); }
+function nzChipHtml(d, strip) {   // strip = faixa do Pomodoro: botão curto (a coluna deitada tem 60 px; o texto some por @container)
+  if (!d) return "";
+  if (d.on) return `<span class="nz-t">${esc(d.name)}</span><button class="btn sm" data-nzact="stop" aria-label="Parar o ${esc(d.name)}">${strip ? "Parar ruído" : "Parar"}</button>`;
+  if (d.blocked) return `<span class="nz-t">Ruído não ligou: há mídia tocando</span><button class="btn sm" data-nzact="force"${strip ? ' aria-label="Ruído não ligou: há mídia tocando. Ligar mesmo assim"' : ""}>${strip ? "Ligar ruído" : "Ligar mesmo assim"}</button>`;
+  return "";
+}
+function nzChips() {   // chips no Tocando, na faixa do Pomodoro e na tela Foco: só aparecem tocando (ou bloqueado por mídia)
+  for (const id of ["nz-chip", "pms-nz", "pm-nz"]) { const el = $(id); if (!el) continue; const h = nzChipHtml(nz.d, id === "pms-nz"); if (el._h !== h) { el._h = h; el.innerHTML = h; } el.classList.toggle("hidden", !h); }
+}
+function nzRender() {
+  if (!$("t-noise")) return;
+  const d = nz.d, c = d?.cfg;
+  const t = $("nz-name");
+  if (!d) { setText(t, "Ruído indisponível"); setText($("nz-sub"), "Conectando ao PC…"); $("nz-go").disabled = true; return; }
+  $("nz-go").disabled = false;
+  setText(t, d.on ? d.name : "Ruído desligado");
+  setText($("nz-sub"), d.on ? (d.by === "auto" ? "Ligado pelo foco · para na pausa" : "Tocando no PC") : d.blocked ? "Não ligou: há mídia tocando" : "Gerado no PC, sem internet");
+  $("nz-go").setAttribute("aria-label", d.on ? "Parar o ruído" : "Ligar o ruído");
+  $("nz-go").classList.toggle("on", d.on);
+  $("nz-ico").setAttribute("d", d.on ? "M6 6h12v12H6z" : "M8 5v14l11-7z");
+  $("nz-warn").classList.toggle("hidden", !d.blocked);
+  for (const b of $("nz-kinds").children) { const on = b.dataset.nzk === c.kind; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); }
+  if (performance.now() - nz.volT > 700) { $("nz-vol").value = c.volume; setText($("nz-val"), c.volume); }
+}
+$("nz-go").onclick = () => { buzz(8); if (!nz.d) return; nzCall(nz.d.on ? "noise.stop" : "noise.start", {}); };
+$("nz-kinds").onclick = (e) => { const b = e.target.closest("[data-nzk]"); if (!b || !nz.d) return; buzz(8); nzCall("noise.set", { kind: b.dataset.nzk }); };
+let nzVolH = 0;
+$("nz-vol").oninput = (e) => {
+  const v = +e.target.value; nz.volT = performance.now(); setText($("nz-val"), v);
+  clearTimeout(nzVolH); nzVolH = setTimeout(() => nzCall("noise.set", { volume: v }), 120);
+};
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-nzact]"); if (!b) return;
+  e.stopPropagation(); buzz(8);
+  nzCall(b.dataset.nzact === "force" ? "noise.force" : "noise.stop", {});
+}, true);
+
 function homeStrip() {
   const el = $("home-pm"), d = pm.d;
   const on = !!d && d.phase !== "idle" && vis("inicio") && !homeList.some((w) => w.id === "pomo");
@@ -5016,6 +5124,7 @@ function homeStrip() {
 }
 $("home-pm").addEventListener("click", (e) => {
   buzz(8);
+  if (e.target.closest("[data-nzact]")) return;
   if (e.target.closest("#pms-b")) return pomoToggle();
   pm.mode = "foco"; store.set("tkmode", "foco"); pomoShowMode(); showView("tasks");
 });
@@ -5058,7 +5167,9 @@ function pomoRender() {
   const cfg = pm.cfg ? `<div class="tk-grp">${stp("focus_min", "Foco", c.focus_min, 5, 90, 5, " min")}${stp("short_min", "Pausa curta", c.short_min, 1, 60, 1, " min")}
     ${stp("long_min", "Pausa longa", c.long_min, 1, 60, 1, " min")}${stp("long_every", "Pausa longa a cada", c.long_every, 2, 8, 1, " focos")}
     <div class="pm-set"><span>Começar a próxima fase sozinho</span><button class="switch${c.auto_next ? " on" : ""}" data-pm="auto" role="switch" aria-checked="${c.auto_next}" aria-label="Começar a próxima fase sozinho"></button></div>
-    <div class="pm-set"><span>Modo foco (segura as notificações do PC)</span><button class="switch${c.focus_mode ? " on" : ""}" data-pm="fmode" role="switch" aria-checked="${!!c.focus_mode}" aria-label="Modo foco"></button></div></div>` : "";
+    <div class="pm-set"><span>Modo foco (segura as notificações do PC)</span><button class="switch${c.focus_mode ? " on" : ""}" data-pm="fmode" role="switch" aria-checked="${!!c.focus_mode}" aria-label="Modo foco"></button></div>
+    <div class="pm-set"><span>Ligar ruído no modo foco</span><button class="switch${nz.d?.cfg?.focus_on ? " on" : ""}" data-pm="nzfocus" role="switch" aria-checked="${!!nz.d?.cfg?.focus_on}" aria-label="Ligar ruído no modo foco"${nz.d ? "" : " disabled"}></button></div>
+    ${nz.d?.cfg?.focus_on ? `<div class="pm-set"><label for="pm-nzk">Tipo de ruído no foco</label><select id="pm-nzk" class="pm-sel">${["white", "pink", "brown"].map((k) => `<option value="${k}"${nz.d.cfg.kind === k ? " selected" : ""}>${NZ_NAMES[k]}</option>`).join("")}</select></div>` : ""}</div>` : "";
   root.innerHTML = `<div class="pm-side">
       <div class="pm-ring${d.phase === "focus" || d.phase === "idle" ? "" : " brk"}"><svg viewBox="0 0 100 100" role="img" aria-label="Progresso da fase"><circle cx="50" cy="50" r="${PM_R}" class="hring-t"/>
         <circle cx="50" cy="50" r="${PM_R}" class="hring-f" data-k="arc" style="stroke-dasharray:${PM_C.toFixed(1)};stroke-dashoffset:${PM_C.toFixed(1)}" transform="rotate(-90 50 50)"/></svg>
@@ -5067,11 +5178,12 @@ function pomoRender() {
     <div class="pm-main">
       <div class="pm-btns"><button class="btn primary pm-go" data-pm="go">${pmBtn(d)}</button>
         <button class="btn" data-pm="skip">Pular</button><button class="btn" data-pm="reset">Zerar</button></div>
+      <div class="nz-chip hidden" id="pm-nz"></div>
       <label class="pm-task">Focando em<select id="pm-task"></select></label>
       ${pmHeld(d) ? `<div class="pm-today" id="pm-held">${pmHeld(d)}</div>` : ""}
       <div class="pm-today">Hoje: <b>${d.today}</b> pomodoro${d.today === 1 ? "" : "s"} · semana: <b>${d.week}</b></div>
       <button class="pm-cfgb" data-pm="cfg" aria-expanded="${pm.cfg}">${pm.cfg ? "Fechar ajustes" : "Ajustes do Pomodoro"}</button>${cfg}</div>`;
-  pm.sig = null; pomoTaskOpts(); pomoTick();
+  pm.sig = null; pomoTaskOpts(); pomoTick(); nzChips();
 }
 $("pomo").addEventListener("click", (e) => {
   const b = e.target.closest("[data-pm]"); if (!b || b.disabled || !pm.d) return;
@@ -5083,10 +5195,12 @@ $("pomo").addEventListener("click", (e) => {
     case "cfg": pm.cfg = !pm.cfg; return pomoRender();
     case "auto": return pomoCall("pomo.config", { auto_next: !pm.d.config.auto_next });
     case "fmode": return pomoCall("pomo.config", { focus_mode: !pm.d.config.focus_mode });
+    case "nzfocus": return nzCall("noise.set", { focus_on: !nz.d?.cfg?.focus_on });
     case "step": return pomoCall("pomo.config", { [b.dataset.k]: pm.d.config[b.dataset.k] + +b.dataset.d });
   }
 });
 $("pomo").addEventListener("change", (e) => {
+  if (e.target.id === "pm-nzk") return nzCall("noise.set", { kind: e.target.value });
   if (e.target.id !== "pm-task") return;
   pm.sel = e.target.value || null; pm.sig = null;
   if (pm.d?.running) pomoCall("pomo.start", { task_id: pm.sel });   // rodando: só troca a tarefa
