@@ -77,6 +77,7 @@ from websockets.exceptions import ConnectionClosed
 
 import agenda
 import alerts
+import noise
 import autolink
 import multipc
 import audio_profiles
@@ -1241,6 +1242,11 @@ ASYNC_ACTIONS = {
     "pomo.skip": lambda p: pomo_run("skip", p),
     "pomo.reset": lambda p: pomo_run("reset", p),
     "pomo.config": lambda p: pomo_run("config", p),
+    "noise.get": lambda p: noise_run("get", p),
+    "noise.start": lambda p: noise_run("start", p),
+    "noise.stop": lambda p: noise_run("stop", p),
+    "noise.set": lambda p: noise_run("set", p),
+    "noise.force": lambda p: noise_run("force", p),
     "agenda.get": lambda p: agenda_get(p),
     "agenda.join": lambda p: agenda_join(p),
     "agenda.month": lambda p: agenda_month(p),
@@ -1456,7 +1462,7 @@ def welcome_payload():
         "features": {"media": pc_info.HAS_MEDIA, "volume": pc_info.HAS_VOLUME, "mixer": pc_info.HAS_VOLUME,
                      "screen": True, "clipboard": True, "files": True, "deck": True,
                      "mic": pc_info.HAS_VOLUME, "timer": True, "deck_auto": True, "macro": True,
-                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True, "trello": True, "monday": True, "reminders": True, "agenda": True, "devbk": True,
+                     "library": True, "ping": True, "notif": True, "fps": True, "work": True, "pomo": True, "trello": True, "monday": True, "reminders": True, "agenda": True, "devbk": True, "noise": True,
                      "dota": True},
     }
 
@@ -1558,6 +1564,7 @@ async def session(ws, peer, kind, xff=None):
     await agenda_send(only=ws)
     await dota_send(dota_final(), only=ws)
     await weather_send(WEATHER.state(), only=ws)
+    await noise_send(only=ws)
     if STEAMDL.polled:
         await steam_send(STEAMDL.state(), only=ws)
     await work_stream_send(only=ws)
@@ -1623,6 +1630,7 @@ QUIET_ACTIONS = {"work.link_pick", "work.link_none", "work.link_later", "work.li
                  "dota_status", "dota_set_steam", "dota_gsi_install", "dota_od_refresh",  # Steam ID e pasta do Dota (painel)
                  "weather.get", "weather.search", "weather.set_place", "weather.refresh",  # cidade escolhida / texto digitado
                  "pomo.get", "pomo.start", "pomo.pause", "pomo.resume", "pomo.skip", "pomo.reset", "pomo.config",
+                 "noise.get", "noise.start", "noise.stop", "noise.set", "noise.force",
                  "reminders.get", "reminders.add", "reminders.edit", "reminders.remove", "reminders.restore", "reminders.done", "reminders.snooze", "reminders.clear",   # texto dos lembretes
                  "pomo_get", "pomo_start", "pomo_pause", "pomo_resume", "pomo_skip", "pomo_reset", "pomo_config",
                  # modo painel (operações locais; mesmos motivos: texto de tarefas, clientes, pastas, código de pareamento)
@@ -1929,7 +1937,88 @@ async def pomo_state(state=None):
     state["focus"] = {"on": FOCUS.active, "held": FOCUS.n}
     if summary:
         await focus_deliver(summary)
+    await noise_follow(state["phase"] == "focus" and state["running"])
+    state["noise"] = NOISE.state()
     return state
+
+
+# --------------------------------------------------------------------------
+# Ruído (noise.py): toca no PC; "Ligar ruído no modo foco" segue a fase do Pomodoro (só liga/desliga, não mexe no relógio)
+# --------------------------------------------------------------------------
+NOISE = noise.Noise(BASE, lambda: CFG.get("noise"))
+
+
+def noise_persist(changes):
+    """Grava só a chave noise no config.json (atômico, sem mexer no resto) e no CFG em memória."""
+    with _cfg_lock:
+        cur = json.loads(CFG_PATH.read_text(encoding="utf-8"))
+        new = noise.clean_cfg(changes, cur.get("noise") if isinstance(cur.get("noise"), dict) else None)
+        cur["noise"] = new
+        tmp = CFG_PATH.with_name("config.json.tmp")
+        tmp.write_text(json.dumps(cur, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(CFG_PATH)
+    CFG["noise"] = new
+    return new
+
+
+async def noise_media_playing():
+    """Há mídia tocando no PC (a mesma leitura da tela Tocando)? Sem leitura = não."""
+    try:
+        info = await pc_info.MEDIA.info()
+    except Exception:  # noqa: BLE001
+        return False
+    return bool(info and info.get("status") == "playing")
+
+
+async def noise_send(only=None):
+    msg = json.dumps({"t": "noise", "d": NOISE.state()}, ensure_ascii=False)
+    for ws in [only] if only else list(clients):
+        try:
+            await ws.send(msg)
+        except ConnectionClosed:
+            clients.discard(ws)
+
+
+async def noise_follow(focusing):
+    """Chamado a cada mudança de estado do Pomodoro: liga na subida do foco, desliga na descida (só o que a automação ligou)."""
+    try:
+        playing = await noise_media_playing() if NOISE.would_start(focusing) else False
+        if await on_io(NOISE.sync, focusing, playing):
+            await noise_send()
+    except Exception as e:  # noqa: BLE001
+        log.warning("ruído: %s", type(e).__name__)
+
+
+async def noise_run(name, p):
+    if name == "start":
+        await on_io(NOISE.start, p.get("kind"), "manual")
+    elif name == "stop":
+        await on_io(NOISE.stop)
+    elif name == "force":
+        await on_io(NOISE.force)
+    elif name == "set":
+        ch = {k: p[k] for k in ("focus_on", "kind", "volume") if k in p}
+        await on_io(noise_persist, ch)
+        if "kind" in ch and NOISE.on and NOISE.kind != ch["kind"]:
+            await on_io(lambda: NOISE.start(ch["kind"], NOISE.by))
+        if "volume" in ch:
+            await on_io(NOISE.apply_volume)
+        if "focus_on" in ch:
+            await pomo_state()   # reconcilia agora (ligou no meio do foco, ou desligou)
+    st = NOISE.state()
+    await noise_send()
+    return st
+
+
+async def noise_loop():
+    """Filho que morreu sozinho: o estado volta para desligado e os aparelhos ficam sabendo."""
+    while True:
+        await asyncio.sleep(5)
+        try:
+            if await on_io(NOISE.reap):
+                await noise_send()
+        except Exception as e:  # noqa: BLE001
+            log.warning("noise_loop: %s", type(e).__name__)
 
 
 async def focus_deliver(summary):
@@ -2841,6 +2930,7 @@ async def main():
     spawn("weather", weather_loop)
     spawn("steam", steam_loop)
     spawn("work", work_loop)
+    spawn("noise", noise_loop)
     spawn("backup", backup_loop)
     spawn("trello", trello_loop)
     spawn("monday", monday_loop)
@@ -2854,6 +2944,10 @@ async def main():
 
 def stop_server():
     release_modifiers()
+    try:
+        NOISE.stop()
+    except Exception:  # noqa: BLE001
+        pass
     try:  # grava o tempo de trabalho que ainda não foi para o disco
         IO_POOL.submit(WORK.save).result(timeout=3)
     except Exception:  # noqa: BLE001

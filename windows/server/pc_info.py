@@ -211,12 +211,15 @@ def _exe_path(proc):
 
 
 def _sessions():
+    import noise as _noise
     from pycaw.pycaw import AudioUtilities
     groups = {}
     for s in AudioUtilities.GetAllSessions():
         try:
             if s.ProcessId == 0 or s.Process is None:
                 key, name = "_system", "Sons do sistema"
+            elif s.ProcessId in _noise.PIDS:   # o filho do Ruído (noise.py) aparece como "Ruído", não como pythonw
+                key, name = "_noise", "Ruído"
             else:
                 exe = s.Process.name()
                 key = exe.lower().removesuffix(".exe")
@@ -225,7 +228,7 @@ def _sessions():
                 continue
             g = groups.setdefault(key, {"key": key, "name": name, "items": [], "exe": None})
             g["items"].append(s)
-            if g["exe"] is None and key != "_system":
+            if g["exe"] is None and key not in ("_system", "_noise"):
                 g["exe"] = _exe_path(s.Process)
         except Exception:  # noqa: BLE001  (processo fechou no meio)
             continue
