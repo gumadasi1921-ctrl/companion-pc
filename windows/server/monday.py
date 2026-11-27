@@ -1,10 +1,10 @@
-"""monday.com SOMENTE LEITURA: meus itens "em execução" e "aprovar" (feito) dos quadros escolhidos no painel.
+"""monday.com SOMENTE LEITURA: meus itens "a fazer", "em execução" e "aprovar" (feito) dos quadros escolhidos no painel.
 
 - Só queries GraphQL (check_query recusa mutation/subscription; há teste que varre o módulo). Só https://api.monday.com/v2.
 - Token pessoal no config.json do PC, no cabeçalho Authorization, nunca na URL; nada dele (nem nomes de itens/quadros)
   vai para o log, e as mensagens de erro são fixas. O celular nunca recebe o token.
 - Só itens atribuídos a mim (coluna de Pessoas = meu usuário), conferido de novo em Python.
-- "Em execução"/"Aprovar" = valores marcados no painel, por quadro, vindos da coluna de Status ou do Grupo (igualdade, sem "parecido").
+- "A fazer"/"Em execução"/"Aprovar" (A fazer = só leitura, nunca conta como feito) = valores marcados no painel, por quadro, vindos da coluna de Status ou do Grupo (igualdade, sem "parecido").
 - Aprovar conta como feito. Data: quando entrou em Aprovar (activity_logs, só se vier no formato esperado) ("entrou em Aprovar em DD/MM");
   senão a primeira vez que o Companion viu ("visto em DD/MM"). Item já em Aprovar na primeira leitura do quadro e sem data real
   = "anterior ao Companion" (não conta). monday-done.json nunca é podado.
@@ -138,7 +138,7 @@ def _labels(v, what):
 
 
 def clean_board(b):
-    if not isinstance(b, dict) or set(b) - {"id", "name", "source", "status_col", "people_col", "date_col", "running", "approved"}:
+    if not isinstance(b, dict) or set(b) - {"id", "name", "source", "status_col", "people_col", "date_col", "running", "approved", "todo"}:
         raise ValueError("quadro: formato inválido")
     if not isinstance(b.get("id"), str) or not ID_RX.match(b["id"]):
         raise ValueError("quadro: id inválido")
@@ -156,10 +156,12 @@ def clean_board(b):
     if src == "status" and not out["status_col"]:
         raise ValueError("quadro: escolha a coluna de Status")
     out["running"], out["approved"] = _labels(b.get("running", []), "Em execução"), _labels(b.get("approved", []), "Aprovar")
-    if not out["running"] and not out["approved"]:
-        raise ValueError("quadro: marque ao menos um valor de Em execução ou de Aprovar")
-    if {x.casefold() for x in out["running"]} & {x.casefold() for x in out["approved"]}:
-        raise ValueError("quadro: o mesmo valor não pode ser Em execução e Aprovar")
+    out["todo"] = _labels(b.get("todo", []), "A fazer")
+    if not out["running"] and not out["approved"] and not out["todo"]:
+        raise ValueError("quadro: marque ao menos um valor de Em execução, de Aprovar ou de A fazer")
+    sets = [{x.casefold() for x in out[k]} for k in ("running", "approved", "todo")]
+    if sets[0] & sets[1] or sets[0] & sets[2] or sets[1] & sets[2]:
+        raise ValueError("quadro: o mesmo valor não pode estar em duas etapas (Em execução, Aprovar, A fazer)")
     return out
 
 
@@ -387,7 +389,7 @@ class Monday:
             return False
 
     def _classify(self, cfg, raw, uid, bname):
-        """Itens meus que casam com Em execução / Aprovar. Coluna que não existe no item = configuração inválida (KeyError)."""
+        """Itens meus que casam com Em execução / Aprovar / A fazer (o resto é descartado). Coluna que não existe no item = configuração inválida (KeyError)."""
         out = []
         for it in raw:
             if str(it.get("state", "active")) != "active" or not ID_RX.match(str(it.get("id", ""))):
@@ -404,7 +406,8 @@ class Monday:
                 label = cvs[cfg["status_col"]].get("text")
             else:
                 label = grp.get("title")
-            cat = "running" if _in(label, cfg["running"]) else "approved" if _in(label, cfg["approved"]) else None
+            cat = ("running" if _in(label, cfg["running"]) else "approved" if _in(label, cfg["approved"]) else
+                   "todo" if _in(label, cfg.get("todo") or []) else None)
             if not cat:
                 continue
             day, hhmm = parse_due((cvs.get(cfg.get("date_col")) or {}).get("value")) if cfg.get("date_col") else (None, None)
@@ -573,14 +576,19 @@ class Monday:
         """Estado do celular: itens em execução por prazo + contagem de Aprovar. Nunca leva token."""
         today = self.today()
         groups = {g: [] for g in GROUPS}
+        todo = []
         for i in self.items:
-            if i.get("cat") != "running":
+            if i.get("cat") not in ("running", "todo"):
                 continue
             item = {k: i.get(k) for k in ("id", "name", "board", "group", "status", "due", "time")}
             item["open"] = bool(i.get("url"))
             if times and i["id"] in times:
                 item["spent"] = times[i["id"]]
-            groups[group_of(i.get("due"), today)].append(item)
+            if i["cat"] == "todo":
+                todo.append(item)
+            else:
+                groups[group_of(i.get("due"), today)].append(item)
+        todo.sort(key=lambda x: (x["due"] or "9999", x["time"] or "", x["name"].casefold()))
         for g in GROUPS:
             groups[g].sort(key=lambda x: (x["due"] or "9999", x["time"] or "", x["name"].casefold()))
         st = self.status()
@@ -589,6 +597,7 @@ class Monday:
         return {"state": st["state"], "on": st["on"], "at": st["at"], "boards_bad": len(self.berr),
                 "hhmm": datetime.fromtimestamp(self.at, TZ).strftime("%H:%M") if self.at else None,
                 "today": today.isoformat(), "groups": groups, "counts": {g: len(groups[g]) for g in GROUPS},
+                "todo": {"items": todo, "count": len(todo)},
                 "done": {**dc, "recent": self.done_list(), "by_day": self.done_by_day(today=today), "prior": prior,
                          "today_ids": [k for k, v in self.done.items() if v.get("src") in ("entered", "seen") and v.get("day") == today.isoformat()][:100]}}
 
