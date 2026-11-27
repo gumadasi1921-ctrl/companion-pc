@@ -72,7 +72,7 @@ tudo o que é novo mora sob `[data-fx="liquid"]` (Moderno e Fallout não têm re
 **Modos** (`fxMode()` → `data-fxm`): `full` (tudo), `calm` (Reduzir movimento do sistema: só esmaecer, sem deslocar/escalar/borrar), `off` (Economia do Lume: nada anima). O Líquido nunca liga a Economia.
 Diagnóstico em Ajustes › Aparência (cartão "Diagnóstico do Líquido": Reduzir movimento, Economia, :has(), backdrop-filter, sensor; botão "Testar animação" usa Web Animations, que a regra global de reduzir movimento não derruba).
 **Material:** fundo `#liq-bg` (3 manchas de gradiente radial nas cores do destaque, animadas só por transform, 38–55 s, pausam com a página oculta; Vidro leve = parado); vidro = `backdrop-filter: blur(22px) saturate(1.7)` (com -webkit-), brilho especular em box-shadow inset (forte no topo) e camadas de gradiente; reflexo `--mx/--my/--gl` segue o dedo (`@property --gl`) e `--tx/--ty/--gg` a inclinação (DeviceOrientation, só por botão, só HTTPS no iOS).
-**iOS/Safari:** blur/saturate, gradientes, @property (16.4+) e WAAPI funcionam; refração real (backdrop-filter com filtro SVG `#liq-lens`, feDisplacementMap) só no Chromium (`data-refr`): no iPhone a lente é gradiente + brilho + ícone ampliado.
+**iOS/Safari:** blur/saturate, gradientes, @property (16.4+) e WAAPI funcionam; refração real (feDisplacementMap) só existe no Chromium e foi retirada da lente do menu (duplicava o rótulo); em todo lugar a lente é gradiente + brilho + ícone ampliado 1,15×.
 | Animação | Duração | Curva / forma |
 |---|---|---|
 | Lente do menu: estica (até 2,4×) e se achata no caminho, passa 8 px e volta (WAAPI) | 700 ms | keyframes + `cubic-bezier(.3,.7,.4,1)` |
