@@ -12,12 +12,13 @@ import time
 from pathlib import Path
 
 from alerts import valid_focus_except
+from cowork import EVERY_OPTS
 
 log = logging.getLogger("companion.pomodoro")
 
 LIMITS = {"focus_min": (5, 90), "short_min": (1, 60), "long_min": (1, 60), "long_every": (2, 8)}
 DEFAULT_CFG = {"focus_min": 25, "short_min": 5, "long_min": 15, "long_every": 4, "auto_next": False,
-               "focus_mode": True, "focus_except": []}
+               "focus_mode": True, "focus_except": [], "cowork": True, "checkin_min": 0}
 PHASES = ("focus", "short", "long", "idle")
 _ID = re.compile(r"^[0-9a-f]{8}$")
 _DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -64,6 +65,11 @@ class Pomodoro:
             fm, fe = d["cfg"].get("focus_mode", True), d["cfg"].get("focus_except", [])   # arquivos antigos não têm
             if isinstance(fm, bool):
                 cfg["focus_mode"] = fm
+            cw, ck = d["cfg"].get("cowork", True), d["cfg"].get("checkin_min", 0)
+            if isinstance(cw, bool):
+                cfg["cowork"] = cw
+            if isinstance(ck, int) and not isinstance(ck, bool) and ck in EVERY_OPTS:
+                cfg["checkin_min"] = ck
             if isinstance(fe, list) and all(isinstance(x, str) for x in fe):
                 cfg["focus_except"] = fe[:20]
             st = d["state"]
@@ -227,6 +233,14 @@ class Pomodoro:
             elif k == "focus_mode":
                 if not isinstance(v, bool):
                     raise ValueError("Valor inválido para o modo foco.")
+                new[k] = v
+            elif k == "cowork":
+                if not isinstance(v, bool):
+                    raise ValueError("Valor inválido para o Trabalhando junto.")
+                new[k] = v
+            elif k == "checkin_min":
+                if not isinstance(v, int) or isinstance(v, bool) or v not in EVERY_OPTS:
+                    raise ValueError("Intervalo do check-in inválido (fim do foco ou 15 min).")
                 new[k] = v
             elif k == "focus_except":
                 new[k] = valid_focus_except(v)

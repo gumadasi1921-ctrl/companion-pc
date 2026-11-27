@@ -32,6 +32,17 @@ class PomoTests(unittest.TestCase):
         self.c.t += 25 * 60
         return self.p.tick()
 
+    def test_trabalhando_junto_config(self):
+        c = self.p.get()["config"]
+        self.assertEqual((c["cowork"], c["checkin_min"]), (True, 0))
+        self.p.set_config({"cowork": False, "checkin_min": 15})
+        q = pomodoro.Pomodoro(self.base, self.c).get()["config"]
+        self.assertEqual((q["cowork"], q["checkin_min"]), (False, 15))
+        for bad in ({"cowork": 1}, {"checkin_min": 25}, {"checkin_min": True}, {"checkin_min": "15"}):
+            with self.assertRaises(ValueError):
+                self.p.set_config(bad)
+
+
     def test_inicial(self):
         s = self.p.get()
         self.assertEqual((s["phase"], s["running"], s["remaining_s"]), ("idle", False, 1500))
