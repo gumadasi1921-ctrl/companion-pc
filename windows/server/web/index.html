@@ -2244,6 +2244,27 @@ button.cal-mt::after { content: ""; position: absolute; left: 0; right: 0; top: 
   .cl { flex-direction: row; align-items: stretch; height: 100%; min-height: 0; gap: 16px; }
   .cl-m, .cl-d { flex: 1 1 0; min-height: 0; } .cl-d { overflow-y: auto; }
 }
+
+/* Retrospectiva do mês (stories em tela cheia; só opacidade/transform) */
+#recap { position: fixed; inset: 0; z-index: 47; background: var(--bg); color: var(--text); display: flex; flex-direction: column; padding: calc(10px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left)); touch-action: pan-y; user-select: none; }
+.rc-bars { display: flex; gap: 4px; flex: none; margin-right: 52px; } .rc-bars i { flex: 1 1 0; height: 4px; border-radius: 2px; background: color-mix(in srgb, currentColor 22%, transparent); overflow: hidden; } .rc-bars i.on, .rc-bars i.done { background: var(--accent); } .rc-bars i.on { opacity: .55; }
+.rc-x { position: absolute; top: calc(4px + env(safe-area-inset-top)); right: calc(8px + env(safe-area-inset-right)); width: 48px; height: 48px; font-size: 30px; line-height: 1; background: none; border: 0; color: inherit; cursor: pointer; z-index: 3; }
+.rc-stage { position: relative; z-index: 3; pointer-events: none; flex: 1 1 0; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden auto; animation: rcIn .26s ease-out; }
+@keyframes rcIn { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+.rc-stage button, .rc-stage label, .rc-stage canvas { pointer-events: auto; }
+.rc-side { position: absolute; top: 64px; bottom: 0; width: 28%; background: none; border: 0; cursor: pointer; z-index: 2; -webkit-tap-highlight-color: transparent; } .rc-l { left: 0; } .rc-r { right: 0; }
+.rc-s { width: min(100%, 880px); display: grid; gap: 18px; align-content: center; padding: 8px 4px; }
+.rc-eb { font-size: 14px; letter-spacing: .08em; text-transform: uppercase; color: var(--p3t, var(--dim)); }
+.rc-big { font-size: clamp(44px, 12vw, 96px); line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent); }
+.rc-sub { font-size: 18px; color: var(--dim); } .rc-sub b { color: var(--text); }
+.rc-list { display: grid; gap: 12px; } .rc-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: baseline; font-size: 18px; } .rc-row span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .rc-row b { font-variant-numeric: tabular-nums; }
+.rc-row i { grid-column: 1 / -1; height: 8px; border-radius: 4px; background: color-mix(in srgb, currentColor 14%, transparent); overflow: hidden; } .rc-row u { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.rc-card canvas { width: auto; max-width: min(100%, 300px); max-height: min(58vh, 420px); aspect-ratio: 1080 / 1350; border-radius: 12px; border: 1px solid color-mix(in srgb, currentColor 20%, transparent); }
+.rc-acts { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; } .rc-acts .btn { min-height: 44px; }
+@media (min-aspect-ratio: 1/1) { .rc-s.two { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 28px; align-items: center; } .rc-big { font-size: clamp(44px, 14vh, 96px); } }
+@media (prefers-reduced-motion: reduce) { .rc-stage { animation: none; } }
+html.lm-still .rc-stage { animation: none; }
+.rc-pick { display: grid; gap: 12px; max-width: 520px; } .rc-pick .btn { min-height: 44px; }
 </style>
 <script>
 // Navegadores sem container queries (Chrome < 105, ex.: Chrome 96 do Android antigo):
@@ -2373,6 +2394,16 @@ button.cal-mt::after { content: ""; position: absolute; left: 0; right: 0; top: 
     <div class="lib" id="g-lib"><div class="empty">Carregando…</div></div>
   </section>
 
+  <!-- MAIS > Retrospectiva do mês (abre as "stories" em tela cheia; só histórico real) -->
+  <section class="tab" id="t-recap">
+    <div class="card rc-pick">
+      <h3>Retrospectiva do mês</h3>
+      <div class="wk-nav"><button class="btn sm" id="rc-prev" type="button" aria-label="Mês anterior">‹</button><b id="rc-mes" aria-live="polite"></b><button class="btn sm" id="rc-next" type="button" aria-label="Mês seguinte">›</button></div>
+      <p class="sub">Telas com o que o PC registrou no mês: trabalho, focos, entregas e partidas. O que não tiver dado não aparece.</p>
+      <button class="btn pri" id="rc-go" type="button">Ver retrospectiva</button>
+    </div>
+  </section>
+
   <!-- MAIS > Dota: estado da partida vindo da ponte do DotaCopilot (docs/dota-bridge.md) -->
   <section class="tab" id="t-dota"><div class="dota" id="dota"><div class="card dmsg">Carregando…</div></div></section>
 
@@ -2380,6 +2411,7 @@ button.cal-mt::after { content: ""; position: absolute; left: 0; right: 0; top: 
   <section class="tab" id="t-work">
     <div class="wk-top">
       <div class="wk-ctl">
+        <button class="btn sm hidden" id="wk-recap" type="button">Retrospectiva</button>
         <div class="seg" id="w-seg" role="group" aria-label="Período"><button data-wm="week" aria-pressed="true">Semana</button><button data-wm="month" aria-pressed="false">Mês</button></div>
         <div class="wk-nav"><button class="btn sm" id="w-prev" aria-label="Período anterior">‹</button><b id="w-range">Esta semana</b><button class="btn sm" id="w-next" aria-label="Período seguinte">›</button><button class="btn sm" id="w-csv" title="Exportar a semana em CSV">CSV</button></div>
       </div>
@@ -2805,6 +2837,13 @@ button.cal-mt::after { content: ""; position: absolute; left: 0; right: 0; top: 
 <svg id="lume-defs" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"></svg>
 <button id="lume-fab" class="hidden" aria-label="Lume"></button>
 <div id="lume-menu" class="hidden" role="menu"></div>
+<div id="recap" class="hidden" role="dialog" aria-modal="true" aria-label="Retrospectiva do mês">
+  <div class="rc-bars" id="rc-bars" aria-hidden="true"></div>
+  <button class="rc-x" id="rc-x" type="button" aria-label="Fechar">×</button>
+  <div class="rc-stage" id="rc-stage" aria-live="polite"></div>
+  <button class="rc-side rc-l" id="rc-l" type="button" aria-label="Tela anterior"></button>
+  <button class="rc-side rc-r" id="rc-r" type="button" aria-label="Próxima tela"></button>
+</div>
 <div id="imp-flash" aria-hidden="true"></div>
 <div id="lume-bal" class="hidden" role="status" aria-live="polite"></div>
 <div id="rem-alarm" class="hidden" role="alertdialog" aria-live="assertive" aria-label="Lembrete"></div>
@@ -3385,7 +3424,7 @@ function makeLayouts(store, rid, now, defaults) {
     return out;
   };
   // barra de navegação: {v:1, order:[todos os ids, por prioridade], hidden:[ids fora da barra]}; em pé a barra mostra os NAV_CAP primeiros itens visíveis (o resto fica em Mais); no trilho (deitado/tablet) aparecem todos os visíveis, rolando
-  const NAV_IDS = ["inicio", "ctrl", "deck", "tasks", "dash", "media", "games", "dota", "work", "weather", "send", "power", "widgets", "sys", "mascot", "reminders", "calendar"], NAV_CAP = 4;
+  const NAV_IDS = ["inicio", "ctrl", "deck", "tasks", "dash", "media", "games", "dota", "work", "weather", "send", "power", "widgets", "sys", "mascot", "reminders", "calendar", "recap"], NAV_CAP = 4;
   const navDef = () => ({ v: 1, order: NAV_IDS.slice(), hidden: NAV_IDS.slice(NAV_CAP) });
   const validNav = (n) => {
     if (!isObj(n) || n.v !== 1 || !Array.isArray(n.order) || !Array.isArray(n.hidden) || n.order.length > 40 || n.hidden.length > 40) return null;
@@ -4103,7 +4142,7 @@ const SECTIONS = {
   deck: [["deck", "Botões"]],
   tasks: [["tasks", "Tarefas"]],
   mais: [["more", "Mais"], ["dash", "Sistema"], ["media", "Tocando"], ["mix", "Mixer"], ["noise", "Ruído"], ["games", "Jogos"], ["dota", "Dota"], ["work", "Trabalho"], ["weather", "Tempo"],
-    ["send", "Arquivos"], ["power", "Energia"], ["widgets", "Widgets do Início"], ["mascot", "Lume"], ["reminders", "Lembretes"], ["calendar", "Calendário"], ["sys", "Ajustes"]],
+    ["send", "Arquivos"], ["power", "Energia"], ["widgets", "Widgets do Início"], ["mascot", "Lume"], ["reminders", "Lembretes"], ["calendar", "Calendário"], ["recap", "Retrospectiva"], ["sys", "Ajustes"]],
 };
 const GROUPS = { ctrl: ["mouse", "screen"], radio: ["media", "mix", "noise"] };
 const SPLIT = { ctrl: "minmax(0,1fr) minmax(0,1.7fr)", radio: "minmax(0,1fr) minmax(0,1.1fr) minmax(0,.9fr)" };
@@ -4154,6 +4193,7 @@ function showView(name, temp) {
   if (vis("widgets")) wdShow();
   if (vis("reminders")) remLoad();
   if (vis("calendar")) clShow();
+  if (vis("recap")) rcTab();
   if (vis("sys")) stOpen();
   pcPlace();
   try { lumePaint(); } catch {}
@@ -4255,7 +4295,7 @@ const NAVM = {   // id: [rótulo na barra, rótulo longo, ícone, vista de entra
   games: ["Jogos", "Jogos", "gamepad-2", "games"], dota: ["Dota", "Dota", "dota", "dota"], work: ["Trabalho", "Trabalho", "briefcase", "work"],
   weather: ["Tempo", "Tempo", "cloud-sun", "weather"], send: ["Arquivos", "Arquivos", "folder-open", "send"], power: ["Energia", "Energia", "log-out", "power"],
   widgets: ["Widgets", "Widgets do Início", "layout-grid", "widgets"], mascot: ["Lume", "Lume", "heart", "mascot"], sys: ["Ajustes", "Ajustes", "sliders-horizontal", "sys"],
-  reminders: ["Lembretes", "Lembretes", "bell", "reminders"], calendar: ["Calendário", "Calendário", "calendar", "calendar"],
+  reminders: ["Lembretes", "Lembretes", "bell", "reminders"], calendar: ["Calendário", "Calendário", "calendar", "calendar"], recap: ["Retrospectiva", "Retrospectiva do mês", "clapperboard", "recap"],
 };
 let navBar = [], navMode = false;   // ids que estão na barra agora; navMode = a barra foi montada para o trilho?
 const navCfg = () => LAY.NAV.norm(store.get("nav", null)) || LAY.NAV.def();
@@ -5153,6 +5193,7 @@ function renderWork() {
   $("w-prev").disabled = workMode === "month" ? !!p && p.month <= "2020-01" : workOff <= -104;
   $("w-next").disabled = workMode === "month" ? !p || p.month >= wmNow() : workOff >= 0;
   $("w-csv").classList.toggle("hidden", workMode === "month");
+  $("wk-recap").classList.toggle("hidden", workMode !== "month");
   if (!p) { setHtml($("wk-sum"), ""); wkNow(); return; }
   $("w-total").textContent = p.total_s ? humanDur(p.total_s) : "";
   const bars = wkBars(p);
@@ -8452,6 +8493,110 @@ async function handleShared() {
   } catch { toast("Não consegui receber o compartilhamento", "bad"); }
 }
 const waitConnected = () => new Promise((res) => { const chk = () => (welcome.host && ws && ws.readyState === 1 ? res() : setTimeout(chk, 300)); chk(); });
+
+// ---------------------------------------------------------------- Retrospectiva do mês (stories). Dados = recap.get do PC (só histórico real); o cartão é desenhado aqui, no aparelho.
+const RC = { ym: null, data: null, slides: [], i: 0, from: null, names: false, busy: false, sw: 0 };
+try { RC.names = store.get("rcnames", false) === true; } catch {}
+const rcMes = (ym) => wmName(ym).replace(/^./, (c) => c.toUpperCase());
+const rcH = (s) => { const m = Math.round(s / 60), h = Math.floor(m / 60); return h ? h + " h" + (m % 60 ? " " + String(m % 60).padStart(2, "0") : "") : m + " min"; };
+const rcDay = (d) => d.slice(8, 10) + "/" + d.slice(5, 7);
+const rcPl = (n, one, many) => n + " " + (n === 1 ? one : many);
+function rcBars(items, val, label, max) {
+  return '<div class="rc-list">' + items.map((it) => `<div class="rc-row"><span>${esc(label(it))}</span><b>${esc(val(it))}</b><i><u style="width:${Math.max(4, Math.round(100 * it.v / max))}%"></u></i></div>`).join("") + "</div>";
+}
+function rcSlide(s) {
+  const ym = RC.ym, two = (a, b) => `<div class="rc-s two"><div>${a}</div><div>${b}</div></div>`;
+  if (s.id === "open") {
+    const cmp = s.prev_total_s ? (s.total_s >= s.prev_total_s ? `<b>${esc(rcH(s.total_s - s.prev_total_s))}</b> a mais que em ${esc(wmName(wmShift(ym, -1)))}` : `<b>${esc(rcH(s.prev_total_s - s.total_s))}</b> a menos que em ${esc(wmName(wmShift(ym, -1)))}`) : "";
+    return two(`<div class="rc-eb">${esc(rcMes(ym))}</div><div class="rc-big">${esc(rcH(s.total_s))}</div><div class="rc-sub">de trabalho no mês</div>`,
+      `<div class="rc-sub"><b>${esc(rcPl(s.days_worked, "dia", "dias"))}</b> de trabalho</div>${s.best_day ? `<div class="rc-sub">Dia mais cheio: <b>${esc(rcDay(s.best_day.date))}</b> · ${esc(rcH(s.best_day.s))}</div>` : ""}${cmp ? `<div class="rc-sub">${cmp}</div>` : ""}`);
+  }
+  if (s.id === "clients") return two(`<div class="rc-eb">Onde o tempo foi</div><div class="rc-big">${s.items.length}</div><div class="rc-sub">${s.items.length === 1 ? "cliente" : "clientes"} no topo</div>`,
+    rcBars(s.items.map((c) => ({ ...c, v: c.s })), (c) => rcH(c.s), (c) => c.name, s.items[0].s));
+  if (s.id === "jobs") return two(`<div class="rc-eb">Jobs que mais pesaram</div><div class="rc-big">${esc(rcH(s.items[0].s))}</div><div class="rc-sub">no job mais longo</div>`,
+    rcBars(s.items.map((c) => ({ ...c, v: c.s })), (c) => rcH(c.s), (c) => c.client + " · " + c.job, s.items[0].s));
+  if (s.id === "focus") return two(`<div class="rc-eb">Foco</div><div class="rc-big">${s.n}</div><div class="rc-sub">${s.n === 1 ? "foco concluído" : "focos concluídos"}</div>`,
+    `<div class="rc-sub">em <b>${esc(rcPl(s.days, "dia", "dias"))}</b></div>${s.best_day ? `<div class="rc-sub">Melhor dia: <b>${esc(rcDay(s.best_day.date))}</b> · ${esc(rcPl(s.best_day.n, "foco", "focos"))}</div>` : ""}`);
+  if (s.id === "checkins") return two(`<div class="rc-eb">Check-ins do Lume</div><div class="rc-big">${s.total}</div><div class="rc-sub">${s.total === 1 ? "resposta" : "respostas"} depois do foco</div>`,
+    rcBars([{ l: "Rendeu", v: s.r }, { l: "Travei", v: s.t }, { l: "Me distraí", v: s.d }], (c) => String(c.v), (c) => c.l, Math.max(s.r, s.t, s.d, 1)));
+  if (s.id === "done") return two(`<div class="rc-eb">Entregas</div><div class="rc-big">${s.total}</div><div class="rc-sub">${s.total === 1 ? "card concluído" : "cards concluídos"}</div>`,
+    `${s.trello ? `<div class="rc-sub">Trello: <b>${s.trello}</b></div>` : ""}${s.monday ? `<div class="rc-sub">monday: <b>${s.monday}</b></div>` : ""}${s.best_day ? `<div class="rc-sub">Dia com mais entregas: <b>${esc(rcDay(s.best_day.date))}</b> · ${s.best_day.n}</div>` : ""}`);
+  if (s.id === "dota") return two(`<div class="rc-eb">Dota</div><div class="rc-big">${s.matches}</div><div class="rc-sub">${s.matches === 1 ? "partida registrada" : "partidas registradas"}</div>`,
+    `${s.wins + s.losses ? `<div class="rc-sub"><b>${esc(rcPl(s.wins, "vitória", "vitórias"))}</b> · ${esc(rcPl(s.losses, "derrota", "derrotas"))}</div>` : ""}${s.minutes ? `<div class="rc-sub">${esc(rcH(s.minutes * 60))} jogados</div>` : ""}${s.top_hero && s.top_hero.name ? `<div class="rc-sub">Mais jogado: <b>${esc(s.top_hero.name)}</b> · ${esc(rcPl(s.top_hero.n, "partida", "partidas"))}</div>` : ""}`);
+  if (s.id === "card") return two(`<div class="rc-eb">Para guardar</div><div class="rc-sub">Imagem feita aqui no aparelho. Nada é enviado para nenhum servidor.</div>
+    <div class="rc-acts"><button class="btn pri" id="rc-save" type="button">Salvar imagem</button><label class="rc-acts"><button class="switch${RC.names ? " on" : ""}" id="rc-names" type="button" role="switch" aria-checked="${RC.names}" aria-label="Mostrar clientes no cartão"></button><span class="rc-sub">Mostrar clientes no cartão</span></label></div>`,
+    '<div class="rc-card"><canvas id="rc-cv" width="1080" height="1350" role="img" aria-label="Cartão da retrospectiva"></canvas></div>');
+  return "";
+}
+function rcDraw(cv) {
+  const c = cv.getContext("2d"), cs = getComputedStyle(document.body), root = getComputedStyle(document.documentElement);
+  const bg = (root.getPropertyValue("--bg") || "#000").trim(), fg = (root.getPropertyValue("--text") || "#fff").trim(), ac = (root.getPropertyValue("--accent") || "#5cff8a").trim(), dm = (root.getPropertyValue("--dim") || "#999").trim();
+  const font = cs.fontFamily || "sans-serif", S = Object.fromEntries(RC.slides.map((s) => [s.id, s]));
+  c.fillStyle = bg; c.fillRect(0, 0, 1080, 1350);
+  c.strokeStyle = ac; c.globalAlpha = .5; c.lineWidth = 6; c.strokeRect(36, 36, 1008, 1278); c.globalAlpha = 1;
+  const T = (txt, x, y, size, color, weight = 600) => { c.font = `${weight} ${size}px ${font}`; c.fillStyle = color; c.fillText(txt, x, y); };
+  T("MEU MÊS", 90, 150, 38, dm); T(rcMes(RC.ym), 90, 215, 64, fg, 700);
+  let y = 420;
+  if (S.open) { T(rcH(S.open.total_s), 90, y, 150, ac, 800); T("de trabalho · " + rcPl(S.open.days_worked, "dia", "dias"), 90, y + 70, 44, fg); y += 190; }
+  const L = [];
+  if (S.focus) L.push([String(S.focus.n), S.focus.n === 1 ? "foco concluído" : "focos concluídos"]);
+  if (S.done) L.push([String(S.done.total), S.done.total === 1 ? "card concluído" : "cards concluídos"]);
+  if (S.checkins) L.push([String(S.checkins.total), "check-ins do Lume"]);
+  if (S.dota) L.push([String(S.dota.matches), S.dota.matches === 1 ? "partida de Dota" : "partidas de Dota"]);
+  L.slice(0, 4).forEach(([n, t], k) => { T(n, 90, y + k * 100, 72, ac, 800); T(t, 330, y + k * 100, 44, fg); });
+  y += Math.min(4, L.length) * 100 + 30;
+  if (RC.names && S.clients) { T("Mais tempo com", 90, y, 36, dm); S.clients.items.slice(0, 3).forEach((it, k) => T(it.name + " · " + rcH(it.s), 90, y + 62 + k * 58, 42, fg)); }
+  T("Companion PC", 90, 1280, 34, dm);
+}
+function rcShow() {
+  const s = RC.slides[RC.i]; if (!s) return;
+  $("rc-bars").innerHTML = RC.slides.map((_, k) => `<i class="${k < RC.i ? "done" : k === RC.i ? "on" : ""}"></i>`).join("");
+  const st = $("rc-stage"); st.style.animation = "none"; void st.offsetWidth; st.style.animation = "";
+  st.innerHTML = rcSlide(s);
+  $("rc-l").classList.toggle("hidden", RC.i === 0); $("rc-r").classList.toggle("hidden", RC.i === RC.slides.length - 1);
+  if (s.id === "card") {
+    rcDraw($("rc-cv"));
+    $("rc-names").onclick = () => { RC.names = !RC.names; try { store.set("rcnames", RC.names); } catch {} rcShow(); };
+    $("rc-save").onclick = rcSave;
+  }
+}
+const rcGo = (d) => { const n = RC.i + d; if (n < 0) return; if (n >= RC.slides.length) { rcClose(); return; } RC.i = n; buzz(6); rcShow(); };
+async function rcSave() {
+  const cv = $("rc-cv"); if (!cv) return;
+  const blob = await new Promise((r) => cv.toBlob(r, "image/png")); if (!blob) { toast("Não consegui gerar a imagem", "bad"); return; }
+  const file = new File([blob], `retrospectiva-${RC.ym}.png`, { type: "image/png" });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); return; }
+  } catch (e) { if (e && e.name === "AbortError") return; }
+  const a = document.createElement("a"), u = URL.createObjectURL(blob); a.href = u; a.download = file.name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
+  toast("Imagem salva", "ok");
+}
+function rcClose() { $("recap").classList.add("hidden"); document.removeEventListener("keydown", rcKey); try { RC.from && RC.from.focus && RC.from.focus(); } catch {} }
+function rcKey(e) { if (e.key === "Escape") rcClose(); else if (e.key === "ArrowRight") rcGo(1); else if (e.key === "ArrowLeft") rcGo(-1); }
+async function rcOpen(ym) {
+  if (RC.busy) return; RC.busy = true; RC.ym = ym; RC.from = document.activeElement;
+  try { RC.data = await send("recap.get", { ym }); } catch (e) { RC.busy = false; toast(e.message === "offline" ? "Sem conexão com o PC" : e.message, "bad"); return; }
+  RC.busy = false;
+  RC.slides = (RC.data.slides || []).slice(); if (RC.slides.length) RC.slides.push({ id: "card" });
+  RC.i = 0; $("recap").classList.remove("hidden"); document.addEventListener("keydown", rcKey);
+  if (!RC.slides.length) {
+    $("rc-bars").innerHTML = ""; $("rc-l").classList.add("hidden"); $("rc-r").classList.add("hidden");
+    $("rc-stage").innerHTML = `<div class="rc-s"><div class="rc-eb">${esc(rcMes(ym))}</div><div class="rc-big" style="font-size:36px">Sem dados neste mês</div><div class="rc-sub">O PC ainda não tem trabalho, focos, entregas ou partidas registrados em ${esc(wmName(ym))}.</div></div>`;
+  } else rcShow();
+  $("rc-x").focus();
+}
+$("rc-x").onclick = rcClose; $("rc-l").onclick = () => { if (Date.now() - RC.sw > 400) rcGo(-1); }; $("rc-r").onclick = () => { if (Date.now() - RC.sw > 400) rcGo(1); };
+(() => {   // deslizar: arrastar para o lado troca de tela (o toque nas bordas também)
+  let x0 = null, y0 = 0; const el = $("recap");
+  el.addEventListener("pointerdown", (e) => { if (e.target.closest("#rc-stage button, #rc-stage label, #rc-stage canvas, #rc-x")) { x0 = null; return; } x0 = e.clientX; y0 = e.clientY; });
+  el.addEventListener("pointerup", (e) => { if (x0 === null) return; const dx = e.clientX - x0, dy = e.clientY - y0; x0 = null; if (Math.abs(dx) > 48 && Math.abs(dx) > 1.5 * Math.abs(dy)) { RC.sw = Date.now(); rcGo(dx < 0 ? 1 : -1); } });
+})();
+$("wk-recap").onclick = () => rcOpen(wmYm || wmNow());
+let rcTabYm = null;
+function rcTab() { rcTabYm = rcTabYm || wmNow(); $("rc-mes").textContent = rcMes(rcTabYm); $("rc-prev").disabled = rcTabYm <= "2020-01"; $("rc-next").disabled = rcTabYm >= wmNow(); }
+$("rc-prev").onclick = () => { rcTabYm = wmShift(rcTabYm || wmNow(), -1); rcTab(); };
+$("rc-next").onclick = () => { if ((rcTabYm || wmNow()) < wmNow()) { rcTabYm = wmShift(rcTabYm || wmNow(), 1); rcTab(); } };
+$("rc-go").onclick = () => rcOpen(rcTabYm || wmNow());
 
 // ---------------------------------------------------------------- Alertas
 prefs.alerts = Object.assign({ net: true, download: true, export: true, misplaced: true, trello: true, monday: true, impGeneric: true, impOutside: false, impLink: true, impUnident: false, impBattery: true, gpu: false, gpuV: 85, cpu: false, cpuV: 90, ram: false, ramV: 90 }, store.get("alerts", {}));
