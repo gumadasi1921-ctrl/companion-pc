@@ -4965,10 +4965,11 @@ function mdRender() {
   const el = $("monday"), d = mdData;
   const show = !!d && d.on && !(pm.mode === "foco");
   el.classList.toggle("hidden", !show); if (!show) return;
-  const msg = mdMsg(d), n = Object.values(d.counts).reduce((a, b) => a + b, 0);
+  const msg = mdMsg(d), td = (d.todo && d.todo.items) || [], n = Object.values(d.counts).reduce((a, b) => a + b, 0) + td.length;
   setHtml(el, `<div class="tk-h">monday · em execução${d.hhmm && d.state === "ok" ? ` · atualizado às ${esc(d.hhmm)}` : ""}</div>${msg ? `<div class="trl-msg" role="status">${esc(msg)}</div>` : ""}`
     + TR_GROUPS.map(([k, name]) => (d.groups[k].length ? `<div class="trl-g${k === "overdue" ? " late" : ""}"><div class="trl-gh">${name} · ${d.groups[k].length}</div><div class="tk-grp">${d.groups[k].map((c) => mdCard(c, k === "overdue")).join("")}</div></div>` : "")).join("")
-    + (!n && (d.state === "ok" || d.state === "config") ? '<div class="tk-empty">Nenhum item seu em execução.</div>' : "")
+    + (td.length ? `<div class="trl-g"><div class="trl-gh">A fazer · ${td.length}</div><div class="tk-grp">${td.map((c) => mdCard(c, false)).join("")}</div></div>` : "")
+    + (!n && (d.state === "ok" || d.state === "config") ? '<div class="tk-empty">Nenhum item seu em execução ou a fazer.</div>' : "")
     + (d.state === "ok" || d.state === "net_error" || d.state === "config" ? mdDoneHtml(d) : ""));
 }
 $("monday").onclick = (e) => {
@@ -5493,13 +5494,14 @@ const HOME_W = {
       setText(hk(el, "l"), off || (late ? (late === 1 ? "atrasado" : "atrasados") + (today ? ` · ${today} hoje` : "") : today ? "para hoje" : "em dia"));
       el.classList.toggle("htr-late", !!late && !off);
       setText(hk(el, "cnt"), off ? "" : `${late + today} em foco`);
-      const next = ["overdue", "today", "tomorrow", "week", "later", "none"].flatMap((k) => d.groups[k].map((x) => ({ ...x, late: k === "overdue" })));
-      const grp = off ? "" : [["overdue", "Atrasados"], ["today", "Hoje"], ["tomorrow", "Amanhã"], ["week", "Semana"]].map(([k, l]) => [l, d.groups[k].length]).filter(([, n]) => n).map(([l, n]) => `${l} ${n}`).join(" · ");
+      const td = (d.todo && d.todo.items) || [];
+      const next = ["overdue", "today", "tomorrow", "week", "later", "none"].flatMap((k) => d.groups[k].map((x) => ({ ...x, late: k === "overdue" }))).concat(td.map((x) => ({ ...x, late: false, todo: true })));
+      const grp = off ? "" : [...[["overdue", "Atrasados"], ["today", "Hoje"], ["tomorrow", "Amanhã"], ["week", "Semana"]].map(([k, l]) => [l, d.groups[k].length]), ["A fazer", td.length]].filter(([, n]) => n).map(([l, n]) => `${l} ${n}`).join(" · ");
       setText(hk(el, "grp"), grp);
       setText(hk(el, "done"), off || !d.done ? "" : `Aprovar: hoje ${d.done.today} · semana ${d.done.week} · mês ${d.done.month}`);
       const pg = !!el.closest(".pager"), n = z === "L" ? 2 : pg ? 8 : 3;
-      setHtml(hk(el, "list"), off ? "" : next.slice(0, n).map((x) => `<div class="htr-c"><span>${esc(x.name)}</span><small class="${x.late ? "late" : ""}">${esc(mdDue(x))}</small></div>`).join("")
-        || '<div class="hw-na">Nenhum item em execução.</div>');
+      setHtml(hk(el, "list"), off ? "" : next.slice(0, n).map((x) => `<div class="htr-c"><span>${esc(x.name)}</span><small class="${x.late ? "late" : ""}">${esc(mdDue(x) || (x.todo ? "A fazer" : ""))}</small></div>`).join("")
+        || '<div class="hw-na">Nenhum item em execução ou a fazer.</div>');
     },
   },
   pcquick: {
@@ -9390,7 +9392,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
           h("span", { class: "pn-faint", role: "status" }, agForm.msg)),
         h("div", { class: "pn-faint", style: "margin-top:6px" }, line));
     }
-    // ---- monday (somente leitura): token, quadros, de onde vem "Em execução" e "Aprovar"
+    // ---- monday (somente leitura): token, quadros, de onde vem "A fazer", "Em execução" e "Aprovar"
     const mdSave = async () => {
       try {
         await call("config_save", { changes: { monday: { on: mdForm.on, boards: mdForm.boards, ...(mdForm.token.trim() ? { token: mdForm.token.trim() } : {}) } } });
@@ -9407,30 +9409,31 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
     };
     const mdAdd = (inf) => {
       const col = (t) => (inf.columns.find((c) => c.type === t) || {}).id || "";
-      mdForm.boards.push({ id: inf.id, name: inf.name, source: "status", status_col: col("status"), people_col: col("people"), date_col: col("date"), running: [], approved: [] });
+      mdForm.boards.push({ id: inf.id, name: inf.name, source: "status", status_col: col("status"), people_col: col("people"), date_col: col("date"), running: [], approved: [], todo: [] });
       render();
     };
     function mdBoardEl(b, i) {
+      if (!Array.isArray(b.todo)) b.todo = [];
       const inf = (mdForm.info || []).find((x) => x.id === b.id);
       const sel = (key, type, blank) => {
         const cols = inf ? inf.columns.filter((c) => c.type === type) : [];
-        return h("select", { class: "pn-in", "aria-label": key, onchange: (e) => { b[key] = e.target.value; if (key === "status_col") { b.running = []; b.approved = []; } render(); } },
+        return h("select", { class: "pn-in", "aria-label": key, onchange: (e) => { b[key] = e.target.value; if (key === "status_col") { b.running = []; b.approved = []; b.todo = []; } render(); } },
           blank ? h("option", { value: "" }, "(sem prazo)") : null, cols.map((c) => h("option", { value: c.id, selected: b[key] === c.id }, c.title)));
       };
       const opts = !inf ? [] : b.source === "group" ? inf.groups.map((g) => g.title) : ((inf.columns.find((c) => c.id === b.status_col) || {}).labels || []);
-      const tog = (key, v) => { const l = b[key]; const k = l.indexOf(v); k >= 0 ? l.splice(k, 1) : l.push(v); const o = key === "running" ? "approved" : "running"; b[o] = b[o].filter((x) => x !== v); render(); };
+      const tog = (key, v) => { const l = b[key]; const k = l.indexOf(v); k >= 0 ? l.splice(k, 1) : l.push(v); for (const o of ["running", "approved", "todo"]) if (o !== key) b[o] = b[o].filter((x) => x !== v); render(); };
       const chips = (key, label) => h("div", {}, h("div", { class: "pn-faint" }, label),
         h("div", { class: "pn-chips" }, (opts.length ? opts : b[key]).map((v) => h("button", { class: "pn-btn" + (b[key].includes(v) ? " primary" : ""), type: "button", "aria-pressed": b[key].includes(v), disabled: !inf, onclick: () => tog(key, v) }, v))));
       return h("div", { class: "pn-card", style: "margin-top:8px" },
         h("div", { class: "pn-row" }, h("div", { class: "pn-grow" }, h("b", {}, b.name || b.id)),
           h("button", { class: "pn-btn sq danger", type: "button", "aria-label": "Remover quadro " + (b.name || b.id), onclick: () => { mdForm.boards.splice(i, 1); render(); } }, ic("trash"))),
-        !inf ? h("div", { class: "pn-faint" }, "Clique em “Carregar quadros” para editar. Em execução: " + (b.running.join(", ") || "–") + " · Aprovar: " + (b.approved.join(", ") || "–")) : [
+        !inf ? h("div", { class: "pn-faint" }, "Clique em “Carregar quadros” para editar. Em execução: " + (b.running.join(", ") || "–") + " · Aprovar: " + (b.approved.join(", ") || "–") + " · A fazer: " + (b.todo.join(", ") || "–")) : [
           h("div", { class: "pn-form" },
-            h("label", {}, "Vem de"), h("select", { class: "pn-in", "aria-label": "Fonte", onchange: (e) => { b.source = e.target.value; b.running = []; b.approved = []; render(); } },
+            h("label", {}, "Vem de"), h("select", { class: "pn-in", "aria-label": "Fonte", onchange: (e) => { b.source = e.target.value; b.running = []; b.approved = []; b.todo = []; render(); } },
               h("option", { value: "status", selected: b.source === "status" }, "Coluna de Status"), h("option", { value: "group", selected: b.source === "group" }, "Grupo")),
             b.source === "status" ? [h("label", {}, "Status"), sel("status_col", "status")] : null,
             h("label", {}, "Pessoas"), sel("people_col", "people"), h("label", {}, "Prazo"), sel("date_col", "date", true)),
-          chips("running", "Conta como “Em execução”:"), chips("approved", "Conta como “Aprovar” (feito):")]);
+          chips("todo", "Conta como “A fazer” (o que não estiver marcado em nenhum grupo fica escondido):"), chips("running", "Conta como “Em execução”:"), chips("approved", "Conta como “Aprovar” (feito):")]);
     }
     function mondayCard() {
       const st = md.state, at = md.at ? new Date(md.at * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
