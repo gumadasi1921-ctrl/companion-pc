@@ -86,3 +86,25 @@ Diagnóstico em Ajustes › Aparência (cartão "Diagnóstico do Líquido": Redu
 | Número que nasce vazio conta de 0 | 900 ms | ease-out cúbica (rAF) |
 | Barras (width), anéis (dashoffset), barras SVG (scaleY com sobra) | 1 s / 1,2 s / 900 ms | spring / ease-out |
 Custos: o fundo animado é o único gasto contínuo; blur custa por área (Vidro leve: 8 px); o sensor só escuta em modo completo com a página visível (≤ 15 atualizações/s). `legacy.html` intacto.
+
+### Contraste do Líquido (WCAG AA; medido contra o PIOR ponto do fundo atrás do vidro)
+Pior ponto = entre a base, cada mancha, pares e trio de manchas do `#liq-bg` (com a tinta `--lq-scrim` por cima), o mais claro quando o texto é claro (escuro) e o mais escuro quando o texto é escuro (claro); no vidro soma `--g-fill` e o brilho `--g-sheen`. Correção: fundo menos vivo (`--lq-o` .5 + `--lq-scrim`), vidro mais opaco e tintado (`--g-fill`, `--g-strong`) e tokens de texto/estado próprios do Líquido (`--text-2/-3`, `--accent-text` por cor, `--danger-text`, `--success`, `--warning`); bordas de campos/segmentos `--ctl-b`.
+| Texto (cor azul, escuro) | Antes (fundo pior) | Depois (fundo pior) | Antes no vidro card | Depois no vidro card |
+|---|---|---|---|---|
+| `--text` | 2,26 | 10,32 | 1,81 | 10,38 |
+| `--text-2` | 1,02 | 7,57 | 1,27 | 7,61 |
+| `--text-3` | 1,14 | 5,83 | 1,42 | 5,87 |
+| `--accent-text` | 1,13 | 6,05 | 1,41 | 6,08 |
+| `--danger-text` | 1,12 | 6,10 | 1,40 | 6,14 |
+| `--success` | 1,24 | 7,49 | 1,00 | 7,54 |
+| `--warning` | 1,22 | 6,99 | 1,02 | 7,03 |
+
+| Texto (cor azul, claro) | Antes (fundo pior) | Depois (fundo pior) | Antes no vidro card | Depois no vidro card |
+|---|---|---|---|---|
+| `--text-2` | 3,03 | 8,64 | 6,07 | 12,43 |
+| `--text-3` | 1,66 | 5,47 | 3,32 | 7,87 |
+| `--accent-text` | 1,54 | 5,51 | 3,09 | 7,93 |
+| `--danger-text` | 1,49 | 4,89 | 2,99 | 7,03 |
+| `--success` | 1,62 | 5,06 | 3,24 | 7,28 |
+| `--warning` | 1,79 | 5,94 | 3,58 | 8,54 |
+Nas 5 cores o pior caso depois ficou em 4,55 (claro/roxo, `--danger-text` sobre fundo sem vidro). Varredura do DOM (texto de Início, Tarefas, Trabalho, Ajustes, Dota, Calendário, Rádio, Jogos; claro/escuro; 5 cores; 844x390, 390x844, 1024x768): 0 textos abaixo de 4,5:1 (3:1 para texto grande), exceto os rótulos inativos da barra em pé, que ficam invisíveis de propósito (opacidade 0). Não texto: ícone inativo da barra 4,2–4,3 (era 3,2–3,5), bordas de segmentos/cartões de tema 3,8–4,2 (era 1,0–1,5). Limite do método: o conteúdo dinâmico (dados reais dos widgets) não existe no servidor estático; as cores de texto dele vêm dos mesmos tokens.
