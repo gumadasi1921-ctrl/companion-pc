@@ -726,6 +726,14 @@ nav .nm, nav .nav-label { display: none !important; }        /* só na barra lat
 html.lm-still .liq i, html.lm-still nav .ni, html.lm-still nav button { transition: none !important; }
 @media (prefers-reduced-motion: reduce) { :root[data-fx="liquid"] .liq i, :root[data-fx="liquid"] nav .ni, :root[data-fx="liquid"] nav button { transition: none !important; } }
 
+@keyframes fxTabR { from { opacity: 0; transform: translate3d(24px, 0, 0); } }
+@keyframes fxTabL { from { opacity: 0; transform: translate3d(-24px, 0, 0); } }
+@keyframes fxPg { from { opacity: .55; transform: scale(.985); } }
+:root[data-fx="liquid"] .tab.fx-r { animation: fxTabR .26s cubic-bezier(.22, 1, .36, 1) backwards; }
+:root[data-fx="liquid"] .tab.fx-l { animation: fxTabL .26s cubic-bezier(.22, 1, .36, 1) backwards; }
+:root[data-fx="liquid"] .hpage.fx-pg { animation: fxPg .24s cubic-bezier(.22, 1, .36, 1) backwards; }
+html.lm-still .tab.fx-r, html.lm-still .tab.fx-l, html.lm-still .hpage.fx-pg { animation: none !important; }
+
 /* Ajustes › Aparência */
 .fo-only { display: none; }
 :root[data-theme="fallout"] .fo-only { display: flex; }
@@ -3948,12 +3956,12 @@ let shown = new Set();
 const vis = (v) => shown.has(v);
 function showView(name, temp) {
   if (!VIEWS.includes(name)) name = "inicio";          // vista lembrada que não existe mais
-  const wide = wideMQ.matches;
+  const wide = wideMQ.matches, prevName = prefs.tab;
   if (name === "more" && wide) name = "dash";           // na barra lateral não há tela de lista
   const sec = secOf(name), grp = groupOf(name), multi = wide && !!grp;
   shown = new Set(multi ? GROUPS[grp] : [name]);
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", shown.has(t.id.slice(2))));
-  navMark(name);
+  navMark(name); fxTab(prevName, name);
   MAIN.classList.toggle("multi", multi);
   MAIN.style.gridTemplateColumns = multi ? SPLIT[grp] : "";
   const items = [];
@@ -4129,13 +4137,22 @@ function navMark(name) {   // marca o item da barra da vista atual (Mais acende 
 }
 // Tema Líquido: a gota (cabeça .h rápida + cauda .t atrasada; o filtro gooey as funde enquanto se afastam) vai até o botão ativo.
 // Posição por offsetLeft/offsetTop (o indicador mora no .nav-scroll, então rola junto com o trilho). O botão Mais do trilho fica fora dele: ali o fundo vem do CSS (.liq-off).
+const fxOn = () => document.documentElement.dataset.fx === "liquid";
+const fxStill = () => matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.classList.contains("lm-still");   // Reduzir movimento do aparelho ou modo Economia: nenhuma animação do Líquido
+// posição da vista na ordem das abas (item da barra na ordem escolhida em Ajustes, depois a sub-aba): decide para que lado a página desliza
+const fxRank = (v) => { const i = navCfg().order.indexOf(navItemOf(v)), g = groupOf(v); return (i < 0 ? 99 : i) * 100 + (g ? Math.max(0, GROUPS[g].indexOf(v)) : 0); };
+function fxTab(a, b) {   // Líquido: a tela que entra desliza 24 px (do lado de onde vem na ordem das abas) + fade; só transform/opacity, classe sai sozinha
+  if (!fxOn() || fxStill() || !a || a === b) return;
+  const cls = fxRank(b) >= fxRank(a) ? "fx-r" : "fx-l";
+  document.querySelectorAll(".tab.on").forEach((t) => { t.classList.remove("fx-r", "fx-l"); void t.offsetWidth; t.classList.add(cls); clearTimeout(t._fx); t._fx = setTimeout(() => t.classList.remove(cls), 340); });
+}
 let liqT = 0;
 function liqPlace(instant) {
   const nav = $("nav"), liq = nav && nav.querySelector(".liq"); if (!liq) return;
   const a = nav.querySelector("button.on[data-nid]");
   if (document.documentElement.dataset.fx !== "liquid" || !a || !a.offsetWidth || a.offsetParent !== liq.offsetParent) { nav.classList.add("liq-off"); return; }
   nav.classList.remove("liq-off");
-  const still = matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.classList.contains("lm-still");
+  const still = fxStill();
   const t = `translate3d(${a.offsetLeft}px,${a.offsetTop}px,0)`, h = liq.querySelector(".h"), tl = liq.querySelector(".t");
   liq.style.setProperty("--lw", a.offsetWidth + "px"); liq.style.setProperty("--lh", a.offsetHeight + "px");
   if (instant || still || !liq.dataset.p) { liq.classList.add("nt"); h.style.transform = tl.style.transform = t; void liq.offsetWidth; liq.classList.remove("nt"); }
@@ -6451,16 +6468,23 @@ function homeBuild() {
   homeUpd();
 }
 function homeDots(n, cur) {
+  homeFxPg = cur;
   const d = $("home-dots"); d.classList.toggle("hidden", !n);
   d.innerHTML = Array.from({ length: n }, (_, i) => `<button data-pg="${i}" aria-label="Página ${i + 1} de ${n}"${i === cur ? ' aria-current="true"' : ""}><i></i></button>`).join("");
 }
-let homeScrollT = 0;
+var homeFxPg = -1; let homeScrollT = 0;
+function fxPage(i) {   // Líquido: a página do Início que acabou de assentar respira (fade + escala 0,985 → 1)
+  if (!fxOn() || fxStill()) return;
+  const pg = $("home").querySelectorAll(".hpage")[i]; if (!pg) return;
+  pg.classList.remove("fx-pg"); void pg.offsetWidth; pg.classList.add("fx-pg"); clearTimeout(pg._fx); pg._fx = setTimeout(() => pg.classList.remove("fx-pg"), 320);
+}
 $("home").addEventListener("scroll", () => {
   if (!homePk) return;
   clearTimeout(homeScrollT);
   homeScrollT = setTimeout(() => {
     const root = $("home"), i = Math.max(0, Math.min(homePk.pages - 1, Math.round(root.scrollLeft / Math.max(1, root.clientWidth))));
     for (const b of $("home-dots").children) { if (+b.dataset.pg === i) b.setAttribute("aria-current", "true"); else b.removeAttribute("aria-current"); }
+    if (homeFxPg !== i) { if (homeFxPg >= 0) fxPage(i); homeFxPg = i; }
     store.set("homepg", { ...homePg(), [homeMode()]: i });
   }, 90);
 }, { passive: true });
