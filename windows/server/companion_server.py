@@ -11,6 +11,7 @@ Uso:  pythonw companion_server.py      (ícone na bandeja, sem janela)
 import os
 import sys
 import time
+from datetime import datetime
 
 if sys.stderr is None:
     # pythonw não tem console: um erro antes do log começar (import, config) sumiria sem rastro.
@@ -745,7 +746,7 @@ def work_csv(offset):
 # config.json editado pelo painel do PC: um conjunto fechado de opções
 # --------------------------------------------------------------------------
 CONFIG_EDITABLE = {"upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "notif_ignore", "shortcuts",
-                   "idle_min", "export_watch", "misplaced_min", "backup_dir", "trello", "pc_name", "allowed_origins", "remote_base", "repo_dir", "agenda", "monday"}
+                   "idle_min", "export_watch", "misplaced_min", "unident_notice", "backup_dir", "trello", "pc_name", "allowed_origins", "remote_base", "repo_dir", "agenda", "monday"}
 CONFIG_RESTART = {"upload_dir", "downloads_dir"}  # lidas só na abertura do servidor
 SHORTCUT_ID = re.compile(r"^[a-z0-9_-]{1,40}$")
 _CTRL = re.compile(r"[\x00-\x1f\x7f]")
@@ -805,6 +806,8 @@ def clean_config_value(key, v):
         return work.valid_idle_min(v)
     if key == "misplaced_min":
         return alerts.valid_misplaced_min(v)
+    if key == "unident_notice":
+        return alerts.clean_unident(v)
     if key == "trello":   # key/token em branco = mantém os já salvos; nunca voltam ao painel nem ao celular
         return trello.clean_cfg(v, CFG.get("trello") if isinstance(CFG.get("trello"), dict) else {})
     if key == "monday":   # token em branco = mantém o salvo; nunca volta ao painel nem ao celular
@@ -889,7 +892,7 @@ def config_get():
     fallback = {"upload_dir": DEFAULT_CFG["upload_dir"], "downloads_dir": DEFAULT_CFG["downloads_dir"],
                 "allow_power": DEFAULT_CFG["allow_power"], "shutdown_delay_s": DEFAULT_CFG["shutdown_delay_s"],
                 "notif_ignore": [], "shortcuts": [], "idle_min": 5,
-                "export_watch": {"folders": [], "on": True}, "misplaced_min": alerts.DEFAULT_MISPLACED_MIN, "backup_dir": "", "trello": {}, "pc_name": "", "allowed_origins": [], "remote_base": "", "repo_dir": "", "agenda": {}, "monday": {}}
+                "export_watch": {"folders": [], "on": True}, "misplaced_min": alerts.DEFAULT_MISPLACED_MIN, "unident_notice": dict(alerts.UNIDENT_DEFAULT), "backup_dir": "", "trello": {}, "pc_name": "", "allowed_origins": [], "remote_base": "", "repo_dir": "", "agenda": {}, "monday": {}}
     out = {}
     for k in CONFIG_EDITABLE:
         v = CFG.get(k)
@@ -1145,6 +1148,7 @@ EXPORTS = extras.FolderWatcher(export_folders, exts=extras.EXPORT_EXT, depth=ext
 EXPORTS_RECENT: dict = {}   # id -> caminho (só memória, últimos 20): o celular pede o link pelo id, nunca manda caminho
 FOCUS = alerts.FocusHold()
 MISPLACED = alerts.Misplaced()
+UNIDENT = alerts.DailyUnident(BASE / "unident-notice.json")
 
 
 def shortcut_map():
@@ -2152,6 +2156,27 @@ async def work_stream_send(only=None):
             clients.discard(ws)
 
 
+async def unident_check():
+    """Aviso diário "Tempo sem atribuir hoje" (hora configurável): celular, painel e balão do PC. Só números por programa."""
+    now = datetime.now()
+    if not UNIDENT.due(now, alerts.unident_cfg(CFG.get("unident_notice"))):
+        return
+    UNIDENT.mark(now)
+    m = alerts.unident_message(await on_io(WORK.unident_summary))
+    if not m:
+        return
+    log.info("aviso diário de tempo sem atribuir")   # sem nomes nem horas
+    ev = {"t": "event", "kind": "alert", "sub": "unident", "title": m[0], "body": m[1], "open": "work"}
+    await phones_send(ev)
+    txt = json.dumps(ev, ensure_ascii=False)
+    for ws in list(panel_clients):
+        try:
+            await ws.send(txt)
+        except ConnectionClosed:
+            panel_clients.discard(ws)
+    await pc_balloon(m[0], m[1])
+
+
 async def work_loop():
     """Tempo no Photoshop/Premiere/After: lê o foco a cada 2 s, na fila de disco (WORK não usa locks)."""
     while True:
@@ -2162,6 +2187,7 @@ async def work_loop():
             if st != WSTREAM[0]:   # muda no máximo 1×/min (minutos inteiros) e ao zerar
                 WSTREAM[0] = st
                 await work_stream_send()
+            await unident_check()
             a = MISPLACED.observe(info, time.time(), has_roots, _misplaced_min())
             if a:
                 log.info("aviso de arquivo fora do lugar")   # sem nomes

@@ -8329,7 +8329,8 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
     const t = $p("pn-toast"); t.replaceChildren(h("span", {}, msg));
     t.className = "pn-toast" + (opt.bad ? " bad" : "");
     if (opt.undo) t.append(h("button", { type: "button", onclick: () => { clearTimeout(toastT); t.hidden = true; opt.undo(); } }, "Desfazer"));
-    t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, opt.undo ? 7000 : 4000);
+    if (opt.action) t.append(h("button", { type: "button", onclick: () => { clearTimeout(toastT); t.hidden = true; opt.action.fn(); } }, opt.action.label));
+    t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, opt.undo || opt.action ? 7000 : 4000);
   }
 
   // ---- Pomodoro: o estado vem do servidor (push); aqui só se conta a partir de ends_at
@@ -8354,6 +8355,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
       if (m.t === "panel_ok") { if (m.icon_key) iconKey = m.icon_key; ready = true; retry = 0; banner(""); $p("pn-ver").textContent = "Servidor " + (m.version || ""); onReady(); }
       else if (m.t === "res" && pending.has(m.id)) { const p = pending.get(m.id); pending.delete(m.id); clearTimeout(p.timer); m.ok ? p.ok(m.d) : p.err(new Error(m.e || "Não deu certo.")); }
       else if (m.t === "pomo") PM.set(m.d);
+      else if (m.t === "event" && m.kind === "alert" && m.sub === "unident") toast(m.title + ": " + m.body, { action: { label: "Atribuir", fn: () => { go("work"); setTimeout(() => { const e = document.getElementById("pn-gen"); if (e) e.scrollIntoView({ block: "start" }); }, 600); } } });
       else if (m.t === "event" && m.kind === "pomo.done") toast(m.finished === "focus" ? `Foco concluído! ${m.next === "long" ? "Pausa longa" : "Pausa"} de ${m.next_min} min` : "Pausa acabou, bora focar");
     };
     sock.onclose = (ev) => {
@@ -8871,7 +8873,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
     const body = h("div"), msg = h("span", { class: "pn-dim" });
     let dp = null; const dForm = { steam: "", msg: "", bad: false };
     main.append(h("section", {}, h("h1", {}, "Ajustes"), h("p", { class: "pn-sub" }, "Opções do servidor no PC."), body));
-    const KEYS = ["upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "idle_min", "notif_ignore", "shortcuts", "export_watch", "misplaced_min", "backup_dir", "pc_name", "remote_base", "allowed_origins", "repo_dir"];
+    const KEYS = ["upload_dir", "downloads_dir", "allow_power", "shutdown_delay_s", "idle_min", "notif_ignore", "shortcuts", "export_watch", "misplaced_min", "unident_notice", "backup_dir", "pc_name", "remote_base", "allowed_origins", "repo_dir"];
     const dirty = () => KEYS.filter((k) => JSON.stringify(vals[k]) !== JSON.stringify(orig[k]));
     const pickDir = async (k) => { try { const f = await call("pick_folder", {}, 600000); if (f) { vals[k] = f; render(); } } catch (e) { fail(e); } };
     const slug = (name) => { let b = name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 36) || "programa", id = b, n = 2; const ids = new Set(vals.shortcuts.map((s) => s.id)); while (ids.has(id)) id = b + "-" + n++; return id; };
@@ -9230,7 +9232,11 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
           h("div", { class: "pn-row", style: "margin-top:10px" }, h("label", { class: "pn-grow", for: "st-delay" }, "Atraso antes de desligar (segundos)"), h("input", { id: "st-delay", class: "pn-in num", type: "number", min: 0, max: 600, step: 5, value: vals.shutdown_delay_s, onchange: (e) => { const n = parseInt(e.target.value, 10); vals.shutdown_delay_s = Number.isFinite(n) ? n : orig.shutdown_delay_s; render(); } }))),
         h("div", { class: "pn-h" }, "Trabalho"), h("div", { class: "pn-card" }, h("div", { class: "pn-row" }, h("label", { class: "pn-grow", for: "st-idle" }, "Parar de contar depois de (minutos parado)"), h("input", { id: "st-idle", class: "pn-in num", type: "number", min: 1, max: 30, value: vals.idle_min, onchange: (e) => { const n = parseInt(e.target.value, 10); vals.idle_min = Number.isFinite(n) ? n : orig.idle_min; render(); } })),
           h("div", { class: "pn-row", style: "margin-top:10px" }, h("label", { class: "pn-grow", for: "st-mis" }, "Avisar arquivo sem salvar ou fora das pastas de clientes depois de"),
-            h("select", { id: "st-mis", class: "pn-in", onchange: (e) => { vals.misplaced_min = parseInt(e.target.value, 10); render(); } }, [[0, "Desligado"], [5, "5 min"], [10, "10 min"], [20, "20 min"]].map(([v, t]) => h("option", { value: v, selected: vals.misplaced_min === v }, t))))),
+            h("select", { id: "st-mis", class: "pn-in", onchange: (e) => { vals.misplaced_min = parseInt(e.target.value, 10); render(); } }, [[0, "Desligado"], [5, "5 min"], [10, "10 min"], [20, "20 min"]].map(([v, t]) => h("option", { value: v, selected: vals.misplaced_min === v }, t)))),
+          h("div", { class: "pn-row", style: "margin-top:10px" }, h("div", { class: "pn-grow", id: "lb-unid" }, "Avisar todo dia quanto tempo ficou “Não identificado”"),
+            h("button", { class: "pn-sw", type: "button", role: "switch", "aria-checked": !!vals.unident_notice.on, "aria-labelledby": "lb-unid", onclick: () => { vals.unident_notice = { ...vals.unident_notice, on: !vals.unident_notice.on }; render(); } })),
+          h("div", { class: "pn-row", style: "margin-top:10px" }, h("label", { class: "pn-grow", for: "st-unid-at" }, "Hora do aviso diário"),
+            h("input", { id: "st-unid-at", class: "pn-in", type: "time", value: vals.unident_notice.at, disabled: !vals.unident_notice.on, onchange: (e) => { if (/^\d\d:\d\d$/.test(e.target.value)) vals.unident_notice = { ...vals.unident_notice, at: e.target.value }; render(); } }))),
         h("div", { class: "pn-h" }, "Vários PCs (app no celular)"), h("div", { class: "pn-card" },
           h("div", { class: "pn-faint" }, "Para usar este PC no app junto com outros: dê um nome a ele e informe os endereços do Tailscale. Nada disso abre este PC para a internet."),
           h("div", { class: "pn-row", style: "margin-top:10px" }, h("label", { class: "pn-grow", for: "mp-name" }, "Nome deste PC (ex.: Casa)"), h("input", { id: "mp-name", class: "pn-in", type: "text", maxlength: 30, value: vals.pc_name || "", onchange: (e) => { vals.pc_name = e.target.value.trim(); render(); } })),

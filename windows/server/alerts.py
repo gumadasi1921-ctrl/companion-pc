@@ -2,8 +2,9 @@
 
 Nada daqui vai ao log (nomes de arquivo, apps e textos de notificação são pessoais) nem ao disco: tudo em memória.
 """
+import re
 import time
-from datetime import date
+from datetime import date, datetime
 
 import work
 
@@ -58,6 +59,65 @@ class Misplaced:
             return {"kind": "generic", "title": "Arquivo sem salvar",
                     "body": f"Há {m} min em '{f}' no {app} sem salvar. Salve na pasta do cliente."}
         return {"kind": "outside", "title": "Arquivo fora do lugar", "body": f"'{f}' está fora das pastas de clientes."}
+
+
+UNIDENT_DEFAULT = {"on": True, "at": "18:00"}
+UNIDENT_WINDOW_S = 4 * 3600          # depois da hora marcada ainda avisa por até 4 h (servidor ligado atrasado); depois disso pula o dia
+UNIDENT_MIN_S = 60                   # menos de 1 min sem atribuir: nada a avisar
+_HHMM = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
+
+
+def clean_unident(v):
+    """{on: bool, at: "HH:MM"}: a mesma regra no config.json e no painel."""
+    if not isinstance(v, dict) or not isinstance(v.get("on"), bool) or not isinstance(v.get("at"), str) or not _HHMM.match(v["at"]):
+        raise ValueError("aviso diário: ligado/desligado e hora no formato HH:MM")
+    return {"on": v["on"], "at": v["at"]}
+
+
+def unident_cfg(v):
+    try:
+        return clean_unident(v)
+    except ValueError:
+        return dict(UNIDENT_DEFAULT)
+
+
+def unident_message(summary):
+    """(título, corpo) com horas por programa, ou None se há menos de 1 min sem atribuir. Sem nome de arquivo, cliente ou job."""
+    if not summary or summary.get("total_s", 0) < UNIDENT_MIN_S:
+        return None
+
+    def dur(s):
+        m = round(s / 60)
+        return f"{m // 60} h {m % 60:02d}" if m >= 60 else f"{max(1, m)} min"
+    parts = ", ".join(f"{a} {dur(s)}" for a, s in summary["by_app"].items() if s >= 30)
+    return ("Tempo sem atribuir hoje", f"{dur(summary['total_s'])} em \"Não identificado\"" + (f": {parts}." if parts else "."))
+
+
+class DailyUnident:
+    """Avisa 1x por dia, na hora marcada, quanto tempo de hoje ficou "Não identificado". Guarda só o dia do último aviso
+    (arquivo pequeno ao lado do config.json) para um reinício não repetir o aviso."""
+
+    def __init__(self, path=None):
+        self.path, self.last = path, None
+        if path is not None:
+            d = work._load_json(path, lambda x: isinstance(x, dict) and isinstance(x.get("last", ""), str))
+            self.last = (d or {}).get("last") or None
+
+    def due(self, now, cfg):
+        """now = datetime local. True uma vez por dia entre a hora marcada e +4 h."""
+        if not cfg.get("on") or self.last == now.date().isoformat():
+            return False
+        h, m = int(cfg["at"][:2]), int(cfg["at"][3:])
+        start = now.replace(hour=h, minute=m, second=0, microsecond=0)
+        return 0 <= (now - start).total_seconds() <= UNIDENT_WINDOW_S
+
+    def mark(self, now):
+        self.last = now.date().isoformat()
+        if self.path is not None:
+            try:
+                work._save_json(self.path, {"last": self.last})
+            except OSError:
+                pass
 
 
 class FocusHold:

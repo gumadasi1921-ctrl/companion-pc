@@ -1361,6 +1361,22 @@ class WorkTracker:
                 "today": [{"client": c, "s": int(s), "unidentified": c == UNIDENTIFIED}
                           for c, s in sorted(per.items(), key=lambda x: -x[1])]}
 
+    def unident_summary(self, today=None):
+        """Tempo de HOJE ainda "Não identificado" (regras manuais e ignorados já descontados): {total_s, generic_s, by_app, files}.
+        `files` = os arquivos genéricos ("sem título", "Untitled-1", CapCut sem projeto) com o tempo de cada um, para atribuir."""
+        today = today or date.today()
+        by_app, gen, files = {}, 0.0, {}
+        for _d, client, _j, app, f, s in self._rows(today, today):
+            if client != UNIDENTIFIED:
+                continue
+            by_app[app] = by_app.get(app, 0) + s
+            if is_generic(f):
+                gen += s
+                files[(f, app)] = files.get((f, app), 0) + s
+        return {"total_s": int(sum(by_app.values())), "generic_s": int(gen),
+                "by_app": {a: int(v) for a, v in sorted(by_app.items(), key=lambda x: -x[1])},
+                "files": [{"file": f, "app": a, "s": int(v)} for (f, a), v in sorted(files.items(), key=lambda x: -x[1])]}
+
     @staticmethod
     def _week_bounds(offset, today=None):
         try:
