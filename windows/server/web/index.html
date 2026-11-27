@@ -738,7 +738,7 @@ html.lm-still .tab.fx-r, html.lm-still .tab.fx-l, html.lm-still .hpage.fx-pg { a
 @keyframes fxCard { from { opacity: 0; transform: translate3d(0, 12px, 0) scale(.98); } }
 @keyframes fxBar { from { transform: scaleY(0); } }
 @keyframes fxLift { from { transform: scale(1); } }
-:root[data-fx="liquid"] .hw.fx-in { animation: fxCard .32s cubic-bezier(.22, 1, .36, 1) calc(var(--fi, 0) * 40ms) backwards; }
+:root[data-fx="liquid"] .hw.fx-in, :root[data-fx="liquid"] .card.fx-in { animation: fxCard .32s cubic-bezier(.22, 1, .36, 1) calc(var(--fi, 0) * 40ms) backwards; }
 :root[data-fx="liquid"] .home:not(.editing) .hw { transition: transform .38s cubic-bezier(.34, 1.56, .64, 1); }
 :root[data-fx="liquid"] .home:not(.editing) .hw:active:not(:has(button:active, [data-a]:active, [data-id]:active, [role="button"]:active)) { transform: scale(.965); transition-duration: .09s; transition-timing-function: ease-out; }
 :root[data-fx="liquid"] .hbar > i { transition: width .6s cubic-bezier(.22, 1, .36, 1); }
@@ -747,6 +747,16 @@ html.lm-still .tab.fx-r, html.lm-still .tab.fx-l, html.lm-still .hpage.fx-pg { a
 :root[data-fx="liquid"] #hw-layer .hw-fl { animation: fxLift .22s cubic-bezier(.34, 1.56, .64, 1) backwards; }
 html.lm-still .hw.fx-in, html.lm-still .hw .hbarr, html.lm-still #hw-layer .hw-fl { animation: none !important; }
 html.lm-still .hw, html.lm-still .hbar > i, html.lm-still .hring-f { transition: none !important; }
+
+.fx-only { display: none; }
+:root[data-fx="liquid"] .fx-only { display: block; }
+.fxd { display: grid; gap: 6px; font-size: 14px; }
+.fxd-r { display: flex; justify-content: space-between; gap: 12px; } .fxd-r span { color: var(--p3t); } .fxd-r b { font-weight: 600; text-align: right; }
+#fx-test-out { color: var(--p3t); margin-left: 10px; font-size: 13px; }
+/* Líquido em modo calmo (Reduzir movimento do sistema): só esmaecer. Vence a regra global que zera animações (mais específica, com !important). */
+@keyframes fxFade { from { opacity: 0; } }
+:root[data-fx="liquid"][data-fxm="calm"] .tab.fx-r, :root[data-fx="liquid"][data-fxm="calm"] .tab.fx-l, :root[data-fx="liquid"][data-fxm="calm"] .hpage.fx-pg { animation: fxFade .2s linear backwards !important; }
+:root[data-fx="liquid"][data-fxm="calm"] .hw.fx-in, :root[data-fx="liquid"][data-fxm="calm"] .card.fx-in { animation: fxFade .24s linear calc(var(--fi, 0) * 30ms) backwards !important; }
 
 /* Ajustes › Aparência */
 .fo-only { display: none; }
@@ -2519,6 +2529,10 @@ button.cal-mt::after { content: ""; position: absolute; left: 0; right: 0; top: 
             <div class="accents" id="ap-accent" role="group" aria-label="Cor de destaque">
               <button data-accent="blue" aria-label="Azul"></button><button data-accent="purple" aria-label="Roxo"></button><button data-accent="green" aria-label="Verde"></button><button data-accent="orange" aria-label="Laranja"></button><button data-accent="pink" aria-label="Rosa"></button></div></div>
         </div>
+        <div class="card fx-only" id="fx-diag">
+          <div class="set col"><label>Diagnóstico do Líquido<small>Mostra por que as animações podem estar paradas neste aparelho</small></label><div id="fx-diag-rows" class="fxd"></div></div>
+          <div class="set"><button class="btn sm" id="fx-test">Testar animação</button><small id="fx-test-out" role="status"></small></div>
+        </div>
         <h2>Layouts</h2>
         <div class="card" id="lay-card">
           <div class="set"><label>Layout em uso<small id="lay-cur">Padrão</small></label><button class="btn sm" id="lay-open">Gerenciar</button></div>
@@ -4018,6 +4032,7 @@ const stPg = (id) => document.querySelector('.st-pg[data-pg="' + id + '"]');
 const stWide = () => $("t-sys").clientWidth >= 600;
 const stTop = (id) => { let p = stPg(id); while (p && p.dataset.parent) p = stPg(p.dataset.parent); return p ? p.dataset.pg : id; };
 function stVals() {
+  try { fxDiag(); } catch {}
   const al = ["al-download", "al-export", "al-misplaced", "al-trello", "al-monday", "al-gpu", "al-cpu", "al-net", "sw-pcnotif", "al-ram"].filter((i) => $(i) && $(i).classList.contains("on")).length;
   const city = (typeof wx !== "undefined" && wx.d && wx.d.place && wx.d.place.name) || "Sem cidade";
   const modes = { auto: "Automático", light: "Claro", dark: "Escuro" }, lm = { on: "Ligado", hide: "Só pela tela", off: "Desligado" };
@@ -4152,7 +4167,40 @@ function navMark(name) {   // marca o item da barra da vista atual (Mais acende 
 // Tema Líquido: a gota (cabeça .h rápida + cauda .t atrasada; o filtro gooey as funde enquanto se afastam) vai até o botão ativo.
 // Posição por offsetLeft/offsetTop (o indicador mora no .nav-scroll, então rola junto com o trilho). O botão Mais do trilho fica fora dele: ali o fundo vem do CSS (.liq-off).
 const fxOn = () => document.documentElement.dataset.fx === "liquid";
-const fxStill = () => matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.classList.contains("lm-still");   // Reduzir movimento do aparelho ou modo Economia: nenhuma animação do Líquido
+/* Modos do Líquido: "full" = tudo; "calm" = Reduzir movimento do sistema ligado (só esmaecer, sem deslocar/escalar/borrar: pede a Apple); "off" = Economia do Lume (nada anima).
+   O Líquido NUNCA liga a Economia sozinho. data-fxm no <html> espelha o modo para o CSS. */
+const fxReduceMQ = matchMedia("(prefers-reduced-motion: reduce)");
+const fxMode = () => (document.documentElement.classList.contains("lm-still") ? "off" : fxReduceMQ.matches ? "calm" : "full");
+const fxStill = () => fxMode() === "off", fxFull = () => fxMode() === "full";
+function fxSync() { document.documentElement.dataset.fxm = fxMode(); try { fxDiag(); } catch {} }
+(fxReduceMQ.addEventListener ? fxReduceMQ.addEventListener("change", fxSync) : fxReduceMQ.addListener && fxReduceMQ.addListener(fxSync));
+// Diagnóstico (Ajustes › Aparência, só no Líquido): mostra o que está ligado de verdade neste aparelho e testa se o navegador anima
+function fxDiag() {
+  const box = $("fx-diag-rows"); if (!box) return;
+  const m = fxMode(), sup = (q) => { try { return CSS.supports(q); } catch { return false; } };
+  const sens = typeof DeviceOrientationEvent === "undefined" ? "Indisponível" : (typeof DeviceOrientationEvent.requestPermission === "function" ? (window.isSecureContext ? "Disponível (pede permissão)" : "Precisa de HTTPS") : "Disponível");
+  const rows = [
+    ["Reduzir movimento (sistema)", fxReduceMQ.matches ? "LIGADO — só esmaecer. Desligue em Ajustes do aparelho › Acessibilidade › Movimento" : "Desligado"],
+    ["Economia do Lume", document.documentElement.classList.contains("lm-still") ? "LIGADA — nada anima (Ajustes › Lume)" : "Desligada"],
+    ["Animação do Líquido", { full: "Completa", calm: "Calma (esmaecer)", off: "Parada" }[m]],
+    ["Seletor :has()", sup("selector(:has(*))") ? "Sim" : "Não (o afundar do widget não funciona)"],
+    ["Vidro (backdrop-filter)", sup("backdrop-filter: blur(2px)") || sup("-webkit-backdrop-filter: blur(2px)") ? "Sim" : "Não"],
+    ["Sensor de movimento", sens],
+  ];
+  const html = rows.map(([k, v]) => `<div class="fxd-r"><span>${k}</span><b>${v}</b></div>`).join("");
+  if (box._h !== html) { box._h = html; box.innerHTML = html; }
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("#fx-test"); if (!b) return;
+  const out = $("fx-test-out"), card = $("fx-diag"), t0 = performance.now();
+  out.textContent = "Testando…";
+  let css = "bloqueadas";
+  try { card.classList.remove("fx-in"); void card.offsetWidth; card.classList.add("fx-in"); css = card.getAnimations().length ? "rodando" : "bloqueadas"; setTimeout(() => card.classList.remove("fx-in"), 900); } catch {}
+  let wa; try { wa = b.animate([{ transform: "scale(1)" }, { transform: "scale(1.3)" }, { transform: "scale(1)" }], { duration: 700, easing: "cubic-bezier(.34,1.56,.64,1)" }); } catch {}
+  if (!wa) { out.textContent = "Este navegador não anima (Web Animations indisponível)."; return; }
+  setTimeout(() => { if (out.textContent === "Testando…") out.textContent = "Sem resposta: o navegador não avançou a animação (aba em segundo plano ou animação bloqueada). Animações CSS do tema: " + css + "."; }, 1800);
+  wa.finished.then(() => { out.textContent = `Web Animations: ok (${Math.round(performance.now() - t0)} ms). Animações CSS do tema: ${css}.`; }, () => { out.textContent = "Teste interrompido."; });
+});
 // posição da vista na ordem das abas (item da barra na ordem escolhida em Ajustes, depois a sub-aba): decide para que lado a página desliza
 const fxRank = (v) => { const i = navCfg().order.indexOf(navItemOf(v)), g = groupOf(v); return (i < 0 ? 99 : i) * 100 + (g ? Math.max(0, GROUPS[g].indexOf(v)) : 0); };
 function fxTab(a, b) {   // Líquido: a tela que entra desliza 24 px (do lado de onde vem na ordem das abas) + fade; só transform/opacity, classe sai sozinha
@@ -4172,10 +4220,9 @@ function liqPlace(instant) {
   const a = nav.querySelector("button.on[data-nid]");
   if (document.documentElement.dataset.fx !== "liquid" || !a || !a.offsetWidth || a.offsetParent !== liq.offsetParent) { nav.classList.add("liq-off"); return; }
   nav.classList.remove("liq-off");
-  const still = fxStill();
   const t = `translate3d(${a.offsetLeft}px,${a.offsetTop}px,0)`, h = liq.querySelector(".h"), tl = liq.querySelector(".t");
   liq.style.setProperty("--lw", a.offsetWidth + "px"); liq.style.setProperty("--lh", a.offsetHeight + "px");
-  if (instant || still || !liq.dataset.p) { liq.classList.add("nt"); h.style.transform = tl.style.transform = t; void liq.offsetWidth; liq.classList.remove("nt"); }
+  if (instant || !fxFull() || !liq.dataset.p) { liq.classList.add("nt"); h.style.transform = tl.style.transform = t; void liq.offsetWidth; liq.classList.remove("nt"); }
   else { nav.classList.add("mv"); h.style.transform = tl.style.transform = t; clearTimeout(liqT); liqT = setTimeout(() => nav.classList.remove("mv"), 640); }
   liq.dataset.p = "1";
 }
@@ -5459,7 +5506,7 @@ const setText = (el, t) => {
   if (!el) return;
   if (el._cn) { cancelAnimationFrame(el._cn); el._cn = 0; }
   if (el.textContent === t) return;
-  if (el.textContent === "" && fxOn() && !fxStill() && /^\d{1,6}[^\d]{0,3}$/.test(t) && el.closest(".hw")) return fxCount(el, t);
+  if (el.textContent === "" && fxOn() && fxFull() && /^\d{1,6}[^\d]{0,3}$/.test(t) && el.closest(".hw")) return fxCount(el, t);
   el.textContent = t;
 };
 // Líquido: número que nasce vazio (widget recém-aberto) conta de 0 até o valor em 500 ms; os updates seguintes (a cada tick) trocam direto, sem contagem
@@ -5686,7 +5733,7 @@ function ringUpd(box, pct, color, txt, sub, label) {
   if (box._rk !== key) {
     box.innerHTML = ringSvg(pct, color, txt, sub, label); box._rk = key;
     const sv = box.firstChild; box._rf = sv.querySelector(".hring-f"); box._rx = sv.querySelector(".hring-x"); box._rs = sv.querySelector(".hring-s");
-    if (fxOn() && !fxStill() && box.closest(".hw")) {   // Líquido: o anel cresce do vazio até o valor
+    if (fxOn() && fxFull() && box.closest(".hw")) {   // Líquido: o anel cresce do vazio até o valor
       const to = box._rf.style.strokeDashoffset; box._rf.style.strokeDashoffset = (2 * Math.PI * 42).toFixed(1); void box._rf.getBoundingClientRect();
       requestAnimationFrame(() => { if (box._rf) box._rf.style.strokeDashoffset = to; });
     }
@@ -7349,7 +7396,7 @@ function lumePaint() {
   if (LU.wasSleeping && !sl) { LU.wasSleeping = false; lumeWoke(); }
   LU.wasSleeping = sl;
   const v = lumeView(); LU.st = v.st;
-  const sk = document.documentElement.classList; sk.toggle("lm-still", LM.cfg().economy);
+  const sk = document.documentElement.classList; sk.toggle("lm-still", LM.cfg().economy); fxSync();
   document.querySelectorAll(".lm").forEach((e) => { e.classList.toggle("still", LM.cfg().economy); if (e.dataset.st !== v.st) e.dataset.st = v.st; });
   const hide = lumeHidden();
   lumeFab.classList.toggle("hidden", hide);
@@ -8415,7 +8462,7 @@ function applyTheme() {
   document.querySelectorAll("#ap-mode button").forEach((b) => b.classList.toggle("on", b.dataset.mode === prefs.mode));
   document.querySelectorAll("#ap-accent button").forEach((b) => b.classList.toggle("on", b.dataset.accent === prefs.accent));
   syncChrome();
-  try { navMark(prefs.tab); liqPlace(true); } catch {}
+  try { fxSync(); navMark(prefs.tab); liqPlace(true); } catch {}
 }
 $("themes").onclick = (e) => { const b = e.target.closest("[data-variant]"); if (!b) return; buzz(8); prefs.variant = b.dataset.variant; store.set("variant", prefs.variant); applyTheme(); };
 $("ap-theme").onclick = (e) => { const b = e.target.closest("[data-pick]"); if (!b) return; buzz(8); prefs.theme = b.dataset.pick; store.set("theme", prefs.theme); applyTheme(); };
