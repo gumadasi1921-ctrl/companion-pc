@@ -158,6 +158,53 @@ class Items(unittest.TestCase):
         self.assertEqual(m.state()["state"], "config")
 
 
+class TodoStage(unittest.TestCase):
+    def cfg(self, todo):
+        c = json.loads(json.dumps(CFG))
+        c["boards"][0]["todo"] = todo
+        return c
+
+    def its(self):
+        return ITEMS + [item(20, "Backlog tardio", "Backlog", day="2026-11-30"), item(21, "Backlog cedo", "BACKLOG", day="2026-11-26"),
+                        item(22, "Backlog sem prazo", "Backlog"), item(23, "Cancelado", "Cancelado"),
+                        item(24, "Backlog de outro", "Backlog", who=("99",))]
+
+    def test_nothing_preselected_unmarked_is_dropped(self):
+        m, _, _ = make(CFG, Fake(self.its()))
+        m.refresh()
+        self.assertFalse(any(i["cat"] == "todo" for i in m.items))
+        self.assertEqual(m.state()["todo"], {"items": [], "count": 0})
+
+    def test_todo_marked_status_only_mine_sorted_by_due(self):
+        m, _, _ = make(self.cfg(["backlog"]), Fake(self.its()))
+        m.refresh()
+        st = m.state()
+        self.assertEqual([i["name"] for i in st["todo"]["items"]], ["Backlog cedo", "Backlog tardio", "Backlog sem prazo"])
+        self.assertEqual(st["todo"]["count"], 3)
+        self.assertNotIn("Cancelado", {i["name"] for i in m.items})
+        # A fazer não entra nos grupos por prazo nem em "feito"
+        self.assertNotIn("Backlog cedo", {c["name"] for g in st["groups"].values() for c in g})
+        self.assertFalse(any(v.get("name", "").startswith("Backlog") for v in m.done.values()))
+
+    def test_todo_by_group(self):
+        c = self.cfg(["Backlog"])
+        c["boards"][0].update({"source": "group", "running": ["Fazendo"], "approved": ["Aprovar"]})
+        its = [item(1, "A", "x", group="Fazendo"), item(2, "B", "x", group="Backlog"), item(3, "C", "x", group="Parado")]
+        m, _, _ = make(c, Fake(its))
+        m.refresh()
+        self.assertEqual([i["name"] for i in m.items if i["cat"] == "todo"], ["B"])
+        self.assertEqual([i["name"] for i in m.state()["todo"]["items"]], ["B"])
+
+    def test_clean_board_todo_rules(self):
+        b = CFG["boards"][0]
+        ok = monday.clean_cfg({"on": False, "boards": [{**b, "running": [], "approved": [], "todo": ["Backlog"]}]}, {"token": TOKEN})
+        self.assertEqual(ok["boards"][0]["todo"], ["Backlog"])
+        self.assertEqual(monday.clean_cfg({"on": False, "boards": [b]}, {"token": TOKEN})["boards"][0]["todo"], [])   # config antiga
+        for bad in ({**b, "todo": ["em execução"]}, {**b, "todo": ["APROVAR"]}, {**b, "running": [], "approved": [], "todo": []}):
+            with self.assertRaises(ValueError):
+                monday.clean_cfg({"on": False, "boards": [bad]}, {"token": TOKEN})
+
+
 class Errors(unittest.TestCase):
     def test_no_token_off(self):
         m, _, _ = make({"token": "", "on": True, "boards": CFG["boards"]})
