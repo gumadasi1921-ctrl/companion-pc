@@ -106,3 +106,15 @@ def remote_link(app_origin, remote_base, code):
     if not (remote_base and isinstance(code, str) and re.fullmatch(r"\d{6}", code)):
         return None
     return f"{app_origin or remote_base}/#add={quote(remote_base, safe='')}~{code}"
+
+
+def with_build_meta(body: bytes, build: int) -> bytes:
+    """Põe <meta name="build" content="N"> logo depois do <head> do HTML servido (só em memória, uma vez).
+    N é só o número da versão da página (web_build), nunca token nem caminho."""
+    if b'<meta name="build" ' in body:
+        return body
+    i = body.find(b"<head>")
+    if i < 0:
+        return body
+    i += len(b"<head>")
+    return body[:i] + b'\n<meta name="build" content="%d">' % int(build) + body[i:]

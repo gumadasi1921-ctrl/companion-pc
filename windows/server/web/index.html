@@ -3749,7 +3749,9 @@ $("toast").addEventListener("click", () => { const t = $("toast"), r = t._n; if 
 // ---------------------------------------------------------------- conexão
 let ws = null, welcome = {}, nextId = 1, retry = 0, retryT = null, wasOnline = false;
 const pending = new Map();
+// build da PRÓPRIA página (meta injetada pelo servidor); 0 = aberta fora do servidor, nunca recarrega
 let pageBuild = 0;
+try { pageBuild = parseInt((document.querySelector('meta[name="build"]') || {}).content, 10) || 0; } catch {}
 let statsT = 0;   // quando chegou o último stats (a bolinha do microfone só confia em estado recente)
 const state = { stats: null, now: null, games: null, art: {}, gameart: {}, nowT: 0, gamesT: 0 };
 
@@ -3826,8 +3828,11 @@ function onMsg(m) {
       // página nova no PC: recarrega (o app reconecta sozinho e nunca baixaria o HTML de novo)
       // PC que não é o de origem do app (outro endereço) não decide a versão da página: senão recarregaria em laço
       const own = PCL.isOrigin();
-      if (own && m.web && pageBuild && m.web !== pageBuild) { location.reload(); return; }
-      if (own) pageBuild = pageBuild || m.web;
+      if (own && m.web && pageBuild && m.web !== pageBuild) {
+        // no máximo 1 recarga a cada 30 s (cache teimoso não vira laço)
+        let last = 0; try { last = +sessionStorage.getItem("pcc.reloadAt") || 0; } catch {}
+        if (Date.now() - last > 30000) { try { sessionStorage.setItem("pcc.reloadAt", String(Date.now())); } catch {} location.reload(); return; }
+      }
       if (!own && (m.proto || 0) < PCL.MIN_PROTO) {
         const s = ws; ws = null; s && s.close(); setDot("", "PC com versão antiga");
         showLogin("O Companion deste PC está desatualizado. Reinstale-o nele (install-server.ps1)."); return;

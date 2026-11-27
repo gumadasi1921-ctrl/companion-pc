@@ -2874,6 +2874,8 @@ def serve_static(connection, request):
     if WEB_DIR.resolve() not in f.parents or not f.is_file() or f.suffix not in MIME:
         return connection.respond(HTTPStatus.NOT_FOUND, "não encontrado\n")
     body = f.read_bytes()
+    if name == "index.html":  # a página carrega o próprio build: o app compara com o do welcome
+        body = multipc.with_build_meta(body, web_build())
     headers = Headers([("Content-Type", MIME[f.suffix]), ("Content-Length", str(len(body))),
                        ("Cache-Control", "no-cache"), ("X-Content-Type-Options", "nosniff")])
     return Response(200, "OK", headers, body)
