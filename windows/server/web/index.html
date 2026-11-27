@@ -1334,12 +1334,6 @@ select.sel { min-height: 44px; }
 .dnring { position: relative; width: 84px; height: 84px; flex: none; }
 .dnring svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .dnring .dimg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
-.hdota .dbig { font: 700 28px/1.05 var(--display); font-variant-numeric: tabular-nums; }
-.hdota .sub { white-space: normal; }
-.hdota .dwr { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
-.hdota .dwm { display: flex; gap: 8px; margin-top: 8px; }
-.hdota .dwmi { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.hdota .dwmi small { font: 500 11px/1.2 var(--font, var(--mono)); color: var(--text-2, var(--p2)); white-space: nowrap; }
 input.num { min-height: 36px; }
 :root[data-theme="modern"] .lgame { background: var(--surface-2); border-color: var(--separator); }
 :root[data-theme="modern"] .lgame:active { background: var(--surface-3); color: var(--text); }
@@ -1482,9 +1476,6 @@ html[data-theme="modern"] .dota .dline { border-radius: 12px; background: color-
 .z-L .hpm .hpm-c { flex: 1; } .z-L .hpm .hpm-t { font-size: 40px; line-height: 1; }
 .hpm-g .hpm-gl { align-items: center; } .hpm-g .hcol:last-child { align-items: stretch; } .hpm-g .btn { width: 100%; } .hpm-g .pm-dots { justify-content: flex-start; }
 .hpm-g .hpm-r { width: 120px; height: 120px; } .hpm-g .hpm-t { font-size: 34px; }
-.z-L[data-w="dota"] .hdota { display: flex; flex-direction: row; align-items: center; gap: 16px; min-height: 0; overflow: hidden; }
-.z-L[data-w="dota"] .hdota > * { flex: none; max-width: 48%; }
-.z-G[data-w="dota"] .hdota { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; align-content: start; }
 .z-L[data-w="trello"] .htr-list, .z-L[data-w="monday"] .htr-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 16px; }
 .htr-cnt { white-space: normal; }
 .htr-hm b { font-size: 36px; }
@@ -1786,11 +1777,6 @@ header .host { display: none; }
 .pq .pm-dots { gap: 5px; min-height: 0; align-items: center; justify-content: flex-end; } .pq .pm-dots i { width: 9px; height: 9px; border-width: 1.5px; }
 .pq > .btn { flex: none; width: 100%; }
 .pq .hchartbox .hbars { width: 100%; height: auto; }
-.pq-hero { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; min-height: 36px; overflow: hidden; }
-.hpage .hw .pq .pq-hero { flex: 1 1 0; justify-content: flex-start; }
-.pq-hn { display: flex; flex-direction: column; min-width: 0; } .pq-hn b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .pq-hn span { font-size: 12px; color: var(--p2); font-variant-numeric: tabular-nums; }
-.pq-rm { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; } .pq-rm small { font-size: 11px; color: var(--p2); }
-.pq-hero .dimg.nf, .pq-hero .dimg.fail { display: none; }
 .pq-tr { min-height: 0; flex: 1 1 auto; overflow: hidden; }
 .hpage .hw .pq .pq-tr { flex: 1 1 0; justify-content: flex-start; }
 .pq-tr .htr-c { flex: none; font-size: 13px; padding: 3px 0; }
@@ -1802,8 +1788,72 @@ header .host { display: none; }
 .hpage .z-L[data-w="procs"] .hp3 b { font-size: 32px; }
 .hpage .z-L[data-w="work"] .hw-b { grid-template-rows: auto minmax(0, 1fr); align-content: stretch; }
 .hpage .z-L[data-w="work"] .hchartbox { min-height: 0; overflow: hidden; }
-.hpage .hw.z-A .hdota, .hpage .hw.z-G .hdota { flex: 1 1 0; min-height: 0; align-content: center; justify-content: center; }
-.hpage .hw.z-A .hdota .dwr, .hpage .hw.z-G .hdota .dwr { gap: 12px; } .hpage .hw.z-G .hdota .dbig { font-size: 34px; }
+
+/* Widget Dota: mesma estética da aba (medalha com brilho, anel, bolinhas, partidas com faixa, barras) */
+.dwi { width: 14px; height: 14px; margin-right: 5px; vertical-align: -2px; }
+.hdota { flex: 1 1 auto; display: flex; flex-direction: column; position: relative; }
+.hdota .dwb { flex: 1 1 auto; display: flex; flex-direction: column; }
+.hpage .hw .hdota, .hpage .hw .hdota .dwb { flex: 1 1 0; min-height: 0; }
+.hdota .dwb.cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; }
+.hpage .hw .hdota .dwb.cols { grid-template-rows: minmax(0, 1fr); }
+.hdota .dwc { position: relative; flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 8px; justify-content: space-evenly; }
+.hpage .hw .hdota .dwc { flex: 1 1 0; min-height: 0; overflow: hidden; }
+.hdota .dwc > * { flex: none; min-width: 0; }
+.hdota .dwr { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.hdota .dlab { font: 600 10px/1.2 var(--font, var(--mono)); letter-spacing: .08em; text-transform: uppercase; color: var(--text-3, var(--p3t)); }
+.hdota .dthin { font: 300 26px/1.05 var(--display); font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
+.hdota .z-L .dwmed .dthin, .z-L .hdota .dwmed .dthin { font-size: 20px; }
+.z-L .hdota .dring small { display: none; } .z-L .hdota .dkpi .dthin { font-size: 20px; }
+.z-L .hdota .ddots { flex-wrap: nowrap; gap: 2px; } .z-L .hdota .ddots i { width: 7px; height: 7px; }
+.hdota .dkpis { display: grid; gap: 6px; min-width: 0; }
+.hdota .dthin.dim { color: var(--text-3, var(--p3t)); font-size: 18px; }
+.hdota .dwnm { font-size: 20px; overflow-wrap: anywhere; }
+.z-P .hdota .dthin { font-size: 22px; }
+.hdota .dkpi { display: grid; gap: 2px; min-width: 0; }
+.hdota .dmt { display: grid; gap: 3px; min-width: 0; align-content: center; }
+.hdota .dmt > b:not(.dthin) { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hdota .dlb, .hdota .dst { font-size: 12px; color: var(--text-2, var(--p2)); font-variant-numeric: tabular-nums; }
+.hdota .dwcap { margin-top: -4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hdota .dmb { position: relative; width: var(--s); height: var(--s); flex: none; }
+.hdota .dmb::before { content: ""; position: absolute; inset: -10px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--mc) 60%, transparent) 0%, transparent 66%); filter: blur(7px); opacity: .8; pointer-events: none; }
+.hdota .dmb .dimg { position: absolute; left: 0; top: 0; background: transparent; border-radius: 0; }
+.hdota .dmb .dimg.nf, .hdota .dmb .dimg.fail { background: transparent; }
+.hdota .dmb .dstars .dfb { display: none !important; }
+.hdota .dring { position: relative; width: var(--rs); height: var(--rs); flex: none; }
+.hdota .dring svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.hdota .dr-t { fill: none; stroke: var(--separator, var(--p4)); stroke-width: 8; }
+.hdota .dr-f { fill: none; stroke-width: 8; stroke-linecap: round; background: none !important; }
+.hdota .dr-f.w, .hdota .dbar i.w, .hdota .ddots i.w { stroke: var(--success, var(--p)); background: var(--success, var(--p)); }
+.hdota .dr-f.l, .hdota .dbar i.l, .hdota .ddots i.l { stroke: var(--danger-text, var(--alert)); background: var(--danger-text, var(--alert)); }
+.hdota .dring > div { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 1px; }
+.hdota .dring b { font: 300 calc(var(--rs) * .26)/1 var(--display); font-variant-numeric: tabular-nums; }
+.hdota .dring small { font-size: 9px; color: var(--text-2, var(--p2)); white-space: nowrap; }
+.hdota .ddots { display: flex; flex-wrap: wrap; gap: 4px 5px; }
+.hdota .ddots i { width: 11px; height: 11px; border-radius: 50%; background: var(--separator, var(--p4)); flex: none; }
+.hdota .dmatch, .hdota .dtop { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4px 8px; padding: 2px 0 2px 10px; position: relative; min-width: 0; }
+.hdota .dmatch::before { content: ""; position: absolute; left: 0; top: 2px; bottom: 2px; width: 3px; border-radius: 2px; background: var(--separator, var(--p4)); }
+.hdota .dmatch.w::before { background: var(--success, var(--p)); }
+.hdota .dmatch.l::before { background: var(--danger-text, var(--alert)); }
+.hdota .dtop { padding-left: 0; }
+.hdota .dmatch .dits { grid-column: 1 / -1; }
+.hdota .dsp { width: 56px; height: 32px; }
+.hdota .dmx { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; min-width: 0; flex: 1; }
+.hdota .dm1 { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; min-width: 0; }
+.hdota .dm1 b { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.hdota .dtime { flex: none; font-size: 12px; color: var(--text-2, var(--p2)); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hdota .dm2 { display: flex; align-items: baseline; gap: 8px; font-variant-numeric: tabular-nums; font-size: 13px; }
+.hdota .dkda b { font-weight: 600; } .hdota .dkda i { font-style: normal; color: var(--text-3, var(--p3t)); margin: 0 2px; } .hdota .dkda .dd { color: var(--danger-text, var(--alert)); }
+.hdota .dits { display: flex; gap: 3px; } .hdota .dits .dimg { border-radius: 4px; }
+.hdota .dbar { display: block; height: 5px; border-radius: 3px; background: var(--separator, var(--p4)); overflow: hidden; }
+.hdota .dbar i { display: block; height: 100%; border-radius: 3px; }
+.hdota .dwk { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-variant-numeric: tabular-nums; }
+.hdota .dwk b { font-weight: 600; font-size: 14px; }
+.hdota .dwg b { font: 300 20px/1 var(--display); }
+.hdota .dwhero .dthin { font-size: 24px; }
+.hdota .dwhero .dimg { max-width: 46%; height: auto !important; aspect-ratio: 16 / 9; }
+.hdota .dwhero .dthin, .hdota .dwnm { overflow-wrap: anywhere; }
+@container (max-width: 200px) { .hdota .dwhero .dthin { font-size: 18px; } .hdota .dwhero .dkda { font-size: 12px; } }
+.z-P .hdota .dwhero .dthin, .z-P .hdota .dwnm { font-size: 20px; }
 
 /* Lembretes: tela, formulário e faixa de alarme (nível Alta) */
 .rem-form { display: grid; gap: 10px; margin: 0 0 14px; padding: 12px; border: 1px solid var(--p4); background: var(--panel); border-radius: 12px; }
@@ -6039,60 +6089,96 @@ Object.assign(HOME_W, {
   },
 });
 // Widget do Início: as <img> só são refeitas quando a assinatura muda; a cada segundo só os textos (data-w)
+// Widget Dota (mesma estética da aba Dota: medalha com brilho, anel de vitória, bolinhas, partidas com faixa e barras dos heróis; só campos que a aba já recebe)
+const DW = { P: { b: 48, r: 0, h: [64, 36], m: [56, 32], it: [24, 18] }, A: { b: 56, r: 68, h: [104, 58], m: [72, 40], it: [22, 16] }, L: { b: 48, r: 56, h: [104, 58], m: [72, 40], it: [22, 16] }, G: { b: 72, r: 80, h: [112, 63], m: [72, 40], it: [22, 16] } };
+const dwRow = (cls, inner) => `<div class="dwr ${cls}">${inner}</div>`;
+function dwBadge(mm, s) {
+  if (!mm || !dId(mm.tier)) return "";
+  const tone = DOTA_TONE[mm.tier] || "var(--accent-fill, var(--p))";
+  return `<div class="dmb" style="--mc:${tone};--s:${s}px">${dImg("rank", mm.tier, "", mm.medal, s, s, "dbadge")}${dId(mm.stars) ? dImg("star", mm.stars, "", "", s, s, "dstars") : ""}</div>`;
+}
+const dwToday = (t) => (t ? `<div class="dkpi"><span class="dlab">Hoje</span><b class="dthin"><span class="dwin">${t.wins}V</span> – <span class="dloss">${t.losses}D</span></b></div>` : "");
+function dwMedal(l, z) {   // imagem da medalha + estrelas, nome e posição
+  const mm = l?.mmr; if (!mm) return "";
+  const lb = nn(mm.leaderboard) ? `<span class="dlb">posição #${dNum(mm.leaderboard)}</span>` : "";
+  return dwRow("dwmed", `${dwBadge(mm, DW[z].b)}<div class="dmt"><span class="dlab">Medalha</span><b class="dthin ${mm.medal ? "" : "dim"}">${esc(mm.medal || "Sem medalha")}</b>${lb}</div>`);
+}
+function dwRing(l, z, dots) {   // % de vitória (recorde total) em anel + V-D de hoje
+  const r = l?.record, tot = r && nn(r.win) && nn(r.lose) ? r.win + r.lose : 0, s = DW[z].r, today = dwToday(l?.today);
+  if (!tot) return today ? dwRow("dwsum", today) : "";
+  const wr = r.win / tot, C = (2 * Math.PI * 42).toFixed(1);
+  const side = dots ? `<div class="dkpis">${today}${dwDots(l)}</div>` : today;
+  return dwRow("dwsum", `<div class="dring" style="--rs:${s}px" role="img" aria-label="${(wr * 100).toFixed(1).replace(".", ",")}% de vitórias no total"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="42" class="dr-t"/><circle cx="50" cy="50" r="42" class="dr-f ${wr >= 0.5 ? "w" : "l"}" style="stroke-dasharray:${C};stroke-dashoffset:${(C * (1 - wr)).toFixed(1)}" transform="rotate(-90 50 50)"/></svg><div><b>${Math.round(wr * 100)}%</b><small>${dNum(r.win)}V·${dNum(r.lose)}D</small></div></div>${side}`);
+}
+function dwDots(l) {
+  const rec = (l?.recent || []).slice(0, 10); if (!rec.length) return "";
+  return `<div class="ddots" role="img" aria-label="Últimas ${rec.length} partidas">${rec.map((m) => `<i class="${m.win === true ? "w" : m.win === false ? "l" : ""}"></i>`).join("")}</div>`;
+}
+function dwMatch(m, z, items) {   // retrato do herói, V/D + KDA colorido, "há 2 h", faixa verde/vermelha
+  const s = DW[z].m, img = dId(m.hero_id) ? dImg("hero", m.hero_id, "portrait", m.hero, s[0], s[1]) : '<span class="dsp"></span>';
+  const its = items && m.items ? `<div class="dits" aria-label="Itens finais">${m.items.map((x) => (x ? dImg("item", x.id, "", x.name, DW[z].it[0], DW[z].it[1]) : `<span class="dimg empty" style="width:${DW[z].it[0]}px;height:${DW[z].it[1]}px"></span>`)).join("")}</div>` : "";
+  return `<div class="dmatch ${dResult(m.win)}">${img}<div class="dmx"><div class="dm1"><b>${esc(m.hero || "Herói")}</b><span class="dtime">${nn(m.ended_at) ? `<span data-ago="${m.ended_at}">${esc(dAgoTxt(m.ended_at))}</span>` : ""}</span></div><div class="dm2">${nn(m.win) ? `<b class="${m.win ? "dwin" : "dloss"}">${m.win ? "V" : "D"}</b>` : ""}${dKdaHtml(m)}</div></div>${its}</div>`;
+}
+function dwTop(l, n) {
+  return (l?.top_heroes || []).slice(0, n).map((m) => `<div class="dtop">${dId(m.hero_id) ? dImg("hero", m.hero_id, "portrait", m.hero, 44, 25) : '<span class="dsp"></span>'}<div class="dmx"><div class="dm1"><b>${esc(m.hero || "Herói")}</b>${nn(m.winrate) ? `<span class="dtime ${m.winrate >= 0.5 ? "dwin" : "dloss"}">${dPct(m.winrate)}</span>` : ""}</div>${dBar(m.winrate)}</div></div>`).join("");
+}
+const dwCol = (...p) => `<div class="dwc" data-clip>${p.filter(Boolean).join("")}</div>`;
+function dwMenu(d, z) {
+  const l = d.lobby, rec = (l?.recent || []).filter((m) => dId(m.hero_id) || m.hero);
+  if (!l || (!l.mmr && !l.today && !l.record && !rec.length)) return `<div class="hw-na">${esc(d.phase === "offline" ? d.reason || "Dota fechado" : "Sem dados do lobby ainda")}</div>`;
+  const off = d.phase === "offline" ? `<div class="dst">${esc(d.reason || "Dota fechado")}</div>` : "";
+  if (z === "P") return dwCol(dwRow("dwmed", `${dwBadge(l.mmr, DW.P.b)}${dwToday(l.today) || `<div class="dmt"><b class="dthin">${esc(l.mmr?.medal || "–")}</b></div>`}`), l.mmr?.medal && l.today ? `<div class="dst dwcap">${esc(l.mmr.medal)}</div>` : "", dwDots(l), off);
+  const left = z === "L" ? [dwMedal(l, z), dwRing(l, z, true)] : [dwMedal(l, z), dwRing(l, z), dwDots(l)];
+  if (z === "A") return dwCol(...left, off);
+  if (z === "L") return `<div class="dwb cols">${dwCol(...left, off)}${rec[0] ? dwCol(`<span class="dlab">Última partida</span>`, dwMatch(rec[0], "L", true)) : ""}</div>`;
+  const top = dwTop(l, 3);
+  return `<div class="dwb cols">${dwCol(...left, top ? '<span class="dlab">Mais jogados</span>' : "", top, off)}${rec.length ? dwCol('<span class="dlab">Últimas partidas</span>', ...rec.slice(0, 3).map((m) => dwMatch(m, "G", true))) : ""}</div>`;
+}
+const DW_KV = [["gold", "Ouro"], ["gx", "GPM / XPM"], ["lh", "LH / DN"], ["level", "Nível"]];
+function dwLive(d, z) {
+  const L = d.live, l = d.lobby, h = d.hero, n = L.next_item, s = DW[z].h;
+  const has = { gold: nn(L.gold), gx: nn(L.gpm) || nn(L.xpm), lh: nn(L.last_hits) || nn(L.denies), level: nn(L.level) };
+  const hero = dwRow("dwhero", `${dImg("hero", h?.hero_id, "portrait", h?.hero, s[0], s[1])}<div class="dmt">${nn(L.clock_s) ? '<b class="dthin" data-w="clock"></b>' : ""}${dKda(L) ? '<span class="dkda" data-w="kda"></span>' : ""}</div>`);
+  const kv = DW_KV.filter(([k]) => has[k]).map(([k, t]) => `<div class="dwk"><span class="dlab">${t}</span><b data-w="${k}"></b></div>`).join("");
+  const nx = n ? dwRow("dwnx", `${dImg("item", n.item_id, "", n.item, 36, 27)}<div class="dmt"><b>${esc(n.item)}</b><span class="dst" data-w="miss"></span></div>`) : "";
+  const goldP = has.gold ? `<div class="dwk dwg"><span class="dlab">Ouro</span><b data-w="gold"></b></div>` : "";
+  if (z === "P") return dwCol(hero, goldP);
+  if (z === "A") return dwCol(hero, kv, nx);
+  if (z === "L") return `<div class="dwb cols">${dwCol(hero, nx)}${dwCol(kv)}</div>`;
+  return `<div class="dwb cols">${dwCol(hero, nx)}${dwCol(kv, dwToday(l?.today), dwMedal(l, "A"))}</div>`;
+}
+function dwOther(d, z) {   // escolha de herói, pré-jogo e fim de partida
+  const h = d.hero, l = d.lobby, post = d.phase === "postgame", r = d.result || {}, id = post && nn(r.hero_id) ? r.hero_id : h?.hero_id, s = DW[z === "P" ? "P" : "A"].h;
+  const dur = post && nn(r.duration_s) ? `<span class="dst">${esc(humanDur(r.duration_s))}</span>` : "";
+  const main = dwRow("dwhero", `${dImg("hero", id, "portrait", h?.hero, s[0], s[1], post ? dResult(r.win) : "")}<div class="dmt">${post ? `<b class="dthin">${dWin(r.win, "Vitória", "Derrota", "Fim")}</b>${dKdaHtml(r)}${dur}` : `<b class="dthin dwnm">${esc(h?.hero || "Escolhendo…")}</b>`}</div>`);
+  if (z === "P" || z === "A" || !l) return dwCol(main, z === "A" ? dwToday(l?.today) : "");
+  return `<div class="dwb cols">${dwCol(main)}${dwCol(dwToday(l.today), dwMedal(l, "A"), z === "G" ? dwDots(l) : "")}</div>`;
+}
 function dotaWidgetPlan(d, z) {
-  const L = d.live, l = d.lobby, h = d.hero, k = dota.k, hw = z === "G" ? [144, 81] : z === "A" ? [104, 58] : [64, 36], iw = z === "G" ? [60, 44] : [44, 32];
-  if (d.phase === "game" && L) {
-    const n = L.next_item;
-    const mm = l?.mmr, td = l?.today;
-    return { sig: JSON.stringify(["g", z, h?.hero_id, h?.hero, n?.item_id, n?.item, nn(L.clock_s), !!dKda(L), k, mm?.value, td?.wins, td?.losses]),
-      html: `<div class="dwr">${dImg("hero", h?.hero_id, "portrait", h?.hero, hw[0], hw[1])}<div class="dmid">${nn(L.clock_s) ? '<div class="dbig" data-w="clock"></div>' : ""}${dKda(L) ? '<span data-w="kda"></span>' : ""}</div></div>`
-        + (n ? `<div class="dwr">${dImg("item", n.item_id, "", n.item, iw[0], iw[1])}<div class="dmid"><b>${esc(n.item)}</b><span data-w="miss"></span></div></div>` : "")
-        + (nn(mm?.value) ? `<div class="row"><span>MMR</span><span>${dNum(mm.value)}</span></div>` : "") + (td ? `<div class="row"><span>Hoje</span><span>${td.wins}V – ${td.losses}D</span></div>` : "") };
-  }
-  if (d.phase === "draft" || d.phase === "pregame") {
-    return { sig: JSON.stringify(["p", h?.hero_id, h?.hero, k]),
-      html: `<div class="dwr">${h ? dImg("hero", h.hero_id, "portrait", h.hero, 64, 36) : ""}<div class="dmid"><div class="dbig">${esc(h?.hero || "Escolhendo…")}</div></div></div>` };
-  }
-  if (d.phase === "postgame") {
-    const r = d.result || {}, id = nn(r.hero_id) ? r.hero_id : h?.hero_id;
-    return { sig: JSON.stringify(["e", id, h?.hero, r.win, dKda(r), k]),
-      html: `<div class="dwr">${dImg("hero", id, "portrait", h?.hero, 64, 36, dResult(r.win))}<div class="dmid"><div class="dbig">${dWin(r.win, "Vitória", "Derrota", "Fim")}</div>${dKda(r) ? `<span>${dKda(r)}</span>` : ""}</div></div>` };
-  }
-  const rec = (l?.recent || []).slice(0, 3).filter((m) => dId(m.hero_id));
-  return { sig: JSON.stringify(["m", d.phase, d.reason, l?.mmr, l?.today, rec, k]),
-    html: (l?.mmr ? (nn(l.mmr.value) ? `<div class="dbig">${dNum(l.mmr.value)}</div><div class="sub">${esc(l.mmr.medal || "")}${l.mmr.estimated ? " · estimado" : ""}</div>` : `<div class="dbig dmedal">${esc(l.mmr.medal || "–")}</div>`) : "")
-      + (l?.today ? `<div class="row"><span>Hoje</span><span>${l.today.wins}V – ${l.today.losses}D</span></div>` : "")
-      + (rec.length ? `<div class="dwm">${rec.map((m) => `<div class="dwmi">${dImg("hero", m.hero_id, "portrait", m.hero, 48, 27, dResult(m.win))}<small>${dKda(m)}</small></div>`).join("")}</div>` : "")
-      + (d.phase === "offline" ? `<div class="hw-na">${esc(d.reason || "Dota fechado")}</div>` : "") };
+  const L = d.live, l = d.lobby, h = d.hero;
+  const live = d.phase === "game" && L;
+  const sig = JSON.stringify([live ? "g" : d.phase, z, d.reason, h?.hero_id, h?.hero, live && [L.next_item?.item_id, nn(L.clock_s), !!dKda(L), L.gold != null, L.gpm != null, L.last_hits != null, L.level != null], d.result, l?.mmr, l?.today, l?.record, l?.top_heroes, (l?.recent || []).slice(0, 10), dota.k]);
+  const html = live ? dwLive(d, z) : d.phase === "draft" || d.phase === "pregame" || d.phase === "postgame" ? dwOther(d, z) : dwMenu(d, z);
+  return { sig, html: html.startsWith('<div class="dwb') ? html : `<div class="dwb">${html}</div>` };
 }
 function dotaWidgetTick(b, d) {
+  for (const el of b.querySelectorAll("[data-ago]")) setText(el, dAgoTxt(Number(el.dataset.ago)));
   const L = d.live; if (d.phase !== "game" || !L) return;
   const q = (k) => b.querySelector(`[data-w="${k}"]`);
   if (nn(L.clock_s)) setText(q("clock"), dClock(L.clock_s + dAge()));
-  setText(q("kda"), dKda(L));
+  setHtml(q("kda"), dKdaHtml(L));
+  setText(q("gold"), nn(L.gold) ? dNum(L.gold) : "");
+  setText(q("gx"), `${L.gpm ?? "–"} / ${L.xpm ?? "–"}`); setText(q("lh"), `${L.last_hits ?? "–"} / ${L.denies ?? "–"}`); setText(q("level"), nn(L.level) ? String(L.level) : "");
   const m = L.next_item?.missing_gold;
   setText(q("miss"), nn(m) && m > 0 ? "falta " + dNum(m) : "");
 }
 Object.assign(HOME_W, {
   dota: {
-    name: "Dota", icon: "gamepad", sizes: "PALG", def: "A",
-    html: (z) => z === "P" ? '<div class="pq" data-clip><div class="hw-t"><span>Dota</span><span data-k="ph"></span></div><div class="hmain"><b data-k="big"></b><span data-k="cap"></span></div><div class="pq-hero" data-k="hero"></div><div class="hsub1" data-k="l3"></div></div>' : `<div class="hw-t"><span>Dota</span><span data-k="ph"></span></div><div class="hdota" data-k="body"></div>`,
+    name: "Dota", icon: "dota", sizes: "PALG", def: "A",
+    html: () => '<div class="hw-t"><span class="dwt"><svg class="dwi" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-dota"/></svg>Dota</span><span data-k="ph"></span></div><div class="hdota" data-k="body"></div>',
     ready: () => !!dota.d,
     upd(el) {
-      const d = dota.d;
-      if (el.dataset.z === "P") {   // pequeno: relógio (partida) ou MMR em destaque, o herói (retrato do proxy, nome em texto se a imagem faltar) e KDA / hoje / medalha
-        const L = d.live, mmr = d.lobby?.mmr?.value, inGame = d.phase === "game" && L && nn(L.clock_s), h = d.hero, l = d.lobby;
-        setText(hk(el, "ph"), DOTA_PH[d.phase] || "Dota");
-        const medal = d.lobby?.mmr?.medal;
-        setText(hk(el, "big"), inGame ? dClock(L.clock_s + dAge()) : nn(mmr) ? dNum(mmr) : medal || "–");
-        setText(hk(el, "cap"), inGame ? "partida" : nn(mmr) ? "MMR" : medal ? "medalha" : d.phase === "offline" ? d.reason || "Dota fechado" : "");
-        const rec = (l?.recent || []).slice(0, 3).filter((m) => dId(m.hero_id));
-        setHtml(hk(el, "hero"), h?.hero ? `${dImg("hero", h.hero_id, "portrait", h.hero, 64, 36)}<div class="pq-hn"><b>${esc(h.hero)}</b>${d.phase === "game" && L && dKda(L) ? `<span>KDA ${dKda(L)}</span>` : ""}</div>`
-          : rec.map((m) => `<span class="pq-rm">${dImg("hero", m.hero_id, "portrait", m.hero, 48, 27, dResult(m.win))}<small>${dKda(m)}</small></span>`).join(""));
-        const l3 = d.lobby?.today ? `Hoje ${d.lobby.today.wins}V – ${d.lobby.today.losses}D` : d.lobby?.mmr?.medal || ""; setText(hk(el, "l3"), l3);
-        return;
-      }
-      const p = dotaWidgetPlan(d, el.dataset.z), b = hk(el, "body");
+      const d = dota.d, p = dotaWidgetPlan(d, el.dataset.z), b = hk(el, "body");
       setText(hk(el, "ph"), DOTA_PH[d.phase] || "");
       if (b._sig !== p.sig) { b.innerHTML = p.html; b._sig = p.sig; }
       dotaWidgetTick(b, d);
