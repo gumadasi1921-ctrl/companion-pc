@@ -8523,9 +8523,9 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
     let data = null, week = null, off = 0, selRoot = null, rules = null;
     const sel = new Map();   // "app\0arquivo" -> item de "Não identificado" marcado
     const roots = h("div"), idx = h("p", { class: "pn-faint" }), now = h("div", { class: "pn-card" }), rep = h("div"), tree = h("div"),
-      rulesBox = h("div"), histBox = h("div"), linksBox = h("div"), mlinksBox = h("div"), bar = h("div", { class: "pn-selbar", hidden: true }), idleBox = h("details", { class: "pn-d" });
+      rulesBox = h("div"), histBox = h("div"), linksBox = h("div"), mlinksBox = h("div"), bar = h("div", { class: "pn-selbar", hidden: true }), idleBox = h("details", { class: "pn-d" }), genBox = h("div", { id: "pn-gen" });
     main.append(h("section", {}, h("h1", {}, "Trabalho"), h("p", { class: "pn-sub" }, "Cliente e job saem dos nomes das pastas: Cliente\\Job\\arquivo."),
-      h("div", { class: "pn-h" }, "Pastas de clientes"), roots, idx, h("div", { class: "pn-h" }, "Agora"), now, idleBox,
+      h("div", { class: "pn-h" }, "Pastas de clientes"), roots, idx, h("div", { class: "pn-h" }, "Agora"), now, genBox, idleBox,
       h("div", { class: "pn-h" }, "Relatório"), rep, tree, h("div", { class: "pn-h" }, "Histórico"), histBox, h("div", { class: "pn-h" }, "Cards do Trello"), linksBox, h("div", { class: "pn-h" }, "Itens do monday"), mlinksBox, rulesBox, bar));
     // ---- Tempo por card do Trello: liga um cliente/job a um dos meus cards; o tempo vem do histórico (hoje, semana, total)
     let links = [], tcards = null, tstat = null, mlinks = [], mitems = null, mstat = null, nolinks = [];
@@ -8725,7 +8725,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
         h("button", { class: "pn-btn", type: "button", onclick: () => doIgnore([...sel.values()]) }, "Não é trabalho"),
         h("button", { class: "pn-btn", type: "button", onclick: () => { sel.clear(); renderWeek(); } }, "Limpar"));
     }
-    const reloadAll = async () => { await loadWeek(); await loadRules(); loadNow(); };
+    const reloadAll = async () => { await loadWeek(); await loadRules(); loadNow(); };   // loadNow também recarrega genBox e idleBox
     async function doIgnore(items) {
       try {
         const r = await call("work_ignore", { items: items.map((f) => ({ file: f.file, app: f.app })), offset: off });
@@ -8735,9 +8735,9 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
       } catch (e) { fail(e); }
     }
     // ---- diálogo Atribuir
-    async function openAssign(items) {
+    async function openAssign(items, offs = off) {
       let pv, cat;
-      try { [pv, rules] = await Promise.all([call("work_assign_preview", { items: items.map((f) => ({ file: f.file, app: f.app })), offset: off }), call("work_rules_get")]); cat = rules.catalog; }
+      try { [pv, rules] = await Promise.all([call("work_assign_preview", { items: items.map((f) => ({ file: f.file, app: f.app })), offset: offs }), call("work_rules_get")]); cat = rules.catalog; }
       catch (e) { fail(e); return; }
       const NEW = "\u0001novo", NONE = "\u0001sem";
       const allGen = pv.items.every((i) => i.generic), someGen = pv.items.some((i) => i.generic);
@@ -8770,7 +8770,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
       ok.onclick = async () => {
         err.textContent = ""; ok.disabled = true;
         try {
-          const r = await call("work_assign", { items: items.map((f) => ({ file: f.file, app: f.app })), client: cur(), job: curJ(), remember: rem.checked && !allGen, offset: off });
+          const r = await call("work_assign", { items: items.map((f) => ({ file: f.file, app: f.app })), client: cur(), job: curJ(), remember: rem.checked && !allGen, offset: offs });
           dlg.close(); dlg.remove(); sel.clear(); await reloadAll();
           toast("Atribuído a " + r.client + " › " + r.job + (r.rules ? " (regra lembrada)" : ""), { undo: async () => { try { await call("work_rule_delete", { ids: r.ids }); await reloadAll(); } catch (e) { fail(e); } } });
         } catch (e) { err.textContent = e.message; ok.disabled = false; }
@@ -8828,7 +8828,19 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
             h("span", { class: "pn-faint" }, Object.keys(d.by_app).map((a) => a + " " + mm(d.by_app[a])).join(" · ")), h("span", { class: "pn-t" }, d.s ? mm(d.s) : "—"))));
       } catch {}
     };
-    const loadNow = async () => { try { data = await call("work_get"); Object.assign(pnIcons, data.app_icons); render(); } catch {} loadIdle(); };
+    // ---- Arquivos sem nome de hoje ("sem título", Untitled, CapCut sem projeto): tempo de cada um e Atribuir (vale só para a semana atual)
+    const loadGen = async () => {
+      try {
+        const r = await call("work_unident_today");
+        const gen = r.files || [];
+        genBox.replaceChildren(...(r.total_s ? [h("div", { class: "pn-h" }, "Sem atribuir hoje"), h("div", { class: "pn-list" },
+          h("div", { class: "pn-faint", style: "padding:6px 14px" }, fmtDur(r.total_s) + " em “Não identificado”" + (r.generic_s ? ", " + fmtDur(r.generic_s) + " em arquivos sem nome" : "") + ". Atribuir um arquivo sem nome vale para esta semana inteira, só para esse nome; não vira regra."),
+          gen.length ? gen.map((f) => h("div", { class: "pn-fl" }, h("span", { class: "pn-fn pn-warn" }, f.file), appTag(f.app), h("span", { class: "pn-t" }, fmtDur(f.s)),
+            h("button", { class: "pn-btn", type: "button", "aria-label": "Atribuir " + f.file, onclick: () => openAssign([f], 0) }, "Atribuir"))) : h("div", { class: "pn-empty" }, "Nenhum arquivo sem nome hoje. O resto está na semana, abaixo.")),
+          ] : []));
+      } catch {}
+    };
+    const loadNow = async () => { try { data = await call("work_get"); Object.assign(pnIcons, data.app_icons); render(); } catch {} loadIdle(); loadGen(); };
     return { start: () => { loadNow().then(loadWeek).then(loadRules).then(loadHist).then(loadLinks); poll(loadNow, 5000); }, stop: stopPoll };
   }
 

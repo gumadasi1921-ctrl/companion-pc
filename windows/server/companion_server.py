@@ -930,6 +930,7 @@ PANEL_OPS = {
     "work_link_restore": lambda entries: io_call(WORK.link_restore, entries),
     "work_nolink_get": lambda: io_call(WORK.nolink_get),
     "work_idle": lambda days: io_call(WORK.idle_report, days),
+    "work_unident_today": lambda: io_call(WORK.unident_summary),
     "work_nolink_delete": lambda ids: io_call(WORK.nolink_delete, ids),
     "trello_cards": lambda: io_call(trello_cards_op),
     "work_mlinks_get": lambda: io_call(WORK.mlinks_get),
@@ -1053,6 +1054,7 @@ PANEL_WS = {   # nome -> função(params dict); as de gravação rodam na fila d
     "work_link_delete": lambda p: PANEL_OPS["work_link_delete"](p.get("ids") if "ids" in p else _need(p, "id", str)),
     "work_link_restore": lambda p: PANEL_OPS["work_link_restore"](_need(p, "entries", list)),
     "work_nolink_get": lambda p: PANEL_OPS["work_nolink_get"](),
+    "work_unident_today": lambda p: PANEL_OPS["work_unident_today"](),
     "work_idle": lambda p: PANEL_OPS["work_idle"](min(30, max(1, _need(p, "days", int) if "days" in p else 7))),
     "work_nolink_delete": lambda p: PANEL_OPS["work_nolink_delete"](p.get("ids") if "ids" in p else _need(p, "id", str)),
     "trello_cards": lambda p: PANEL_OPS["trello_cards"](),
@@ -1629,7 +1631,7 @@ QUIET_ACTIONS = {"work.link_pick", "work.link_none", "work.link_later", "work.li
                  "work_week", "work_csv", "work_month", "work_month_csv", "work_note_set", "work_add_root", "work_remove_root", "work_assign_preview", "work_assign",
                  "work_ignore", "work_rules_get", "work_rule_delete", "work_unignore", "config_get", "config_save", "open_focus", "backup_run", "trello_test", "trello_boards", "trello_boards",
                  "update_info", "update_check", "update_apply", "update_rollback", "agenda_test", "agenda.get", "agenda.join", "agenda.month", "agenda.new", "agenda.open",
-                 "trello.get", "trello.open", "work_links_get", "work_link_set", "work_link_delete", "work_link_restore", "work_nolink_get", "work_nolink_delete", "work_idle", "trello_cards",
+                 "trello.get", "trello.open", "work_links_get", "work_link_set", "work_link_delete", "work_link_restore", "work_nolink_get", "work_nolink_delete", "work_idle", "work_unident_today", "trello_cards",
                  "monday.get", "monday.open", "monday_test", "monday_boards", "monday_items", "work_mlinks_get", "work_mlink_set", "work_mlink_delete", "work_mlink_restore"}
 
 

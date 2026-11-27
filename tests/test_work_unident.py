@@ -39,6 +39,15 @@ class Summary(unittest.TestCase):
         self.assertEqual(s["total_s"], 720)
 
 
+    def test_atribuir_generico_pela_semana_atual_tira_da_lista(self):
+        self.w.assign([{"file": "Sem título-1", "app": "Photoshop"}], "Cli", "Job", True, 0, today=TODAY)
+        s = self.w.unident_summary(TODAY)
+        self.assertEqual([f["file"] for f in s["files"]], ["sem título"])
+        self.assertEqual(s["total_s"], 420)
+        self.assertEqual(self.w.once[0]["client"], "Cli")      # pontual da semana, nunca regra permanente
+        self.assertEqual(self.w.rules, [])
+
+
 class Notice(unittest.TestCase):
     def test_mensagem(self):
         t, b = alerts.unident_message({"total_s": 4500, "by_app": {"Photoshop": 3600, "CapCut": 900}})
