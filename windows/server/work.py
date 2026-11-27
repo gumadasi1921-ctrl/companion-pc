@@ -56,6 +56,8 @@ UNTITLED = "sem título"
 MAX_ROOTS, FOLDER_MAX = 20, 260
 GAP_S = 15             # intervalo maior que isso entre leituras (suspensão, travada) não conta
 SAVE_EVERY_S = 30
+IDLE_DROP_MAX_S = 30 * 60   # ocioso descartado: só até 30 min depois do último input (mais que isso = longe do PC, não conta)
+IDLE_DROP_KEEP_DAYS = 90
 RUN_GAP_S = 300        # trabalho contínuo (mascote): fora dos apps de trabalho ou parado por mais que isso encerra a sequência
 # índice de nomes para o Photoshop (só nomes; nada é aberto, lido, movido ou alterado)
 INDEX_EXT = {".psd", ".psb", ".tif", ".tiff", ".png", ".jpg", ".jpeg"}
@@ -484,6 +486,10 @@ class WorkTracker:
         self.rules, self.once, self.ignored = [], [], []   # regras manuais (ver "Regras manuais" abaixo)
         self._load_rules()
         self.index, self.index_at, self.index_info = {}, 0.0, {"files": 0, "truncated": False}
+        self.idle_path = base / "work-idle.json"
+        iraw = _load_json(self.idle_path, lambda d: isinstance(d, dict) and isinstance(d.get("days"), dict))
+        self.idle_drop = (iraw or {"days": {}})["days"]   # {"AAAA-MM-DD": {app: {"s": segundos, "n": pausas}}}; NÃO entra nos totais
+        self.idle_dirty, self._dropping = False, False
         self.pending = []      # [(início, fim, chave)] depois do último input: conta só se vier outro input
         self.prev = None       # hora da leitura anterior
         self.last_input = None
@@ -587,6 +593,38 @@ class WorkTracker:
             a = end
             self.dirty = True
 
+    def _drop_pending(self, li):
+        """Anota, só à parte, o tempo com o app em foco que NÃO foi contado por inatividade (nunca soma nos totais).
+        Só até IDLE_DROP_MAX_S depois do último input; por programa, sem nome de arquivo, cliente ou job."""
+        limit = li + IDLE_DROP_MAX_S
+        got = False
+        for a, b, key in self.pending:
+            b = min(b, limit)
+            while a < b:
+                end = min(b, _next_midnight(a))
+                ent = self.idle_drop.setdefault(_day(a), {}).setdefault(key[2], {"s": 0.0, "n": 0})
+                ent["s"] = round(ent["s"] + (end - a), 1)
+                if not self._dropping:
+                    ent["n"] += 1
+                    self._dropping = True
+                a, got = end, True
+        if got:
+            self.idle_dirty = True
+
+    def idle_report(self, days=7, today=None):
+        """Ocioso descartado dos últimos `days` dias (hoje incluído): {limit_min, max_min, days[{day, s, n, by_app}], total_s, n}.
+        É tempo com o programa em foco que NÃO entrou no total; não é estimativa (anotado na hora do corte)."""
+        today = today or date.today()
+        out, tot, n = [], 0.0, 0
+        for i in range(days - 1, -1, -1):
+            ds = (today - timedelta(days=i)).isoformat()
+            ent = self.idle_drop.get(ds, {})
+            s = sum(v["s"] for v in ent.values())
+            c = sum(v["n"] for v in ent.values())
+            tot, n = tot + s, n + c
+            out.append({"day": ds, "s": int(s), "n": c, "by_app": {a: int(v["s"]) for a, v in sorted(ent.items(), key=lambda x: -x[1]["s"])}})
+        return {"limit_min": round(self.idle_s / 60), "max_min": IDLE_DROP_MAX_S // 60, "days": out, "total_s": int(tot), "n": n}
+
     def poll(self, now=None, fg=None, idle=None):
         now = time.time() if now is None else now
         exe, title = foreground() if fg is None else fg
@@ -622,15 +660,19 @@ class WorkTracker:
                 if now > max(prev, li):  # depois do último input: espera confirmação
                     self.pending.append((max(prev, li), now, key))
         if idle >= self.idle_s:
-            self.pending = []          # passou do limite: a espera não conta
+            self._drop_pending(li)     # passou do limite: a espera não conta (mas fica anotada à parte)
+            self.pending = []
+        else:
+            self._dropping = False
         if app and idle < self.idle_s:
             if self.run_start is None or now - self.run_last > RUN_GAP_S:
                 self.run_start = now
             self.run_last, self.run_app = now, app
         self.prev = now
         self.now_info = info
-        if self.dirty and now - self.saved_at >= SAVE_EVERY_S:
+        if (self.dirty or self.idle_dirty) and now - self.saved_at >= SAVE_EVERY_S:
             self.save(now)
+            self.saved_at = now
         return info
 
     def stream(self, now=None):
@@ -641,7 +683,19 @@ class WorkTracker:
             return {"minutes": 0, "app": None}
         return {"minutes": int((self.run_last - self.run_start) // 60), "app": self.run_app}
 
+    def _save_idle(self):
+        if not self.idle_dirty:
+            return
+        keep = sorted(self.idle_drop)[-IDLE_DROP_KEEP_DAYS:]
+        self.idle_drop = {d: self.idle_drop[d] for d in keep}
+        try:
+            _save_json(self.idle_path, {"version": 1, "days": self.idle_drop})
+            self.idle_dirty = False
+        except OSError as e:
+            log.warning("work-idle.json: %s", e)
+
     def save(self, now=None):
+        self._save_idle()
         if not self.dirty:
             return
         try:

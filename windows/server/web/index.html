@@ -8521,9 +8521,9 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
     let data = null, week = null, off = 0, selRoot = null, rules = null;
     const sel = new Map();   // "app\0arquivo" -> item de "Não identificado" marcado
     const roots = h("div"), idx = h("p", { class: "pn-faint" }), now = h("div", { class: "pn-card" }), rep = h("div"), tree = h("div"),
-      rulesBox = h("div"), histBox = h("div"), linksBox = h("div"), mlinksBox = h("div"), bar = h("div", { class: "pn-selbar", hidden: true });
+      rulesBox = h("div"), histBox = h("div"), linksBox = h("div"), mlinksBox = h("div"), bar = h("div", { class: "pn-selbar", hidden: true }), idleBox = h("details", { class: "pn-d" });
     main.append(h("section", {}, h("h1", {}, "Trabalho"), h("p", { class: "pn-sub" }, "Cliente e job saem dos nomes das pastas: Cliente\\Job\\arquivo."),
-      h("div", { class: "pn-h" }, "Pastas de clientes"), roots, idx, h("div", { class: "pn-h" }, "Agora"), now,
+      h("div", { class: "pn-h" }, "Pastas de clientes"), roots, idx, h("div", { class: "pn-h" }, "Agora"), now, idleBox,
       h("div", { class: "pn-h" }, "Relatório"), rep, tree, h("div", { class: "pn-h" }, "Histórico"), histBox, h("div", { class: "pn-h" }, "Cards do Trello"), linksBox, h("div", { class: "pn-h" }, "Itens do monday"), mlinksBox, rulesBox, bar));
     // ---- Tempo por card do Trello: liga um cliente/job a um dos meus cards; o tempo vem do histórico (hoje, semana, total)
     let links = [], tcards = null, tstat = null, mlinks = [], mitems = null, mstat = null, nolinks = [];
@@ -8815,7 +8815,18 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
       rulesBox.replaceChildren(h("div", { class: "pn-h" }, "Regras manuais"), h("div", { class: "pn-list" }, d));
     }
     const loadWeek = async () => { try { const w = await call("work_week", { offset: off }); Object.assign(pnIcons, w.app_icons); if (!week || week.offset !== w.offset) sel.clear(); week = w; renderWeek(); } catch (e) { fail(e); } };
-    const loadNow = async () => { try { data = await call("work_get"); Object.assign(pnIcons, data.app_icons); render(); } catch {} };
+    // ---- Ocioso descartado: tempo com o programa em foco que NÃO entrou no total (ninguém mexendo há mais que o limite)
+    const loadIdle = async () => {
+      try {
+        const r = await call("work_idle", { days: 7 });
+        const mm = (s) => (s < 60 ? s + " s" : fmtDur(s));
+        idleBox.replaceChildren(h("summary", {}, h("b", {}, "Ocioso descartado (7 dias)"), h("span", { class: "pn-t" }, r.n ? mm(r.total_s) + " · " + r.n + (r.n === 1 ? " pausa" : " pausas") : "nada")),
+          h("div", { class: "pn-faint", style: "padding:6px 14px" }, "Tempo com o programa em foco sem ninguém mexendo no PC há mais de " + r.limit_min + " min. NÃO entra nos totais: serve para você ajustar o limite (Ajustes). Só conta até " + r.max_min + " min depois do último movimento."),
+          r.days.slice().reverse().map((d) => h("div", { class: "pn-fl" }, h("span", {}, dm(d.day) + (d.n ? " · " + d.n + (d.n === 1 ? " pausa" : " pausas") : "")),
+            h("span", { class: "pn-faint" }, Object.keys(d.by_app).map((a) => a + " " + mm(d.by_app[a])).join(" · ")), h("span", { class: "pn-t" }, d.s ? mm(d.s) : "—"))));
+      } catch {}
+    };
+    const loadNow = async () => { try { data = await call("work_get"); Object.assign(pnIcons, data.app_icons); render(); } catch {} loadIdle(); };
     return { start: () => { loadNow().then(loadWeek).then(loadRules).then(loadHist).then(loadLinks); poll(loadNow, 5000); }, stop: stopPoll };
   }
 
