@@ -1151,7 +1151,7 @@ EXPORTS = extras.FolderWatcher(export_folders, exts=extras.EXPORT_EXT, depth=ext
                                stable_s=extras.EXPORT_STABLE_S, check_open=True)
 EXPORTS_RECENT: dict = {}   # id -> caminho (só memória, últimos 20): o celular pede o link pelo id, nunca manda caminho
 FOCUS = alerts.FocusHold()
-MISPLACED = alerts.Misplaced()
+MISPLACED = alerts.Misplaced(BASE / "misplaced-time.json")
 UNIDENT = alerts.DailyUnident(BASE / "unident-notice.json")
 
 
@@ -2226,7 +2226,17 @@ def _work_step():
 
 
 def _autolink_cards():
-    return TRELLO.cards if TRELLO.status()["state"] == "ok" else []
+    """Cards do Trello + itens do monday (só leitura do cache; o item do monday entra como short "m:<id>")."""
+    out = list(TRELLO.cards) if TRELLO.status()["state"] == "ok" else []
+    if MONDAY.status()["state"] == "ok":
+        out += [{"short": autolink.MD + i["id"], "name": i["name"], "cat": i["cat"]} for i in MONDAY.items if i.get("cat") in autolink.STAGES]
+    return out
+
+
+def _link_has_card(short):
+    if isinstance(short, str) and short.startswith(autolink.MD):
+        return MONDAY.has_item(short[len(autolink.MD):])
+    return TRELLO.has_card(short)
 
 
 AUTOLINK = autolink.AutoLink(WORK, _autolink_cards)
@@ -2245,9 +2255,9 @@ async def autolink_events(ev):
     if not ev:
         return
     if ev["kind"] == "autolink":
-        log.info("ligação automática de job a card")
-        await phones_send({"t": "event", "kind": "work.autolink", "id": ev["id"], "client": ev["client"], "job": ev["job"]})
-        await trello_send()
+        log.info("ligação automática de job a %s", "item do monday" if ev.get("src") == "md" else "card")
+        await phones_send({"t": "event", "kind": "work.autolink", "id": ev["id"], "client": ev["client"], "job": ev["job"], "src": ev.get("src", "tr")})
+        await (monday_send() if ev.get("src") == "md" else trello_send())
     elif ev["kind"] == "ask":
         log.info("pergunta de card do Trello")
     await linkask_send()
@@ -2257,7 +2267,7 @@ def link_answer(op, p):
     """Resposta do celular à pergunta (só qid + card); a ligação é feita aqui, no servidor."""
     q = str(p.get("qid", ""))
     if op == "pick":
-        r = AUTOLINK.pick(q, str(p.get("card", "")), TRELLO.has_card)
+        r = AUTOLINK.pick(q, str(p.get("card", "")), _link_has_card)
     elif op == "none":
         r = AUTOLINK.none(q)
     elif op == "later":
@@ -2272,6 +2282,7 @@ async def link_run(op, p):
     await linkask_send()
     if op in ("pick", "undo"):
         await trello_send()
+        await monday_send()
     return {"ok": True}
 
 
@@ -2332,9 +2343,9 @@ async def work_loop():
             await unident_check()
             a = MISPLACED.observe(info, time.time(), has_roots, _misplaced_min())
             if a:
-                log.info("aviso de arquivo fora do lugar")   # sem nomes
-                await phones_send({"t": "event", "kind": "alert", "sub": a["kind"], "title": a["title"],
-                                   "body": a["body"], "open": "work"})
+                n = await phones_send({"t": "event", "kind": "alert", "sub": a["kind"], "title": a["title"],
+                                       "body": a["body"], "open": "work"})
+                log.info("aviso de arquivo fora do lugar (%s): %d celular(es)", a["kind"], n)   # sem nomes
                 await pc_balloon(a["title"], a["body"])
         except Exception as e:  # noqa: BLE001
             log.warning("work_loop: %s", type(e).__name__)  # sem a mensagem: pode ter nome de arquivo
@@ -2354,12 +2365,16 @@ async def send_games(ws, state):
 
 
 async def phones_send(obj):
+    """Manda aos celulares conectados; devolve quantos receberam (o log mostra o número, nunca o conteúdo)."""
     msg = json.dumps(obj, ensure_ascii=False)
+    n = 0
     for ws in [w for w in list(clients) if client_kind.get(w) == "celular"]:
         try:
             await ws.send(msg)
+            n += 1
         except ConnectionClosed:
             pass
+    return n
 
 
 async def pc_balloon(title, text):

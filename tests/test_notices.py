@@ -214,26 +214,46 @@ class MisplacedTests(unittest.TestCase):
         self.assertEqual(len(self.run_for(m, info(), 11 * 60, t0=self.T0 + 86400)), 1)
         self.assertEqual(self.run_for(alerts.Misplaced(), info(), 60 * 60, minutes=0), [])
 
-    def test_switching_file_resets_and_idle_pauses(self):
+    def test_switching_file_keeps_accumulating_and_idle_pauses(self):
         m = alerts.Misplaced()
         t = self.T0
-        for i in range(250):                       # 8 min em "a", troca para "b" e volta: zera
+        for i in range(150):                       # 5 min em "a", 20 s em "b" e volta: NÃO zera (acumulado no dia)
             m.observe(info(f="a.psd"), t, True, 10)
             t += 2
         for i in range(10):
             m.observe(info(f="b.psd"), t, True, 10)
             t += 2
         out = []
-        for i in range(250):
+        for i in range(160):                       # +5 min em "a" = 10 min acumulados
             a = m.observe(info(f="a.psd"), t, True, 10)
             out += [a] if a else []
             t += 2
-        self.assertEqual(out, [])
+        self.assertEqual(len(out), 1)
         m2 = alerts.Misplaced()                    # parado (counting False) não soma
         self.assertEqual(self.run_for(m2, info(counting=False), 30 * 60), [])
 
+    def test_first_warning_at_two_minutes(self):
+        m = alerts.Misplaced()
+        self.assertEqual(self.run_for(m, info(), 110, minutes=2), [])
+        self.assertEqual(len(self.run_for(m, info(), 30, minutes=2, t0=self.T0 + 112)), 1)
+
+    def test_count_survives_restart_and_warned_stays(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "misplaced-time.json"
+            clock = lambda: self.T0 + 100               # noqa: E731
+            m = alerts.Misplaced(p, clock=clock)
+            self.assertEqual(self.run_for(m, info(), 90, minutes=2), [])
+            m.flush()
+            m2 = alerts.Misplaced(p, clock=clock)       # "reinício": segue de 90 s, não de zero
+            out = self.run_for(m2, info(), 60, minutes=2, t0=self.T0 + 92)
+            self.assertEqual(len(out), 1)
+            m3 = alerts.Misplaced(p, clock=clock)       # já avisado hoje: nada de novo
+            self.assertEqual(self.run_for(m3, info(), 10 * 60, minutes=2, t0=self.T0 + 200), [])
+            m4 = alerts.Misplaced(p, clock=lambda: self.T0 + 86400 + 100)   # outro dia: começa limpo
+            self.assertEqual(m4.acc, {})
+
     def test_valid_options(self):
-        for v in (0, 5, 10, 20):
+        for v in (0, 1, 2, 5, 10, 20):
             self.assertEqual(alerts.valid_misplaced_min(v), v)
         for v in (7, -1, True, "10", None):
             with self.assertRaises(ValueError):

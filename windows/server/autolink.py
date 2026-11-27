@@ -6,6 +6,7 @@ Regras (sem heurística: só igualdade sem maiúsculas/acentos/espaços repetido
 - pergunta: senão, depois de 2 min seguidos no mesmo job (sem ligação, sem "Nenhum" e sem "Depois" vivo), 1 pergunta pendente com até 3
   cards do mesmo cliente (Em execução antes de A fazer; cards já ligados a outro job ficam de fora). Sem candidato = sem pergunta.
 - "Nenhum" (work_rules.json "nolink", sem until) vale para sempre e só o painel desfaz; "Depois" (until) = 30 min.
+- monday: a fonte da lista (cards_fn) junta Trello e monday; item do monday entra com short "m:<id>" e a ligação vai para work.mlinks.
 - Ligação existente nunca é trocada. Nenhum nome vai para o log.
 """
 import hashlib
@@ -27,6 +28,7 @@ STEP_MAX_S = 10          # um intervalo maior entre leituras não conta como tem
 MAX_CANDS = 3
 FILE_MAX = 60
 STAGES = ("running", "todo")
+MD = "m:"               # prefixo do id de item do monday dentro de "short" (nunca colide com os 8 caracteres do Trello)
 
 
 def qid_of(client, job):
@@ -59,7 +61,7 @@ class AutoLink:
         self.last = now
         if not key:
             return out
-        if any(w._jkey(x["client"], x["job"]) == key for x in w.links):
+        if any(w._jkey(x["client"], x["job"]) == key for x in list(w.links) + list(w.mlinks)):
             if self.pending:
                 self.pending, out = None, {"kind": "clear"}
             return out
@@ -68,7 +70,7 @@ class AutoLink:
         cards = self.cards_fn() or []
         if not cards:
             return out
-        linked = {x["card"] for x in w.links}
+        linked = {x["card"] for x in w.links} | {MD + x["item"] for x in w.mlinks}
         exact = []
         for c in cards:
             if c.get("cat") not in STAGES:
@@ -77,10 +79,13 @@ class AutoLink:
                 exact.append(c)
         if len(exact) == 1 and exact[0]["short"] not in linked:
             c = exact[0]
-            r = w.link_set(client, job, c["short"], c["name"], auto=True)
+            if c["short"].startswith(MD):
+                r = w.mlink_set(client, job, c["short"][len(MD):], c["name"], auto=True)
+            else:
+                r = w.link_set(client, job, c["short"], c["name"], auto=True)
             self.pending = None
             return {"kind": "autolink", "id": r["link"]["id"], "client": r["link"]["client"], "job": r["link"]["job"],
-                    "card_name": c["name"], "clear": True}
+                    "card_name": c["name"], "src": "md" if c["short"].startswith(MD) else "tr", "clear": True}
         if self.pending or self.secs < ASK_AFTER_S:
             return out
         cands = []
@@ -118,7 +123,10 @@ class AutoLink:
         c = next((x for x in p["cards"] if x["short"] == short), None)
         if not c or not has_card(short):
             raise ValueError("card inválido")
-        r = self.work.link_set(p["client"], p["job"], short, c["name"])
+        if short.startswith(MD):
+            r = self.work.mlink_set(p["client"], p["job"], short[len(MD):], c["name"])
+        else:
+            r = self.work.link_set(p["client"], p["job"], short, c["name"])
         self.pending = None
         return {"link": r["link"]}
 
@@ -137,6 +145,8 @@ class AutoLink:
     def undo(self, link_id):
         """Desfaz só ligação automática (a manual se apaga pelo painel)."""
         x = next((x for x in self.work.links if x["id"] == link_id and x.get("auto")), None)
-        if not x:
-            raise ValueError("ligação não encontrada")
-        return self.work.link_delete(link_id)
+        if x:
+            return self.work.link_delete(link_id)
+        if any(m["id"] == link_id and m.get("auto") for m in self.work.mlinks):
+            return self.work.mlink_delete(link_id)
+        raise ValueError("ligação não encontrada")

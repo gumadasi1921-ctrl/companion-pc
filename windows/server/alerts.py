@@ -8,57 +8,90 @@ from datetime import date, datetime
 
 import work
 
-MISPLACED_OPTIONS = (0, 5, 10, 20)   # minutos; 0 = desligado
-DEFAULT_MISPLACED_MIN = 10
-GAP_MAX_S = 10                       # intervalo maior que isso entre leituras não conta como tempo contínuo
+MISPLACED_OPTIONS = (0, 1, 2, 5, 10, 20)   # minutos; 0 = desligado
+DEFAULT_MISPLACED_MIN = 2
+GAP_MAX_S = 10                       # intervalo maior que isso entre leituras não conta como tempo
+SAVE_EVERY_S = 30                    # a contagem vai ao disco no máximo a cada 30 s (e ao avisar)
 
 
 def valid_misplaced_min(v):
     if isinstance(v, bool) or v not in MISPLACED_OPTIONS:
-        raise ValueError("minutos do aviso: 5, 10, 20 ou 0 (desligado)")
+        raise ValueError("minutos do aviso: 1, 2, 5, 10, 20 ou 0 (desligado)")
     return int(v)
 
 
 class Misplaced:
-    """Tempo contínuo no mesmo arquivo (mesmo app e nome) em foco e com input. Avisa UMA vez por arquivo por dia.
-    Só usa o que o WorkTracker já decidiu: ignorado/identificado (raiz ou regra) nunca avisa; nome genérico e
-    "Não identificado" avisam. Trocar de arquivo zera a contagem; passar para um programa que não é de trabalho só a pausa."""
+    """Tempo ACUMULADO no dia em cada arquivo (mesmo app e nome) em foco e com input; trocar de janela ou de app NÃO zera.
+    Avisa UMA vez por arquivo por dia. Só usa o que o WorkTracker já decidiu: ignorado/identificado (raiz ou regra) nunca avisa;
+    nome genérico e "Não identificado" avisam. A contagem e os avisos do dia ficam em `path` (misplaced-time.json) e sobrevivem
+    a reinício do servidor; o log nunca recebe nomes."""
 
-    def __init__(self):
-        self.key, self.acc, self.last = None, 0.0, None
+    def __init__(self, path=None, clock=time.time):
+        self.path, self.clock = path, clock
+        self.acc, self.last, self.last_key, self.saved_at, self.dirty = {}, None, None, 0.0, False
         self.day, self.warned, self.setup_day = None, set(), None
+        if path is not None:
+            d = work._load_json(path, lambda x: isinstance(x, dict) and isinstance(x.get("acc", {}), dict) and isinstance(x.get("warned", []), list))
+            if d and d.get("day") == date.fromtimestamp(self.clock()).isoformat():
+                self.day = date.fromtimestamp(self.clock())
+                self.acc = {k: float(v) for k, v in d.get("acc", {}).items() if isinstance(k, str) and isinstance(v, (int, float))}
+                self.warned = {k for k in d.get("warned", []) if isinstance(k, str)}
+                if d.get("setup") == d["day"]:
+                    self.setup_day = self.day
+
+    @staticmethod
+    def _k(key):
+        return key[0] + "	" + key[1]
+
+    def _save(self, now, force=False):
+        if self.path is None or not (self.dirty or force) or (not force and now - self.saved_at < SAVE_EVERY_S):
+            return
+        self.saved_at, self.dirty = now, False
+        try:
+            work._save_json(self.path, {"day": self.day.isoformat(), "acc": {k: round(v, 1) for k, v in self.acc.items()},
+                                        "warned": sorted(self.warned), "setup": self.setup_day.isoformat() if self.setup_day else ""})
+        except OSError:
+            pass
 
     def observe(self, info, now, has_roots, minutes):
         """info = o que WorkTracker.poll devolveu. Devolve {"kind": "generic"|"outside"|"setup", "title", "body"} ou None."""
         day = date.fromtimestamp(now)
         if day != self.day:
-            self.day, self.warned, self.setup_day = day, set(), None
+            self.day, self.acc, self.warned, self.setup_day, self.dirty = day, {}, set(), None, True
         if minutes <= 0:
-            self.key, self.acc, self.last = None, 0.0, None
+            self.last, self.last_key = None, None
             return None
         app, f = info.get("app"), info.get("file")
         if not app or not f:
-            self.last = None
+            self.last, self.last_key = None, None
             return None
         key = (app, f.casefold())
-        if key != self.key:
-            self.key, self.acc, self.last = key, 0.0, None
-        if self.last is not None and 0 < now - self.last <= GAP_MAX_S and info.get("counting"):
-            self.acc += now - self.last
-        self.last = now
-        if info.get("ignored") or info.get("identified") or self.acc < minutes * 60 or key in self.warned:
+        sk = self._k(key)
+        if self.last is not None and self.last_key == key and 0 < now - self.last <= GAP_MAX_S and info.get("counting"):
+            self.acc[sk] = self.acc.get(sk, 0.0) + (now - self.last)
+            self.dirty = True
+        self.last, self.last_key = now, key
+        acc = self.acc.get(sk, 0.0)
+        if info.get("ignored") or info.get("identified") or acc < minutes * 60 or sk in self.warned:
+            self._save(now)
             return None
-        self.warned.add(key)
+        self.warned.add(sk)
         if not has_roots:
             if self.setup_day == day:
+                self._save(now, force=True)
                 return None
             self.setup_day = day
+            self._save(now, force=True)
             return {"kind": "setup", "title": "Pastas de clientes", "body": "Configure as pastas de clientes no painel."}
-        m = int(self.acc // 60)
+        self._save(now, force=True)
+        m = int(acc // 60)
         if work.is_generic(f):
             return {"kind": "generic", "title": "Arquivo sem salvar",
                     "body": f"Há {m} min em '{f}' no {app} sem salvar. Salve na pasta do cliente."}
         return {"kind": "outside", "title": "Arquivo fora do lugar", "body": f"'{f}' está fora das pastas de clientes."}
+
+    def flush(self):
+        self._save(self.clock(), force=True)
 
 
 UNIDENT_DEFAULT = {"on": True, "at": "18:00"}

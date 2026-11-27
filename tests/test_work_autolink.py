@@ -43,6 +43,37 @@ class Base(unittest.TestCase):
         return out
 
 
+class Monday(Base):
+    """Itens do monday entram na mesma regra (short "m:<id>"); a ligação vai para work.mlinks."""
+
+    def test_exact_item_links_into_mlinks_as_auto(self):
+        self.cards = [card("m:123456", "Top Market - A4")]
+        r = self.a.observe(info(), self.now)
+        self.assertEqual((r["kind"], r["src"]), ("autolink", "md"))
+        self.assertEqual([(x["client"], x["job"], x["item"], x.get("auto")) for x in self.t.mlinks], [("Top Market", "A4", "123456", True)])
+        self.assertEqual(self.t.links, [])
+        self.assertIsNone(self.a.observe(info(), self.now + 2))
+
+    def test_trello_and_monday_same_name_is_ambiguous_so_it_asks(self):
+        self.cards = [card("AAAAAAA1", "Top Market - A4"), card("m:9", "Top Market - A4")]
+        out = self.run_for(130)
+        self.assertEqual([x["kind"] for x in out], ["ask"])
+        self.assertEqual(len(self.a.public()["cards"]), 2)
+
+    def test_pick_item_and_undo_auto(self):
+        self.cards = [card("m:77", "Top Market - Flyer"), card("m:78", "Top Market - Outro")]
+        out = self.run_for(130)
+        q = self.a.pending["id"]
+        self.a.pick(q, "m:77", lambda s: True)
+        self.assertEqual(self.t.mlinks[0]["item"], "77")
+        self.cards = [card("m:55", "Top Market - Flyer")]
+        r = self.a.observe(info(job="Flyer", file="f.psd"), self.now + 2)
+        self.assertEqual(r["src"], "md")
+        self.a.undo(r["id"])
+        self.assertEqual([x["item"] for x in self.t.mlinks], ["77"])
+        self.assertEqual(len(self.t.nolink), 1)                       # desfeito: não religa sozinho
+
+
 class Exact(Base):
     def test_one_exact_card_links_at_once_and_is_marked_auto(self):
         self.cards = [card("AAAAAAA1", "TOP MARKET - A4"), card("BBBBBBB2", "Top Market - Flyer")]

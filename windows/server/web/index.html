@@ -7558,7 +7558,7 @@ function linkAskSet(d) {
   if (workData && vis("work")) wkNow();
 }
 function linkAutoNotice(m) {
-  const t = `Liguei ${m.client} - ${m.job} ao card do Trello`;
+  const t = `Liguei ${m.client} - ${m.job} ao ${m.src === "md" ? "item do monday" : "card do Trello"}`;
   undoToast(t, () => send("work.link_undo", { id: m.id }).then(() => toast("Ligação desfeita", "ok"), () => toast("Não consegui desfazer", "warn")), "Desfazer", null, 9000);
 }
 document.addEventListener("click", (e) => { const b = e.target.closest("[data-lkopen]"); if (b && LK.q) { LK.shown = null; linkAskPresent(LK.q); } });
@@ -9521,7 +9521,7 @@ details.pn-d[open] > summary::before { transform: rotate(90deg); }
           h("div", { class: "pn-row", style: "margin-top:10px" }, h("label", { class: "pn-grow", for: "st-delay" }, "Atraso antes de desligar (segundos)"), h("input", { id: "st-delay", class: "pn-in num", type: "number", min: 0, max: 600, step: 5, value: vals.shutdown_delay_s, onchange: (e) => { const n = parseInt(e.target.value, 10); vals.shutdown_delay_s = Number.isFinite(n) ? n : orig.shutdown_delay_s; render(); } }))),
         h("div", { class: "pn-h" }, "Trabalho"), h("div", { class: "pn-card" }, h("div", { class: "pn-row" }, h("label", { class: "pn-grow", for: "st-idle" }, "Parar de contar depois de (minutos parado)"), h("input", { id: "st-idle", class: "pn-in num", type: "number", min: 1, max: 30, value: vals.idle_min, onchange: (e) => { const n = parseInt(e.target.value, 10); vals.idle_min = Number.isFinite(n) ? n : orig.idle_min; render(); } })),
           h("div", { class: "pn-row", style: "margin-top:10px" }, h("label", { class: "pn-grow", for: "st-mis" }, "Avisar arquivo sem salvar ou fora das pastas de clientes depois de"),
-            h("select", { id: "st-mis", class: "pn-in", onchange: (e) => { vals.misplaced_min = parseInt(e.target.value, 10); render(); } }, [[0, "Desligado"], [5, "5 min"], [10, "10 min"], [20, "20 min"]].map(([v, t]) => h("option", { value: v, selected: vals.misplaced_min === v }, t)))),
+            h("select", { id: "st-mis", class: "pn-in", onchange: (e) => { vals.misplaced_min = parseInt(e.target.value, 10); render(); } }, [[0, "Desligado"], [1, "1 min"], [2, "2 min"], [5, "5 min"], [10, "10 min"], [20, "20 min"]].map(([v, t]) => h("option", { value: v, selected: vals.misplaced_min === v }, t)))),
           h("div", { class: "pn-row", style: "margin-top:10px" }, h("div", { class: "pn-grow", id: "lb-unid" }, "Avisar todo dia quanto tempo ficou “Não identificado”"),
             h("button", { class: "pn-sw", type: "button", role: "switch", "aria-checked": !!vals.unident_notice.on, "aria-labelledby": "lb-unid", onclick: () => { vals.unident_notice = { ...vals.unident_notice, on: !vals.unident_notice.on }; render(); } })),
           h("div", { class: "pn-row", style: "margin-top:10px" }, h("label", { class: "pn-grow", for: "st-unid-at" }, "Hora do aviso diário"),

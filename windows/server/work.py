@@ -903,7 +903,7 @@ class WorkTracker:
                 and isinstance(x.get("job"), str) and isinstance(x.get("item"), str) and re.fullmatch(r"[0-9]{1,20}", x["item"])
                 and isinstance(x.get("item_name", ""), str))
 
-    def mlink_set(self, client, job, item, item_name=""):
+    def mlink_set(self, client, job, item, item_name="", auto=False):
         """Liga o job ao item (troca a ligação anterior do job e a do item). Devolve {"link", "replaced"} para o desfazer."""
         if not isinstance(item, str) or not re.fullmatch(r"[0-9]{1,20}", item):
             raise ValueError("item inválido")
@@ -917,6 +917,8 @@ class WorkTracker:
             raise ValueError("limite de ligações atingido")
         entry = {"id": self._new_id(), "client": client, "job": job, "item": item, "item_name": CTRL.sub("", str(item_name or ""))[:200],
                  "created_at": datetime.now().isoformat(timespec="seconds")}
+        if auto:
+            entry["auto"] = True      # ligado sozinho (casamento exato), como no Trello
         old = self.mlinks
         self.mlinks = keep + [entry]
         try:
@@ -937,6 +939,9 @@ class WorkTracker:
             except OSError:
                 self.mlinks = old
                 raise ValueError("não consegui gravar") from None
+            for x in gone:
+                if x.get("auto"):       # desfez uma ligação automática: não religa sozinho
+                    self.nolink_set(x["client"], x["job"], None)
         return {"removed": gone}
 
     def mlink_restore(self, entries):
@@ -945,7 +950,10 @@ class WorkTracker:
         add = [x for x in entries if self._mlink_ok(x)]
         for x in add:
             self.mlinks = [y for y in self.mlinks if y["id"] != x["id"] and y["item"] != x["item"] and self._jkey(y["client"], y["job"]) != self._jkey(x["client"], x["job"])]
-            self.mlinks.append({k: x[k] for k in ("id", "client", "job", "item", "item_name", "created_at") if k in x})
+            self.mlinks.append({k: x[k] for k in ("id", "client", "job", "item", "item_name", "created_at", "auto") if k in x})
+            if x.get("auto"):
+                k = self._jkey(x["client"], x["job"])
+                self.nolink = [n for n in self.nolink if self._jkey(n["client"], n["job"]) != k]
         self._save_rules()
         return {"restored": len(add)}
 
