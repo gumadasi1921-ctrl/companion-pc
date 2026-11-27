@@ -1988,7 +1988,7 @@ html.lm-still .home.editing .hw:not(.hw-slot) { animation: none; outline: 2px da
 .trw-c { position: relative; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 5px 0 5px 11px; border-top: 1px solid var(--separator, var(--p4)); } .trw-c::before { top: 6px; bottom: 6px; }
 .trw-gh + .trw-c { border-top: 0; }
 .trw .trn b { font-size: 13px; line-height: 16px; } .z-P .trw .trn b { font-size: 12px; } .z-P .trk-dots, .z-P .trw-gh { display: none; } .z-P .trw .trn b { -webkit-line-clamp: 1; } .z-P .trw .trn span { display: none; }
-.hpage .hw[data-w="trello"] > .hw-b { flex: 1 1 0; min-height: 0; }
+.hpage .hw[data-w="trello"] > .hw-b, .hpage .hw[data-w="monday"] > .hw-b { flex: 1 1 0; min-height: 0; }
 .hpage .hw.z-L .htr-l { flex: 1 1 0; min-height: 0; align-items: stretch; } .z-L .htr-l .htr-3 { flex: none; width: 112px; grid-template-columns: 1fr; align-content: center; gap: 8px; } .z-L .htr-l .htr-3 > div { flex-direction: row; align-items: baseline; gap: 6px; } .z-L .htr-l .htr-3 b { font-size: 24px; min-width: 22px; text-align: right; } .z-L .htr-l .htr-3 span { font-size: 11px; }
 .trw-more, .trw-tail { display: none; height: 18px; line-height: 18px; font-size: 11px; font-weight: 700; color: var(--text-2, var(--p2)); padding-left: 11px; font-variant-numeric: tabular-nums; }
 .trw-more.on, .trw-tail.on { display: block; }
@@ -4957,11 +4957,7 @@ function mdMsg(d) {
     : d.state === "config" ? `${d.boards_bad} quadro${d.boards_bad === 1 ? "" : "s"} com configuração inválida (coluna ou quadro que não existe mais): revise no painel do PC (Ajustes › monday).`
     : d.state === "waiting" ? "Carregando os itens…" : "";
 }
-function mdCard(c, late) {
-  const sp = c.spent && (c.spent.total_s || c.spent.today_s) ? `<div class="trc-t">Tempo: hoje ${humanDur(c.spent.today_s)} · semana ${humanDur(c.spent.week_s)} · total ${humanDur(c.spent.total_s)}</div>` : "";
-  return `<div class="trc" data-id="${esc(c.id)}"${c.open ? ' role="button" tabindex="0"' : ""}><div class="trc-r"><span class="trc-n">${esc(c.name)}</span>${c.due ? `<span class="trc-d${late ? " late" : ""}">${esc(mdDue(c))}</span>` : ""}</div>
-    <div class="trc-m">${esc([c.board, c.group].filter(Boolean).join(" › "))}</div>${sp}</div>`;
-}
+const mdCard = (c, late) => trCard(c, late, "md");
 function mdDoneHtml(d) {
   const n = d.done; if (!n) return "";
   const rec = n.recent.slice(0, 3).map((r) => `<div class="htr-c"><span>${esc(r.name)}</span><small>${esc(r.label)}</small></div>`).join("");
@@ -4975,7 +4971,7 @@ function mdRender() {
   const msg = mdMsg(d), td = (d.todo && d.todo.items) || [], n = Object.values(d.counts).reduce((a, b) => a + b, 0) + td.length;
   setHtml(el, `<div class="tk-h">monday · em execução${d.hhmm && d.state === "ok" ? ` · atualizado às ${esc(d.hhmm)}` : ""}</div>${msg ? `<div class="trl-msg" role="status">${esc(msg)}</div>` : ""}`
     + TR_GROUPS.map(([k, name]) => (d.groups[k].length ? `<div class="trl-g${k === "overdue" ? " late" : ""}"><div class="trl-gh">${name} · ${d.groups[k].length}</div><div class="tk-grp">${d.groups[k].map((c) => mdCard(c, k === "overdue")).join("")}</div></div>` : "")).join("")
-    + (td.length ? `<div class="trl-g"><div class="trl-gh">A fazer · ${td.length}</div><div class="tk-grp">${td.map((c) => mdCard(c, false)).join("")}</div></div>` : "")
+    + (td.length ? `<div class="trl-g"><div class="trl-gh">A fazer · ${td.length}</div><div class="tk-grp">${td.map((c) => mdCard(c, !!c.due && c.due < d.today)).join("")}</div></div>` : "")
     + (!n && (d.state === "ok" || d.state === "config") ? '<div class="tk-empty">Nenhum item seu em execução ou a fazer.</div>' : "")
     + (d.state === "ok" || d.state === "net_error" || d.state === "config" ? mdDoneHtml(d) : ""));
 }
@@ -5485,30 +5481,27 @@ const HOME_W = {
   },
   monday: {
     name: "monday", icon: "layout-grid", sizes: "PALG", def: "A",
-    html(z) {
-      const head = '<div class="htr-h"><b data-k="n">–</b><span data-k="l"></span></div>', title = '<div class="hw-t"><span>monday</span><span data-k="cnt"></span></div>';
-      const done = '<div class="hsub1 htr-cnt" data-k="done"></div>';
-      if (z === "P") return '<div class="pq" data-clip><div class="hw-t"><span>monday</span><span data-k="cnt"></span></div><div class="hmain htr-hm"><b data-k="n">–</b><span data-k="l"></span></div><div class="hsub1 htr-cnt" data-k="done"></div><div class="htr-list pq-tr" data-k="list" data-clip></div></div>';
-      if (z === "L") return `<div class="htr-l">${head}<div class="htr-list" data-k="list"></div></div>`;
-      if (z === "G") return `${title}<div class="hcols"><div class="hcol">${head}<div class="hsub1 htr-cnt" data-k="grp"></div>${done}</div><div class="hcol"><div class="htr-list" data-k="list" data-fit></div></div></div>`;
-      return `${title}${head}<div class="hsub1 htr-cnt" data-k="grp"></div>${done}<div class="htr-list" data-k="list" data-fit></div>`;
+    html(z) {   // mesmo markup e CSS do Trello (só leitura); A fazer some quando não há nada marcado/lido
+      const head = '<div class="htr-3"><div data-k="ctf" data-c="todo"><b data-k="nf">–</b><span><i class="trd"></i>A fazer</span></div><div data-c="run"><b data-k="ne">–</b><span><i class="trd"></i>Em execução</span></div><div data-c="done"><b data-k="np">–</b><span><i class="trd"></i>Pronto hoje</span></div></div>', title = '<div class="hw-t"><span>monday</span><span data-k="cnt"></span></div>';
+      if (z === "P") return `<div class="pq" data-clip><div class="hw-t"><span>monday</span><span data-k="cnt"></span></div>${head}<div class="trw pq-tr" data-k="list" data-trw></div><div class="hsub1 htr-cnt" data-k="grp"></div></div>`;
+      if (z === "L") return `<div class="htr-l">${head}<div class="trw" data-k="list" data-trw></div></div>`;
+      if (z === "G") return `${title}<div class="hcols"><div class="hcol">${head}<div class="hsub1 htr-cnt" data-k="grp"></div></div><div class="hcol"><div class="trw" data-k="list" data-trw></div></div></div>`;
+      return `${title}${head}<div class="hsub1 htr-cnt" data-k="grp"></div><div class="trw" data-k="list" data-trw></div>`;
     },
     ready: () => !!mdData,
     upd(el) {
-      const d = mdData, z = el.dataset.z, c = d.counts, late = c.overdue, today = c.today;
+      const d = mdData, td = (d.todo && d.todo.items) || [], ne = trSum(d), np = d.done ? d.done.today : 0;
       const off = !d.on ? "Desligado" : d.state === "bad_cred" ? "Token inválido" : d.state === "waiting" ? "Carregando…" : "";
-      setText(hk(el, "n"), off ? "–" : String(late || today));
-      setText(hk(el, "l"), off || (late ? (late === 1 ? "atrasado" : "atrasados") + (today ? ` · ${today} hoje` : "") : today ? "para hoje" : "em dia"));
+      const late = d.counts.overdue + td.filter((x) => x.due && x.due < d.today).length;
+      el.classList.toggle("htr-nof", !td.length);
+      setText(hk(el, "nf"), off ? "–" : String(td.length));
+      setText(hk(el, "ne"), off ? "–" : String(ne));
+      setText(hk(el, "np"), off ? "–" : String(np));
       el.classList.toggle("htr-late", !!late && !off);
-      setText(hk(el, "cnt"), off ? "" : `${late + today} em foco`);
-      const td = (d.todo && d.todo.items) || [];
-      const next = ["overdue", "today", "tomorrow", "week", "later", "none"].flatMap((k) => d.groups[k].map((x) => ({ ...x, late: k === "overdue" }))).concat(td.map((x) => ({ ...x, late: false, todo: true })));
-      const grp = off ? "" : [...[["overdue", "Atrasados"], ["today", "Hoje"], ["tomorrow", "Amanhã"], ["week", "Semana"]].map(([k, l]) => [l, d.groups[k].length]), ["A fazer", td.length]].filter(([, n]) => n).map(([l, n]) => `${l} ${n}`).join(" · ");
-      setText(hk(el, "grp"), grp);
-      setText(hk(el, "done"), off || !d.done ? "" : `Aprovar: hoje ${d.done.today} · semana ${d.done.week} · mês ${d.done.month}`);
-      const pg = !!el.closest(".pager"), n = z === "L" ? 2 : pg ? 8 : 3;
-      setHtml(hk(el, "list"), off ? "" : next.slice(0, n).map((x) => `<div class="htr-c"><span>${esc(x.name)}</span><small class="${x.late ? "late" : ""}">${esc(mdDue(x) || (x.todo ? "A fazer" : ""))}</small></div>`).join("")
-        || '<div class="hw-na">Nenhum item em execução ou a fazer.</div>');
+      setText(hk(el, "cnt"), off || !late ? "" : `${late} ${late === 1 ? "atrasado" : "atrasados"}`);
+      setText(hk(el, "grp"), off ? off : d.done && d.done.week ? `Pronto: semana ${d.done.week} · mês ${d.done.month}` : "");
+      const pg = !!el.closest(".pager");
+      setHtml(hk(el, "list"), off ? "" : trwHtml(d, pg ? 99 : 3, "md") || `<div class="hw-na">${esc(d.state === "ok" ? "Nenhum item seu em execução ou a fazer." : "Nenhum item.")}</div>`);
     },
   },
   pcquick: {
@@ -6720,7 +6713,7 @@ $("home").addEventListener("click", (e) => {
   if (e.target.closest('.hw[data-w="reminders"]')) { buzz(8); showView("reminders"); }
   if (e.target.closest('.hw[data-w="now"]')) { buzz(8); showView("media"); }   // fora dos botões: abre o Rádio
   if (e.target.closest('.hw[data-w="dota"]')) { buzz(8); showView("dota"); }
-  if (e.target.closest('.hw[data-w="trello"]')) { buzz(8); pm.mode = "list"; store.set("tkmode", "list"); pomoShowMode(); showView("tasks"); }
+  if (e.target.closest('.hw[data-w="trello"], .hw[data-w="monday"]')) { buzz(8); pm.mode = "list"; store.set("tkmode", "list"); pomoShowMode(); showView("tasks"); }
   if (e.target.closest('.hw[data-w="weather"]')) { if (e.target.closest("[data-wx]") || !wxData()) return wxGoSettings(); buzz(8); showView("weather"); }
 });
 $("home").addEventListener("keydown", (e) => { const t = e.target.closest(".trow[data-id]"); if (t && (e.key === " " || e.key === "Enter")) { e.preventDefault(); homeTaskToggle(t.dataset.id); } });
