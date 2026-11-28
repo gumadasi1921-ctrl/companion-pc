@@ -1306,6 +1306,8 @@ html.lm-still .cw-row .lm * { animation: none !important; }
 #t-mouse .key, #t-mouse .mbtn { min-height: 44px; height: 44px; }
 .btn { min-height: 44px; }
 .banner { text-align: center; }
+.banner .bn-b { margin-left: 12px; min-height: 44px; min-width: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid currentColor; background: transparent; color: inherit; font: inherit; font-weight: 700; cursor: pointer; }
+.banner .bn-t { padding: 6px 0; }
 :root[data-theme="modern"] .banner { background: var(--surface-2); color: var(--text-2); border-bottom: 1px solid var(--separator); font-weight: 600; min-height: 32px; display: flex; align-items: center; justify-content: center; }
 /* Rádio */
 .media { max-width: 560px; }
@@ -3789,10 +3791,11 @@ function toastNotif(rec) {   // o toast que acabou de aparecer é de uma notific
   const t = $("toast"); if (!rec || t.classList.contains("hidden")) return;
   t._n = rec; t.classList.add("tap"); t.setAttribute("role", "button"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.add("hidden"), 4500);
 }
+$("banner").addEventListener("click", (e) => { if (e.target.closest("#bn-now")) { RCON.stop(); RCON.retryNow(); } });
 $("toast").addEventListener("click", () => { const t = $("toast"), r = t._n; if (r) { t.classList.add("hidden"); nsOpen(r); } });
 
 // ---------------------------------------------------------------- conexão
-let ws = null, welcome = {}, nextId = 1, retry = 0, retryT = null, wasOnline = false;
+let ws = null, welcome = {}, nextId = 1, wasOnline = false;
 const pending = new Map();
 // build da PRÓPRIA página (meta injetada pelo servidor); 0 = aberta fora do servidor, nunca recarrega
 let pageBuild = 0;
@@ -3803,33 +3806,92 @@ const state = { stats: null, now: null, games: null, art: {}, gameart: {}, nowT:
 function wsUrl() { return PCL.wsUrl(); }
 const viaName = () => (PCL.isOrigin() ? (["localhost", "127.0.0.1"].includes(location.hostname) ? "cabo USB" : "Wi-Fi") : /\.ts\.net(:\d+)?$/.test(PCL.base()) ? "Tailscale" : "Rede");
 
-function connect(pairCode) {
-  clearTimeout(retryT);
-  const token = PCL.token();
-  if (!token && !pairCode) { showLogin(); return; }
-  if (location.protocol === "https:" && PCL.base().startsWith("http:")) {   // o navegador bloqueia ws:// a partir de uma página https://
-    setDot("", "Endereço bloqueado"); showLogin("Este app abriu por https e o PC usa http. Use o endereço https do PC (Tailscale)."); return;
+/* RC:begin */
+// Máquina de reconexão (pura: sem DOM, testada em tests/test_reconnect.js). Tenta para sempre; só erro de login (4001–4004) para.
+const RC_DELAYS = [1000, 2000, 4000, 8000, 10000];
+const rcDelay = (n) => RC_DELAYS[Math.max(0, Math.min(n, RC_DELAYS.length - 1))];
+function makeRc(d) {
+  let sock = null, retryT = null, fails = 0, lastMsg = 0, startedAt = 0, ok = false;
+  const setSock = (s) => { sock = s; d.onSock(s); };
+  const down = () => { ok = false; d.onStatus("down", { fails }); };
+  function drop() {
+    const s = sock; if (!s) return;
+    setSock(null);
+    try { s.onopen = s.onmessage = s.onclose = s.onerror = null; s.close(); } catch (e) {}
   }
-  setDot("wait", "Conectando…");
-  const sock = ws = new WebSocket(wsUrl());
-  sock.onopen = () => sock.send(JSON.stringify({ t: pairCode ? "pair" : "hello", ...(pairCode ? { code: pairCode } : { token }), client: "android",
-    screen: `${innerWidth}x${innerHeight} dpr${devicePixelRatio} ${matchMedia("(orientation: landscape)").matches ? "deitado" : "em pé"} cq=${CSS.supports("container-type: size")} ${(navigator.userAgent.match(/Chrome\/[\d.]+/) || [navigator.userAgent.slice(0, 40)])[0]}` }));
-  sock.onmessage = (ev) => { if (sock === ws) onMsg(JSON.parse(ev.data)); };
-  sock.onclose = (ev) => {
-    if (sock !== ws) return;
-    ws = null;
-    for (const [, p] of pending) p.reject(new Error("desconectado")); pending.clear();
-    if (ev.code === 4002) { showLogin("Código errado ou vencido. Gere outro no painel do PC."); return; }
-    if (ev.code === 4003) { showLogin("Muitas tentativas. Espere 1 minuto."); return; }
-    if (ev.code === 4004) { setDot("", "Origem não permitida"); showLogin("Este PC não aceita este app. No painel do PC, em Ajustes, permita o endereço do app."); return; }
-    if (ev.code === 4001) { PCL.setToken(""); setDot("", "Token inválido"); showLogin("Token inválido. Confira o config.json do PC."); return; }
-    setDot("", "Desconectado");
-    if (wasOnline) { wasOnline = false; snd("off"); }
-    retry = Math.min(retry + 1, 6);
-    retryT = setTimeout(connect, [500, 1000, 2000, 3000, 5000, 5000, 8000][retry]);
+  function schedule() { clearTimeout0(); retryT = d.setT(() => { retryT = null; api.connect(d.pairCode()); }, rcDelay(fails - 1)); }
+  function clearTimeout0() { if (retryT != null) { d.clearT(retryT); retryT = null; } }
+  function fail() { drop(); fails++; down(); schedule(); }
+  const api = {
+    get sock() { return sock; }, get fails() { return fails; }, get ok() { return ok; },
+    connect(pairCode) {
+      clearTimeout0(); drop(); ok = false;
+      d.onStatus("wait", { fails });
+      const s = d.create(); startedAt = lastMsg = d.now(); setSock(s);
+      s.onopen = () => { if (s === sock) d.onOpen(s, pairCode); };
+      s.onmessage = (ev) => { if (s === sock) { lastMsg = d.now(); d.onMessage(ev); } };
+      s.onclose = (ev) => {
+        if (s !== sock) return;
+        setSock(null);
+        if (ev.code >= 4001 && ev.code <= 4004) { ok = false; d.onFatal(ev.code); return; }
+        fails++; down(); schedule();
+      };
+      s.onerror = () => {};
+    },
+    welcome() { ok = true; fails = 0; lastMsg = d.now(); },
+    stop() { clearTimeout0(); drop(); ok = false; },
+    retryNow() { clearTimeout0(); drop(); fails = 0; api.connect(d.pairCode()); },
+    // voltou ao app / a rede voltou: o que estava "aberto" pode ser um socket morto que o iOS nunca fechou
+    resume(why) {
+      if (!sock) { if (retryT != null || why !== "fatal") api.retryNow(); return; }
+      if (why === "online" || !ok || d.now() - lastMsg > 5000) api.retryNow();
+    },
+    tick() {   // a cada ~2 s
+      if (!sock) return;
+      const t = d.now();
+      if (sock.readyState === 0 ? t - startedAt > 6000 : !ok ? t - startedAt > 10000 : t - lastMsg > 15000) fail();
+    },
   };
-  sock.onerror = () => {};
+  return api;
 }
+/* RC:end */
+let pendingPair = null;
+const RCON = makeRc({
+  create: () => new WebSocket(wsUrl()),
+  now: () => Date.now(), setT: (f, ms) => setTimeout(f, ms), clearT: (h) => clearTimeout(h),
+  pairCode: () => null,
+  onSock: (s) => { ws = s; if (!s) { for (const [, p] of pending) p.reject(new Error("desconectado")); pending.clear(); } },
+  onOpen: (sock, pairCode) => sock.send(JSON.stringify({ t: pairCode ? "pair" : "hello", ...(pairCode ? { code: pairCode } : { token: PCL.token() }), client: "android",
+    screen: `${innerWidth}x${innerHeight} dpr${devicePixelRatio} ${matchMedia("(orientation: landscape)").matches ? "deitado" : "em pé"} cq=${CSS.supports("container-type: size")} ${(navigator.userAgent.match(/Chrome\/[\d.]+/) || [navigator.userAgent.slice(0, 40)])[0]}` })),
+  onMessage: (ev) => onMsg(JSON.parse(ev.data)),
+  onStatus: (k) => {
+    if (k === "wait") { setDot("wait", RCON && RCON.fails ? "Reconectando…" : "Conectando…"); return; }
+    setDot("", "Reconectando…");
+    if (wasOnline) { wasOnline = false; snd("off"); }
+  },
+  onFatal: (code) => {
+    if (code === 4002) showLogin("Código errado ou vencido. Gere outro no painel do PC.");
+    else if (code === 4003) showLogin("Muitas tentativas. Espere 1 minuto.");
+    else if (code === 4004) { setDot("", "Origem não permitida"); showLogin("Este PC não aceita este app. No painel do PC, em Ajustes, permita o endereço do app."); }
+    else { PCL.setToken(""); setDot("", "Token inválido"); showLogin("Token inválido. Confira o config.json do PC."); }
+  },
+});
+
+function connect(pairCode) {
+  const token = PCL.token();
+  if (!token && !pairCode) { RCON.stop(); showLogin(); return; }
+  if (location.protocol === "https:" && PCL.base().startsWith("http:")) {   // o navegador bloqueia ws:// a partir de uma página https://
+    RCON.stop(); setDot("", "Endereço bloqueado"); showLogin("Este app abriu por https e o PC usa http. Use o endereço https do PC (Tailscale)."); return;
+  }
+  RCON.connect(pairCode);
+}
+// gatilhos de volta ao app / rede; o vigia olha socket preso ou calado a cada 2 s
+function rcResume(why) { if (window.PCC_PANEL || !$("login").classList.contains("hidden")) return; if (!PCL.token()) return; RCON.resume(why); }
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") rcResume("visible"); });
+addEventListener("pageshow", () => rcResume("pageshow"));
+addEventListener("focus", () => rcResume("focus"));
+addEventListener("online", () => rcResume("online"));
+setInterval(() => { if (!window.PCC_PANEL && document.visibilityState !== "hidden") RCON.tick(); }, 2000);
 
 function send(a, p = {}, reply = true) {
   if (!ws || ws.readyState !== 1) { if (reply) toast("Sem conexão com o PC", "bad"); return Promise.reject(new Error("offline")); }
@@ -3879,19 +3941,19 @@ function onMsg(m) {
         if (Date.now() - last > 30000) { try { sessionStorage.setItem("pcc.reloadAt", String(Date.now())); } catch {} location.reload(); return; }
       }
       if (!own && (m.proto || 0) < PCL.MIN_PROTO) {
-        const s = ws; ws = null; s && s.close(); setDot("", "PC com versão antiga");
+        RCON.stop(); setDot("", "PC com versão antiga");
         showLogin("O Companion deste PC está desatualizado. Reinstale-o nele (install-server.ps1)."); return;
       }
       if (m.pc_id) {   // nunca misturar PCs: o endereço tem de continuar sendo o mesmo PC
         const a = PCL.active();
         if (a.pcid && a.pcid !== m.pc_id) {
-          const s = ws; ws = null; s && s.close(); setDot("", "Outro PC neste endereço");
+          RCON.stop(); setDot("", "Outro PC neste endereço");
           showLogin(`O endereço de "${a.name}" agora responde por outro PC. Nada foi mostrado. Remova e adicione o PC de novo.`); return;
         }
         PCL.update(a.id, { pcid: m.pc_id, ...(m.pc_name && (a.name === "Este PC" || a.name === "PC") ? { name: m.pc_name } : {}) });
         if (typeof pcPaint === "function") pcPaint();
       }
-      welcome = m; retry = 0;
+      welcome = m; RCON.welcome();
       if (typeof homeUpd === "function") homeUpd();   // PC novo: o que ele não tem fica "indisponível neste PC" no próprio lugar
       $("host").textContent = m.host; $("os").textContent = m.os;
       setDot("ok", "");
@@ -3949,13 +4011,15 @@ function onMsg(m) {
 function setDot(cls, text) {
   $("dot").className = $("dot2").className = "dot " + cls;
   $("via").textContent = text || viaName();
-  $("banner").classList.toggle("hidden", cls === "ok" || !welcome.host);
-  $("banner").textContent = "Reconectando…"; $("banner").setAttribute("role", "status");
+  const b = $("banner"), wait = cls === "wait";
+  b.classList.toggle("hidden", cls === "ok" || !$("login").classList.contains("hidden"));
+  b.setAttribute("role", "status");
+  b.innerHTML = `<span class="bn-t">${esc(wait ? (welcome.host && RCON.fails ? "Reconectando…" : "Conectando ao PC…") : (text || "Desconectado"))}</span><button type="button" class="bn-b" id="bn-now">Tentar agora</button>`;
   micFabPaint();
 }
 
 function showLogin(msg) {
-  bootDone(true);
+  bootDone(true); $("banner").classList.add("hidden");
   $("login").classList.remove("hidden");
   if (msg) $("login-msg").textContent = msg;
   $("token").value = ""; $("code").value = "";
@@ -8820,7 +8884,7 @@ $("sens").oninput = () => { prefs.sens = +$("sens").value; store.set("sens", pre
 document.addEventListener("pointerdown", () => applyWake(), { once: true });   // o vídeo só toca depois de um toque
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") { applyWake(); if (window.PCC_PANEL) return; if (!ws) { retry = 0; connect(); } else if (vis("screen")) screenLoop(); }
+  if (document.visibilityState === "visible") { applyWake(); if (window.PCC_PANEL) return; if (ws && vis("screen")) screenLoop(); }
 });
 
 // ---------------------------------------------------------------- loop de tela
