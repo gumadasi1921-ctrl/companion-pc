@@ -2056,12 +2056,41 @@ header .host { display: none; }
 #rem-alarm { position: fixed; left: 50%; top: calc(8px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 47; width: min(560px, calc(100vw - 16px)); box-sizing: border-box; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 14px; background: var(--panel); border: 2px solid var(--alert, #f87168); box-shadow: 0 6px 24px rgba(0,0,0,.35); }
 #rem-alarm.hidden { display: none; } #rem-alarm .ra-t { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; } #rem-alarm .ra-t em { color: var(--p3t); font-style: normal; }
 #rem-alarm .ra-b { display: flex; gap: 8px; flex: none; } #rem-alarm button { min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--p3); background: var(--bg); color: var(--p); font: inherit; cursor: pointer; } #rem-alarm button[data-ra=done] { background: var(--accent-fill, var(--p)); color: var(--on-accent, var(--bg)); border-color: transparent; }
-.bt-list { display: flex; flex-direction: column; gap: 6px; min-height: 0; } .bt-l { flex-direction: row; gap: 14px; align-items: center; }
-.bt-r { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: baseline; font-size: 14px; min-width: 0; } .bt-l .bt-r { flex: 1 1 0; }
-.bt-n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .bt-r b { font-weight: 600; font-variant-numeric: tabular-nums; }
-.bt-b { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: color-mix(in srgb, currentColor 14%, transparent); overflow: hidden; } .bt-b u { display: block; height: 100%; background: var(--ok); border-radius: 3px; }
-.bt-i { width: 14px; height: 14px; vertical-align: -2px; margin-right: 6px; } .bt-c { color: var(--ok); font-size: 12px; }
-.bt-r.lo b { color: var(--alert, #f87168); } .bt-r.lo .bt-b u { background: var(--alert, #f87168); }
+/* Bateria (widget, estilo Baterias do iOS): anéis com ícone, % embaixo; Fallout = linhas de terminal. Cores por estado só no anel/barra/ponto. */
+.t-ok { --bc: var(--success, var(--ok)); } .t-mid { --bc: var(--warning, var(--warn)); } .t-lo { --bc: var(--alert, #f87168); }
+.bt-ring { position: relative; display: inline-grid; place-items: center; width: 52px; height: 52px; flex: none; color: var(--p); }
+.bt-ring > svg:first-child { position: absolute; inset: 0; width: 100%; height: 100%; }
+.bt-t { fill: none; stroke: var(--surface-3, var(--p4)); stroke-width: 9; } .bt-f { fill: none; stroke: var(--bc); stroke-width: 9; stroke-linecap: round; }
+.bt-ic { position: relative; width: 46%; height: 46%; }
+.bt-z { position: absolute; right: -3px; bottom: -3px; width: 40%; height: 40%; padding: 2px; border-radius: 50%; background: var(--surface, var(--bg)); color: var(--bc); fill: currentColor; }
+.bt-ring.empty { width: 48px; height: 48px; border: 2px dashed var(--p3t, var(--p)); border-radius: 50%; color: var(--p3t, var(--p)); }
+.bt-empty { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; padding: 4px; }
+.bt-et { font-size: 13px; line-height: 1.25; color: var(--p3t, var(--p)); max-width: 22ch; }
+.bt-hero { flex: 1 1 0; min-height: 48px; display: grid; place-items: center; container-type: size; overflow: hidden; }
+.bt-hero .bt-ring { width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); }
+.bt-pct { font: 700 26px/1 var(--font, var(--mono)); text-align: center; font-variant-numeric: tabular-nums; color: var(--p); } .bt-pct small { font-size: 14px; font-weight: 600; color: var(--p3t, var(--p)); }
+.bt-nm { font-size: 12px; line-height: 1.2; color: var(--p3t, var(--p)); text-align: center; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bt-dots { display: flex; justify-content: center; gap: 10px; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--p3t, var(--p)); } .bt-dot i { display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 50%; background: var(--bc); }
+.bt-a { justify-content: space-evenly; } .bt-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.bt-tx { display: flex; flex-direction: column; min-width: 0; gap: 1px; } .bt-tx b { font: 700 22px/1.05 var(--font, var(--mono)); font-variant-numeric: tabular-nums; color: var(--p); } .bt-tx .bt-nm { text-align: left; }
+.bt-st { font-size: 12px; line-height: 1.2; color: var(--p3t, var(--p)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .t-lo .bt-st { color: var(--alert, #f87168); }
+.bt-l { flex: 1 1 0; min-height: 0; display: flex; align-items: stretch; gap: 8px; min-width: 0; }
+.bt-cell { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.bt-cr { flex: 1 1 0; min-height: 40px; width: 100%; display: grid; place-items: center; container-type: size; overflow: hidden; } .bt-cr .bt-ring { width: min(100cqw, 100cqh, 96px); height: min(100cqw, 100cqh, 96px); }
+.bt-cell > b { font: 700 18px/1 var(--font, var(--mono)); font-variant-numeric: tabular-nums; color: var(--p); }
+.bt-g { gap: 8px; } .hpage .hw .bt-g > .bt-gr { flex: 1 1 0; min-height: 0; max-height: 76px; } .hpage .hw .bt-g { justify-content: space-evenly; } .bt-g .bt-gr .bt-ring { width: 44px; height: 44px; } .bt-gr { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; min-width: 0; } .bt-gr .bt-ring { width: 40px; height: 40px; }
+.bt-gm { display: flex; flex-direction: column; gap: 6px; min-width: 0; } .bt-gm .bt-nm { text-align: left; font-size: 14px; color: var(--p); }
+.bt-bar { display: block; height: 6px; border-radius: 3px; background: var(--surface-3, var(--p4)); overflow: hidden; } .bt-bar u { display: block; height: 100%; background: var(--bc); border-radius: 3px; }
+.bt-gp { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; } .bt-gp b { font: 700 16px/1.1 var(--font, var(--mono)); font-variant-numeric: tabular-nums; color: var(--p); }
+.bt-ft { display: none; flex-direction: column; gap: 4px; min-width: 0; font-family: var(--mono, monospace); font-size: 13px; }
+.bt-tl { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; white-space: nowrap; color: var(--p); } .bt-tn { overflow: hidden; text-overflow: ellipsis; } .bt-tb { color: var(--bc); letter-spacing: -1px; } .bt-tp { text-align: right; min-width: 4ch; }
+.bt-ts { font-size: 11px; color: var(--p3t, var(--p)); } .bt-tl.t-lo .bt-tp, .bt-tl.t-lo .bt-ts { color: var(--alert, #f87168); }
+:root[data-theme="fallout"] .bt-ft { display: flex; } :root[data-theme="fallout"] .bt-vis { display: none !important; }
+@keyframes btPulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+.bt-ring.chg .bt-f, .bt-ring.chg .bt-z { animation: btPulse 2.4s ease-in-out infinite; }
+:root[data-fx="liquid"] .bt-f { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--bc) 55%, transparent)); transition: stroke-dashoffset 1.2s cubic-bezier(.22, 1, .36, 1); }
+@media (prefers-reduced-motion: reduce) { .bt-ring.chg .bt-f, .bt-ring.chg .bt-z { animation: none; } :root[data-fx="liquid"] .bt-f { transition: none; } }
+html.lm-still .bt-ring.chg .bt-f, html.lm-still .bt-ring.chg .bt-z { animation: none !important; } html.lm-still .bt-f { transition: none !important; }
 .rw { display: flex; gap: 8px; align-items: baseline; min-height: 28px; font-size: 14px; } .rw b { flex: none; font-weight: 500; color: var(--p2); font-size: 13px; } .rw span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .rw.hi b { color: var(--alert, #f87168); }
 
 /* Widget Foco: Iniciar/Pausar + Pular (alvos de 44 px) */
@@ -6489,11 +6518,52 @@ Object.assign(HOME_W, {
   },
 });
 
-// ---------------------------------------------------------------- Bateria (fone/mouse Bluetooth: só o que o Windows informa; sem dado = mensagem, nunca número inventado)
+// ---------------------------------------------------------------- Bateria (fone/mouse: só o que o Windows/receptor informa; sem dado = não aparece, nunca número inventado)
 const bat = { d: null };
 function batSet(d) { if (!d || !Array.isArray(d.items)) return; bat.d = d; homeUpd("battery"); }
-const BT_MOUSE = '<svg class="bt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="6"/><path d="M12 7v4"/></svg>';   // mouse com receptor: ícone + "carregando" (só o que o servidor leu)
-const batRow = (i, lo) => `<div class="bt-r${i.pct < lo && !i.charging ? " lo" : ""}"><span class="bt-n">${i.kind === "mouse" ? BT_MOUSE : ""}${esc(i.name)}${i.charging ? ' <small class="bt-c">carregando</small>' : ""}</span><b>${i.pct}%</b><i class="bt-b" aria-hidden="true"><u style="width:${i.pct}%"></u></i></div>`;
+/* BTW:begin */
+// Widget Bateria: nome curto, cor por %, ícone e texto por aparelho. Puro, sem DOM (testado em tests/test_battery_widget.js). Só o que o servidor mandou.
+const BTW = {
+  LOW: 15, MID: 30,
+  tone(pct, charging) { return charging ? "ok" : pct < 15 ? "lo" : pct < 30 ? "mid" : "ok"; },
+  short(name, kind) {
+    if (kind === "mouse") return "Mouse";
+    const n = String(name || "").replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+    if (!n) return "Aparelho";
+    const w = n.split(" ").slice(0, 2).join(" "), v = w.length > 12 ? n.split(" ")[0] : w;
+    return v.length > 12 ? v.slice(0, 11) + "…" : v;
+  },
+  icon(i) {
+    const n = String((i && i.name) || "");
+    if ((i && i.kind === "mouse") || /\bmouse\b|\bmx\b/i.test(n)) return "mouse";
+    return /teclado|keyboard|\bkeys?\b/i.test(n) ? "battery" : "headphones";
+  },
+  state(i) { return i.charging ? "Carregando" : i.pct < 15 ? "Bateria baixa" : ""; },
+  clean(items) {
+    return (Array.isArray(items) ? items : []).filter((i) => i && Number.isInteger(i.pct) && i.pct >= 0 && i.pct <= 100)
+      .sort((a, b) => a.pct - b.pct || String(a.name).localeCompare(String(b.name)));
+  },
+  bar(pct) { const n = Math.round(pct / 10); return "█".repeat(n) + "░".repeat(10 - n); },
+};
+/* BTW:end */
+const btRing = (i) => {
+  const r = 42, C = 2 * Math.PI * r, t = BTW.tone(i.pct, i.charging);
+  return `<span class="bt-ring t-${t}${i.charging ? " chg" : ""}" role="img" aria-label="${esc(BTW.short(i.name, i.kind))}: ${i.pct}%${i.charging ? ", carregando" : ""}"><svg viewBox="0 0 100 100" aria-hidden="true"><circle class="bt-t" cx="50" cy="50" r="${r}"/><circle class="bt-f" cx="50" cy="50" r="${r}" style="stroke-dasharray:${C.toFixed(1)};stroke-dashoffset:${(C * (1 - i.pct / 100)).toFixed(1)}" transform="rotate(-90 50 50)"/></svg>${ic(BTW.icon(i), "bt-ic")}${i.charging ? ic("zap", "bt-z") : ""}</span>`;
+};
+const btTerm = (items, n) => `<div class="bt-ft">${items.slice(0, n).map((i) => { const st = BTW.state(i);
+  return `<div class="bt-tl t-${BTW.tone(i.pct, i.charging)}"><span class="bt-tn">${esc(BTW.short(i.name, i.kind).toUpperCase())}${st ? ` <small class="bt-ts">${st.toUpperCase()}</small>` : ""}</span><span class="bt-tb">${BTW.bar(i.pct)}</span><span class="bt-tp">${i.pct}%</span></div>`; }).join("")}</div>`;
+function btHtml(z, items, many) {
+  if (!items.length) return `<div class="bt-empty"><span class="bt-ring empty">${ic("headphones", "bt-ic")}</span><span class="bt-et">Sem fones ou mouses com bateria agora</span></div>`;
+  const nm = (i) => esc(BTW.short(i.name, i.kind)), st = (i) => { const s = BTW.state(i); return s ? `<small class="bt-st">${s}</small>` : ""; };
+  if (z === "P") {
+    const m = items[0], rest = items.slice(1, 4);
+    return `<div class="bt-hero bt-vis">${btRing(m)}</div><div class="bt-pct bt-vis">${m.pct}<small>%</small></div><div class="bt-nm bt-vis">${nm(m)}</div>`
+      + (rest.length ? `<div class="bt-dots bt-vis">${rest.map((i) => `<span class="bt-dot t-${BTW.tone(i.pct, i.charging)}"><i></i>${i.pct}%</span>`).join("")}</div>` : "") + btTerm(items, 3);
+  }
+  if (z === "A") return items.slice(0, 3).map((i) => `<div class="bt-row bt-vis">${btRing(i)}<div class="bt-tx t-${BTW.tone(i.pct, i.charging)}"><b>${i.pct}%</b><span class="bt-nm">${nm(i)}</span>${st(i)}</div></div>`).join("") + btTerm(items, 3);
+  if (z === "L") return items.slice(0, 4).map((i) => `<div class="bt-cell bt-vis"><div class="bt-cr">${btRing(i)}</div><b>${i.pct}%</b><span class="bt-nm">${nm(i)}</span></div>`).join("") + btTerm(items, 4);
+  return items.slice(0, many ? 8 : 5).map((i) => `<div class="bt-gr bt-vis t-${BTW.tone(i.pct, i.charging)}">${btRing(i)}<div class="bt-gm"><span class="bt-nm">${nm(i)}</span><i class="bt-bar"><u style="width:${i.pct}%"></u></i></div><div class="bt-gp"><b>${i.pct}%</b>${st(i)}</div></div>`).join("") + btTerm(items, many ? 8 : 5);
+}
 function batNotice(m) {
   homeNotifPush({ app: m.title, title: m.body, body: "", go: "" });
   snd("note"); buzz(30);
@@ -6502,17 +6572,10 @@ function batNotice(m) {
 }
 Object.assign(HOME_W, {
   battery: {
-    name: "Bateria", icon: "battery", sizes: "PAL", def: "A",
-    html(z) {
-      if (z === "P") return '<div class="pq" data-clip><div class="hw-t"><span>Bateria</span></div><div class="bt-list pq-list" data-k="list" data-clip></div></div>';
-      if (z === "L") return '<div class="htk-l"><div class="bt-list bt-l" data-k="list"></div></div>';
-      return '<div class="hw-t"><span>Bateria</span></div><div class="bt-list" data-k="list" data-fit></div>';
-    },
+    name: "Bateria", icon: "battery", sizes: "PALG", def: "A",
+    html(z) { return z === "L" ? '<div class="bt-l" data-k="list"></div>' : `<div class="pq bt-${z.toLowerCase()}${z === "G" ? " bt-g" : ""}" data-clip data-k="list"></div>`; },
     ready: () => !!bat.d,
-    upd(el) {
-      const z = el.dataset.z, d = bat.d, lo = d.low_pct || 15, n = el.closest(".pager") && z !== "L" ? 8 : { P: 2, A: 4, L: 3 }[z];
-      setHtml(hk(el, "list"), !d.items.length ? '<div class="hw-na">Nenhum fone ou mouse com bateria informada.</div>' : d.items.slice(0, n).map((i) => batRow(i, lo)).join(""));
-    },
+    upd(el) { setHtml(hk(el, "list"), btHtml(el.dataset.z, BTW.clean(bat.d.items), !!el.closest(".pager"))); },
   },
 });
 
