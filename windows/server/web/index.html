@@ -3,6 +3,69 @@
 <head>
 <meta charset="utf-8">
 <script>try { new Function("var f=(a)=>a; class X{}; let y={}; y?.z;"); } catch(e) { location.replace("legacy.html" + location.hash); }</script>
+<script>
+/* BOOTERR:begin */
+// Erro de boot (antes do app terminar de iniciar): faixa discreta com mensagem curta + versão, Copiar e Recarregar. ES5 de propósito (tem de rodar mesmo se o resto da página nem executar).
+// Sem token, sem endereço e sem caminho no texto. Depois do boot concluído (window.__bootEnd, ou 30 s) só vai para o console. Testes: node tests/test_booterr.js
+(function () {
+  var done = false, count = 0, box = null, span = null, text = "", first = "";
+  function build() { try { var m = document.querySelector('meta[name="build"]'); return m && m.content ? String(m.content).replace(/[^0-9]/g, "").slice(0, 12) : ""; } catch (e) { return ""; } }
+  function ios() { try { var m = String(navigator.userAgent || "").match(/OS (\d+[_.]\d+)/); return m ? "iOS " + m[1].replace("_", ".") : ""; } catch (e) { return ""; } }
+  function clean(v) {
+    v = String(v == null ? "" : v);
+    v = v.replace(/[a-z][a-z0-9+.\-]*:\/\/\S+/gi, "…").replace(/[A-Za-z]:\\\S*/g, "…").replace(/\b(token|code|k|t)=\S+/gi, "$1=…").replace(/[A-Za-z0-9_\-]{24,}/g, "…").replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
+    return v.length > 140 ? v.slice(0, 139) + "…" : v;
+  }
+  function btn(label, fn) {
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = label;
+    b.style.cssText = "min-height:44px;min-width:44px;padding:0 14px;border-radius:10px;border:1px solid #ffb4ab;background:transparent;color:#ffd9d6;font:inherit;cursor:pointer";
+    b.addEventListener("click", fn);
+    return b;
+  }
+  function copy() {
+    var done_ = function () { try { copyBtn.textContent = "Copiado"; } catch (e) {} };
+    try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(done_, fallback); return; } } catch (e) {}
+    fallback();
+    function fallback() {
+      try { var t = document.createElement("textarea"); t.value = text; t.style.cssText = "position:fixed;opacity:0;top:0"; document.body.appendChild(t); t.select(); document.execCommand("copy"); document.body.removeChild(t); done_(); } catch (e) {}
+    }
+  }
+  var copyBtn = null;
+  function show(msg) {
+    var b = build(), more = count > 1 ? " (+" + (count - 1) + ")" : "";
+    if (count === 1) {
+      first = msg;
+      box = document.createElement("div"); box.id = "boot-err"; box.setAttribute("role", "alert");
+      box.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:2147483000;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px;background:#3a1214;color:#ffd9d6;border-bottom:1px solid #d70015;font:13px/1.3 -apple-system,system-ui,sans-serif";
+      span = document.createElement("span"); span.style.cssText = "flex:1 1 200px;min-width:0;word-break:break-word";
+      copyBtn = btn("Copiar", copy);
+      box.appendChild(span); box.appendChild(copyBtn); box.appendChild(btn("Recarregar", function () { location.reload(); }));
+      (document.body || document.documentElement).appendChild(box);
+    }
+    text = "Companion" + (b ? " build " + b : "") + (ios() ? " · " + ios() : "") + " · erro ao iniciar" + more + ": " + first;
+    span.textContent = "Erro ao iniciar" + more + " · " + (b ? "build " + b + " · " : "") + first;
+  }
+  function report(msg) {
+    msg = clean(msg);
+    if (!msg || /ResizeObserver loop/i.test(msg)) return;
+    if (done) { try { console.warn("[Companion] erro depois do boot: " + msg); } catch (e) {} return; }
+    count++;
+    try { show(msg); } catch (e) {}
+  }
+  window.addEventListener("error", function (e) {
+    if (!e || (e.target && e.target !== window && e.target.nodeType === 1)) return;   // falha de carregar imagem/script não é erro de execução
+    report((e.message || "erro") + (e.lineno ? " (linha " + e.lineno + ":" + (e.colno || 0) + ")" : ""));
+  });
+  window.addEventListener("unhandledrejection", function (e) {
+    var r = e && e.reason;
+    report("promessa rejeitada: " + (r && r.message ? r.message : r));
+  });
+  window.__bootEnd = function () { done = true; };
+  setTimeout(window.__bootEnd, 30000);
+})();
+/* BOOTERR:end */
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#040d07">
 <meta name="mobile-web-app-capable" content="yes">
@@ -4117,7 +4180,7 @@ function onMsg(m) {
       setDot("ok", "");
       renderPower(); loadDeck(); pollMixer(); loadTasks();
       if (vis("screen")) screenLoop();
-      bootLine(`${m.host} conectado.`); bootDone();
+      bootLine(`${m.host} conectado.`); bootDone(); if (window.__bootEnd) window.__bootEnd();
       if (typeof BK !== "undefined") BK.welcome();
       snd("on"); wasOnline = true;
       if (m.features?.notif) subNotif();
@@ -4186,7 +4249,7 @@ setInterval(() => { if (!window.PCC_PANEL && lastDot && downAt && pcStuck(downAt
 // tela de PC que recusou: texto por motivo + Voltar (PC anterior) + Meus PCs
 function pcFail(kind) {
   const a = PCL.active(), i = pcFailInfo(kind, a.name), t = pcBackTarget(PCL.list(), a.id, store.get("pcprev", null));
-  bootDone(true); $("banner").classList.add("hidden");
+  bootDone(true); if (window.__bootEnd) window.__bootEnd(); $("banner").classList.add("hidden");
   $("pf-t").textContent = i.title; $("pf-m").textContent = i.msg;
   const bk = $("pf-back"); bk.classList.toggle("hidden", !t);
   if (t) { bk.textContent = (t.prev ? "Voltar para " : "Ir para ") + t.name; bk.dataset.id = t.id; }
@@ -4198,7 +4261,7 @@ $("pf-pcs").onclick = () => pcOpen(false);
 $("pf-pair").onclick = () => { $("pc-fail").classList.add("hidden"); showLogin(`Digite o código de 6 dígitos que aparece no painel de "${PCL.active().name}".`); };
 
 function showLogin(msg) {
-  bootDone(true); $("banner").classList.add("hidden");
+  bootDone(true); if (window.__bootEnd) window.__bootEnd(); $("banner").classList.add("hidden");
   $("login").classList.remove("hidden");
   if (msg) $("login-msg").textContent = msg;
   $("token").value = ""; $("code").value = "";
