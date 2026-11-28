@@ -2814,7 +2814,7 @@ async def recap_get(p):
     return await on_io(recap_build, ym)
 
 
-BATTERY = battery.Battery()
+BATTERY = battery.Battery(hid_fn=battery.read_receiver_hid)
 
 
 async def battery_send(only=None):

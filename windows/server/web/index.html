@@ -2060,6 +2060,7 @@ header .host { display: none; }
 .bt-r { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: baseline; font-size: 14px; min-width: 0; } .bt-l .bt-r { flex: 1 1 0; }
 .bt-n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .bt-r b { font-weight: 600; font-variant-numeric: tabular-nums; }
 .bt-b { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: color-mix(in srgb, currentColor 14%, transparent); overflow: hidden; } .bt-b u { display: block; height: 100%; background: var(--ok); border-radius: 3px; }
+.bt-i { width: 14px; height: 14px; vertical-align: -2px; margin-right: 6px; } .bt-c { color: var(--ok); font-size: 12px; }
 .bt-r.lo b { color: var(--alert, #f87168); } .bt-r.lo .bt-b u { background: var(--alert, #f87168); }
 .rw { display: flex; gap: 8px; align-items: baseline; min-height: 28px; font-size: 14px; } .rw b { flex: none; font-weight: 500; color: var(--p2); font-size: 13px; } .rw span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .rw.hi b { color: var(--alert, #f87168); }
 
@@ -6491,7 +6492,8 @@ Object.assign(HOME_W, {
 // ---------------------------------------------------------------- Bateria (fone/mouse Bluetooth: só o que o Windows informa; sem dado = mensagem, nunca número inventado)
 const bat = { d: null };
 function batSet(d) { if (!d || !Array.isArray(d.items)) return; bat.d = d; homeUpd("battery"); }
-const batRow = (i, lo) => `<div class="bt-r${i.pct < lo ? " lo" : ""}"><span class="bt-n">${esc(i.name)}</span><b>${i.pct}%</b><i class="bt-b" aria-hidden="true"><u style="width:${i.pct}%"></u></i></div>`;
+const BT_MOUSE = '<svg class="bt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="6"/><path d="M12 7v4"/></svg>';   // mouse com receptor: ícone + "carregando" (só o que o servidor leu)
+const batRow = (i, lo) => `<div class="bt-r${i.pct < lo && !i.charging ? " lo" : ""}"><span class="bt-n">${i.kind === "mouse" ? BT_MOUSE : ""}${esc(i.name)}${i.charging ? ' <small class="bt-c">carregando</small>' : ""}</span><b>${i.pct}%</b><i class="bt-b" aria-hidden="true"><u style="width:${i.pct}%"></u></i></div>`;
 function batNotice(m) {
   homeNotifPush({ app: m.title, title: m.body, body: "", go: "" });
   snd("note"); buzz(30);
@@ -6509,7 +6511,7 @@ Object.assign(HOME_W, {
     ready: () => !!bat.d,
     upd(el) {
       const z = el.dataset.z, d = bat.d, lo = d.low_pct || 15, n = el.closest(".pager") && z !== "L" ? 8 : { P: 2, A: 4, L: 3 }[z];
-      setHtml(hk(el, "list"), !d.items.length ? '<div class="hw-na">Nenhum fone ou mouse Bluetooth com bateria no Windows.</div>' : d.items.slice(0, n).map((i) => batRow(i, lo)).join(""));
+      setHtml(hk(el, "list"), !d.items.length ? '<div class="hw-na">Nenhum fone ou mouse com bateria informada.</div>' : d.items.slice(0, n).map((i) => batRow(i, lo)).join(""));
     },
   },
 });
