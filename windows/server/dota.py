@@ -70,6 +70,11 @@ def compose(bridge, up, gsi, od, lookup, running, started, od_status=None):
     h = out.get("hero")
     if isinstance(h, dict) and h.get("mine") is None and od is not None and h.get("hero_id"):
         out["hero"] = {**h, "mine": od.hero_mine(h["hero_id"])}
+    lv = out.get("live")
+    if out.get("phase") == "game" and isinstance(lv, dict) and od is not None and hasattr(od, "coach") and isinstance(h, dict) and isinstance(h.get("hero_id"), int):
+        c = od.coach(h["hero_id"], lv)
+        if c:
+            out["live"] = {**lv, "coach": c}
     r = out.get("result")
     off = getattr(od, "official", None) if od is not None else None
     if isinstance(r, dict) and off and r.get("match_id") == off.get("match_id"):

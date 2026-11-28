@@ -4,7 +4,7 @@ loadout 448x678, item 88x64) + uma CÓPIA do servidor em pasta temporária, em p
   py -3 tests/dota_preview.py [porta_do_app=8800] [porta_da_ponte=8801]
 Imprime a URL do app (com o token de teste). Trocar a fase da ponte: GET http://127.0.0.1:<ponte>/__set/<fase>
 (offline|menu|draft|pregame|game|postgame|down = ponte fora do ar) e, no app, a tela Dota consulta de novo ao abrir.
-/__gsi/<menu|draft|pregame|game|postgame|off> manda a GSI do Dota (sem Copilot: use /__set/down) e /__od/<on|off> liga/desliga o OpenDota
+/__gsi/<menu|draft|pregame|game|game-early|game-mid|game-late|postgame|off> manda a GSI do Dota (sem Copilot: use /__set/down) e /__od/<on|off> liga/desliga o OpenDota
 falso (perfil do fixture od-*.json; imagens de herói/item vêm do CDN real da Valve). /__missing/<id,id> faz a ponte responder 404 nas imagens desses heróis (e /__missing/ limpa). Encerra com Ctrl+C
 ou apagando o arquivo "stop" da pasta temporária impressa."""
 import http.server
@@ -28,7 +28,8 @@ PHASES = ("offline", "menu", "draft", "pregame", "game", "postgame")
 SIZES = {"icon": (32, 32), "portrait": (128, 72), "loadout": (448, 678), "item": (88, 64)}
 STATE = {"phase": "menu", "missing": set(), "state": None, "gsi": None, "od_off": False}
 OD_ROUTES = {"/players/1": "od-player", "/players/1/recentMatches": "od-recent", "/players/1/heroes": "od-heroes", "/players/1/wl": "od-wl",
-             "/constants/heroes": "od-constants-heroes", "/constants/items": "od-constants-items"}
+             "/constants/heroes": "od-constants-heroes", "/constants/items": "od-coach-items",
+             "/heroes/74/itemPopularity": "od-coach-pop", "/benchmarks?hero_id=74": "od-coach-bench"}   # partida: itens/percentis do herói 74 (Invoker)
 
 
 def png(kind, ident):
@@ -59,6 +60,7 @@ class Fake(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):  # noqa: N802
         path, _, query = self.path.partition("?")
+        full = self.path
         if path.startswith("/__set/"):
             STATE["phase"] = path.rsplit("/", 1)[1]
             return self.send(200, b"ok")
@@ -71,10 +73,10 @@ class Fake(http.server.BaseHTTPRequestHandler):
             return self.send(200, b"ok")
         if path.startswith("/matches/") and not STATE["od_off"]:
             return self.send(200, (FIX / "od-match.json").read_bytes(), "application/json")
-        if path in OD_ROUTES:
+        if path in OD_ROUTES or full in OD_ROUTES:
             if STATE["od_off"]:
                 return self.send(503)
-            return self.send(200, (FIX / f"{OD_ROUTES[path]}.json").read_bytes(), "application/json")
+            return self.send(200, (FIX / f"{OD_ROUTES.get(full) or OD_ROUTES[path]}.json").read_bytes(), "application/json")
         if path.startswith("/__missing/"):
             STATE["missing"] = {x for x in path.rsplit("/", 1)[1].split(",") if x}
             return self.send(200, b"ok")

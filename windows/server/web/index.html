@@ -1549,7 +1549,29 @@ select.sel { min-height: 44px; }
 .dimg.circ { border-radius: 50%; }
 .dimg.w { border: 2px solid var(--success, var(--p)); }
 .dimg.l { border: 2px solid var(--danger-text, var(--alert)); }
+.dota .dcoach h3 { margin-bottom: 6px; }
+.dota .dci { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 2px 0; }
+.dota .dcin { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.dota .dcin b { font-weight: 600; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dota .dcin span { font-size: 12px; color: var(--text-2, var(--p2)); font-variant-numeric: tabular-nums; }
+.dota .dcim { font: 600 13px/1.2 var(--font, var(--mono)); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--text-2, var(--p2)); }
+.dota .dci.ready .dcim { color: var(--success, var(--p)); }
+.dota .dcsrc, .dota .dcearly { margin-top: 6px; white-space: normal; }
+.dota .dmeter { padding: 5px 0; --tone: var(--p2); }
+.dota .dmeter[data-tone="ok"] { --tone: var(--success, var(--p)); }
+.dota .dmeter[data-tone="mid"] { --tone: var(--warning, var(--p2)); }
+.dota .dmeter[data-tone="lo"] { --tone: var(--danger-text, var(--alert)); }
+html[data-theme="fallout"] .dota .dmeter[data-tone="mid"] { --tone: #FFB000; }   /* no Fallout o aviso não tem cor própria: âmbar fixo para o amarelo ser diferente do verde */
+.dota .dmrow { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.dota .dmrow b { font: 600 17px/1.2 var(--display); font-variant-numeric: tabular-nums; }
+.dota .dmbar { height: 8px; margin: 4px 0 3px; border-radius: var(--r-sm, 4px); background: var(--surface-2, var(--p4)); overflow: hidden; }
+.dota .dmbar i { display: block; height: 100%; width: 0; background: var(--tone, var(--success, var(--p))); transition: width .4s ease; }
+.dota .dmeter small, .dota [data-sec="goal"] small { display: block; color: var(--text-2, var(--p2)); font-size: 12px; line-height: 1.3; font-variant-numeric: tabular-nums; }
+html.lm-still .dota .dmbar i { transition: none; }
+@media (prefers-reduced-motion: reduce) { .dota .dmbar i { transition: none; } }
 .dota .dstrip { display: flex; gap: 12px; align-items: flex-start; }
+.dota .dstrip.slim .dclock { font-size: 30px; }
+.dota .dstrip.slim .dname { font-size: 17px; }
 .dota .dstx { min-width: 0; flex: 1; display: grid; gap: 4px; align-content: start; }
 .dota .dres { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: center; padding: 16px; }
 .dota .dres .dbig { font-size: 56px; }
@@ -5280,11 +5302,36 @@ function dotaNext(L) {
   });
 }
 const DOTA_KV = [["gold", "Ouro"], ["gx", "GPM / XPM"], ["kda", "KDA"], ["lh", "LH / DN"], ["level", "Nível"]];
-function dotaKv(L) {
-  const has = { gold: nn(L.gold), gx: nn(L.gpm) || nn(L.xpm), kda: !!dKda(L), lh: nn(L.last_hits) || nn(L.denies), level: nn(L.level) };
+function dotaKv(L, slim) {
+  const has = { gold: nn(L.gold), gx: !slim && (nn(L.gpm) || nn(L.xpm)), kda: !slim && !!dKda(L), lh: nn(L.last_hits) || nn(L.denies), level: nn(L.level) };
   const keys = DOTA_KV.filter(([k]) => has[k]);
   if (!keys.length) return null;
   return dSec("kv", keys.map(([k]) => k).join(), () => `<div class="card"><div class="dkv">${keys.map(([k, l]) => `<div><span>${l}</span><b data-d="kv-${k}"></b></div>`).join("")}</div></div>`);
+}
+// Partida com dados do OpenDota (live.coach, calculado no PC): próximos itens, farm por percentil e meta de last hits.
+// O que muda a cada segundo (números, barras, tons) é atualizado em dotaTick; a estrutura só refaz quando a lista muda.
+const DOTA_CPH = { start: "Início", early: "Começo", mid: "Meio de jogo", late: "Final" };
+const DOTA_FM = [["gpm", "GPM"], ["xpm", "XPM"], ["lh", "LH/min"]];
+const dDec = (x) => Number(x).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+function dotaCoachItems(L) {
+  const it = L.coach?.items; if (!it || !Array.isArray(it.list) || !it.list.length) return null;
+  return dSec("citems", JSON.stringify([it.phase, it.list.map((r) => [r.id, r.name, r.cost])]) + dota.k, () => `<div class="card dcoach"><h3><span>Próximos itens</span><span class="dnote">${esc(DOTA_CPH[it.phase] || "")}</span></h3>${it.list.map((r) =>
+    `<div class="dci" data-ci="${r.id}">${dImg("item", r.id, "", r.name, 44, 32)}<div class="dcin"><b>${esc(r.name)}</b><span>${dNum(r.cost)} de ouro</span></div><span class="dcim" data-d="ci-${r.id}"></span></div>`).join("")}<div class="dnote dcsrc">Mais comprados do herói · OpenDota</div></div>`);
+}
+function dotaFarm(L) {
+  const f = L.coach?.farm; if (!f) return null;
+  const ms = Array.isArray(f.meters) ? f.meters.filter((m) => DOTA_FM.some(([k]) => k === m.k)) : [];
+  if (!f.early && !ms.length) return null;
+  return dSec("farm", JSON.stringify([!!f.early, ms.map((m) => m.k)]), () => `<div class="card dcoach"><h3><span>Farm</span><span class="dnote">vs média da partida</span></h3>${f.early
+    ? '<div class="dnote dcearly" data-d="fm-early"></div>'
+    : ms.map((m) => `<div class="dmeter" data-m="${m.k}"><div class="dmrow"><span>${DOTA_FM.find(([k]) => k === m.k)[1]}</span><b data-d="fm-${m.k}-v"></b></div><div class="dmbar" role="progressbar" aria-label="${DOTA_FM.find(([k]) => k === m.k)[1]}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div><small data-d="fm-${m.k}-t"></small></div>`).join("")}</div>`);
+}
+function dotaGoal(L) {
+  const g = L.coach?.goal; if (!g || !nn(g.median_lpm)) return null;
+  return dSec("goal", JSON.stringify([g.median_lpm]), () => `<div class="card dcoach"><h3><span>Meta de last hits</span><span class="dnote">mediana da partida</span></h3>
+    <div class="dmrow"><span>Ritmo da mediana</span><b>${dDec(g.median_lpm)} LH/min</b></div>
+    <div class="dmbar" role="progressbar" aria-label="Last hits em relação à mediana" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+    <small data-d="gl-t"></small><small class="dnote" data-d="gl-s"></small></div>`);
 }
 function dotaTimers(t) {
   const keys = DOTA_TIMERS.filter(([k]) => nn(t[k])), tier = nn(t.neutral_tier);
@@ -5293,20 +5340,21 @@ function dotaTimers(t) {
     `<div class="dtimer" data-t="${k}"><div class="row"><span>${esc(l)}</span><span data-d="tv-${k}"></span></div><div class="bar" role="progressbar" aria-label="${esc(l)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i data-d="tb-${k}" style="width:0"></i></div></div>`).join("")}${tier ? '<div class="row"><span>Neutros liberados</span><span data-d="tier"></span></div>' : ""}</div>`);
 }
 // faixa do herói: loadout (448×678) recortado pelo topo (rosto), sem esticar
-function dotaStrip(d, mode) {
+function dotaStrip(d, mode, slim) {
   const h = d.hero || {}, L = d.live, r = d.result || {};
   const id = mode === "end" && nn(r.hero_id) ? r.hero_id : h.hero_id, name = h.hero || "";
   const clock = nn(L?.clock_s), day = nn(L?.daytime);
   const pic = (w, hh, cls) => (dId(id) || name ? dImg("hero", id, "loadout", name, w, hh, cls) : "");
+  const sl = !!slim && mode === "game";   // com os cards de farm/itens o herói e o relógio encolhem (o jogo já mostra o relógio grande)
   const cop = d.companion?.source === "copilot";
-  return dSec("hero", JSON.stringify([mode, d.phase, id, name, clock, day, !!h.mine, h.mine?.avg_kda, r.win, dKda(r), mode, cop, r.official]) + dota.k, () => {
+  return dSec("hero", JSON.stringify([mode, d.phase, id, name, clock, day, !!h.mine, h.mine?.avg_kda, r.win, dKda(r), mode, cop, r.official, sl]) + dota.k, () => {
     if (mode === "end") return `<div class="card dres ${dResult(r.win)}">${pic(132, 176, `ld ${dResult(r.win)}`)}<div class="dresx">
       <div class="dbig">${dWin(r.win, "Vitória", "Derrota", "Partida encerrada")}</div>${dKda(r) ? `<div class="dname">${dKda(r)}</div>` : ""}${name ? `<div class="sub">${esc(name)}</div>` : ""}
       ${dotaOfficial(r.official, cop)}</div></div>`;
     const right = mode === "game"
       ? `<div class="dname sm">${esc(name || "Herói escolhido")}</div>${clock ? '<div class="dclock" role="timer" data-d="clock"></div>' : ""}${day ? '<div class="sub" data-d="day"></div>' : ""}`
       : `<div class="dname">${esc(name || "Herói escolhido")}</div>${h.mine ? '<div class="sub wrap" data-d="mine"></div>' : ""}${h.mine?.avg_kda ? '<div class="dnote" data-d="avgkda"></div>' : ""}${clock ? '<div class="row"><span>Relógio</span><span data-d="clock"></span></div>' : ""}`;
-    return `<div class="card"><h3><span>Herói</span><span>${DOTA_PH[d.phase]}</span></h3><div class="dstrip">${pic(72, 96, "ld")}<div class="dstx">${right}</div></div></div>`;
+    return `<div class="card"><h3><span>Herói</span><span>${DOTA_PH[d.phase]}</span></h3><div class="dstrip${sl ? " slim" : ""}">${pic(sl ? 48 : 72, sl ? 64 : 96, "ld")}<div class="dstx">${right}</div></div></div>`;
   });
 }
 // sem lobby: diz o motivo real (nunca "ainda não enviou" do Copilot se ele nem existe)
@@ -5339,7 +5387,8 @@ function dotaPlan0(d) {
   }
   if (ph === "game") {
     if (!L) return dMsg("run", '<div class="card dmsg">Partida em andamento</div>');
-    const cols = [{ c: "", s: some([dotaStrip(d, "game"), dotaTimers(L.timers || {})]) }, { c: "", s: some([dotaKv(L), dotaInventory(L), dotaNext(L)]) }];
+    const slim = !!L.coach?.farm?.meters;   // farm por percentil na tela: GPM/XPM/KDA saem dos números soltos (o KDA já está no HUD do jogo)
+    const cols = [{ c: "", s: some([dotaStrip(d, "game", slim), dotaFarm(L), dotaGoal(L), dotaTimers(L.timers || {})]) }, { c: "", s: some([dotaCoachItems(L), dotaNext(L), dotaInventory(L), dotaKv(L, slim)]) }];
     if (h && (h.build || d.companion?.source === "copilot")) cols.push({ c: "", s: [dotaBuildSec(h, true, DOTA_IMG_MAX - 12)] });   // 1 herói + até 10 do inventário + 1 próximo item
     return { cls: cols.length === 2 ? "c2" : "c3", cols };
   }
@@ -5404,6 +5453,27 @@ function dotaTick() {
       }
     }
     if (nn(t.neutral_tier)) dSet(root, "tier", `tier ${t.neutral_tier}`);
+    const co = L.coach;
+    if (co?.items?.list) for (const r of co.items.list) {
+      dSet(root, `ci-${r.id}`, nn(r.missing) ? (r.missing > 0 ? `faltam ${dNum(r.missing)}` : "pronto") : "");
+      root.querySelector(`.dci[data-ci="${r.id}"]`)?.classList.toggle("ready", r.missing === 0);
+    }
+    if (co?.farm?.early) dSet(root, "fm-early", `Cedo demais: o ritmo só vale a partir dos ${Math.round(co.farm.from / 60)} min (faltam ${fmtTime(Math.max(0, co.farm.from - (L.clock_s + age)))})`);
+    else if (co?.farm?.meters) for (const m of co.farm.meters) {
+      const box = root.querySelector(`.dmeter[data-m="${m.k}"]`); if (!box) continue;
+      box.dataset.tone = m.tone;
+      dSet(root, `fm-${m.k}-v`, m.k === "lh" ? dDec(m.v) : dNum(m.v));
+      dSet(root, `fm-${m.k}-t`, m.pct > 0 ? `melhor que ${m.pct}% dos jogadores` : "abaixo de 10% dos jogadores");
+      box.querySelector(".dmbar i").style.width = Math.max(m.pct, 3) + "%";
+      box.querySelector(".dmbar").setAttribute("aria-valuenow", String(m.pct));
+    }
+    const gl = co?.goal;
+    if (gl) {
+      const bar = root.querySelector('[data-sec="goal"] .dmbar');
+      if (bar) { bar.querySelector("i").style.width = (nn(gl.pct) ? gl.pct : 0) + "%"; bar.setAttribute("aria-valuenow", String(gl.pct ?? 0)); }
+      dSet(root, "gl-t", `Você: ${gl.have} LH${nn(gl.my_lpm) ? ` (${dDec(gl.my_lpm)}/min)` : ""} · mediana agora: ${gl.need}`);
+      dSet(root, "gl-s", gl.have >= gl.need ? "No ritmo da mediana ou acima" : `Faltam ${gl.need - gl.have} LH para o ritmo da mediana`);
+    }
     const n = L.next_item;
     if (n) {
       const miss = n.missing_gold, ok = nn(n.cost) && n.cost > 0 && nn(miss);

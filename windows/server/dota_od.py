@@ -6,7 +6,9 @@ Só o Steam ID público configurado no painel (SteamID64 ou o número de 32 bits
   /players/{id}/heroes        mais jogados
   /players/{id}/wl            vitórias e derrotas totais
   /constants/heroes           id -> nome (e caminho da imagem no CDN da Valve)
-  /constants/items            nome interno -> id, nome, custo (e imagem)
+  /constants/items            nome interno -> id, nome, custo, componentes (e imagem)
+  /heroes/{id}/itemPopularity itens mais comprados do herói por fase (tela da partida; a chave é o id do item)
+  /benchmarks?hero_id=        percentis de GPM, XPM e last hits/min do herói (média da partida inteira)
 Cache em disco (dota-od.json ao lado do config.json, atômico, corrompido vira .bad-<data-hora>): perfil/recentes/heróis/wl
 renovam a cada 10 min só com aparelho conectado; as constantes a cada 7 dias. Limite próprio de 500 chamadas por dia
 (o plano grátis dá 2000/dia e 60/min); 429 ou erro = recuo e a última cópia continua valendo, com a data.
@@ -44,6 +46,16 @@ TOP_KEEP = 10
 MEDALS = ("Arauto", "Guardião", "Cruzado", "Arconte", "Lenda", "Ancião", "Divino", "Imortal")
 _IMG_PATH = re.compile(r"/apps/dota2/images/[a-z0-9_/\-]{1,120}\.png")
 SECTIONS = ("profile", "recent", "heroes", "wl")
+HERO_TTL_S = 86400          # itemPopularity e benchmarks por herói: 1 leitura por dia (2 chamadas)
+HERO_KEEP = 40              # heróis guardados no disco (os mais recentes)
+# Corte das fases do itemPopularity, conferido no código do OpenDota (svc/util/queries.ts, getHeroItemPopularity; usa as 100
+# partidas mais novas do herói no banco deles): start = compra em t <= 0 e custo <= 600; early = 0 < t < 10 min e custo >= 500;
+# mid = 10 <= t < 25 min e custo >= 1000; late = t >= 25 min e custo >= 2000. A descrição da API diz "partidas profissionais".
+POP_PHASES = (("start_game_items", "start"), ("early_game_items", "early"), ("mid_game_items", "mid"), ("late_game_items", "late"))
+PH_ORDER = [p for _, p in POP_PHASES]
+BENCH_KEYS = (("gpm", "gold_per_min"), ("xpm", "xp_per_min"), ("lh", "last_hits_per_min"))
+COACH_MIN_S = 300           # antes de 5 min de jogo o ritmo ainda não diz nada
+COACH_ITEMS = 4
 
 
 class OdError(Exception):
@@ -171,9 +183,41 @@ def trim_const_items(d):
     out = {}
     for key, it in d.items():
         if isinstance(it, dict) and _i(it.get("id")) and isinstance(it.get("dname"), str) and re.fullmatch(r"[a-z0-9_]{1,60}", key):
-            out[key] = {"id": it["id"], "n": it["dname"][:40], "cost": _i(it.get("cost")), "img": _img(it.get("img"))}
+            comp = it.get("components")
+            out[key] = {"id": it["id"], "n": it["dname"][:40], "cost": _i(it.get("cost")), "img": _img(it.get("img")),
+                        "c": [c for c in comp if isinstance(c, str) and re.fullmatch(r"[a-z0-9_]{1,60}", c)] if isinstance(comp, list) else []}
     if not out:
         raise OdError("formato")
+    return out
+
+
+def trim_pop(d):
+    """itemPopularity -> {fase: [[id, vezes], ...]} (as 12 mais compradas de cada fase)."""
+    if not isinstance(d, dict):
+        raise OdError("formato")
+    out = {}
+    for field, ph in POP_PHASES:
+        v = d.get(field)
+        if not isinstance(v, dict):
+            raise OdError("formato")
+        rows = [[int(k), n] for k, n in v.items() if str(k).isdigit() and _i(n) is not None and n > 0]
+        out[ph] = sorted(rows, key=lambda r: -r[1])[:12]
+    return out
+
+
+def trim_bench(d):
+    """benchmarks -> {gpm|xpm|lh: [[percentil, valor], ...]} em ordem crescente; faltar uma série = formato inválido."""
+    r = d.get("result") if isinstance(d, dict) else None
+    if not isinstance(r, dict):
+        raise OdError("formato")
+    out = {}
+    for k, field in BENCH_KEYS:
+        rows = [[x["percentile"], x["value"]] for x in r.get(field) or []
+                if isinstance(x, dict) and isinstance(x.get("percentile"), (int, float)) and isinstance(x.get("value"), (int, float))
+                and not isinstance(x.get("value"), bool)]
+        if not rows:
+            raise OdError("formato")
+        out[k] = sorted(rows)
     return out
 
 
@@ -187,6 +231,8 @@ class OpenDota:
         self.watch = None            # {"id", "since", "last", "calls"}
         self.official = None         # entrada de recentMatches da partida observada, quando aparece
         self.match_batch_at = -1e12  # última leitura em lote de /matches/{id}
+        self.want = None             # herói da partida em curso: só ele gera leituras de /heroes e /benchmarks
+        self._idx = None             # (marca, {id: chave}) do catálogo de itens
         self.on_recent = None        # função(lista de recentMatches já limpa): o servidor arquiva as partidas do mês (recap.DotaMonth)
         self._sync_account()
 
@@ -199,6 +245,8 @@ class OpenDota:
                 d.setdefault("consts", {})
                 d.setdefault("calls", {"day": "", "n": 0})
                 d.setdefault("matches", {})
+                d.setdefault("pop", {})
+                d.setdefault("bench", {})
                 return d
         except FileNotFoundError:
             pass
@@ -207,7 +255,7 @@ class OpenDota:
                 os.replace(self.path, self.path.with_name(self.path.name + ".bad-" + time.strftime("%Y%m%d-%H%M%S")))
             except OSError:
                 pass
-        return {"v": 1, "account": None, "sec": {}, "consts": {}, "matches": {}, "calls": {"day": "", "n": 0}}
+        return {"v": 1, "account": None, "sec": {}, "consts": {}, "matches": {}, "pop": {}, "bench": {}, "calls": {"day": "", "n": 0}}
 
     def _save(self):
         try:
@@ -256,6 +304,9 @@ class OpenDota:
     def _fill(self, group, key, path, trim):
         d = trim(self._get(path))
         self.data[group][key] = {"at": int(self.clock()), "d": d}
+        if group in ("pop", "bench") and len(self.data[group]) > HERO_KEEP:
+            for k in sorted(self.data[group], key=lambda k: self.data[group][k]["at"])[:-HERO_KEEP]:
+                del self.data[group][k]
         self._save()
         if group == "sec" and key == "recent" and self.on_recent:
             try:
@@ -293,8 +344,14 @@ class OpenDota:
         todo = []
         if self._stale("consts", "heroes", CONST_TTL_S):
             todo.append(("consts", "heroes"))
-        if self._stale("consts", "items", CONST_TTL_S):
+        if self._stale("consts", "items", CONST_TTL_S) or not self._items_have_components():
             todo.append(("consts", "items"))
+        if self.want:
+            k = str(self.want)
+            if self._stale("pop", k, HERO_TTL_S):
+                todo.append(("pop", k))
+            if self._stale("bench", k, HERO_TTL_S):
+                todo.append(("bench", k))
         if acc:
             todo += [("sec", s) for s in SECTIONS if self._stale("sec", s, TTL_S)]
             if self._watching() and self.clock() - self.watch["last"] >= WATCH_EVERY_S and ("sec", "recent") not in todo:
@@ -302,6 +359,14 @@ class OpenDota:
             if self._batch_ok() and self._missing_matches():
                 todo.append(("match", None))
         return todo
+
+    def _items_have_components(self):
+        d = (self.data["consts"].get("items") or {}).get("d")
+        return not d or "c" in next(iter(d.values()))     # cópia antiga (sem componentes) = relê uma vez
+
+    def want_hero(self, hid):
+        """O herói da partida em curso (id numérico) ou None."""
+        self.want = hid if isinstance(hid, int) and not isinstance(hid, bool) and hid > 0 else None
 
     def _missing_matches(self):
         """Partidas recentes sem itens guardados (a mais nova primeiro). Guardadas para sempre: uma leitura por partida."""
@@ -326,7 +391,10 @@ class OpenDota:
             changed = False
             for group, key in [t for t in todo if t[0] != "match"]:
                 try:
-                    if group == "consts":
+                    if group in ("pop", "bench"):
+                        self._fill(group, key, f"/heroes/{key}/itemPopularity" if group == "pop" else f"/benchmarks?hero_id={key}",
+                                   trim_pop if group == "pop" else trim_bench)
+                    elif group == "consts":
                         self._fill("consts", key, f"/constants/{key}", trim_const_heroes if key == "heroes" else trim_const_items)
                     else:
                         path = {"profile": f"/players/{acc}", "recent": f"/players/{acc}/recentMatches",
@@ -402,6 +470,77 @@ class OpenDota:
         key = raw[5:] if isinstance(raw, str) and raw.startswith("item_") else raw
         it = (self.data["consts"].get("items") or {}).get("d", {}).get(key)
         return {"id": it["id"], "name": it["n"], "cost": it["cost"]} if it else None
+
+    def _item_index(self):
+        """{id: chave interna} do catálogo (refeito só quando o catálogo muda)."""
+        e = self.data["consts"].get("items") or {}
+        if not self._idx or self._idx[0] != e.get("at"):
+            self._idx = (e.get("at"), {v["id"]: k for k, v in (e.get("d") or {}).items()})
+        return self._idx[1]
+
+    def _owned(self, ids):
+        """Chaves dos itens que tenho + tudo o que eles contêm, direta ou indiretamente (components do constants/items)."""
+        cat, byid, seen = (self.data["consts"].get("items") or {}).get("d") or {}, self._item_index(), set()
+        stack = [byid[i] for i in ids if i in byid]
+        while stack:
+            k = stack.pop()
+            if k in seen:
+                continue
+            seen.add(k)
+            stack += [c for c in (cat.get(k) or {}).get("c", []) if c not in seen]
+        return seen
+
+    def coach(self, hid, live):
+        """Bloco da partida: próximos itens, farm e meta de last hits. Só dado real do OpenDota + a GSI; sem cópia = None.
+        {'items': {...}|None, 'farm': {...}|None, 'goal': {...}|None}."""
+        if not (isinstance(live, dict) and isinstance(hid, int)):
+            return None
+        pop, bench = (self.data["pop"].get(str(hid)) or {}).get("d"), (self.data["bench"].get(str(hid)) or {}).get("d")
+        cat, byid = (self.data["consts"].get("items") or {}).get("d"), self._item_index()
+        clock, gold = live.get("clock_s"), live.get("gold")
+        out = {"items": None, "farm": None, "goal": None}
+        if pop and cat and isinstance(clock, (int, float)):
+            cur = "start" if clock <= 0 else "early" if clock < 600 else "mid" if clock < 1500 else "late"
+            order = PH_ORDER[PH_ORDER.index(cur):]
+            have = [d.get("item_id") for d in live.get("items_detail") or [] if isinstance(d, dict) and isinstance(d.get("item_id"), int)]
+            owned, rows = self._owned(have), []
+            for ph in order:
+                for iid, n in pop.get(ph, []):
+                    k = byid.get(iid)
+                    if not k or k.startswith("recipe_") or k in owned or any(r["id"] == iid for r in rows):
+                        continue
+                    c = cat[k]["cost"]
+                    if not c:
+                        continue
+                    rows.append({"id": iid, "name": cat[k]["n"], "cost": c, "phase": ph, "n": n,
+                                 "missing": max(0, c - gold) if isinstance(gold, (int, float)) else None})
+                    if len(rows) >= COACH_ITEMS:
+                        break
+                if len(rows) >= COACH_ITEMS or (len(rows) >= 3 and ph != cur):
+                    break
+            if rows:
+                out["items"] = {"phase": cur, "list": rows}
+        if bench and isinstance(clock, (int, float)):
+            if clock < COACH_MIN_S:
+                out["farm"] = {"early": True, "from": COACH_MIN_S}
+            else:
+                mins, lh = clock / 60, live.get("last_hits")
+                mine = {"gpm": live.get("gpm"), "xpm": live.get("xpm"), "lh": round(lh / mins, 2) if isinstance(lh, (int, float)) else None}
+                meters = []
+                for k, _ in BENCH_KEYS:
+                    v = mine[k]
+                    if not isinstance(v, (int, float)):
+                        continue
+                    reached = [p for p, x in bench[k] if v >= x]       # último ponto alcançado, sem interpolar
+                    r = max(reached) if reached else 0
+                    meters.append({"k": k, "v": v, "pct": round(r * 100), "tone": "lo" if r < 0.3 else "mid" if r <= 0.6 else "ok"})
+                out["farm"] = {"early": False, "meters": meters} if meters else None
+                med = next((x for p, x in bench["lh"] if abs(p - 0.5) < 1e-9), None)
+                if med is not None and isinstance(lh, (int, float)):
+                    need = med * mins
+                    out["goal"] = {"median_lpm": round(med, 2), "my_lpm": mine["lh"], "need": round(need), "have": lh,
+                                   "pct": max(0, min(100, round(100 * lh / need))) if need > 0 else None}
+        return out if any(out.values()) else None
 
     def img_path(self, kind, ident):
         """Caminho da imagem no CDN da Valve para um id JÁ conhecido (hero icon|portrait|loadout, ou item); senão None."""

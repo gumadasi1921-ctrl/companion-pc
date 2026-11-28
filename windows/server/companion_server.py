@@ -2622,6 +2622,8 @@ async def dota_loop():
                 g = GSIS.state()
                 if g and g.get("result") and g["result"].get("match_id"):
                     OD.watch_match(g["result"]["match_id"])    # pós-jogo: procura a partida oficial (30 s, até 10 min)
+                src = g if g and g.get("phase") in ("pregame", "game") else (DOTA.state if DOTA.up and (DOTA.state or {}).get("phase") in ("pregame", "game") else None)
+                OD.want_hero(((src or {}).get("hero") or {}).get("hero_id"))   # o herói da partida: só ele gera leituras de itens/benchmarks
                 if OD.due(True):
                     await asyncio.to_thread(OD.refresh)         # fora da fila de disco: pode levar alguns segundos
                 state = dota_final()

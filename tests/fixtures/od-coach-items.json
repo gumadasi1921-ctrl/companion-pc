@@ -1,0 +1,120 @@
+{
+ "boots": {
+  "id": 29,
+  "dname": "Boots",
+  "cost": 500,
+  "img": "/apps/dota2/images/dota_react/items/boots.png?t=1"
+ },
+ "gloves": {
+  "id": 20,
+  "dname": "Gloves",
+  "cost": 500,
+  "img": "/apps/dota2/images/dota_react/items/gloves.png?t=1"
+ },
+ "belt_of_strength": {
+  "id": 36,
+  "dname": "Belt",
+  "cost": 450,
+  "img": "/apps/dota2/images/dota_react/items/belt.png?t=1"
+ },
+ "power_treads": {
+  "id": 63,
+  "dname": "Power Treads",
+  "cost": 1400,
+  "img": "/apps/dota2/images/dota_react/items/power_treads.png?t=1",
+  "components": [
+   "boots",
+   "gloves",
+   "belt_of_strength"
+  ]
+ },
+ "wraith_band": {
+  "id": 75,
+  "dname": "Wraith Band",
+  "cost": 500,
+  "img": "/apps/dota2/images/dota_react/items/wraith_band.png?t=1"
+ },
+ "bracer": {
+  "id": 73,
+  "dname": "Bracer",
+  "cost": 500,
+  "img": "/apps/dota2/images/dota_react/items/bracer.png?t=1"
+ },
+ "blink": {
+  "id": 1,
+  "dname": "Blink Dagger",
+  "cost": 2250,
+  "img": "/apps/dota2/images/dota_react/items/blink_dagger.png?t=1"
+ },
+ "ogre_axe": {
+  "id": 68,
+  "dname": "Ogre Axe",
+  "cost": 1000,
+  "img": "/apps/dota2/images/dota_react/items/ogre_axe.png?t=1"
+ },
+ "mithril_hammer": {
+  "id": 34,
+  "dname": "Mithril Hammer",
+  "cost": 1600,
+  "img": "/apps/dota2/images/dota_react/items/mithril_hammer.png?t=1"
+ },
+ "recipe_black_king_bar": {
+  "id": 120,
+  "dname": "BKB Recipe",
+  "cost": 1375,
+  "img": "/apps/dota2/images/dota_react/items/bkb_recipe.png?t=1"
+ },
+ "black_king_bar": {
+  "id": 116,
+  "dname": "Black King Bar",
+  "cost": 3975,
+  "img": "/apps/dota2/images/dota_react/items/black_king_bar.png?t=1",
+  "components": [
+   "ogre_axe",
+   "mithril_hammer",
+   "recipe_black_king_bar"
+  ]
+ },
+ "cyclone": {
+  "id": 100,
+  "dname": "Eul",
+  "cost": 2625,
+  "img": "/apps/dota2/images/dota_react/items/eul.png?t=1"
+ },
+ "manta": {
+  "id": 147,
+  "dname": "Manta Style",
+  "cost": 4600,
+  "img": "/apps/dota2/images/dota_react/items/manta_style.png?t=1"
+ },
+ "sheepstick": {
+  "id": 96,
+  "dname": "Scythe of Vyse",
+  "cost": 5200,
+  "img": "/apps/dota2/images/dota_react/items/scythe_of_vyse.png?t=1"
+ },
+ "tango": {
+  "id": 44,
+  "dname": "Tango",
+  "cost": 90,
+  "img": "/apps/dota2/images/dota_react/items/tango.png?t=1"
+ },
+ "travel_boots": {
+  "id": 48,
+  "dname": "Travel Boots",
+  "cost": 1000,
+  "img": "/apps/dota2/images/dota_react/items/travel_boots.png?t=1"
+ },
+ "butterfly": {
+  "id": 139,
+  "dname": "Butterfly",
+  "cost": 1000,
+  "img": "/apps/dota2/images/dota_react/items/butterfly.png?t=1"
+ },
+ "satanic": {
+  "id": 156,
+  "dname": "Satanic",
+  "cost": 1000,
+  "img": "/apps/dota2/images/dota_react/items/satanic.png?t=1"
+ }
+}

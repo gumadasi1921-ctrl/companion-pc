@@ -1,0 +1,67 @@
+{
+ "provider": {
+  "name": "Dota 2",
+  "appid": 570,
+  "version": 47,
+  "timestamp": 1795280000
+ },
+ "auth": {
+  "token": "TOKEN"
+ },
+ "map": {
+  "name": "start",
+  "matchid": "8000000001",
+  "game_time": 1990,
+  "clock_time": 1900,
+  "daytime": true,
+  "nightstalker_night": false,
+  "game_state": "DOTA_GAMERULES_STATE_GAME_IN_PROGRESS",
+  "paused": false,
+  "win_team": "none",
+  "customgamename": "",
+  "ward_purchase_cooldown": 0
+ },
+ "player": {
+  "steamid": "76561197960265729",
+  "accountid": "1",
+  "name": "Eu",
+  "activity": "playing",
+  "kills": 3,
+  "deaths": 1,
+  "assists": 7,
+  "last_hits": 210,
+  "denies": 4,
+  "kill_streak": 2,
+  "commands_issued": 100,
+  "team_name": "radiant",
+  "gold": 5300,
+  "gold_reliable": 100,
+  "gold_unreliable": 800,
+  "gpm": 610,
+  "xpm": 800
+ },
+ "hero": {
+  "id": 74,
+  "name": "npc_dota_hero_invoker",
+  "level": 9,
+  "alive": true,
+  "xp": 1000
+ },
+ "items": {
+  "slot0": {
+   "name": "item_power_treads"
+  },
+  "slot1": {
+   "name": "item_blink"
+  },
+  "slot2": {
+   "name": "item_black_king_bar"
+  },
+  "slot3": {
+   "name": "item_manta"
+  },
+  "slot4": {
+   "name": "item_cyclone"
+  }
+ }
+}
