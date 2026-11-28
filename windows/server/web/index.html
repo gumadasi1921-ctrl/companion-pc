@@ -2860,6 +2860,13 @@ html.lm-still .rc-stage { animation: none; }
     <div class="acts"><button class="btn" type="button" id="login-alt">Usar token</button><button class="btn primary" type="submit">Entrar</button></div>
   </form>
 </div>
+<div class="overlay hidden" id="pc-fail">
+  <div class="dialog" role="alertdialog" aria-labelledby="pf-t" aria-describedby="pf-m">
+    <h1 id="pf-t">Não consegui entrar neste PC</h1>
+    <p id="pf-m"></p>
+    <div class="acts"><button class="btn primary hidden" type="button" id="pf-back"></button><button class="btn hidden" type="button" id="pf-pair">Parear de novo</button><button class="btn" type="button" id="pf-pcs">Meus PCs</button></div>
+  </div>
+</div>
 <div class="overlay hidden" id="pcs">
   <div class="dialog" role="dialog" aria-labelledby="pcs-h">
     <h1 id="pcs-h">Meus PCs</h1>
@@ -3780,7 +3787,7 @@ const PCH = makePcHome(store, (v) => LAY.validOne("home", v));
 // única porta para trocar de PC (o chamador recarrega a página): guarda o layout de quem sai e põe o de quem entra
 function pcActivate(id) {
   const from = PCL.active().id;
-  if (from !== id) { try { PCH.activate(from, id); LAY.sync(); } catch {} }
+  if (from !== id) { try { PCH.activate(from, id); LAY.sync(); } catch {} store.set("pcprev", from); }
   PCL.setActive(id);
 }
 /* APC:begin */
@@ -3888,7 +3895,7 @@ function toastNotif(rec) {   // o toast que acabou de aparecer é de uma notific
   const t = $("toast"); if (!rec || t.classList.contains("hidden")) return;
   t._n = rec; t.classList.add("tap"); t.setAttribute("role", "button"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.add("hidden"), 4500);
 }
-$("banner").addEventListener("click", (e) => { if (e.target.closest("#bn-now")) { RCON.stop(); RCON.retryNow(); } });
+$("banner").addEventListener("click", (e) => { const bk = e.target.closest("#bn-back"); if (bk) { pcSwitch(bk.dataset.id); return; } if (e.target.closest("#bn-now")) { RCON.stop(); RCON.retryNow(); } });
 $("toast").addEventListener("click", () => { const t = $("toast"), r = t._n; if (r) { t.classList.add("hidden"); nsOpen(r); } });
 
 // ---------------------------------------------------------------- conexão
@@ -3952,9 +3959,32 @@ function makeRc(d) {
   return api;
 }
 /* RC:end */
-let pendingPair = null;
+/* PCF:begin */
+// PC que recusa ou não responde: texto claro por motivo, para onde "Voltar" leva e quando "Reconectando…" já passou do ponto. Pura (tests/test_pcfail.js).
+const PCF_STUCK_MS = 15000;
+function pcFailInfo(kind, name) {
+  const n = String(name || "este PC");
+  switch (kind) {
+    case "origin": return { title: "Este PC não aceita este endereço", msg: `"${n}" recusou este app. No painel dele, em Ajustes › Vários PCs, libere o endereço do app em allowed_origins.` };
+    case "token": return { title: "Este PC não reconheceu o aparelho", msg: `"${n}" recusou o acesso deste aparelho. Pareie de novo com o código do painel dele.` };
+    case "old": return { title: "O Companion deste PC está desatualizado", msg: `Reinstale o Companion em "${n}" (install-server.ps1) e tente de novo.` };
+    case "other": return { title: "Outro PC neste endereço", msg: `O endereço de "${n}" agora responde por outro PC. Nada foi mostrado. Remova e adicione o PC de novo.` };
+    case "https": return { title: "Endereço bloqueado", msg: `Este app abriu por https e "${n}" usa http. Use o endereço https dele (Tailscale).` };
+    default: return { title: "Não consegui entrar neste PC", msg: `"${n}" não aceitou a conexão.` };
+  }
+}
+// PC para onde o botão leva: o anterior (se ainda existe e não é o atual), senão o primeiro outro; sem outro = null
+function pcBackTarget(list, activeId, prevId) {
+  const others = (list || []).filter((x) => x && x.id !== activeId);
+  if (!others.length) return null;
+  const p = others.find((x) => x.id === prevId);
+  return p ? { id: p.id, name: p.name, prev: true } : { id: others[0].id, name: others[0].name, prev: false };
+}
+const pcStuck = (downAt, now) => !!downAt && now - downAt >= PCF_STUCK_MS;
+/* PCF:end */
+let pendingPair = null, rconPcId = null;   // rconPcId = PC dono do socket atual (um erro dele nunca mexe no token de outro PC)
 const RCON = makeRc({
-  create: () => new WebSocket(wsUrl()),
+  create: () => { rconPcId = PCL.active().id; return new WebSocket(wsUrl()); },
   now: () => Date.now(), setT: (f, ms) => setTimeout(f, ms), clearT: (h) => clearTimeout(h),
   pairCode: () => null,
   onSock: (s) => { ws = s; if (!s) { for (const [, p] of pending) p.reject(new Error("desconectado")); pending.clear(); } },
@@ -3967,10 +3997,11 @@ const RCON = makeRc({
     if (wasOnline) { wasOnline = false; snd("off"); }
   },
   onFatal: (code) => {
+    if (rconPcId !== PCL.active().id && code !== 4001) return;
     if (code === 4002) showLogin("Código errado ou vencido. Gere outro no painel do PC.");
     else if (code === 4003) showLogin("Muitas tentativas. Espere 1 minuto.");
-    else if (code === 4004) { setDot("", "Origem não permitida"); showLogin("Este PC não aceita este app. No painel do PC, em Ajustes, permita o endereço do app."); }
-    else { PCL.setToken(""); setDot("", "Token inválido"); showLogin("Token inválido. Confira o config.json do PC."); }
+    else if (code === 4004) { setDot("", "Origem não permitida"); pcFail("origin"); }
+    else { PCL.setToken("", rconPcId); if (rconPcId === PCL.active().id) { setDot("", "Token inválido"); pcFail("token"); } }
   },
 });
 
@@ -3978,12 +4009,12 @@ function connect(pairCode) {
   const token = PCL.token();
   if (!token && !pairCode) { RCON.stop(); showLogin(); return; }
   if (location.protocol === "https:" && PCL.base().startsWith("http:")) {   // o navegador bloqueia ws:// a partir de uma página https://
-    RCON.stop(); setDot("", "Endereço bloqueado"); showLogin("Este app abriu por https e o PC usa http. Use o endereço https do PC (Tailscale)."); return;
+    RCON.stop(); setDot("", "Endereço bloqueado"); pcFail("https"); return;
   }
   RCON.connect(pairCode);
 }
 // gatilhos de volta ao app / rede; o vigia olha socket preso ou calado a cada 2 s
-function rcResume(why) { if (window.PCC_PANEL || !$("login").classList.contains("hidden")) return; if (!PCL.token()) return; RCON.resume(why); }
+function rcResume(why) { if (window.PCC_PANEL || !$("login").classList.contains("hidden") || !$("pc-fail").classList.contains("hidden")) return; if (!PCL.token()) return; RCON.resume(why); }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") rcResume("visible"); });
 addEventListener("pageshow", () => rcResume("pageshow"));
 addEventListener("focus", () => rcResume("focus"));
@@ -4039,13 +4070,13 @@ function onMsg(m) {
       }
       if (!own && (m.proto || 0) < PCL.MIN_PROTO) {
         RCON.stop(); setDot("", "PC com versão antiga");
-        showLogin("O Companion deste PC está desatualizado. Reinstale-o nele (install-server.ps1)."); return;
+        pcFail("old"); return;
       }
       if (m.pc_id) {   // nunca misturar PCs: o endereço tem de continuar sendo o mesmo PC
         const a = PCL.active();
         if (a.pcid && a.pcid !== m.pc_id) {
           RCON.stop(); setDot("", "Outro PC neste endereço");
-          showLogin(`O endereço de "${a.name}" agora responde por outro PC. Nada foi mostrado. Remova e adicione o PC de novo.`); return;
+          pcFail("other"); return;
         }
         PCL.update(a.id, { pcid: m.pc_id, ...(m.pc_name && (a.name === "Este PC" || a.name === "PC") ? { name: m.pc_name } : {}) });
         if (typeof pcPaint === "function") pcPaint();
@@ -4105,15 +4136,36 @@ function onMsg(m) {
   }
 }
 
+let downAt = 0, lastDot = null, bnStuck = false;   // downAt = desde quando não há conexão (0 = conectado)
 function setDot(cls, text) {
   $("dot").className = $("dot2").className = "dot " + cls;
   $("via").textContent = text || viaName();
+  if (cls === "ok") downAt = 0; else if (!downAt) downAt = Date.now();
+  lastDot = { cls, text };
   const b = $("banner"), wait = cls === "wait";
-  b.classList.toggle("hidden", cls === "ok" || !$("login").classList.contains("hidden"));
+  b.classList.toggle("hidden", cls === "ok" || !$("login").classList.contains("hidden") || !$("pc-fail").classList.contains("hidden"));
   b.setAttribute("role", "status");
-  b.innerHTML = `<span class="bn-t">${esc(wait ? (welcome.host && RCON.fails ? "Reconectando…" : "Conectando ao PC…") : (text || "Desconectado"))}</span><button type="button" class="bn-b" id="bn-now">Tentar agora</button>`;
+  bnStuck = pcStuck(downAt, Date.now());
+  const stuck = bnStuck && (wait || !text || /^Reconectando/.test(text)), back = stuck && pcBackTarget(PCL.list(), PCL.active().id, store.get("pcprev", null));
+  b.innerHTML = stuck ? `<span class="bn-t">${esc("Não consegui falar com " + PCL.active().name)}</span><button type="button" class="bn-b" id="bn-now">Tentar agora</button>${back ? `<button type="button" class="bn-b" id="bn-back" data-id="${esc(back.id)}">${esc((back.prev ? "Voltar para " : "Ir para ") + back.name)}</button>` : ""}`
+    : `<span class="bn-t">${esc(wait ? (welcome.host && RCON.fails ? "Reconectando…" : "Conectando ao PC…") : (text || "Desconectado"))}</span><button type="button" class="bn-b" id="bn-now">Tentar agora</button>`;
   micFabPaint();
 }
+// passou de 15 s sem conexão: a faixa ganha "Não consegui falar com X" e o botão de voltar (setDot só roda a cada tentativa)
+setInterval(() => { if (!window.PCC_PANEL && lastDot && downAt && pcStuck(downAt, Date.now()) !== bnStuck) setDot(lastDot.cls, lastDot.text); }, 2000);
+// tela de PC que recusou: texto por motivo + Voltar (PC anterior) + Meus PCs
+function pcFail(kind) {
+  const a = PCL.active(), i = pcFailInfo(kind, a.name), t = pcBackTarget(PCL.list(), a.id, store.get("pcprev", null));
+  bootDone(true); $("banner").classList.add("hidden");
+  $("pf-t").textContent = i.title; $("pf-m").textContent = i.msg;
+  const bk = $("pf-back"); bk.classList.toggle("hidden", !t);
+  if (t) { bk.textContent = (t.prev ? "Voltar para " : "Ir para ") + t.name; bk.dataset.id = t.id; }
+  $("pf-pair").classList.toggle("hidden", kind !== "token");
+  $("pc-fail").classList.remove("hidden");
+}
+$("pf-back").onclick = () => pcSwitch($("pf-back").dataset.id);
+$("pf-pcs").onclick = () => pcOpen(false);
+$("pf-pair").onclick = () => { $("pc-fail").classList.add("hidden"); showLogin(`Digite o código de 6 dígitos que aparece no painel de "${PCL.active().name}".`); };
 
 function showLogin(msg) {
   bootDone(true); $("banner").classList.add("hidden");
@@ -9181,7 +9233,7 @@ if (!window.PCC_PANEL) {
   if (!pend) makeAutoPc({
     enabled: () => prefs.pcauto, activeId: () => PCL.active().id, list: () => PCL.list(),
     recent: () => { try { const f = JSON.parse(sessionStorage.getItem("pcc.autosw") || "null"); return !!f && Date.now() - f.at < 60000; } catch { return false; } },
-    setT: (f, ms) => setTimeout(f, ms), connected: () => RCON.ok, fatal: () => !$("login").classList.contains("hidden") || /^(Origem|Token|Outro PC|PC com versão|Endereço)/.test($("via").textContent),
+    setT: (f, ms) => setTimeout(f, ms), connected: () => RCON.ok, fatal: () => !$("login").classList.contains("hidden") || !$("pc-fail").classList.contains("hidden") || /^(Origem|Token|Outro PC|PC com versão|Endereço)/.test($("via").textContent),
     probe: pcProbe,
     onSwitch: (e) => { try { sessionStorage.setItem("pcc.autosw", JSON.stringify({ at: Date.now(), id: e.id })); } catch {} pcActivate(e.id); location.reload(); },
   }).run();
