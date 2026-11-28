@@ -2862,7 +2862,7 @@ html.lm-still .rc-stage { animation: none; }
 <div class="overlay hidden" id="pcs">
   <div class="dialog" role="dialog" aria-labelledby="pcs-h">
     <h1 id="pcs-h">Meus PCs</h1>
-    <p id="pcs-sub">Cada PC guarda os próprios dados. Tema e widgets valem para todos.</p>
+    <p id="pcs-sub">Cada PC guarda os próprios dados e o próprio layout do Início. Tema e cor valem para todos.</p>
     <div id="pcs-list"></div>
     <form id="pcs-add" class="hidden" autocomplete="off">
       <label>Nome<input class="fi" id="pa-name" maxlength="30" placeholder="ex.: Trabalho"></label>
@@ -3393,7 +3393,7 @@ const HG = (() => {
 /* HG:end */
 /* KEYS:begin */
 // Lista fechada do estado do aparelho: UMA fonte para o backup no PC (BK) e para a exportação/importação completa (PCL2, FULL). Espelha devbackup.KEYS (teste confere).
-const DEVKEYS = Object.freeze(["theme", "variant", "mode", "accent", "crt", "home", "homepg", "tab", "views", "nav", "layouts", "mascot", "alerts", "snd", "vib", "wake", "dock", "idleMode", "land", "sens", "scrFast", "micFab", "micfab", "lumepos", "dotaOpen", "deckAuto", "pcnotif", "wmode", "tkmode", "liqLight"]);
+const DEVKEYS = Object.freeze(["pchome", "theme", "variant", "mode", "accent", "crt", "home", "homepg", "tab", "views", "nav", "layouts", "mascot", "alerts", "snd", "vib", "wake", "dock", "idleMode", "land", "sens", "scrFast", "micFab", "micfab", "lumepos", "dotaOpen", "deckAuto", "pcnotif", "wmode", "tkmode", "liqLight"]);
 /* KEYS:end */
 /* LAY:begin */
 function makeLayouts(store, rid, now, defaults) {
@@ -3564,7 +3564,7 @@ function makeLayouts(store, rid, now, defaults) {
 /* PCX:begin */
 // Exportar/importar o estado COMPLETO do aparelho (PCL2). Usa a mesma lista fechada do backup (DEVKEYS); nunca token, PCs, devid, credenciais nem histórico.
 function makeFull(store, KEYS, lay, defaults, now) {
-  const PREFIX = "PCL2.", MAX_CODE = 32768, EXCLUDE = ["layouts"];
+  const PREFIX = "PCL2.", MAX_CODE = 32768, EXCLUDE = ["layouts", "pchome"];
   const LAYOUT_DEFAULTS = defaults || {};
   const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
   const SHARED = KEYS.filter((k) => !EXCLUDE.includes(k));
@@ -3734,10 +3734,56 @@ const PCL = (() => {
   return api;
 })();
 const pk = (k) => k + "." + PCL.active().id;   // chave por PC (deck, Dota visto)
+/* PCH:begin */
+// Layout do Início por PC (chave `pchome` = {<id do PC>: {home, homepg}}). `home`/`homepg` continuam sendo as chaves de trabalho do PC ATIVO
+// (perfis de layout, backup e script do tema não mudam); ao trocar de PC o layout que sai é guardado e o do que entra vira o de trabalho.
+// PC sem layout próprio (1ª vez) mantém o atual e passa a tê-lo. Pura: sem DOM, testada em tests/test_pchome.js.
+function makePcHome(store, validHome) {
+  const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
+  const cleanPg = (o) => { const r = {}; if (isObj(o)) for (const k of ["land", "port", "tablet"]) if (Number.isInteger(o[k]) && o[k] >= 0 && o[k] < 10) r[k] = o[k]; return r; };
+  const entry = (e) => {
+    if (!isObj(e)) return null;
+    const h = e.home == null ? null : validHome(e.home);
+    if (e.home != null && !h) return null;
+    return { home: h, homepg: cleanPg(e.homepg) };
+  };
+  const all = () => { const raw = store.get("pchome", {}), out = {}; if (isObj(raw)) for (const id of Object.keys(raw).slice(0, 12)) { const e = entry(raw[id]); if (e) out[id] = e; } return out; };
+  const put = (m) => store.set("pchome", m);
+  const current = () => ({ home: store.get("home", null), homepg: store.get("homepg", {}) });
+  const write = (e) => { if (e.home) store.set("home", e.home); else store.del("home"); if (Object.keys(e.homepg).length) store.set("homepg", e.homepg); else store.del("homepg"); };
+  const save = (id) => { const m = all(); m[id] = entry(current()) || { home: null, homepg: {} }; put(m); };
+  return {
+    all, save, has: (id) => !!all()[id],
+    activate(from, to) {   // chamado antes de trocar o PC ativo; devolve true se o PC que entra já tinha layout próprio
+      if (from === to) return true;
+      save(from);
+      const e = all()[to];
+      if (e) { write(e); return true; }
+      save(to); return false;   // 1ª vez: copia o layout atual
+    },
+    copy(src, dst, activeId) {   // layout de `src` passa a ser o de `dst`; false se `src` ainda não tem layout próprio
+      if (src === dst) return false;
+      const m = all(), e = src === activeId ? (entry(current()) || { home: null, homepg: {} }) : m[src];
+      if (!e) return false;
+      m[dst] = { home: e.home, homepg: { ...e.homepg } }; put(m);
+      if (dst === activeId) write(m[dst]);
+      return true;
+    },
+    remove(id) { const m = all(); if (id in m) { delete m[id]; put(m); } },
+  };
+}
+/* PCH:end */
+const PCH = makePcHome(store, (v) => LAY.validOne("home", v));
+// única porta para trocar de PC (o chamador recarrega a página): guarda o layout de quem sai e põe o de quem entra
+function pcActivate(id) {
+  const from = PCL.active().id;
+  if (from !== id) { try { PCH.activate(from, id); LAY.sync(); } catch {} }
+  PCL.setActive(id);
+}
 // token via QR/link: http://pc:8770/#t=TOKEN  (o # não vai pela rede): vale para o PC deste endereço
 (() => {
   const m = location.hash.match(/[#&]t=([^&]+)/);
-  if (m) { const e = PCL.forOrigin(); if (e) { PCL.setToken(decodeURIComponent(m[1]), e.id); PCL.setActive(e.id); } }
+  if (m) { const e = PCL.forOrigin(); if (e) { PCL.setToken(decodeURIComponent(m[1]), e.id); pcActivate(e.id); } }
   const tab = location.hash.match(/[#&]tab=(\w+)/);   // link direto para uma aba: #tab=mouse
   if (tab) store.set("tab", tab[1]);
   if (m || tab) history.replaceState(null, "", location.pathname);
@@ -4059,13 +4105,20 @@ function pcPaint() {
 const shortMQ = matchMedia("(orientation: landscape) and (max-height: 560px)");
 function pcPlace() { document.body.classList.toggle("pc-col", shortMQ.matches && vis("inicio") && $("t-inicio").classList.contains("paged")); }
 shortMQ.addEventListener("change", pcPlace);
-function pcSwitch(id) { if (id === PCL.active().id) { pcClose(); return; } PCL.setActive(id); location.reload(); }
-let pcEditId = null;
+function pcSwitch(id) { if (id === PCL.active().id) { pcClose(); return; } pcActivate(id); location.reload(); }
+let pcEditId = null, pcCopyStep = null;   // pcCopyStep: null | {dst} escolhendo a origem | {dst, src} confirmando
+function pcCopyHtml(x, list) {
+  const st = pcCopyStep && pcCopyStep.dst === x.id ? pcCopyStep : null;
+  if (!st) return `<button class="btn sm" data-pc="copy" data-id="${x.id}">Copiar layout do outro PC</button>`;
+  const nm = (id) => esc((list.find((y) => y.id === id) || {}).name || "");
+  if (!st.src) return `<div class="pccopy" role="group" aria-label="Copiar o layout do Início de"><small>Copiar o layout do Início de:</small>${list.filter((y) => y.id !== x.id).map((y) => `<button class="btn sm" data-pc="copysrc" data-id="${x.id}" data-src="${y.id}">${esc(y.name)}</button>`).join("")}</div>`;
+  return `<div class="pccopy" role="group"><small>Substituir o layout de ${nm(x.id)} pelo de ${nm(st.src)}?</small><button class="btn sm danger" data-pc="copydo" data-id="${x.id}" data-src="${st.src}">Substituir</button><button class="btn sm" data-pc="copyno">Cancelar</button></div>`;
+}
 const MONI = '<svg class="pcmon" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-monitor"/></svg>';
 function pcRender() {
   const act = PCL.active().id, list = PCL.list();
   $("pcs-list").innerHTML = list.map((x) => pcEditId === x.id
-    ? `<div class="pcedit"><input class="fi" id="pe-name" maxlength="30" value="${esc(x.name)}" aria-label="Nome do PC"><div class="pccolors" role="group" aria-label="Cor do PC">${PC_COLORS.map((c, i) => `<button type="button" data-pc="color" data-id="${x.id}" data-c="${i}" style="--pcc:${c}" aria-label="${PC_COLOR_NAMES[i]}" aria-pressed="${i === x.color % PC_COLORS.length}">${MONI}</button>`).join("")}</div><button class="btn sm" data-pc="save" data-id="${x.id}">Salvar</button>${list.length > 1 ? `<button class="btn sm danger" data-pc="del" data-id="${x.id}">Remover</button>` : ""}<button class="btn sm" data-pc="cancel">Cancelar</button></div>`
+    ? `<div class="pcedit"><input class="fi" id="pe-name" maxlength="30" value="${esc(x.name)}" aria-label="Nome do PC"><div class="pccolors" role="group" aria-label="Cor do PC">${PC_COLORS.map((c, i) => `<button type="button" data-pc="color" data-id="${x.id}" data-c="${i}" style="--pcc:${c}" aria-label="${PC_COLOR_NAMES[i]}" aria-pressed="${i === x.color % PC_COLORS.length}">${MONI}</button>`).join("")}</div><button class="btn sm" data-pc="save" data-id="${x.id}">Salvar</button>${list.length > 1 ? `<button class="btn sm danger" data-pc="del" data-id="${x.id}">Remover</button>` : ""}<button class="btn sm" data-pc="cancel">Cancelar</button>${list.length > 1 ? pcCopyHtml(x, list) : ""}</div>`
     : `<div class="pcrow"><button class="pcpick${x.id === act ? " on" : ""}" data-pc="pick" data-id="${x.id}" style="--pcc:${PC_COLORS[x.color % PC_COLORS.length]}"><svg class="pcmon" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-monitor"/></svg><span><b>${esc(x.name)}</b><small>${esc(x.base.replace(/^https?:\/\//, ""))}</small></span><span class="pcst">${x.id === act ? "ativo" : x.hasToken ? "" : "sem pareamento"}</span></button><button class="btn sm" data-pc="edit" data-id="${x.id}" aria-label="Editar ${esc(x.name)}">Editar</button></div>`).join("");
 }
 function pcOpen(add) {
@@ -4084,9 +4137,13 @@ $("pcs-list").onclick = (e) => {
     case "pick": pcSwitch(id); break;
     case "edit": pcEditId = id; pcRender(); setTimeout(() => $("pe-name") && $("pe-name").focus(), 30); break;
     case "color": { const n = $("pe-name") ? $("pe-name").value : ""; PCL.update(id, { color: +b.dataset.c }); pcPaint(); pcRender(); if ($("pe-name")) $("pe-name").value = n; break; }
-    case "cancel": pcEditId = null; pcRender(); break;
+    case "cancel": pcEditId = null; pcCopyStep = null; pcRender(); break;
+    case "copy": pcCopyStep = { dst: id }; pcRender(); break;
+    case "copysrc": if (!PCH.has(b.dataset.src) && b.dataset.src !== PCL.active().id) { toast("Esse PC ainda não tem layout próprio", "bad"); break; } pcCopyStep = { dst: id, src: b.dataset.src }; pcRender(); break;
+    case "copyno": pcCopyStep = null; pcRender(); break;
+    case "copydo": { const ok = PCH.copy(b.dataset.src, id, PCL.active().id); pcCopyStep = null; pcEditId = null; if (!ok) { toast("Esse PC ainda não tem layout próprio", "bad"); pcRender(); break; } if (id === PCL.active().id) { LAY.sync(); location.reload(); } else { toast("Layout copiado", "ok"); pcRender(); } break; }
     case "save": { const n = $("pe-name").value.trim().slice(0, 30); if (n) { PCL.update(id, { name: n }); pcPaint(); } pcEditId = null; pcRender(); break; }
-    case "del": { const was = id === PCL.active().id; PCL.remove(id); pcEditId = null; if (was) location.reload(); else pcRender(); break; }
+    case "del": { const was = id === PCL.active().id; PCL.remove(id); PCH.remove(id); pcEditId = null; if (was) location.reload(); else pcRender(); break; }
   }
 };
 $("pcs-add").onsubmit = (e) => {
@@ -4097,7 +4154,7 @@ $("pcs-add").onsubmit = (e) => {
   let ent;
   try { ent = PCL.add({ name: $("pa-name").value, base: $("pa-base").value }); } catch (err) { $("pa-msg").textContent = err.message; return; }
   try { sessionStorage.setItem("pcc.pend", JSON.stringify({ id: ent.id, code })); } catch {}   // o código (6 dígitos, vale 120 s) só atravessa a recarga
-  PCL.setActive(ent.id); location.reload();
+  pcActivate(ent.id); location.reload();
 };
 // link de pareamento: <app>/#add=<endereço do PC>~<código de 6 dígitos>  (nunca leva token)
 (() => {
