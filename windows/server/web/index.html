@@ -2663,6 +2663,7 @@ html.lm-still .rc-stage { animation: none; }
       <div class="st-pg" data-pg="pcs" data-title="PCs e conexão" data-parent="">
         <div class="card">
           <button class="set st-row" id="st-pcopen" data-st-v="pcname"><i class="st-ic" style="--ic:#4C9AFF"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-monitor"/></svg></i><span class="st-t">PC ativo</span><span class="st-v"></span></button>
+          <div class="set"><label>Trocar de PC sozinho<small>Ao abrir, se o PC atual não responder e outro PC salvo estiver ligado, entra nele</small></label><button class="switch" id="sw-pcauto" aria-label="Trocar de PC sozinho"></button></div>
           <div class="set"><label>Conexão<small id="conn-info"></small></label><button class="btn sm" id="b-logout">Trocar token</button></div>
         </div>
         <h2>Controle do PC</h2>
@@ -2863,6 +2864,7 @@ html.lm-still .rc-stage { animation: none; }
   <div class="dialog" role="dialog" aria-labelledby="pcs-h">
     <h1 id="pcs-h">Meus PCs</h1>
     <p id="pcs-sub">Cada PC guarda os próprios dados e o próprio layout do Início. Tema e cor valem para todos.</p>
+    <div class="set pcauto-row"><label>Trocar de PC sozinho<small>Ao abrir, entra no PC que estiver ligado</small></label><button class="switch" id="sw-pcauto2" aria-label="Trocar de PC sozinho"></button></div>
     <div id="pcs-list"></div>
     <form id="pcs-add" class="hidden" autocomplete="off">
       <label>Nome<input class="fi" id="pa-name" maxlength="30" placeholder="ex.: Trabalho"></label>
@@ -3393,7 +3395,7 @@ const HG = (() => {
 /* HG:end */
 /* KEYS:begin */
 // Lista fechada do estado do aparelho: UMA fonte para o backup no PC (BK) e para a exportação/importação completa (PCL2, FULL). Espelha devbackup.KEYS (teste confere).
-const DEVKEYS = Object.freeze(["pchome", "theme", "variant", "mode", "accent", "crt", "home", "homepg", "tab", "views", "nav", "layouts", "mascot", "alerts", "snd", "vib", "wake", "dock", "idleMode", "land", "sens", "scrFast", "micFab", "micfab", "lumepos", "dotaOpen", "deckAuto", "pcnotif", "wmode", "tkmode", "liqLight"]);
+const DEVKEYS = Object.freeze(["pchome", "pcauto", "theme", "variant", "mode", "accent", "crt", "home", "homepg", "tab", "views", "nav", "layouts", "mascot", "alerts", "snd", "vib", "wake", "dock", "idleMode", "land", "sens", "scrFast", "micFab", "micfab", "lumepos", "dotaOpen", "deckAuto", "pcnotif", "wmode", "tkmode", "liqLight"]);
 /* KEYS:end */
 /* LAY:begin */
 function makeLayouts(store, rid, now, defaults) {
@@ -3564,7 +3566,7 @@ function makeLayouts(store, rid, now, defaults) {
 /* PCX:begin */
 // Exportar/importar o estado COMPLETO do aparelho (PCL2). Usa a mesma lista fechada do backup (DEVKEYS); nunca token, PCs, devid, credenciais nem histórico.
 function makeFull(store, KEYS, lay, defaults, now) {
-  const PREFIX = "PCL2.", MAX_CODE = 32768, EXCLUDE = ["layouts", "pchome"];
+  const PREFIX = "PCL2.", MAX_CODE = 32768, EXCLUDE = ["layouts", "pchome", "pcauto"];
   const LAYOUT_DEFAULTS = defaults || {};
   const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
   const SHARED = KEYS.filter((k) => !EXCLUDE.includes(k));
@@ -3712,6 +3714,7 @@ const PCL = (() => {
   const api = {
     MIN_PROTO, COLORS, ORIGIN, norm, fresh,
     list: () => d.list.map((x) => ({ ...x, token: undefined, hasToken: !!x.token })),   // a tela da lista nunca recebe o token
+    listFull: () => d.list.map((x) => ({ ...x })),   // só para o teste de PC (pcProbe): o token nunca chega à tela
     active: () => d.list.find((x) => x.id === d.active) || d.list[0],
     base: () => api.active().base || ORIGIN,
     isOrigin: () => api.base() === ORIGIN,
@@ -3780,6 +3783,54 @@ function pcActivate(id) {
   if (from !== id) { try { PCH.activate(from, id); LAY.sync(); } catch {} }
   PCL.setActive(id);
 }
+/* APC:begin */
+// Entrar sozinho no PC que está ligado (só ao abrir o app, 1× por página). Pura: sem DOM, testada em tests/test_autopc.js.
+// Regra: o PC atual NUNCA é trocado se está conectado (conferido de novo antes de trocar), nem em erro de login, nem 2× em 60 s.
+function makeAutoPc(d) {
+  const WAIT = 3000, PROBE = 4000;
+  let started = false;
+  return {
+    WAIT, PROBE,
+    async run() {
+      if (started) return "again"; started = true;
+      if (!d.enabled()) return "off";
+      const act = d.activeId(), others = d.list().filter((x) => x.id !== act && x.hasToken);
+      if (!others.length) return "alone";
+      if (d.recent()) return "recent";
+      await new Promise((res) => d.setT(res, WAIT));
+      if (d.connected()) return "connected";
+      if (d.fatal()) return "fatal";
+      const win = await new Promise((res) => {
+        let left = others.length;
+        for (const e of others) {
+          Promise.resolve().then(() => d.probe(e, PROBE)).catch(() => false).then((ok) => { if (ok) res(e); else if (--left === 0) res(null); });
+        }
+        d.setT(() => res(null), PROBE + 500);
+      });
+      if (!win) return "none";
+      if (d.connected() || d.fatal() || d.activeId() !== act) return "connected";   // o atual voltou durante o teste
+      d.onSwitch(win); return "switched";
+    },
+  };
+}
+/* APC:end */
+// teste de um PC salvo: abre um WebSocket só para ele, manda o hello com o token dele e espera o welcome do pc_id certo; fecha em seguida
+function pcProbe(e, ms) {
+  return new Promise((res) => {
+    const full = PCL.listFull().find((x) => x.id === e.id);
+    if (!full || !full.token || (location.protocol === "https:" && full.base.startsWith("http:"))) { res(false); return; }
+    let ws2, done = false;
+    const end = (ok) => { if (done) return; done = true; clearTimeout(tm); try { ws2 && ws2.close(); } catch {} res(ok); };
+    const tm = setTimeout(() => end(false), ms);
+    try { ws2 = new WebSocket(full.base.replace(/^http/, "ws") + "/ws"); } catch { end(false); return; }
+    ws2.onopen = () => ws2.send(JSON.stringify({ t: "hello", token: full.token, client: "probe", screen: "probe" }));
+    ws2.onmessage = (ev) => { try { const m = JSON.parse(ev.data); if (m.t === "welcome") end(!(full.pcid && m.pc_id && full.pcid !== m.pc_id)); else end(false); } catch { end(false); } };
+    ws2.onclose = ws2.onerror = () => end(false);
+  });
+}
+function autoNotice() {   // depois da troca automática: "Conectado em Casa" (uma vez)
+  try { const f = JSON.parse(sessionStorage.getItem("pcc.autosw") || "null"); if (f && !f.shown && f.id === PCL.active().id) { f.shown = 1; sessionStorage.setItem("pcc.autosw", JSON.stringify(f)); toast("Conectado em " + PCL.active().name, "ok"); } } catch {}
+}
 // token via QR/link: http://pc:8770/#t=TOKEN  (o # não vai pela rede): vale para o PC deste endereço
 (() => {
   const m = location.hash.match(/[#&]t=([^&]+)/);
@@ -3788,7 +3839,7 @@ function pcActivate(id) {
   if (tab) store.set("tab", tab[1]);
   if (m || tab) history.replaceState(null, "", location.pathname);
 })();
-const prefs = { micFab: store.get("micFab", true), dotaOpen: store.get("dotaOpen", true), snd: store.get("snd", true), wake: store.get("wake", true), vib: store.get("vib", true), sens: store.get("sens", 1.8), tab: store.get("tab", "inicio") };
+const prefs = { pcauto: store.get("pcauto", true), micFab: store.get("micFab", true), dotaOpen: store.get("dotaOpen", true), snd: store.get("snd", true), wake: store.get("wake", true), vib: store.get("vib", true), sens: store.get("sens", 1.8), tab: store.get("tab", "inicio") };
 
 // ---------------------------------------------------------------- formatação
 const fmtBytes = (n, rate) => {
@@ -3999,7 +4050,7 @@ function onMsg(m) {
         PCL.update(a.id, { pcid: m.pc_id, ...(m.pc_name && (a.name === "Este PC" || a.name === "PC") ? { name: m.pc_name } : {}) });
         if (typeof pcPaint === "function") pcPaint();
       }
-      welcome = m; RCON.welcome();
+      welcome = m; RCON.welcome(); autoNotice();
       if (typeof homeUpd === "function") homeUpd();   // PC novo: o que ele não tem fica "indisponível neste PC" no próprio lugar
       $("host").textContent = m.host; $("os").textContent = m.os;
       setDot("ok", "");
@@ -8911,6 +8962,9 @@ function bindSwitch(id, key, onChange) {
   const sw = $(id); sw.classList.toggle("on", !!prefs[key]);
   sw.onclick = () => { prefs[key] = !prefs[key]; store.set(key, prefs[key]); sw.classList.toggle("on", prefs[key]); onChange && onChange(); };
 }
+const pcAutoPaint = () => { for (const id of ["sw-pcauto", "sw-pcauto2"]) { const e = $(id); if (e) e.classList.toggle("on", !!prefs.pcauto); } };
+for (const id of ["sw-pcauto", "sw-pcauto2"]) $(id).onclick = () => { prefs.pcauto = !prefs.pcauto; store.set("pcauto", prefs.pcauto); pcAutoPaint(); };
+pcAutoPaint();
 bindSwitch("sw-wake", "wake", applyWake);
 bindSwitch("sw-liqlight", "liqLight", applyTheme);
 bindSwitch("sw-vib", "vib");
@@ -9124,6 +9178,13 @@ if (!window.PCC_PANEL) {
   let pend = null;
   try { pend = JSON.parse(sessionStorage.getItem("pcc.pend") || "null"); sessionStorage.removeItem("pcc.pend"); } catch {}
   if (pend && pend.id === PCL.active().id && /^\d{6}$/.test(pend.code)) connect(pend.code); else connect();
+  if (!pend) makeAutoPc({
+    enabled: () => prefs.pcauto, activeId: () => PCL.active().id, list: () => PCL.list(),
+    recent: () => { try { const f = JSON.parse(sessionStorage.getItem("pcc.autosw") || "null"); return !!f && Date.now() - f.at < 60000; } catch { return false; } },
+    setT: (f, ms) => setTimeout(f, ms), connected: () => RCON.ok, fatal: () => !$("login").classList.contains("hidden") || /^(Origem|Token|Outro PC|PC com versão|Endereço)/.test($("via").textContent),
+    probe: pcProbe,
+    onSwitch: (e) => { try { sessionStorage.setItem("pcc.autosw", JSON.stringify({ at: Date.now(), id: e.id })); } catch {} pcActivate(e.id); location.reload(); },
+  }).run();
 }
 </script>
 <!-- ============================ MODO PAINEL (janela do PC) ============================

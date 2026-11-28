@@ -22,7 +22,7 @@ ID_RX = re.compile(r"^[0-9a-f]{32}$")
 REF_RX = re.compile(r"^[0-9a-f]{12}$")
 FILE_RX = re.compile(r"^v-(\d{10,16})\.json$")
 
-KEYS = ("pchome", "theme", "variant", "mode", "accent", "crt", "home", "homepg", "tab", "views", "nav", "layouts", "mascot",
+KEYS = ("pchome", "pcauto", "theme", "variant", "mode", "accent", "crt", "home", "homepg", "tab", "views", "nav", "layouts", "mascot",
         "alerts", "snd", "vib", "wake", "dock", "idleMode", "land", "sens", "scrFast", "micFab", "micfab", "lumepos",
         "dotaOpen", "deckAuto", "pcnotif", "wmode", "tkmode", "liqLight")
 

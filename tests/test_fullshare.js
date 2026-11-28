@@ -32,7 +32,7 @@ const SECRETS = { token: "SEGREDO", pcs: { list: [{ base: "https://x", token: "T
   t("DEVKEYS igual à lista do servidor (devbackup.KEYS)", [...K], pyKeys);
   t("BK usa a mesma lista (sem 2ª cópia)", /const KEYS = DEVKEYS;/.test(html) && !/const KEYS = \[/.test(blk("BKP")), true);
   const { F } = dev();
-  t("todo grupo cobre as chaves (menos layouts e pchome)", F.GROUPS.flatMap((g) => g.keys).sort(), [...K].filter((k) => k !== "layouts" && k !== "pchome").sort());
+  t("todo grupo cobre as chaves (menos layouts e pchome)", F.GROUPS.flatMap((g) => g.keys).sort(), [...K].filter((k) => k !== "layouts" && k !== "pchome" && k !== "pcauto").sort());
   t("grupos", F.GROUPS.map((g) => g.label), ["Início", "Menu", "Aparência", "Tela de espera", "Lume e avisos", "Outros"]);
 }
 // ---- exportar -> importar em aparelho limpo dá o mesmo estado
