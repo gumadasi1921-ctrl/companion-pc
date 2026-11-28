@@ -109,6 +109,37 @@ async def live(srv):
     p = await hello(xff="100.64.0.7", msg={"t": "hello", "panel": PANEL})
     check("painel por proxy (X-Forwarded-For) recusado", p.get("closed") == 4001, str(p)[:60])
     check("token certo por proxy entra", (await hello(xff="100.64.0.7")).get("t") == "welcome")
+    # "who": quem responde neste endereço (sem token), e o hello com o token certo na mesma conexão
+    hdr = {"Origin": APP}
+    ws = await websockets.connect(f"ws://127.0.0.1:{PORT}", additional_headers=hdr)
+    await ws.send(json.dumps({"t": "who"}))
+    wh = json.loads(await asyncio.wait_for(ws.recv(), 4))
+    check("who devolve pc_id, nome e proto, sem token", wh.get("t") == "who" and multipc.valid_pc_id(wh.get("pc_id")) and wh.get("proto") == multipc.PROTO
+          and TOKEN not in json.dumps(wh) and set(wh) == {"t", "pc_id", "pc_name", "proto"}, str(sorted(wh)))
+    await ws.send(json.dumps({"t": "hello", "token": TOKEN}))
+    wl = json.loads(await asyncio.wait_for(ws.recv(), 4))
+    check("depois do who o hello com o token entra (mesmo pc_id)", wl.get("t") == "welcome" and wl.get("pc_id") == wh.get("pc_id"))
+    await ws.close()
+    ws = await websockets.connect(f"ws://127.0.0.1:{PORT}", additional_headers=hdr)
+    await ws.send(json.dumps({"t": "who"}))
+    await asyncio.wait_for(ws.recv(), 4)
+    await ws.send(json.dumps({"t": "hello", "token": "errado"}))
+    try:
+        r = await asyncio.wait_for(ws.recv(), 4)
+    except Exception as e:  # noqa: BLE001
+        r = {"closed": getattr(getattr(e, "rcvd", None), "code", None)}
+    check("who + token errado = 4001", (r if isinstance(r, dict) else {}).get("closed") == 4001, str(r)[:40])
+    ws = await websockets.connect(f"ws://127.0.0.1:{PORT}", additional_headers=hdr)
+    await ws.send(json.dumps({"t": "who"}))
+    await asyncio.wait_for(ws.recv(), 4)
+    await ws.send(json.dumps({"t": "who"}))
+    try:
+        r = await asyncio.wait_for(ws.recv(), 4)
+    except Exception as e:  # noqa: BLE001
+        r = {"closed": getattr(getattr(e, "rcvd", None), "code", None)}
+    check("who só vale uma vez (o 2º cai como hello inválido)", (r if isinstance(r, dict) else {}).get("closed") == 4001, str(r)[:40])
+    bad = await hello(origin="https://mal.com", msg={"t": "who"})
+    check("who com origem estranha = 4004 (nem responde)", bad.get("closed") == 4004, str(bad)[:40])
 
 
 def main():

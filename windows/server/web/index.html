@@ -3821,13 +3821,14 @@ const PCL = (() => {
     url: (path) => (typeof path === "string" && path.startsWith("/") && !api.isOrigin() ? api.base() + path : path),
     wsUrl: () => api.base().replace(/^http/, "ws") + "/ws",
     token: () => api.active().token || "",
+    tokenOf: (id) => (d.list.find((x) => x.id === id) || {}).token || "",   // só para o hello: o token nunca chega à tela
     setToken(t, id) { const e = d.list.find((x) => x.id === (id || api.active().id)); if (e) { e.token = t || ""; save(); } },
     update(id, patch) { const e = d.list.find((x) => x.id === id); if (!e) return; for (const k of ["name", "color", "pcid"]) if (k in patch) e[k] = patch[k]; save(); },
-    add({ name, base }) {
+    add({ name, base, pcid }) {
       const b = norm(base); if (!b) throw new Error("Endereço inválido (https://nome-do-pc.ts.net)");
       if (d.list.length >= 8) throw new Error("No máximo 8 PCs");
-      if (d.list.some((x) => x.base === b)) throw new Error("Esse endereço já está na lista");
-      const e = { id: rid(), name: String(name || "").trim().slice(0, 30) || "PC", base: b, token: "", pcid: null, color: [...Array(COLORS).keys()].find((c) => !d.list.some((x) => x.color % COLORS === c)) ?? d.list.length % COLORS };
+      if (d.list.some((x) => x.base === b && !x.pcid && !x.token)) throw new Error("Já existe um PC desse endereço esperando pareamento");   // vários PCs podem responder pelo mesmo endereço (Tailscale Service)
+      const e = { id: rid(), name: String(name || "").trim().slice(0, 30) || "PC", base: b, token: "", pcid: /^[0-9a-f]{16}$/.test(pcid || "") ? pcid : null, color: [...Array(COLORS).keys()].find((c) => !d.list.some((x) => x.color % COLORS === c)) ?? d.list.length % COLORS };
       d.list.push(e); save(); return e;
     },
     remove(id) { if (d.list.length < 2) return false; d.list = d.list.filter((x) => x.id !== id); if (d.active === id) d.active = d.list[0].id; save(); return true; },
@@ -4075,21 +4076,90 @@ function pcBackTarget(list, activeId, prevId) {
 }
 const pcStuck = (downAt, now) => !!downAt && now - downAt >= PCF_STUCK_MS;
 /* PCF:end */
-let pendingPair = null, rconPcId = null;   // rconPcId = PC dono do socket atual (um erro dele nunca mexe no token de outro PC)
+/* PCP:begin */
+// Vários PCs atrás do MESMO endereço (Tailscale Service): cada entrada guarda o próprio token e pc_id. Pura (tests/test_pcpick.js).
+const pcpSharers = (list, base) => (list || []).filter((x) => x && x.base === base);
+const pcpNeedWho = (list, active) => !!active && pcpSharers(list, active.base).length >= 2;
+// "who" respondeu pc_id: use = a ativa serve | switch = outra entrada já pareada com esse pc_id (ou sem pc_id, que adota) | pair = nenhuma serve
+function pcpChoose(list, activeId, whoPcid) {
+  const act = (list || []).find((x) => x && x.id === activeId);
+  if (!act || !whoPcid) return { action: "use", id: activeId };
+  const sh = pcpSharers(list, act.base), m = sh.find((x) => x.pcid === whoPcid);
+  if (m) return { action: m.id === activeId ? "use" : "switch", id: m.id };
+  const free = !act.pcid ? act : sh.find((x) => !x.pcid);
+  if (free) return { action: free.id === activeId ? "use" : "switch", id: free.id, adopt: true };
+  return { action: "pair" };
+}
+// plano B (servidor sem "who"): ordem dos tokens a tentar = ativa primeiro, depois as outras do mesmo endereço que têm token
+function pcpOrder(list, activeId) {
+  const act = (list || []).find((x) => x && x.id === activeId); if (!act) return [];
+  const sh = pcpSharers(list, act.base).filter((x) => x.hasToken);
+  return [...sh.filter((x) => x.id === activeId), ...sh.filter((x) => x.id !== activeId)].map((x) => x.id);
+}
+// onde guardar o token recém-pareado: entrada com o pc_id que respondeu | a ativa se ainda não tem pc_id | outra sem pc_id | criar entrada nova
+function pcpResolvePaired(list, activeId, pcid) {
+  const act = (list || []).find((x) => x && x.id === activeId); if (!act) return { create: true };
+  const sh = pcpSharers(list, act.base), m = pcid ? sh.find((x) => x.pcid === pcid) : null;
+  if (m) return { id: m.id };
+  if (!act.pcid) return { id: act.id };
+  const free = pcid ? sh.find((x) => !x.pcid) : null;
+  return free ? { id: free.id } : pcid ? { create: true } : { id: act.id };
+}
+/* PCP:end */
+let pendingPair = null, rconPcId = null, whoWait = false, fbTok = null, fb = null, pairTok = null;   // who = esperando "quem responde"; fb = plano B (tenta o token de cada entrada do endereço)
+const whoOff = () => { try { return (sessionStorage.getItem("pcc.whoff") || "").split("|").includes(PCL.base()); } catch { return false; } };   // servidor sem "who" neste endereço
+const whoOffSet = () => { try { const l = (sessionStorage.getItem("pcc.whoff") || "").split("|").filter(Boolean); if (!l.includes(PCL.base())) l.push(PCL.base()); sessionStorage.setItem("pcc.whoff", l.join("|")); } catch {} };
+const helloScreen = () => `${innerWidth}x${innerHeight} dpr${devicePixelRatio} ${matchMedia("(orientation: landscape)").matches ? "deitado" : "em pé"} cq=${CSS.supports("container-type: size")} ${(navigator.userAgent.match(/Chrome\/[\d.]+/) || [navigator.userAgent.slice(0, 40)])[0]}`;
+function sendHello(sock, token) { sock.send(JSON.stringify({ t: "hello", token, client: "android", screen: helloScreen() })); }
+function fbTry() { fbTok = PCL.tokenOf(fb.ids[fb.i]); RCON.connect(); }
+// o servidor respondeu "who": escolhe a entrada do pc_id que respondeu (token POR pc_id); sem entrada = pareia uma vez
+function onWho(m) {
+  whoWait = false;
+  const act = PCL.active(), ch = pcpChoose(PCL.list(), act.id, m.pc_id);
+  const go = (id) => {   // troca de entrada (no máximo 1× a cada 15 s: sem laço se o endereço alternar entre PCs)
+    let f = null; try { f = JSON.parse(sessionStorage.getItem("pcc.autosw") || "null"); } catch {}
+    if (f && Date.now() - f.at < 15000) { RCON.stop(); setDot("", "Outro PC neste endereço"); pcFail("other"); return; }
+    try { sessionStorage.setItem("pcc.autosw", JSON.stringify({ at: Date.now(), id })); } catch {}
+    pcActivate(id); location.reload();
+  };
+  if (ch.action === "pair") {
+    try { const e = PCL.add({ name: m.pc_name || "PC", base: act.base, pcid: m.pc_id }); go(e.id); } catch { RCON.stop(); setDot("", "Outro PC neste endereço"); pcFail("other"); }
+    return;
+  }
+  if (ch.adopt) PCL.update(ch.id, { pcid: m.pc_id });
+  if (ch.action === "switch") { go(ch.id); return; }
+  const tok = PCL.tokenOf(ch.id);
+  if (!tok) { RCON.stop(); showLogin(`Digite o código do painel de "${PCL.active().name}" para parear este aparelho.`); return; }
+  sendHello(RCON.sock, tok);
+}   // rconPcId = PC dono do socket atual (um erro dele nunca mexe no token de outro PC)
 const RCON = makeRc({
   create: () => { rconPcId = PCL.active().id; return new WebSocket(wsUrl()); },
   now: () => Date.now(), setT: (f, ms) => setTimeout(f, ms), clearT: (h) => clearTimeout(h),
   pairCode: () => null,
   onSock: (s) => { ws = s; if (!s) { for (const [, p] of pending) p.reject(new Error("desconectado")); pending.clear(); } },
-  onOpen: (sock, pairCode) => sock.send(JSON.stringify({ t: pairCode ? "pair" : "hello", ...(pairCode ? { code: pairCode } : { token: PCL.token() }), client: "android",
-    screen: `${innerWidth}x${innerHeight} dpr${devicePixelRatio} ${matchMedia("(orientation: landscape)").matches ? "deitado" : "em pé"} cq=${CSS.supports("container-type: size")} ${(navigator.userAgent.match(/Chrome\/[\d.]+/) || [navigator.userAgent.slice(0, 40)])[0]}` })),
-  onMessage: (ev) => onMsg(JSON.parse(ev.data)),
+  onOpen: (sock, pairCode) => {
+    if (pairCode) { sock.send(JSON.stringify({ t: "pair", code: pairCode, client: "android", screen: helloScreen() })); return; }
+    if (fbTok != null) { sendHello(sock, fbTok); return; }   // plano B
+    if (pcpNeedWho(PCL.list(), PCL.active()) && !whoOff()) { whoWait = true; sock.send(JSON.stringify({ t: "who" })); return; }
+    sendHello(sock, PCL.token());
+  },
+  onMessage: (ev) => { const m = JSON.parse(ev.data); if (m.t === "who") onWho(m); else onMsg(m); },
   onStatus: (k) => {
     if (k === "wait") { setDot("wait", RCON && RCON.fails ? "Reconectando…" : "Conectando…"); return; }
     setDot("", "Reconectando…");
     if (wasOnline) { wasOnline = false; snd("off"); }
   },
   onFatal: (code) => {
+    if (code === 4001 && whoWait) {   // servidor antigo: não conhece "who" e fechou como hello inválido → plano B (token de cada entrada do endereço)
+      whoWait = false; whoOffSet();
+      const ids = pcpOrder(PCL.list(), PCL.active().id);
+      if (!ids.length) { showLogin(); return; }
+      fb = { ids, i: 0 }; fbTry(); return;
+    }
+    if (code === 4001 && fb) {   // o token tentado não é deste PC: nada é apagado, tenta o próximo
+      if (++fb.i < fb.ids.length) { fbTry(); return; }
+      fb = null; fbTok = null; setDot("", "Token inválido"); pcFail("token"); return;
+    }
     if (rconPcId !== PCL.active().id && code !== 4001) return;
     if (code === 4002) showLogin("Código errado ou vencido. Gere outro no painel do PC.");
     else if (code === 4003) showLogin("Muitas tentativas. Espere 1 minuto.");
@@ -4100,7 +4170,7 @@ const RCON = makeRc({
 
 function connect(pairCode) {
   const token = PCL.token();
-  if (!token && !pairCode) { RCON.stop(); showLogin(); return; }
+  if (!token && !pairCode) { RCON.stop(); const a = PCL.active(); showLogin(a.pcid ? `Digite o código do painel de "${a.name}" para parear este aparelho.` : undefined); return; }
   if (location.protocol === "https:" && PCL.base().startsWith("http:")) {   // o navegador bloqueia ws:// a partir de uma página https://
     RCON.stop(); setDot("", "Endereço bloqueado"); pcFail("https"); return;
   }
@@ -4150,7 +4220,7 @@ function act(a, p, label) {
 
 function onMsg(m) {
   switch (m.t) {
-    case "paired": PCL.setToken(m.token); $("login").classList.add("hidden"); break;   // o token nunca aparece na tela
+    case "paired": pairTok = m.token; $("login").classList.add("hidden"); break;   // o token nunca aparece na tela; o welcome (pc_id) diz de qual PC ele é
     case "welcome":
       if (m.icon_key) iconKey = m.icon_key;   // o welcome parcial do aviso de página nova não traz a chave: ela fica guardada
       // página nova no PC: recarrega (o app reconecta sozinho e nunca baixaria o HTML de novo)
@@ -4164,6 +4234,27 @@ function onMsg(m) {
       if (!own && (m.proto || 0) < PCL.MIN_PROTO) {
         RCON.stop(); setDot("", "PC com versão antiga");
         pcFail("old"); return;
+      }
+      if (fb && fb.ids[fb.i] !== PCL.active().id) {   // plano B: o token de OUTRA entrada do endereço foi aceito → é esse PC
+        const id = fb.ids[fb.i]; fb = null; fbTok = null;
+        if (m.pc_id) PCL.update(id, { pcid: m.pc_id });
+        try { sessionStorage.setItem("pcc.autosw", JSON.stringify({ at: Date.now(), id })); } catch {}
+        pcActivate(id); location.reload(); return;
+      }
+      fb = null; fbTok = null;
+      if (pairTok) {   // código aceito: o token vai para a entrada do pc_id que respondeu (nunca para um PC diferente)
+        const tk = pairTok, a0 = PCL.active(), r = pcpResolvePaired(PCL.list(), a0.id, m.pc_id); pairTok = null;
+        if (r.create) {
+          try { const e = PCL.add({ name: m.pc_name || "PC", base: a0.base, pcid: m.pc_id }); PCL.setToken(tk, e.id); pcActivate(e.id); location.reload(); } catch { RCON.stop(); pcFail("other"); }
+          return;
+        }
+        PCL.setToken(tk, r.id);
+        if (r.id !== a0.id) {
+          if (m.pc_id) PCL.update(r.id, { pcid: m.pc_id });
+          const placeholder = !a0.pcid && !PCL.tokenOf(a0.id);
+          pcActivate(r.id); if (placeholder) { PCL.remove(a0.id); PCH.remove(a0.id); }
+          location.reload(); return;
+        }
       }
       if (m.pc_id) {   // nunca misturar PCs: o endereço tem de continuar sendo o mesmo PC
         const a = PCL.active();

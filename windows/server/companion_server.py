@@ -1534,6 +1534,10 @@ async def panel_session(ws, peer):
 async def session(ws, peer, kind, xff=None):
     try:
         hello = json.loads(await asyncio.wait_for(ws.recv(), 5))
+        if isinstance(hello, dict) and hello.get("t") == "who":
+            # "quem responde neste endereço?": só pc_id/nome/proto (nada secreto, sem token), uma vez; o hello com o token do PC certo vem em seguida
+            await ws.send(json.dumps({"t": "who", "pc_id": CFG["pc_id"], "pc_name": CFG.get("pc_name", ""), "proto": multipc.PROTO}))
+            hello = json.loads(await asyncio.wait_for(ws.recv(), 5))
     except Exception:
         await ws.close(4001, "hello")
         return
